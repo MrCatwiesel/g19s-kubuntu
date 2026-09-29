@@ -1,0 +1,5 @@
+# Logitech G19/G19s: Zugriff auf Display/G-Tasten und uinput für den angemeldeten Benutzer
+SUBSYSTEM=="usb", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c229", MODE="0660", TAG+="uaccess"
+KERNEL=="uinput", SUBSYSTEM=="misc", MODE="0660", TAG+="uaccess", OPTIONS+="static_node=uinput"
+# Makroaufnahme: Lesezugriff auf die normale G19-Tastatur (046d:c228)
+SUBSYSTEM=="input", KERNEL=="event*", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c228", TAG+="uaccess"

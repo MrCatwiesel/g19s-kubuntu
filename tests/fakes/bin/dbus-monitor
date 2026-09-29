@@ -1,0 +1,19 @@
+#!/bin/sh
+sleep 1.5
+cat <<'X'
+method call time=1 sender=:1.50 -> destination=:1.20 serial=12 path=/org/freedesktop/Notifications; interface=org.freedesktop.Notifications; member=Notify
+   string "Thunderbird"
+   uint32 0
+   string "thunderbird"
+   string "Neue E-Mail von Anna"
+   string "Grillen am Samstag?"
+   array [
+   ]
+method call time=2 sender=:1.51 -> destination=:1.20 serial=13 path=/org/freedesktop/Notifications; interface=org.freedesktop.Notifications; member=Notify
+   string "Discover"
+   uint32 0
+   string ""
+   string "Updates verfügbar"
+   string "12 Pakete"
+X
+exec sleep 600

@@ -1,0 +1,42 @@
+{
+ "loaded": [
+  "clock",
+  "calendar",
+  "hardware",
+  "weather"
+ ],
+ "pages": [
+  [
+   "clock",
+   "M1"
+  ],
+  [
+   "calendar",
+   "M1"
+  ],
+  [
+   "hardware",
+   "M2"
+  ],
+  [
+   "weather",
+   "M2"
+  ],
+  [
+   "calendar",
+   "M1"
+  ],
+  [
+   "clock",
+   "M3"
+  ],
+  [
+   "weather",
+   "M2"
+  ],
+  [
+   "calendar",
+   "M1"
+  ]
+ ]
+}

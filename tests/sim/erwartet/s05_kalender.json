@@ -1,0 +1,17 @@
+{
+ "log": [
+  "Kalender sichtbar: Persönlich, Geburtstage von Kontakten, Birgit & Marco, Birgit, Geburtstage",
+  "Kalender sichtbar: Geburtstage von Kontakten, Birgit & Marco, Birgit, Geburtstage"
+ ],
+ "pages": [
+  "calendar",
+  "clock",
+  "calendar"
+ ],
+ "state": {
+  "calendar_hidden": [
+   "35c7689160cd",
+   "879021867803"
+  ]
+ }
+}

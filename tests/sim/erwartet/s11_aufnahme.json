@@ -1,0 +1,156 @@
+{
+ "backlight": [
+  [
+   0,
+   110,
+   255
+  ],
+  [
+   255,
+   40,
+   40
+  ],
+  [
+   0,
+   110,
+   255
+  ],
+  [
+   255,
+   40,
+   40
+  ],
+  [
+   0,
+   110,
+   255
+  ],
+  [
+   255,
+   40,
+   40
+  ],
+  [
+   0,
+   110,
+   255
+  ],
+  [
+   0,
+   255,
+   90
+  ],
+  [
+   255,
+   70,
+   0
+  ],
+  [
+   0,
+   110,
+   255
+  ]
+ ],
+ "events": [
+  [
+   "KEY_LEFTCTRL",
+   1
+  ],
+  [
+   "KEY_F15",
+   1
+  ],
+  [
+   "KEY_F15",
+   0
+  ],
+  [
+   "KEY_LEFTCTRL",
+   0
+  ],
+  [
+   "KEY_LEFTALT",
+   1
+  ],
+  [
+   "KEY_F16",
+   1
+  ],
+  [
+   "KEY_F16",
+   0
+  ],
+  [
+   "KEY_LEFTALT",
+   0
+  ],
+  [
+   "KEY_A",
+   1
+  ],
+  [
+   "KEY_A",
+   0
+  ],
+  [
+   "KEY_B",
+   1
+  ],
+  [
+   "KEY_B",
+   0
+  ]
+ ],
+ "leds": [
+  128,
+  144,
+  128,
+  144,
+  128,
+  144,
+  128,
+  64,
+  32,
+  128
+ ],
+ "log": [
+  "Makros geladen: 1 Profile, 1 Belegungen",
+  "Makroaufnahme: G-Taste wählen",
+  "Aufnahme für M1/G1 läuft – MR zum Beenden",
+  "Makro M1/G1 gespeichert (2 Tastendrücke)",
+  "Makroaufnahme: G-Taste wählen",
+  "Aufnahme für M1/G2 läuft – MR zum Beenden",
+  "Makro M1/G2 gelöscht",
+  "Makroaufnahme: G-Taste wählen",
+  "Makroaufnahme abgebrochen"
+ ],
+ "macros": {
+  "M1": {
+   "G1": {
+    "name": "Makro G1",
+    "steps": [
+     [
+      0,
+      "KEY_A",
+      "down"
+     ],
+     [
+      30,
+      "KEY_A",
+      "up"
+     ],
+     [
+      20,
+      "KEY_B",
+      "down"
+     ],
+     [
+      30,
+      "KEY_B",
+      "up"
+     ]
+    ]
+   }
+  }
+ }
+}

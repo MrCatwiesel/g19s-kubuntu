@@ -1,0 +1,19 @@
+{
+ "log": [
+  "Markante Warnung: STURMBÖEN",
+  "Nachricht geöffnet: Linux-Kernel 7.2 freigegeben"
+ ],
+ "opened": [
+  [
+   "xdg-open",
+   "https://www.heise.de/news/kernel.html"
+  ],
+  "konsole -e sudo apt full-upgrade"
+ ],
+ "pages": [
+  "news",
+  "warnings",
+  "network",
+  "updates"
+ ]
+}

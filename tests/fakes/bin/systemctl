@@ -1,0 +1,10 @@
+#!/bin/sh
+. "$(dirname "$0")/_root"
+[ -f $S/active ] || echo active > $S/active; [ -f $S/enabled ] || echo enabled > $S/enabled
+case "$2" in
+  is-active) cat $S/active;; is-enabled) cat $S/enabled;;
+  start|restart) echo active > $S/active; echo "$(date +%T) g19s: $2" >> $S/log;;
+  stop) echo inactive > $S/active; echo "$(date +%T) g19s: stop" >> $S/log;;
+  enable) echo enabled > $S/enabled;; disable) echo disabled > $S/enabled;;
+  show-environment) echo "PATH=$PATH";;
+esac

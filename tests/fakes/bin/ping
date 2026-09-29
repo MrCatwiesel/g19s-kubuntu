@@ -1,0 +1,6 @@
+#!/bin/sh
+for a; do h=$a; done
+case "$h" in
+  10.0.0.99) echo "1 packets transmitted, 0 received"; exit 1;;
+  *) echo "64 bytes from $h: icmp_seq=1 ttl=64 time=1.84 ms"; exit 0;;
+esac

@@ -1,0 +1,16 @@
+{
+ "backlight": [
+  [
+   0,
+   110,
+   255
+  ]
+ ],
+ "file_keys": [
+  "M1"
+ ],
+ "state": {},
+ "typed": [
+  "KEY_A"
+ ]
+}

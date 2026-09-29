@@ -1,0 +1,2 @@
+# gemeinsam: Arbeitsordner der Tests
+ROOT=${G19S_TEST_ROOT:-/tmp/g19s-test}; S=$ROOT/state; mkdir -p $S

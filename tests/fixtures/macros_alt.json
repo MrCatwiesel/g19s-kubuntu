@@ -1,0 +1,37 @@
+{
+  "M1": {
+    "G1": {
+      "name": "Test-Satz",
+      "steps": [
+        [0, "KEY_RIGHTSHIFT", "down"],
+        [30, "KEY_D", "tap"],
+        [10, "KEY_RIGHTSHIFT", "up"],
+        [30, "KEY_A", "tap"],
+        [30, "KEY_S", "tap"],
+        [30, "KEY_SPACE", "tap"],
+        [30, "KEY_I", "tap"],
+        [30, "KEY_S", "tap"],
+        [30, "KEY_T", "tap"],
+        [30, "KEY_SPACE", "tap"],
+        [30, "KEY_E", "tap"],
+        [30, "KEY_I", "tap"],
+        [30, "KEY_N", "tap"],
+        [30, "KEY_SPACE", "tap"],
+        [0, "KEY_RIGHTSHIFT", "down"],
+        [30, "KEY_T", "tap"],
+        [10, "KEY_RIGHTSHIFT", "up"],
+        [30, "KEY_E", "tap"],
+        [30, "KEY_S", "tap"],
+        [30, "KEY_T", "tap"]
+      ]
+    },
+    "G2": {
+      "name": "heise.de",
+      "open": "https://www.heise.de"
+    },
+    "G3": {
+      "name": "Golem",
+      "open": "https://www.golem.de"
+    }
+  }
+}

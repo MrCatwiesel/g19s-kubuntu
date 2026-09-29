@@ -1,0 +1,35 @@
+{
+ "backlight_first": [
+  10,
+  20,
+  30
+ ],
+ "brightness": [
+  50,
+  50
+ ],
+ "log": [
+  "Makros geladen: 1 Profile, 6 Belegungen",
+  "Einstellungen geladen",
+  "Radio: Rockantenne"
+ ],
+ "pages": [
+  [
+   "music",
+   "M1"
+  ]
+ ],
+ "radio": [
+  "https://stream.rockantenne.de/rockantenne/stream/aacp"
+ ],
+ "typed": [
+  "KEY_LEFTSHIFT",
+  "KEY_H",
+  "KEY_I",
+  "KEY_LEFTSHIFT",
+  "KEY_1",
+  "KEY_LEFTCTRL",
+  "KEY_C",
+  "KEY_F18"
+ ]
+}

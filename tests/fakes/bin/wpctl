@@ -1,0 +1,10 @@
+#!/bin/sh
+. "$(dirname "$0")/_root"
+F=$S/vol; [ -f $F ] || echo 40 > $F
+M=$S/micmute
+case "$1" in
+  set-volume) v=$(cat $F); case "$5" in *+) v=$((v+5));; *-) v=$((v-5));; esac; echo $v > $F; echo "$@" >> $S/wpctl.log;;
+  set-mute) if [ "$2" = "@DEFAULT_AUDIO_SOURCE@" ]; then if [ -f $M ]; then rm $M; else touch $M; fi; fi; echo "$@" >> $S/wpctl.log;;
+  get-volume) if [ "$2" = "@DEFAULT_AUDIO_SOURCE@" ]; then if [ -f $M ]; then echo "Volume: 1.00 [MUTED]"; else echo "Volume: 1.00"; fi
+              else printf 'Volume: 0.%02d\n' $(cat $F); fi;;
+esac

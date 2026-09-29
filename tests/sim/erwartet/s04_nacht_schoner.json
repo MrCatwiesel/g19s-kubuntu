@@ -1,0 +1,35 @@
+{
+ "backlight": [
+  [
+   0,
+   0,
+   0
+  ],
+  [
+   0,
+   110,
+   255
+  ]
+ ],
+ "brightness": [
+  7,
+  100
+ ],
+ "log": [
+  "Nachtmodus an",
+  "Benachrichtigung: Thunderbird – Neue E-Mail von Anna"
+ ],
+ "pages": [
+  "hardware",
+  "weather",
+  "clock",
+  "hardware",
+  "clock",
+  "hardware"
+ ],
+ "volume": [
+  "set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+",
+  "set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+",
+  "set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%-"
+ ]
+}

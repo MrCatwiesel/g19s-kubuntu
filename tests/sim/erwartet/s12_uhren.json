@@ -1,0 +1,61 @@
+{
+ "faces": [
+  {
+   "M1": "steampunk"
+  },
+  {
+   "M2": "station"
+  }
+ ],
+ "layer_pages": {
+  "M1": [
+   "clock",
+   "hardware"
+  ],
+  "M2": [
+   "clock"
+  ],
+  "M3": [
+   "clock"
+  ]
+ },
+ "log": [
+  "Uhrenseiten in settings.json auf „Uhr“ mit Zifferblatt umgestellt",
+  "Uhrenseiten in macros.json auf „Uhr“ mit Zifferblatt umgestellt",
+  "Uhr: Bahnhofsuhr (Standard, M1)",
+  "Uhr: Steampunk-Uhr (Standard, M1)",
+  "Uhr: Digitaluhr (Standard, M2)",
+  "Profil 2: Eigen",
+  "Uhr: Bahnhofsuhr (Eigen, M2)"
+ ],
+ "own_pages": {
+  "M1": [
+   "clock"
+  ],
+  "M2": [
+   "clock",
+   "weather"
+  ],
+  "M3": [
+   "clock"
+  ]
+ },
+ "pages": [
+  [
+   "clock",
+   "M1"
+  ],
+  [
+   "hardware",
+   "M1"
+  ],
+  [
+   "clock",
+   "M1"
+  ],
+  [
+   "clock",
+   "M2"
+  ]
+ ]
+}

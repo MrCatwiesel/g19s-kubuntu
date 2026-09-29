@@ -1,0 +1,815 @@
+__TOC__
+{| class="wikitable" style="float:right; margin-left:1em;"
+|+ Steckbrief
+|-
+! Gerät
+| Logitech G19s (USB <code>046d:c228</code> Tastatur, <code>046d:c229</code> Display/G-Tasten)
+|-
+! System
+| Kubuntu 26.04 („resolute“), KDE Plasma, Wayland
+|-
+! Treiber
+| eigenes Python-3-Skript <code>g19s.py</code> (Userspace, kein Kernelmodul)
+|-
+! Verwaltung
+| <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
+|-
+! Stand
+| 28.09.2026 (Version @@VERSION@@)
+|}
+
+Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
+
+Für die G19s gibt es unter Linux keinen offiziellen Treiber. Die normalen Tasten funktionieren ohne Zutun. Display, G-Tasten, M-Tasten und Beleuchtung steuert das Skript <code>g19s.py</code> direkt über USB.
+
+== Funktionsumfang ==
+* '''G1–G12''' senden die Tasten '''F13–F24''' und lassen sich in KDE frei belegen.
+* '''Bis zu 10 Profile''' (z. B. „Büro“, „Spiele“) mit je drei Ebenen '''M1/M2/M3''' – also 36 Belegungen pro Profil. Umschalten über die Displaytaste '''SETTINGS'''. Jedes Profil hat eigene Beleuchtungsfarben.
+* '''MR''' nimmt Makros direkt an der Tastatur auf.
+* G-Tasten können Text tippen, Tastenkombinationen senden, Webseiten öffnen, Programme starten, Radiosender abspielen, den Musikplayer steuern, die '''Lautstärke''' ändern (mit Balken auf dem Display), eine Liste von '''Textbausteinen''' auf dem Display öffnen und '''Timer, Stoppuhr oder Pomodoro''' starten.
+* Auswahl direkt am Display: Radiosender, Kalender, Termindetails, Piwigo-Alben.
+* '''Terminerinnerung''' vor Terminbeginn, '''Radiowecker''' und '''Einschlaftimer''', '''Song merken''' (Radiotitel in eine Liste), '''Lieblingsbilder''' in der Diashow, '''Mikrofon stumm''' per G-Taste (MR-Leuchte als Anzeige).
+* Displayseiten je Ebene '''und''' je Profil einstellbar, '''automatische Sicherung''' in einen Ordner.
+* '''25 Zifferblätter''' für die Uhr (u. a. Chronometer, Bahnhofsuhr, Pendel- und Kuckucksuhr, Astro- und Sonnenuhr, Weltzeituhr, Nixie-Röhren, Wortuhr) – Auswahl am Display mit MENU je Profil und Ebene, Aussehen in der Verwaltung einstellbar.
+* Weitere Seiten: '''Nachrichten''' (RSS/Atom), '''Unwetter''' (amtliche DWD-Warnungen), '''Netzwerk''' (Erreichbarkeit von Router, NAS …), '''Updates''' (Paket- und Flatpak-Updates, Neustart nötig).
+* '''Display''' mit sieben Standardseiten: Uhr, Musik (inkl. Internetradio), Wetter, Termine, Hardware (Auslastung, Temperaturen, Arbeitsspeicher, Lüfter, Netz, Datenträger), Makro-Übersicht, Bilder. Welche Seiten in welcher Reihenfolge erscheinen, ist frei wählbar.
+* '''Diashow''' mit Bildern aus Piwigo-Alben (auch private Alben) oder aus einem Ordner auf dem Rechner – auf Wunsch als '''Bildschirmschoner'''.
+* '''KDE-Benachrichtigungen''' (E-Mail, Messenger …) werden kurz auf dem Display eingeblendet.
+* '''Nachtmodus:''' Display und Beleuchtung zu festen Zeiten dimmen oder ausschalten.
+* '''Eigener Radioplayer''' mit Senderliste (Umschalten auch über die Displaytasten).
+* '''G19s-Verwaltung:''' grafische Oberfläche für Tastenbelegung, Makros, Radiosender, Farben, Displayseiten, Infoseiten, Dienst, Sicherung und '''Updates per Knopfdruck'''.
+* Start automatisch bei der Anmeldung (systemd-User-Dienst).
+
+== Dateien im Überblick ==
+{| class="wikitable"
+! Datei !! Zweck
+|-
+| <code>~/.local/bin/g19s.py</code> || Treiber (Display, Tasten, Makros, Musik)
+|-
+| <code>/etc/udev/rules.d/70-g19s.rules</code> || USB- und Eingaberechte für den angemeldeten Benutzer
+|-
+| <code>~/.config/systemd/user/g19s.service</code> || Autostart bei der Anmeldung
+|-
+| <code>~/.config/g19s/macros.json</code> || Profile mit Namen, Farben und Belegung der G-Tasten (Makros, Text, Webseiten, Radio …)
+|-
+| <code>~/.config/g19s/state.json</code> || zuletzt aktives Profil, am Display ausgeblendete Kalender, Zeitpunkt der letzten automatischen Sicherung
+|-
+| <code>~/.config/g19s/songs.json</code> || gemerkte Songs
+|-
+| <code>~/.config/g19s/favorites.json</code> || Lieblingsbilder der Diashow
+|-
+| <code>~/.config/g19s/settings.json</code> || Farben, Helligkeit, Displayseiten, Radiosender, Diashow, Wetterort, Kalender, Benachrichtigungen, Nachtmodus, Bildschirmschoner (enthält Zugangsdaten, daher nur für den Benutzer lesbar)
+|-
+| <code>~/.cache/g19s/piwigo/</code> || Zwischenspeicher der Diashow-Bilder (verkleinert, max. 400 Bilder, darf gelöscht werden)
+|-
+| <code>~/.local/bin/g19s-gui.py</code> || Verwaltungsoberfläche
+|-
+| <code>~/.local/share/g19s/alte-versionen/</code> || vorherige Programmversionen, die der Update-Knopf dort ablegt
+|-
+| <code>~/.local/share/applications/g19s-gui.desktop</code> || Menüeintrag „G19s-Verwaltung“
+|-
+| <code>~/.config/kglobalshortcutsrc</code> || KDE-Kurzbefehle (u. a. Belegungen von F13–F24)
+|}
+
+== Installation ==
+Alle Befehle werden als normaler Benutzer im Terminal (Konsole) ausgeführt. <code>sudo</code> steht nur dort, wo es nötig ist. Die Blöcke unter „Dateien anlegen“ werden '''komplett''' markiert, kopiert und ins Terminal eingefügt. Sie schreiben die jeweilige Datei direkt an die richtige Stelle, ein Download ist nicht nötig.
+
+=== 1. Tastatur prüfen ===
+<pre>
+lsusb | grep -i logitech
+</pre>
+Erwartet werden zwei Einträge:
+<pre>
+ID 046d:c228 Logitech, Inc. G19 Gaming Keyboard
+ID 046d:c229 Logitech, Inc. G19 Gaming Keyboard Macro Interface
+</pre>
+Weicht die ID bei <code>c229</code> ab, muss sie in <code>g19s.py</code> (Konstante <code>PRODUCT_ID</code>) und in der udev-Regel angepasst werden.
+
+=== 2. Pakete installieren ===
+<pre>
+sudo apt install python3-usb python3-evdev python3-pil python3-numpy playerctl mpv mpv-mpris libnotify-bin smbclient
+</pre>
+{| class="wikitable"
+! Paket !! Wofür
+|-
+| <code>python3-usb</code> || direkter USB-Zugriff auf Display und G-Tasten
+|-
+| <code>python3-evdev</code> || virtuelle Tastatur (F13–F24, Makros) und Makroaufnahme
+|-
+| <code>python3-pil</code> || Bilder für das 320×240-Display
+|-
+| <code>python3-numpy</code> || schnelle Umrechnung ins Displayformat (RGB565)
+|-
+| <code>playerctl</code> || Musikseite: aktueller Titel, Steuerung des Players
+|-
+| <code>mpv</code> || Abspielen der Radiosender
+|-
+| <code>mpv-mpris</code> || meldet den Radioplayer bei KDE an, damit die Medientasten das Radio steuern
+|-
+| <code>libnotify-bin</code> || nur für den Knopf „Testbenachrichtigung senden“ in der Verwaltung
+|}
+Bei Kubuntu bereits vorhanden und ebenfalls genutzt: <code>dbus-monitor</code> (Paket <code>dbus-bin</code>, Benachrichtigungen) und <code>wpctl</code> (Paket <code>wireplumber</code>, Lautstärke). Für Grafikkarten von NVIDIA liest die Hardware-Seite Temperatur und Auslastung über <code>nvidia-smi</code>, falls der NVIDIA-Treiber installiert ist.
+
+Kontrolle:
+<pre>
+python3 -c "import usb, evdev, PIL, numpy; print('alles da')"
+</pre>
+
+=== 3. Dateien anlegen ===
+
+==== Treiber g19s.py ====
+Den folgenden Block komplett kopieren und ins Terminal einfügen:
+<pre>
+mkdir -p ~/.local/bin
+cat > ~/.local/bin/g19s.py <<'G19S_EOF'
+@@G19S_PY@@
+G19S_EOF
+chmod +x ~/.local/bin/g19s.py
+tail -n 1 ~/.local/bin/g19s.py
+</pre>
+Die letzte Zeile muss <code># G19S-DATEIENDE …</code> ausgeben. Sonst wurde der Block nicht vollständig kopiert.
+
+==== Verwaltungsoberfläche g19s-gui.py ====
+Den folgenden Block komplett kopieren und ins Terminal einfügen. Er legt auch den Menüeintrag „G19s-Verwaltung“ an:
+<pre>
+cat > ~/.local/bin/g19s-gui.py <<'G19S_EOF'
+@@GUI_PY@@
+G19S_EOF
+chmod +x ~/.local/bin/g19s-gui.py
+python3 ~/.local/bin/g19s-gui.py --install-desktop
+tail -n 1 ~/.local/bin/g19s-gui.py
+</pre>
+Auch hier muss die letzte Zeile <code># G19S-DATEIENDE …</code> lauten.
+
+==== udev-Regel ====
+<pre>
+sudo tee /etc/udev/rules.d/70-g19s.rules > /dev/null <<'G19S_EOF'
+@@RULES@@
+G19S_EOF
+sudo udevadm control --reload-rules
+</pre>
+
+==== Autostart-Dienst ====
+<pre>
+mkdir -p ~/.config/systemd/user
+cat > ~/.config/systemd/user/g19s.service <<'G19S_EOF'
+@@SERVICE@@
+G19S_EOF
+systemctl --user daemon-reload
+</pre>
+
+==== Makros (Beispiel) ====
+Nur ausführen, wenn '''keine''' Sicherung der eigenen <code>macros.json</code> vorhanden ist (siehe [[#Sicherung|Sicherung]]). Sonst die gesicherte Datei nach <code>~/.config/g19s/macros.json</code> kopieren.
+<pre>
+mkdir -p ~/.config/g19s
+cat > ~/.config/g19s/macros.json <<'G19S_EOF'
+@@MACROS@@
+G19S_EOF
+python3 -m json.tool ~/.config/g19s/macros.json > /dev/null && echo "Datei OK"
+</pre>
+
+=== 4. Rechte für die Makroaufnahme ===
+Die Makroaufnahme liest die normale Tastatur mit. Die udev-Regel allein reichte dafür nicht, zuverlässig funktioniert die Gruppe <code>input</code>:
+<pre>
+sudo usermod -aG input $USER
+</pre>
+
+{{Hinweis|Die Gruppe <code>input</code> erlaubt Programmen des Benutzers, alle Tastatur- und Mauseingaben zu lesen. Der Treiber wertet die Tastatur nur während einer laufenden Makroaufnahme aus. Für den Bildschirmschoner merkt er sich außerdem nur, ''wann'' zuletzt eine Taste oder die Maus benutzt wurde – welche Taste, wird nicht gespeichert.}}
+
+=== 5. Neustart ===
+'''PC neu starten.''' Damit greifen die udev-Regel und die neue Gruppe. Ab- und Anmelden reicht wegen des Autostart-Dienstes oft nicht.
+
+=== 6. Testlauf ===
+<pre>
+python3 ~/.local/bin/g19s.py --debug
+</pre>
+Das Display zeigt die Uhr. Jede Taste erzeugt eine Ausgabe, z. B. <code>G1 gedrückt -> F13</code>. Beenden mit <code>Strg+C</code>.
+
+=== 7. Autostart aktivieren ===
+<pre>
+systemctl --user enable --now g19s.service
+systemctl --user status g19s.service --no-pager
+</pre>
+Der Status muss <code>active (running)</code> zeigen.
+
+=== 8. Belegung wiederherstellen ===
+Liegt eine Sicherung vor: '''G19s-Verwaltung''' aus dem Anwendungsmenü starten → Reiter '''Dienst & Sicherung''' → '''Sicherung einspielen'''. Danach den Treiber im selben Reiter mit '''Neu starten''' neu laden und sich einmal ab- und wieder anmelden, damit KDE die Kurzbefehle übernimmt. Ohne Sicherung die G-Tasten in der Verwaltung neu belegen.
+
+== G19s-Verwaltung (grafische Oberfläche) ==
+Start über das Anwendungsmenü: '''G19s-Verwaltung''' (oder im Terminal <code>python3 ~/.local/bin/g19s-gui.py</code>).
+
+Das Programm startet einen kleinen Server, der nur auf diesem Rechner erreichbar ist (<code>127.0.0.1</code>, mit Zugangsschlüssel), und öffnet die Oberfläche im Browser. Ist Chrome oder Chromium installiert, erscheint sie als eigenes App-Fenster, sonst als Tab im Standardbrowser. Nach dem Schließen des Fensters beendet sich das Programm nach etwa 45 Sekunden selbst. Ein erneuter Start öffnet das vorhandene Fenster wieder.
+
+Alle Änderungen übernimmt der laufende Treiber sofort, ein Neustart ist nicht nötig.
+
+{| class="wikitable"
+! Reiter !! Inhalt
+|-
+| '''Tasten''' || Profil wählen (anlegen, kopieren, umbenennen, sortieren, löschen, Farben je Ebene, '''An der Tastatur aktivieren'''), dann Ebene M1/M2/M3 und G-Taste anklicken, Aktion wählen, '''Übernehmen'''. Makros können direkt im Fenster aufgenommen und Schritt für Schritt bearbeitet werden (Pausen, Tasten, Reihenfolge).
+|-
+| '''Radiosender''' || Senderliste anlegen, sortieren, probehören. '''Sender suchen''' durchsucht das freie Verzeichnis radio-browser.info. '''Radiowecker''' (Uhrzeit, Wochentage, Sender). '''Gemerkte Songs''' mit Links zur Suche bei YouTube und Spotify. Player-Befehl einstellbar.
+|-
+| '''Textbausteine''' || Texte für die Auswahl am Display anlegen, sortieren, in Gruppen ordnen.
+|-
+| '''Beleuchtung & Display''' || Beleuchtung beibehalten, Displayhelligkeit, Startseite, '''Displayseiten''' je Ebene M1/M2/M3 (ein-/ausschalten per Häkchen, Reihenfolge mit ↑↓), '''Nachtmodus''', '''Bildschirmschoner''', Schrittweite der Lautstärke, Signalton für Timer – mit Live-Vorschau jeder Displayseite (für das im Reiter „Tasten“ gewählte Profil).
+|-
+| '''Diashow''' || Bildquelle wählen: '''Piwigo-Galerie''' (Adresse, Zugangsdaten, '''Alben laden''', Alben per Häkchen) oder '''Ordner auf diesem Rechner''' (mit '''Durchsuchen …'''). Dazu Wechselzeit, Zufallsreihenfolge, Unteralben/Unterordner, Bildtitel, Darstellung („Ganzes Bild“ oder „Display füllen“). '''Testen''' zeigt ein Beispielbild und die Anzahl der gefundenen Bilder. '''Lieblingsbilder''': Liste, entfernen, „Diashow zeigt nur Lieblingsbilder“.
+|-
+| '''Infoseiten''' || '''Wetter:''' Ort suchen und übernehmen. '''Termine:''' Kalenderadressen (<code>.ics</code>) mit Name, Farbe und ggf. Zugangsdaten – bei Nextcloud genügt die Adresse der Nextcloud mit Benutzer und App-Passwort, dann erscheinen alle Terminkalender des Kontos in ihren Nextcloud-Farben, '''Testen''' je Kalender, Zeitraum 7–60 Tage, '''Erinnerung''' 5–60 Minuten vor Terminbeginn. '''Benachrichtigungen:''' ein/aus, Anzeigedauer, Programme ausblenden, Testbenachrichtigung. '''Hardware:''' zeigt, welche Sensoren gefunden wurden. '''Nachrichten:''' Feeds anlegen/testen (Vorschläge: tagesschau, heise, SPIEGEL, Golem). '''Unwetterwarnungen:''' Einblendung ein/aus, „Jetzt prüfen“. '''Netzwerk:''' Geräte (<code>gateway</code> = Router, <code>Name:Port</code> = Dienst), „Jetzt prüfen“. '''Systemupdates:''' Flatpak ein/aus, „Jetzt prüfen“.
+|-
+| '''Dienst & Sicherung''' || Treiber starten/stoppen/neu starten, Autostart, Protokoll, '''Programm aktualisieren''' (Update-Knopf), '''automatische Sicherung''' (Ordner, Abstand, Anzahl, „Jetzt sichern“), Sicherung herunterladen und einspielen.
+|}
+
+=== Programm aktualisieren (Update-Knopf) ===
+Neue Versionen von <code>g19s.py</code> und <code>g19s-gui.py</code> müssen nicht mehr von Hand kopiert werden:
+# Die neuen Dateien herunterladen. Der Dateiname ist egal, auch <code>g19s(3).py</code> ist in Ordnung.
+# '''G19s-Verwaltung → Dienst & Sicherung → ⬆ Update-Dateien auswählen …''' und eine oder beide Dateien auswählen.
+# Die Verwaltung erkennt an einer Kennung in der Datei, ob es der Treiber oder die Oberfläche ist, und prüft, ob die Datei vollständig ist (Endzeile <code># G19S-DATEIENDE</code>). Fremde oder abgeschnittene Dateien werden abgelehnt.
+# Die bisherige Version wird nach <code>~/.local/share/g19s/alte-versionen/</code> gesichert, danach startet der Treiber bzw. die Oberfläche neu. Die angezeigten Versionsnummern zeigen, was installiert ist.
+Startet eine neue Oberfläche nicht, stellt die Verwaltung automatisch die vorherige Version wieder her und meldet das.
+
+=== Aktionen für G-Tasten ===
+{| class="wikitable"
+! Aktion !! Wirkung !! Eintrag in macros.json
+|-
+| KDE-Kurzbefehl || Taste sendet F13–F24 (M2: Strg+, M3: Alt+), Belegung in den KDE-Kurzbefehlen || nur <code>"name"</code> oder kein Eintrag
+|-
+| Text tippen || tippt den Text im deutschen Layout (Umlaute, ß, @, € …) || <code>"text": "Hallo"</code>
+|-
+| Tastenkombination || z. B. Strg+Umschalt+T || <code>"combo": "KEY_LEFTCTRL+KEY_LEFTSHIFT+KEY_T"</code>
+|-
+| Makro || Tastenfolge mit Pausen || <code>"steps": [[0, "KEY_A", "tap"], …]</code>
+|-
+| Webseite || öffnet die Seite im Standardbrowser || <code>"open": "https://…"</code>
+|-
+| Programm || führt einen Befehl aus || <code>"run": "konsole"</code>
+|-
+| Radiosender || startet den Sender, nochmal drücken = aus || <code>"radio": "https://…"</code> bzw. <code>"stop"</code>
+|-
+| Musiksteuerung || Play/Pause, Titel vor/zurück, Stopp || <code>"media": "play-pause"</code>
+|-
+| Lautstärke || Lauter, Leiser oder Stumm; das Display zeigt kurz einen Balken mit dem neuen Wert || <code>"volume": "up"</code> (bzw. <code>"down"</code>, <code>"mute"</code>)
+|-
+| Textbausteine || zeigt die Textbausteine (alle oder eine Gruppe) auf dem Display zum Auswählen und Einfügen || <code>"snippets": "*"</code> bzw. <code>"snippets": "Büro"</code>
+|-
+| Timer || Countdown, Stoppuhr oder Pomodoro mit großer Anzeige || <code>"timer": {"mode": "timer", "minutes": 10}</code>, <code>{"mode": "stopwatch"}</code>, <code>{"mode": "pomodoro", "work": 25, "break": 5}</code>
+|-
+| Einschlaftimer || Musik nach N Minuten ausschalten (startet bei Bedarf das Radio), nochmal drücken = abbrechen || <code>"sleep": 30</code>
+|-
+| Mikrofon stumm || Mikrofon stumm/an, MR-Taste leuchtet solange es stumm ist || <code>"mic": "toggle"</code>
+|-
+| Musiksteuerung → Song merken || laufenden Titel in <code>songs.json</code> speichern || <code>"media": "remember"</code>
+|}
+
+== Bedienung an der Tastatur ==
+
+=== Profile (Displaytaste SETTINGS) ===
+Bis zu 10 Profile. '''SETTINGS''' öffnet die Profilliste auf dem Display.:
+{| class="wikitable"
+! Taste !! Funktion
+|-
+| Hoch / Runter || Profil auswählen
+|-
+| OK || Profil aktivieren (kurze Einblendung, Beleuchtung wechselt auf die Farben des Profils)
+|-
+| BACK oder SETTINGS || ohne Wechsel schließen
+|}
+Das aktive Profil steht in der Fußzeile des Displays und bleibt nach einem Neustart erhalten. In der Verwaltung lässt sich ein Profil auch mit '''An der Tastatur aktivieren''' einschalten.
+
+=== Ebenen (M-Tasten) ===
+Innerhalb eines Profils schalten '''M1/M2/M3''' zwischen drei Ebenen um (je 12 G-Tasten). Die Farben je Ebene werden pro Profil festgelegt.
+{| class="wikitable"
+! Ebene !! G1 … G12 senden (Aktion „KDE-Kurzbefehl“)
+|-
+| M1 || F13 … F24
+|-
+| M2 || Strg+F13 … Strg+F24
+|-
+| M3 || Alt+F13 … Alt+F24
+|}
+Hat eine G-Taste eine eigene Aktion (Text, Makro, Webseite …), wird diese ausgeführt statt der F-Taste.
+
+<div style="border-left:4px solid #3366cc; background:#eaf3ff; padding:0.5em 1em; margin:1em 0;">'''Hinweis:''' KDE-Kurzbefehle (F13–F24) gelten in allen Profilen gleich, weil KDE die Profile nicht kennt. Für Belegungen, die sich je Profil unterscheiden sollen, die Aktionen der Verwaltung verwenden (Text, Programm, Webseite …).</div>
+
+=== Makro aufnehmen (MR) ===
+# Profil (SETTINGS) und Ebene (M1, M2 oder M3) wählen.
+# '''MR''' drücken. Die Beleuchtung wird rot.
+# Die '''G-Taste''' drücken, auf die das Makro soll.
+# Tasten tippen. Das Display zählt mit.
+# '''MR''' drücken. Das Makro ist gespeichert.
+
+* '''Löschen:''' MR → G-Taste → sofort MR (ohne zu tippen)
+* '''Abbrechen:''' MR zweimal drücken, ohne eine G-Taste zu wählen
+
+=== Displayseiten ===
+Mit den Displaytasten '''Links/Rechts''' blättern. Standardreihenfolge: '''Uhr → Musik → Wetter → Termine → Hardware → Makros → Bilder'''. Welche Seiten erscheinen und in welcher Reihenfolge, wird in der Verwaltung unter '''Beleuchtung & Display → Displayseiten''' festgelegt – '''für jede Ebene M1/M2/M3 getrennt'''. Beispiel: Die Uhr nur in M3, in M1 und M2 dafür Musik und Termine. Zusätzlich kann jedes Profil '''eigene Seiten''' bekommen: oben bei '''Gilt für''' das Profil wählen und '''Eigene Seiten für dieses Profil festlegen'''. Diese Änderungen werden sofort gespeichert; '''Wieder Standard verwenden''' löscht sie. Beim Umschalten mit einer M-Taste oder des Profils wechselt das Display auf die Seiten dieser Ebene und merkt sich je Ebene die zuletzt gezeigte Seite. '''Auf alle Ebenen übertragen''' kopiert die Auswahl der gerade gewählten Ebene auf die beiden anderen. Die Punkte in der Fußzeile zeigen, auf welcher Seite man sich befindet.
+
+{| class="wikitable"
+! Seite !! Inhalt
+|-
+| Uhr || Uhrzeit und Datum; das '''Zifferblatt''' wird am Display mit '''MENU''' gewählt (siehe unten)
+|-
+| Musik || aktueller Titel mit Cover, Radiosender mit laufendem Song
+|-
+| Wetter || aktuelles Wetter und die nächsten Tage (Open-Meteo, alle 15 Minuten aktualisiert)
+|-
+| Termine || die nächsten Termine aus den eingetragenen Kalendern, farbig je Kalender (Serientermine werden berücksichtigt)
+|-
+| Hardware || Prozessor (Temperatur und Auslastung), Grafikkarte, SSD, Arbeitsspeicher, Lüfter, Netzwerkdurchsatz, Belegung der Datenträger, Systemlast. Die frühere Seite „System“ ist hier enthalten; wo sie eingeschaltet war, erscheint beim Update automatisch „Hardware“.
+|-
+| Makros || Belegung der G-Tasten in der aktiven Ebene
+|-
+| Bilder || Diashow
+|-
+| Nachrichten || Schlagzeilen aus RSS-/Atom-Feeds (tagesschau, heise …), neueste zuerst; Hoch/Runter markiert, '''OK''' öffnet die Meldung im Browser
+|-
+| Unwetter || amtliche Warnungen des DWD für den Wetter-Ort, farbig nach Stufe (Wetterwarnung, markant, Unwetter, extrem); '''OK''' zeigt Beschreibung und Verhaltenshinweise
+|-
+| Netzwerk || Erreichbarkeit von Router, NAS, Servern mit Antwortzeit (jede Minute), eigene IP-Adresse
+|-
+| Updates || Anzahl verfügbarer Paket- und Flatpak-Updates, Sicherheitsupdates, „Neustart erforderlich“; '''OK''' öffnet Discover
+|}
+Die vier Seiten Nachrichten, Unwetter, Netzwerk und Updates sind anfangs ausgeschaltet und werden unter '''Beleuchtung & Display → Displayseiten''' eingeschaltet. Auf diesen Seiten fragt '''MENU''' die Daten sofort neu ab.
+Auf den Seiten ohne eigene Tastenbelegung blättern auch '''Hoch/Runter'''.
+
+Auf der Seite '''Termine''':
+{| class="wikitable"
+! Taste !! Funktion
+|-
+| Hoch / Runter || Termin markieren (die Markierung verschwindet nach 30 Sekunden)
+|-
+| OK || '''Termindetails''': Titel, Zeit, Ort, Kalender und Beschreibung; lange Beschreibungen mit Hoch/Runter blättern, BACK zurück
+|-
+| MENU || '''Kalenderauswahl''' (z. B. alle Kalender eines Nextcloud-Kontos)
+|}
+In der Kalenderauswahl: '''Hoch/Runter''' Kalender wählen, '''OK''' ein-/ausblenden, '''BACK''', Links oder Rechts schließen (schließt sich auch nach 30 Sekunden ohne Tastendruck).
+Die Auswahl wird gespeichert (<code>state.json</code>) und bleibt nach einem Neustart erhalten. Sind nicht alle Kalender sichtbar, steht neben „Termine“ z. B. <code>4/6</code>.
+
+Auf der Musikseite steuern die Displaytasten den Player:
+{| class="wikitable"
+! Taste !! Funktion
+|-
+| OK || Play/Pause
+|-
+| Hoch || vorheriger Titel
+|-
+| Runter || nächster Titel
+|-
+| MENU || '''Senderliste''': Hoch/Runter wählen, OK abspielen (▶ = läuft gerade, letzter Eintrag „Radio ausschalten“)
+|-
+| BACK || Radio ausschalten
+|}
+Weiterschalten zum nächsten Sender geht auch mit Hoch/Runter (bei laufendem Radio) oder mit den Medientasten.
+
+Auf der Seite '''Bilder''' (Diashow):
+{| class="wikitable"
+! Taste !! Funktion
+|-
+| OK || Diashow anhalten / fortsetzen
+|-
+| Hoch || vorheriges Bild
+|-
+| Runter || nächstes Bild
+|-
+| MENU || Albenauswahl öffnen (nur Piwigo)
+|-
+| BACK || Bild als '''Lieblingsbild''' merken (♥ unten links), nochmal BACK = entfernen
+|}
+In der '''Albenauswahl''' zeigt das Display alle Piwigo-Alben mit Unteralben (eingerückt) und der Bildanzahl:
+{| class="wikitable"
+! Taste !! Funktion
+|-
+| Hoch / Runter || Album auswählen (▲/▼ in der Fußzeile: es gibt weitere Alben)
+|-
+| OK || Album ein- oder ausschalten
+|-
+| BACK, MENU, Links oder Rechts || Auswahl schließen (schließt sich auch nach 30 Sekunden ohne Tastendruck)
+|}
+Ein kleines gefülltes Quadrat bedeutet: Das Album ist über ein gewähltes Oberalbum schon enthalten (Einstellung „Unteralben einbeziehen“). Die Auswahl wird in <code>settings.json</code> gespeichert und erscheint auch in der Verwaltung im Reiter '''Diashow'''. Die Diashow lädt die neue Bildliste sofort.
+
+Die Bilder werden nur geladen, solange die Seite „Bilder“ angezeigt wird. Die Bildliste wird alle 30 Minuten neu abgerufen, neue Fotos in den Alben bzw. im Ordner erscheinen also automatisch.
+
+=== Zifferblatt der Uhr ===
+Auf der Seite '''Uhr''' öffnet '''MENU''' die Liste '''Zifferblatt''' mit bis zu 25 Zifferblättern. Mit Hoch/Runter wählen, '''OK''' übernimmt, '''BACK''' schließt ohne Änderung. Das Zifferblatt gilt für das aktive Profil und die aktive Ebene – z. B. im Profil „Büro“ unter M1 die Digitaluhr und unter M3 die Bahnhofsuhr. Es wird in <code>macros.json</code> beim Profil gespeichert (<code>"clock": {"M3": "station"}</code>) und gilt auch, wenn die Uhr als Bildschirmschoner erscheint. In der Seitenliste der Verwaltung gibt es nur die Seite „Uhr“.
+
+'''Einstellungen in der Verwaltung''' (Beleuchtung & Display → '''Uhr'''): oben ein Zifferblatt wählen – daneben erscheint eine Vorschau –, darunter seine Einstellungen. Farben stehen auf „Farbe der Ebene“ bzw. „Standard“, bis eine eigene Farbe gewählt wird. Unter '''Im Displaymenü anbieten''' die Zifferblätter abhaken, die in der Liste am Display nicht erscheinen sollen. Gespeichert wird mit den übrigen Einstellungen in <code>settings.json</code> (<code>"clock"</code>).
+{| class="wikitable"
+! Zifferblatt !! Aussehen !! Einstellungen
+|-
+| Digitaluhr || große Uhrzeit mit Sekunden, Wochentag und Datum (Standard) || Sekunden, Datum, Farbe der Uhrzeit
+|-
+| Chronometer || analoge Armbanduhr: Lünette mit Minutenskala, Hilfszifferblätter für 24 Stunden und kleine Sekunde, Fenster mit Wochentag und Datum; links Datum, rechts Kalenderwoche || Zifferblatt schwarz/blau/grün/silber, Farbe des Sekundenzeigers, Anzeige neben der Uhr
+|-
+| Steampunk-Uhr || Messinggehäuse mit Nieten, vergilbtes Zifferblatt mit römischen Ziffern, gebläute Zeiger, Fenster ins Uhrwerk, Zahnräder || Zahnräder drehen sich
+|-
+| Bahnhofsuhr || weißes Zifferblatt mit Balken, springender Minutenzeiger, roter Sekundenzeiger; daneben Wochentag, Datum, KW || Sekundenzeiger, gleitender Minutenzeiger, Anzeigen daneben
+|-
+| Binäruhr || Leuchtpunkte in Spalten je Ziffer (8-4-2-1) oder als Binärzahl je Zeile || Farben für Stunden, Minuten, Sekunden und ausgeschaltete Punkte, Darstellung, Ziffern darunter
+|-
+| Pendeluhr || Wand-Regulator aus Nussbaum mit schwingendem Messingpendel || Pendel flüssig (5 Bilder/s) oder im Sekundentakt
+|-
+| Kuckucksuhr || Schwarzwaldhäuschen mit Tannenzapfen-Gewichten und Pendel; zur vollen und halben Stunde schaut der Kuckuck heraus ||
+|-
+| Taschenuhr || goldene Taschenuhr mit Kette, Emaille-Zifferblatt, kleine Sekunde ||
+|-
+| Sanduhr || der Sand zeigt die verbleibende Zeit der aktuellen Stunde, daneben Uhrzeit und „noch … Min.“ ||
+|-
+| Kerzenuhr || Kerze mit Stundenmarken brennt über den Tag herunter, flackernde Flamme ||
+|-
+| Astro-Uhr || 24-Stunden-Zifferblatt mit Tag, Dämmerung und Nacht, Sonne, Mond, Tierkreis und Mondphase; Sonnenauf- und -untergang für den Wetter-Ort ||
+|-
+| Sonnenuhr || Bronze-Sonnenuhr mit Schatten zur wahren Sonnenzeit (Ort aus den Wetter-Einstellungen) und Zeitgleichung; nachts ruht sie ||
+|-
+| Planetenuhr || Sonne mit drei Planeten für Stunden, Minuten und Sekunden auf gekippten Bahnen ||
+|-
+| Weltzeituhr || bis zu sechs Städte mit kleinen Zifferblättern (hell am Tag, dunkel in der Nacht), UTC-Versatz und „+1“/„−1“ || Städte (Auswahl aus 37)
+|-
+| Radaruhr || Radarschirm: der Strahl kreist einmal pro Minute, Echos für Stunde und Minute ||
+|-
+| Klappzahlenuhr || Fallblattkarten, die beim Wechsel umklappen ||
+|-
+| Nixie-Röhrenuhr || sechs glühende Nixie-Röhren auf Holzsockel ||
+|-
+| LED-Radiowecker || rote 7-Segment-Anzeige im Holzgehäuse; zeigt „ALARM“ mit Weckzeit, wenn der Radiowecker eingeschaltet ist || Farbe der Ziffern
+|-
+| LED-Matrix || Punktmatrix-Tafel mit Uhrzeit, Datum und Sekundenleiste || Farbe der Leuchtpunkte
+|-
+| Zählwerk || mechanisches Rollenzählwerk (Stunden, Minuten, Sekunden, Tag des Jahres, KW) ||
+|-
+| Wortuhr || Buchstabenraster „ES IST VIERTEL NACH DREI“, Eckpunkte für die Minuten 1–4 || Farbe der Wörter
+|-
+| Terminal || Röhrenmonitor mit <code>date</code>-Ausgabe, großer Blockschrift-Uhrzeit und blinkendem Cursor || Grün, Bernstein, Weiß oder Blau
+|-
+| Tagesfortschritt || Uhrzeit und Balken für Stunde, Tag, Woche, Monat und Jahr in Prozent ||
+|-
+| Ringuhr || drei Ringe für Stunden, Minuten und Sekunden, in der Mitte die Uhrzeit ||
+|-
+| Tacho-Uhr || Kombiinstrument: Stunden als Drehzahlmesser, Minuten als Tacho, dazu ein LC-Display ||
+|}
+Die meisten Zifferblätter werden genau zum Sekundenwechsel neu gezeichnet. Bewegte Zifferblätter (Pendel-, Kuckucks-, Sand- und Kerzenuhr, Planeten, Radar, Klappzahlen, Zählwerk) zeichnen 5-mal pro Sekunde, das Terminal 2-mal (Cursor).
+
+'''Eigene Zifferblätter''' (für Entwickler): siehe <code>README.md</code> im Projektarchiv – ein Zifferblatt ist eine Methode mit <code>@clock_face("id")</code>, der Name steht in <code>CLOCK_FACES</code>, die Einstellungen in <code>CLOCK_OPTIONS</code>; <code>tests/uhren_vorschau.py</code> zeigt es als Bild.
+
+=== Textbausteine ===
+Im Reiter '''Textbausteine''' der Verwaltung Texte anlegen (Name, optionale Gruppe, Text – auch mehrzeilig). Dann einer G-Taste die Aktion '''Textbausteine''' geben (alle oder nur eine Gruppe). Ein Druck auf die G-Taste zeigt die Liste auf dem Display:
+* '''Hoch/Runter''' wählen, '''OK''' tippt den Text in das gerade aktive Fenster.
+* '''BACK''' oder dieselbe G-Taste schließen die Liste.
+So passen beliebig viele Texte auf eine einzige G-Taste.
+
+=== Timer, Stoppuhr, Pomodoro ===
+G-Taste mit der Aktion '''Timer''' belegen und Art wählen:
+{| class="wikitable"
+! Art !! Verhalten
+|-
+| Countdown || läuft die eingestellten Minuten ab; am Ende rote Anzeige „Zeit abgelaufen!“, Signalton und blinkende Beleuchtung, beliebige Displaytaste bestätigt
+|-
+| Stoppuhr || zählt hoch
+|-
+| Pomodoro || wechselt automatisch zwischen Arbeits- und Pausenphase (z. B. 25/5 Minuten) und zählt die Runden; bei jedem Wechsel Signalton und Einblendung
+|}
+Während der großen Anzeige: '''OK''' Pause/Weiter, '''Hoch''' +1 Minute, '''Runter''' beenden (Stoppuhr: auf 0), '''BACK''' zurück zu den Seiten – der Timer läuft weiter und steht mit Uhrsymbol in der Fußzeile. Erneuter Druck auf dieselbe G-Taste zeigt die Anzeige wieder bzw. hält an. Der Signalton lässt sich unter '''Beleuchtung & Display → Lautstärke''' abschalten.
+
+=== Terminerinnerung ===
+Unter '''Infoseiten → Termine → Erinnerung''' einstellen, wie lange vorher erinnert wird (Standard 10 Minuten, „aus“ möglich). Das Display zeigt dann Titel, Uhrzeit und Ort in der Farbe des Kalenders, die Beleuchtung blinkt kurz und es gibt einen Signalton (abschaltbar mit dem Timer-Signalton). Ganztägige Termine und am Display ausgeblendete Kalender werden nicht angekündigt. Die Erinnerung erscheint sofort, sobald neue Termindaten geladen sind (auch für Termine, die gerade erst eingetragen wurden). Eine beliebige Displaytaste schließt die Erinnerung.
+
+=== Radiowecker und Einschlaftimer ===
+'''Radiowecker:''' Reiter '''Radiosender → Radiowecker''': Uhrzeit, Wochentage und Sender wählen. Zur Weckzeit startet der Sender, das Display wacht auf (auch im Nachtmodus) und zeigt „Guten Morgen!“. Der PC muss dafür eingeschaltet sein (nicht im Ruhezustand).
+
+'''Einschlaftimer:''' G-Taste mit der Aktion '''Einschlaftimer''' (z. B. 30 Minuten). Läuft nichts, startet der zuletzt gehörte Sender. Die Restminuten stehen mit Mondsymbol in der Fußzeile; danach wird das Radio bzw. der Player ausgeschaltet. Nochmal drücken bricht ab.
+
+=== Song merken ===
+G-Taste mit '''Musiksteuerung → Song merken''' belegen. Ein Druck speichert den gerade laufenden Titel (auch den Song im Internetradio) mit Uhrzeit und Sender. Die Liste steht in der Verwaltung unter '''Radiosender → Gemerkte Songs''', mit Links zur Suche bei YouTube und Spotify.
+
+=== Lieblingsbilder ===
+Auf der Seite '''Bilder''' merkt '''BACK''' das gezeigte Bild als Lieblingsbild; es trägt dann ein ♥. In der Verwaltung unter '''Diashow → Lieblingsbilder''' stehen alle Lieblingsbilder (bei Piwigo mit Link zum Bild), dort lässt sich auch '''Diashow zeigt nur Lieblingsbilder''' einschalten.
+
+=== Mikrofon stumm ===
+G-Taste mit der Aktion '''Mikrofon stumm''' belegen. Ein Druck schaltet das Standard-Mikrofon stumm bzw. wieder an und zeigt es groß auf dem Display. Solange das Mikrofon stumm ist, '''leuchtet die MR-Taste''' und die Fußzeile zeigt ein rotes Mikrofon – auch wenn es in KDE oder einem Programm stummgeschaltet wurde (Abfrage alle 5 Sekunden).
+
+=== Unwetterwarnungen ===
+Die Warnungen stammen vom Deutschen Wetterdienst und werden über den freien Dienst [https://brightsky.dev Bright Sky] für den Wetter-Ort abgefragt (alle 10 Minuten). Neue Warnungen ab der Stufe „markant“ werden – auch bei ausgeschalteter Seite – einmal groß eingeblendet, mit Blinken und Signalton; abschaltbar unter '''Infoseiten → Unwetterwarnungen'''.
+
+=== Nachtmodus ===
+In der Verwaltung unter '''Beleuchtung & Display → Nachtmodus''' Zeitraum wählen (z. B. 22:00 bis 07:00) und festlegen, ob das Display nur gedimmt oder ganz ausgeschaltet wird. Optional geht auch die Tastaturbeleuchtung aus.
+* Der '''erste''' Druck auf eine Displaytaste weckt Display und Beleuchtung für eine Minute, ohne sonst etwas auszulösen.
+* G-Tasten funktionieren nachts ganz normal.
+
+=== Bildschirmschoner ===
+Unter '''Beleuchtung & Display → Bildschirmschoner''' einschalten, Wartezeit in Minuten und die Seite wählen (z. B. „Bilder“ für die Diashow). Wird so lange weder Tastatur noch Maus benutzt, wechselt das Display auf diese Seite. Der nächste Tastendruck beendet den Bildschirmschoner und kehrt zur vorherigen Seite zurück, ohne weitere Wirkung. Dafür muss der Benutzer in der Gruppe <code>input</code> sein (Installation Schritt 4); sonst zählen nur die G19s-Tasten selbst.
+
+=== Benachrichtigungen ===
+KDE-Benachrichtigungen erscheinen für einige Sekunden auf dem Display (Programm, Titel, Text). Anzeigedauer und auszublendende Programme (z. B. <code>Discover, Spectacle</code>) werden unter '''Infoseiten → Benachrichtigungen''' eingestellt. Mehrere Meldungen werden nacheinander angezeigt.
+
+=== Medientasten (oben rechts) ===
+Die Medientasten laufen über den normalen Tastaturanschluss und werden von KDE verarbeitet. Sie steuern jeden Player, der in der KDE-Medienwiedergabe erscheint. Für das eigene Radio ist dafür <code>mpv-mpris</code> nötig:
+{| class="wikitable"
+! Taste !! beim Radio
+|-
+| Play/Pause || Sender pausieren / fortsetzen
+|-
+| Vor / Zurück || nächster / vorheriger Sender der Senderliste
+|-
+| Stop || Radio ausschalten
+|}
+Die Musikseite funktioniert mit jedem Player, der in der KDE-Medienwiedergabe erscheint (Elisa, Spotify, VLC, Browser …). Bei Internetradio (z. B. Rockantenne in Elisa) liest der Treiber den laufenden Song alle 15 Sekunden direkt aus dem Stream.
+
+=== Aufrufoptionen ===
+{| class="wikitable"
+! Option !! Wirkung
+|-
+| <code>--debug</code> || Rohdaten und erkannte Tasten ausgeben
+|-
+| <code>--brightness 0-100</code> || Displayhelligkeit setzen
+|-
+| <code>--keep-backlight</code> || Beleuchtung nicht je Profil umfärben
+|-
+| <code>--preview NAME</code> || Displayseiten als PNG speichern (ohne Tastatur)
+|}
+Optionen für den Autostart in <code>~/.config/systemd/user/g19s.service</code> an die Zeile <code>ExecStart</code> anhängen, danach <code>systemctl --user daemon-reload</code> und <code>systemctl --user restart g19s.service</code>.
+
+== G-Tasten in KDE belegen ==
+Nur nötig für Tasten mit der Aktion „KDE-Kurzbefehl“.
+# Das gewünschte Profil mit M1/M2/M3 aktivieren.
+# '''Systemeinstellungen → Tastatur → Kurzbefehle'''
+# '''Neu hinzufügen''' → '''Anwendung''' oder '''Befehl oder Skript'''
+# Beim neuen Eintrag '''Kurzbefehl hinzufügen''' und die G-Taste drücken (KDE zeigt F13 usw.).
+# '''Anwenden'''
+
+Beispielbefehle:
+{| class="wikitable"
+! Zweck !! Befehl
+|-
+| Terminal || <code>konsole</code>
+|-
+| Bildschirmfoto || <code>spectacle</code>
+|-
+| Stumm schalten || <code>pactl set-sink-mute @DEFAULT_SINK@ toggle</code>
+|-
+| Play/Pause || <code>playerctl play-pause</code>
+|-
+| Webseite || <code>xdg-open https://www.example.de</code>
+|-
+| Bildschirm sperren || <code>loginctl lock-session</code>
+|}
+
+== Makrodatei macros.json ==
+Am einfachsten über die [[#G19s-Verwaltung (grafische Oberfläche)|G19s-Verwaltung]]. Von Hand bearbeiten mit <code>kate ~/.config/g19s/macros.json</code> (kein <code>sudo</code>). Änderungen übernimmt der Treiber nach dem Speichern innerhalb von 2 Sekunden. Ist die Datei fehlerhaft, bleiben die bisherigen Makros aktiv.
+
+=== Aufbau ===
+<pre>
+{
+  "profiles": [
+    {
+      "name": "Büro",
+      "colors": { "M1": [0, 110, 255], "M2": [0, 255, 90], "M3": [255, 70, 0] },
+      "keys": {
+        "M1": {
+          "G1": { "name": "Test-Satz", "steps": [ [0, "KEY_A", "tap"], [30, "KEY_B", "tap"] ] },
+          "G2": { "name": "heise.de",  "open": "https://www.heise.de" },
+          "G4": { "name": "Grußformel", "text": "Mit freundlichen Grüßen" },
+          "G5": { "combo": "KEY_LEFTCTRL+KEY_LEFTSHIFT+KEY_T" },
+          "G7": { "radio": "https://stream.rockantenne.de/rockantenne/stream/aacp" },
+          "G8": { "media": "next" },
+          "G9": { "name": "Terminal", "run": "konsole" },
+          "G10": { "volume": "up" },
+          "G12": { "name": "Firefox" }
+        },
+        "M2": { }
+      }
+    },
+    { "name": "Spiele", "keys": { "M1": { "G1": { "text": "gg" } } } }
+  ]
+}
+</pre>
+Bis zu 10 Einträge in <code>profiles</code>. Optional hat ein Profil eigene Displayseiten: <code>"pages": {"M1": ["clock", "music"], "M2": [...], "M3": [...]}</code>. <code>colors</code> ist optional; fehlt es, gelten die Farben aus <code>settings.json</code>. Das ältere Format ohne Profile (nur <code>M1</code>/<code>M2</code>/<code>M3</code> auf oberster Ebene) wird weiterhin gelesen und als „Profil 1“ behandelt.
+{| class="wikitable"
+! Schlüssel !! Wirkung
+|-
+| <code>"name"</code> || Beschriftung auf der Displayseite „Makros“
+|-
+| <code>"steps"</code> || Tastenfolge abspielen (wird bei MR-Aufnahme erzeugt)
+|-
+| <code>"open"</code> || Webseite im Standardbrowser öffnen
+|-
+| <code>"run"</code> || Befehl ausführen
+|-
+| <code>"text"</code> || Text tippen
+|-
+| <code>"combo"</code> || Tastenkombination
+|-
+| <code>"radio"</code> || Radiosender (Stream-Adresse) bzw. <code>"stop"</code>
+|-
+| <code>"media"</code> || <code>play-pause</code>, <code>next</code>, <code>previous</code>, <code>stop</code>
+|-
+| <code>"volume"</code> || <code>up</code>, <code>down</code>, <code>mute</code> (Schrittweite in der Verwaltung)
+|-
+| <code>"snippets"</code> || <code>"*"</code> = alle Textbausteine, sonst Name einer Gruppe
+|-
+| <code>"sleep"</code> || Einschlaftimer in Minuten
+|-
+| <code>"mic"</code> || <code>"toggle"</code>: Mikrofon stumm/an
+|-
+| <code>"timer"</code> || <code>{"mode": "timer", "minutes": N}</code>, <code>{"mode": "stopwatch"}</code> oder <code>{"mode": "pomodoro", "work": N, "break": N}</code>
+|-
+| nur <code>"name"</code> || nur Beschriftung, Taste sendet weiter F13 … (für KDE-Kurzbefehl)
+|}
+
+=== Schritte ===
+Jeder Schritt hat die Form <code>[Pause in ms, Taste, Aktion]</code>:
+* '''Pause:''' Wartezeit vor diesem Schritt (1000 = 1 Sekunde, maximal 5000)
+* '''Taste:''' z. B. <code>KEY_A</code>, <code>KEY_ENTER</code>, <code>KEY_SPACE</code>, <code>KEY_LEFTCTRL</code>
+* '''Aktion:''' <code>down</code> (drücken), <code>up</code> (loslassen), <code>tap</code> (kurz drücken)
+
+{{Hinweis|Tastennamen folgen dem US-Layout. Auf deutscher Tastatur: <code>KEY_Y</code> = Z, <code>KEY_Z</code> = Y, <code>KEY_SEMICOLON</code> = Ö, <code>KEY_APOSTROPHE</code> = Ä, <code>KEY_LEFTBRACE</code> = Ü. Am einfachsten ein Makro per MR aufnehmen und danach anpassen.}}
+
+Nach der letzten Zeile einer Liste und nach dem letzten Eintrag eines Blocks steht '''kein''' Komma. Prüfen:
+<pre>
+python3 -m json.tool ~/.config/g19s/macros.json > /dev/null && echo "Datei OK"
+</pre>
+
+== Sicherung ==
+'''Automatisch:''' G19s-Verwaltung → '''Dienst & Sicherung → Automatische Sicherung''': Ziel wählen, Abstand (1–30 Tage) und wie viele Sicherungen aufgehoben werden. Der Treiber legt dort <code>g19s-sicherung-DATUM_UHRZEIT.tar.gz</code> ab und löscht ältere automatische Sicherungen (andere Dateien bleiben unberührt). '''Verbindung testen''' schreibt und löscht eine Probedatei und meldet verständlich, was fehlt; '''Jetzt sichern''' legt sofort eine Sicherung an. Gemerkte Songs und Lieblingsbilder sind in der Sicherung enthalten.
+{| class="wikitable"
+! Ziel !! Eingaben !! Hinweise
+|-
+| Ordner auf diesem Rechner || Ordner (Durchsuchen …) || auch ein fest eingebundenes NAS (z. B. <code>/mnt/nas</code> über <code>/etc/fstab</code>) oder der Ordner des Nextcloud-Desktop-Clients (<code>~/Nextcloud/…</code>). Eine Freigabe, die nur in Dolphin geöffnet ist (<code>smb://…</code>), ist '''kein''' Ordner – dafür „NAS – Windows-Freigabe“ nehmen.
+|-
+| Nextcloud || Adresse (z. B. <code>https://cloud.example.de</code>, auch die Adresse aus dem Browser), Benutzername, '''App-Passwort''', Ordner || App-Passwort: Nextcloud → Persönliche Einstellungen → Sicherheit → „Neues App-Passwort erstellen“. Der Ordner (Standard <code>G19s-Sicherung</code>) wird angelegt. Übertragung per WebDAV, kein Nextcloud-Client nötig.
+|-
+| NAS – Windows-Freigabe (SMB) || Freigabe und Ordner (<code>\\nas\backup\G19s</code> oder <code>smb://nas/backup/G19s</code>), Benutzer, Passwort || Der Ordner muss vorhanden sein. Benötigt <code>smbclient</code> (<code>sudo apt install smbclient</code>); ohne smbclient wird KDEs <code>kioclient</code> verwendet.
+|-
+| WebDAV-Server || vollständige Ordneradresse (z. B. <code>https://nas.local:5006/home/Sicherungen</code>), Benutzer, Passwort || z. B. Synology (Paket „WebDAV Server“), QNAP, FRITZ!Box-NAS. Der Ordner muss vorhanden sein.
+|}
+Das Passwort steht in <code>~/.config/g19s/settings.json</code> (nur für den eigenen Benutzer lesbar). Für Nextcloud deshalb ein App-Passwort verwenden, das sich jederzeit einzeln widerrufen lässt.
+
+'''Von Hand:''' G19s-Verwaltung → '''Dienst & Sicherung''' → '''Sicherung herunterladen'''. Die Datei <code>g19s-sicherung-DATUM.tar.gz</code> auf einen USB-Stick kopieren. Einspielen im selben Reiter mit '''Sicherung einspielen'''. Der vorherige Stand wird dabei automatisch unter <code>~/.config/g19s/vor-wiederherstellung-….tar.gz</code> gesichert.
+
+Alternativ im Terminal:
+<pre>
+tar czf ~/g19s-sicherung.tar.gz -C ~ \
+  .config/g19s/macros.json \
+  .config/g19s/settings.json \
+  .config/g19s/state.json \
+  .config/g19s/songs.json \
+  .config/g19s/favorites.json \
+  .config/kglobalshortcutsrc \
+  .local/bin/g19s.py \
+  .local/bin/g19s-gui.py \
+  .config/systemd/user/g19s.service
+</pre>
+Selbst angelegte KDE-Befehle („Befehl oder Skript“) liegen zusätzlich als <code>.desktop</code>-Dateien in <code>~/.local/share/applications/</code> und sollten mitgesichert werden:
+<pre>
+ls ~/.local/share/applications/
+</pre>
+
+Wiederherstellen nach der Neuinstallation (nach Schritt 2 der Installation, vor der ersten Anmeldung in KDE am besten über eine Textkonsole mit Strg+Alt+F3):
+<pre>
+tar xzf g19s-sicherung.tar.gz -C ~
+</pre>
+Danach mit Schritt 3 „udev-Regel“ weitermachen. Treiber und Dienst sind dann bereits vorhanden.
+
+== Fehlerbehebung ==
+{| class="wikitable"
+! Meldung / Symptom !! Ursache !! Lösung
+|-
+| <code>No module named 'numpy'</code> (oder usb, evdev, PIL) || Paket fehlt || Pakete aus Schritt 2 installieren
+|-
+| <code>Kann Interface 0 nicht übernehmen: Access denied</code> || udev-Regel nicht aktiv || Regel prüfen (<code>cat /etc/udev/rules.d/70-g19s.rules</code>), Tastatur aus- und wieder einstecken
+|-
+| <code>Resource busy</code> || Treiber läuft schon (Dienst) || <code>systemctl --user stop g19s.service</code> vor dem Testlauf
+|-
+| Display „Kein Lesezugriff auf Tastatur“ bei MR || Benutzer nicht in Gruppe <code>input</code> || Schritt 4, dann Neustart; prüfen mit <code>groups</code>
+|-
+| G-Taste löst mehrere Tasten aus || alte Version mit Report-Fehler || aktuelle <code>g19s.py</code> von dieser Seite einspielen
+|-
+| MR, <code>open</code>, Radio oder Text ohne Funktion || alte Version installiert || <code>grep -c RadioManager ~/.local/bin/g19s.py</code> muss größer als 0 sein
+|-
+| Musikseite: „playerctl fehlt“ || Paket fehlt || <code>sudo apt install playerctl</code>
+|-
+| Musikseite: „Keine Wiedergabe“ || Player meldet sich nicht || <code>playerctl -a metadata</code> prüfen
+|-
+| Radio zeigt nur Sendernamen || Sender liefert keine Titel im Stream || <code>journalctl --user -u g19s.service -n 20 --no-pager</code>
+|-
+| Radiotaste: Display „Radioplayer startet nicht“ || mpv fehlt || <code>sudo apt install mpv</code>
+|-
+| Medientasten steuern das Radio nicht (bei Elisa usw. schon) || mpv-mpris fehlt || <code>sudo apt install mpv-mpris</code>, danach Radio neu starten; Kontrolle in der Verwaltung unter '''Dienst & Sicherung'''
+|-
+| Verwaltung: „g19s.py ist zu alt“ || Treiber und Oberfläche passen nicht zusammen || beide Dateien von dieser Seite neu einspielen
+|-
+| Verwaltung: „Verbindung verloren“ || Programm hat sich nach Schließen beendet || erneut aus dem Anwendungsmenü starten
+|-
+| Verwaltung: Sendersuche meldet Fehler || keine Internetverbindung oder Verzeichnis gestört || später erneut versuchen, Sender von Hand eintragen
+|-
+| Diashow: „Die Galerie unterstützt kein https“ || Adresse ohne <code>http://</code> eingetragen, Galerie läuft nur mit http || Adresse mit <code>http://</code> eintragen
+|-
+| Diashow: „Anmeldung fehlgeschlagen“ || Benutzer/Passwort falsch || in der Verwaltung korrigieren; für öffentliche Alben beide Felder leer lassen
+|-
+| Diashow: private Alben fehlen in der Liste || nicht angemeldet || Benutzer und Passwort eintragen, erneut '''Alben laden'''
+|-
+| Diashow: „Keine gültige Antwort“ || Adresse zeigt nicht auf die Galerie || Adresse so eintragen, wie sie im Browser vor <code>/index.php</code> steht
+|-
+| G-Taste mit <code>open</code> öffnet nichts || Desktop-Umgebung fehlt dem Dienst || <code>systemctl --user show-environment</code> muss <code>WAYLAND_DISPLAY</code> enthalten
+|-
+| Update: „Datei ist unvollständig“ || Download abgebrochen oder falsche Datei || Datei neu herunterladen; <code>tail -n 1 DATEI</code> muss <code># G19S-DATEIENDE …</code> zeigen
+|-
+| Update: „weder Treiber noch Oberfläche“ || andere Datei gewählt || die Dateien <code>g19s.py</code> bzw. <code>g19s-gui.py</code> (ggf. mit Nummer im Namen) wählen
+|-
+| Verwaltung zeigt alte Version / fehlende Reiter || alte Verwaltung läuft noch im Hintergrund || <code>pkill -f g19s-gui.py</code>, dann neu starten (neue Versionen beenden eine ältere automatisch)
+|-
+| Wetter: „Ort in der G19s-Verwaltung einstellen“ || Ort fehlt || '''Infoseiten → Wetter''', Ort suchen und anklicken
+|-
+| Wetter/Termine: ⚠ oben rechts || letzter Abruf fehlgeschlagen, alte Daten werden gezeigt || Internetverbindung prüfen; bei Terminen in der Verwaltung '''Testen'''
+|-
+| Termine: „Anmeldung fehlgeschlagen“ || Benutzer/Passwort falsch, bei Nextcloud mit Zwei-Faktor-Anmeldung das normale Passwort verwendet || Nextcloud → Persönliche Einstellungen → Sicherheit → '''Neues App-Passwort erstellen''', dieses und den Benutzernamen (nicht die E-Mail-Adresse) eintragen
+|-
+| Termine: „Webseite statt Kalenderdaten“ oder „keine iCalendar-Daten“ || Adresse zeigt nicht auf einen Kalender || Bei Nextcloud einfach die Adresse der Nextcloud (z. B. <code>https://cloud.example.de</code> oder <code>…/remote.php/dav</code>) mit Benutzer und App-Passwort eintragen, der Treiber sucht die Kalender selbst. Alternativ: Kalender → ⋯ → '''Interne Adresse kopieren''' oder unter '''Teilen''' den öffentlichen Link (ohne Passwort).
+|-
+| Termine: „Für die Kalendersuche Benutzer und App-Passwort eintragen“ || Nextcloud-Adresse ohne Zugangsdaten || Benutzer und App-Passwort ergänzen
+|-
+| Termine: „Kalender nicht gefunden (404)“ || Tippfehler oder Kalender umbenannt || Adresse wie oben neu kopieren
+|-
+| Termine: Uhrzeit um 1–2 Stunden verschoben || Kalender ohne Zeitzone || Zeitzone des Kalenders in Nextcloud/Google setzen
+|-
+| Automatische Sicherung: „Anmeldung abgelehnt“ || falscher Benutzer/Passwort; bei Nextcloud mit Zwei-Faktor-Anmeldung das normale Passwort || In der Nextcloud ein App-Passwort erstellen und eintragen, '''Verbindung testen'''
+|-
+| Automatische Sicherung: „Ordner nicht gefunden … ist das NAS eingebunden?“ || Ordner liegt auf einem NAS, das gerade nicht eingebunden ist, oder es wurde eine <code>smb://</code>-Adresse als Ordner eingetragen || Ziel „NAS – Windows-Freigabe“ wählen oder das NAS dauerhaft einbinden
+|-
+| Automatische Sicherung: „fehlt das Programm smbclient“ || Paket fehlt || <code>sudo apt install smbclient</code>
+|-
+| Keine Benachrichtigungen auf dem Display || ausgeschaltet, Programm ausgeblendet oder <code>dbus-monitor</code> fehlt || Einstellungen prüfen; <code>sudo apt install dbus-bin</code>; Protokoll im Reiter '''Dienst & Sicherung'''
+|-
+| Testbenachrichtigung: „notify-send fehlt“ || Paket fehlt || <code>sudo apt install libnotify-bin</code>
+|-
+| Lautstärke: „wpctl/pactl nicht gefunden“ || kein PipeWire/PulseAudio-Werkzeug || <code>sudo apt install wireplumber</code> (oder <code>pulseaudio-utils</code>)
+|-
+| Mikrofon-Taste schaltet das falsche Mikrofon || anderes Standard-Eingabegerät || in KDE unter '''Systemeinstellungen → Audio''' das gewünschte Mikrofon als Standard setzen
+|-
+| Radiowecker startet nicht || PC im Ruhezustand oder Treiber nicht gestartet || PC eingeschaltet lassen; Protokoll zeigt „Radiowecker: …“ zur Weckzeit
+|-
+| Automatische Sicherung: „Ordner nicht gefunden“ || Ordner fehlt oder NAS nicht eingehängt || Ordner prüfen; Status unter '''Dienst & Sicherung'''
+|-
+| Nachrichten: „Feed nicht lesbar“ || Adresse falsch oder Seite liefert keinen Feed || in der Verwaltung '''Testen'''; Feed-Adresse auf der Webseite der Zeitung suchen (meist „RSS“ unten auf der Seite)
+|-
+| Unwetter: „Ort … einstellen“ || kein Wetter-Ort || '''Infoseiten → Wetter''' Ort wählen
+|-
+| Netzwerk: Gerät „offline“, obwohl es läuft || Gerät antwortet nicht auf Ping (z. B. Firewall) || stattdessen einen Dienst prüfen: <code>Name:Port</code>, z. B. <code>nas.local:5000</code>
+|-
+| Updates zeigt 0, Discover aber Updates || Paketlisten noch nicht aktualisiert || Discover einmal öffnen bzw. <code>sudo apt update</code>; die Seite prüft stündlich
+|-
+| Keine Terminerinnerung || Erinnerung „aus“, Termin ganztägig oder Kalender am Display ausgeblendet || unter '''Infoseiten → Termine''' prüfen
+|-
+| Hardware-Seite zeigt „–“ bei Temperaturen || Sensor-Treiber nicht geladen || <code>sudo apt install lm-sensors && sudo sensors-detect</code>, danach Neustart
+|-
+| Bildschirmschoner startet trotz Benutzung || Benutzer nicht in Gruppe <code>input</code>, nur G19s-Tasten zählen || Installation Schritt 4
+|-
+| Diashow aus Ordner: „Keine Bilder …“ || falscher Ordner oder Bilder nur in Unterordnern || Ordner prüfen, ggf. „Unteralben / Unterordner einbeziehen“ ankreuzen
+|}
+
+=== Nützliche Befehle ===
+<pre>
+systemctl --user status g19s.service --no-pager     # läuft der Treiber?
+systemctl --user restart g19s.service               # nach Änderungen am Skript
+systemctl --user stop g19s.service                  # für Testlauf mit --debug
+journalctl --user -u g19s.service -n 30 --no-pager  # letzte Meldungen
+getfacl /dev/bus/usb/BUS/GERÄT                      # Rechte (Nummern aus lsusb)
+</pre>
+
+{{Hinweis|Heruntergeladene Dateien mit gleichem Namen speichert der Browser als <code>g19s(1).py</code>, <code>g19s(2).py</code> usw. Beim Aktualisieren immer prüfen, welche Datei die neue ist, z. B. mit <code>ls -lt ~/Downloads/g19s*</code>.}}
+
+== Technische Details ==
+{| class="wikitable"
+! Endpunkt !! Richtung !! Inhalt
+|-
+| <code>0x02</code> (Interface 0) || Bulk OUT || Displaybild: 512-Byte-Header + 320×240 Pixel RGB565, spaltenweise
+|-
+| <code>0x81</code> (Interface 0) || Interrupt IN || Displaytasten (Byte 0: Settings 0x01, Back 0x02, Menu 0x04, OK 0x08, Rechts 0x10, Links 0x20, Runter 0x40, Hoch 0x80)
+|-
+| <code>0x83</code> (Interface 1) || Interrupt IN || G-/M-Tasten, nur Report-ID <code>0x02</code> auswerten
+|}
+* Displaytaste SETTINGS (<code>0x01</code>) öffnet das Profilmenü.
+* Report <code>0x02</code>: Byte 1 = G1–G8 (Bit 0–7), Byte 2 = G9–G12 (Bit 0–3), M1 0x10, M2 0x20, M3 0x40, MR 0x80.
+* Report <code>0x03</code> ist ein zusätzlicher Tastatur-Report (G1 = F1 usw.) und wird ignoriert.
+* Beleuchtung: Control-Transfer <code>0x21/0x09</code>, wValue <code>0x0307</code>, Daten <code>[7, R, G, B]</code>.
+* M-LEDs: Control-Transfer <code>0x21/0x09</code>, wValue <code>0x0305</code>, Daten <code>[5, Maske]</code> (M1 0x80, M2 0x40, M3 0x20, MR 0x10).
+* Verwaltung: HTTP-Server auf <code>127.0.0.1</code> mit zufälligem Port und Zugangsschlüssel; prüft den Host-Header und lässt beim Einspielen einer Sicherung nur die bekannten Dateien zu.
+* Piwigo: Web-API <code>ws.php?format=json</code> mit <code>pwg.session.login</code>, <code>pwg.categories.getList</code> und <code>pwg.categories.getImages</code> (Bildgröße „medium“).
+* Internetradio: ICY-Metadaten (<code>Icy-MetaData: 1</code>, <code>StreamTitle='Interpret - Titel';</code>).
+* Wetter: Open-Meteo (<code>api.open-meteo.com/v1/forecast</code>, Ortssuche über <code>geocoding-api.open-meteo.com</code>), ohne Schlüssel.
+* Termine: iCalendar (<code>.ics</code>) per HTTP(S), optional mit Basic-Auth. Nextcloud-Adressen werden umgeschrieben: <code>/remote.php/dav/calendars/BENUTZER/KALENDER/</code> bekommt <code>?export</code>, Freigabelinks <code>/apps/calendar/p/TOKEN</code> werden zu <code>/remote.php/dav/public-calendars/TOKEN?export</code>. Bei einer allgemeinen Adresse (Server oder <code>/remote.php/dav</code>) sucht der Treiber per CalDAV (<code>PROPFIND</code>: current-user-principal → calendar-home-set → Kalender mit VEVENT) alle Terminkalender und übernimmt deren Farbe; Serientermine (RRULE täglich/wöchentlich/monatlich/jährlich, EXDATE, geänderte Einzeltermine) und Zeitzonen werden umgerechnet. Abruf alle 15 Minuten.
+* Hardware: <code>/sys/class/hwmon</code> (k10temp, coretemp, amdgpu, nvme …), <code>nvidia-smi</code>, <code>/proc/net/dev</code>.
+* Benachrichtigungen: <code>dbus-monitor --session</code> auf <code>org.freedesktop.Notifications.Notify</code> (nur mitlesen, KDE zeigt die Meldungen weiterhin selbst).
+* Lautstärke: <code>wpctl</code> (PipeWire), ersatzweise <code>pactl</code>.
+* Nachrichten: RSS 2.0, RSS 1.0 und Atom, alle 15 Minuten.
+* Unwetter: <code>https://api.brightsky.dev/alerts?lat=…&lon=…</code> (DWD-Warnungen, ohne Schlüssel).
+* Netzwerk: <code>ping -c 1 -W 2</code> bzw. TCP-Verbindung bei <code>Name:Port</code>; Router aus <code>/proc/net/route</code>.
+* Updates: <code>apt list --upgradable</code> (nutzt die von Discover bzw. apt zuletzt geladenen Paketlisten), <code>flatpak remote-ls --updates</code>, <code>/var/run/reboot-required</code>.
+* Update-Knopf: erkennt die Dateien an <code>G19S_COMPONENT</code> und <code>VERSION</code> im Kopf und an der Endzeile <code># G19S-DATEIENDE</code>. Eine unvollständig heruntergeladene Datei wird abgewiesen („unvollständig“).
+* Aufbau des Quelltexts: Beide Programme werden aus einzelnen Modulen zusammengesetzt (Treiber: 49 Module, Verwaltung: 14 Server-Module plus Seite aus HTML, CSS und 17 JavaScript-Dateien) und als je eine Datei ausgeliefert. Jeder Abschnitt beginnt mit einem Kommentarkopf <code># ==== Modul: … ====</code>, der beschreibt, was darin steht.
+** Einstellungen: ein gemeinsames Schema (<code>SCHEMA</code>) für Treiber und Verwaltung – der Treiber liest tolerant (Ungültiges → Standardwert), die Verwaltung prüft streng mit verständlicher Fehlermeldung.
+** Displayseiten melden sich mit <code>@page("id")</code> an, ihre Tasten mit <code>@page_keys("id")</code>; Menüs am Display sind Klassen (<code>ProfileMenu</code>, <code>CalendarMenu</code>, <code>AlbumMenu</code>, …); G-Tasten-Aktionen stehen in einer Tabelle (<code>@gkey_action</code>).
+** Die Anwendung besteht aus <code>AppCore</code> (Zustand, Profile, Licht), <code>KeyHandling</code> (Tasten) und <code>TimedTasks</code> (Zeitaufgaben).
+** Das Projektarchiv mit allen Modulen, dem Bauskript <code>build.py</code> und den automatischen Tests (Einheitentests, Bildvergleiche aller Displayseiten, Bediensimulationen, Oberflächentests) liegt als <code>g19s-projekt.zip</code> bei.
+
+[[Kategorie:Linux]]
+[[Kategorie:Hardware]]
+[[Kategorie:Kubuntu]]

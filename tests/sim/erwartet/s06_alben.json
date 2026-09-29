@@ -1,0 +1,15 @@
+{
+ "albums": [
+  1,
+  3
+ ],
+ "count": 6,
+ "log": [
+  "Diashow: 3 Bilder gefunden",
+  "Diashow-Alben: Urlaub 2025, Italien",
+  "Diashow-Alben: Urlaub 2025",
+  "Diashow-Alben: Urlaub 2025, Familie (privat)",
+  "Diashow: 6 Bilder gefunden"
+ ],
+ "paused": true
+}

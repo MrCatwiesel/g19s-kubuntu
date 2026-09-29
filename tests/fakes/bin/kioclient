@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+"""Nachbau von KDEs kioclient für die Tests (nur copy/ls/remove mit smb:// und file://)."""
+import os, sys, urllib.parse
+a = [x for x in sys.argv[1:] if not x.startswith("--")]
+root = os.path.join(os.environ.get("G19S_TEST_ROOT", "/tmp/g19s-test"), "smb")
+def local(url):
+    u = urllib.parse.urlsplit(url)
+    if u.scheme == "file":
+        return urllib.parse.unquote(u.path)
+    if (urllib.parse.unquote(u.username or ""), urllib.parse.unquote(u.password or "")) != ("nas", "geh%eim"):
+        sys.stderr.write("kioclient: Anmeldung fehlgeschlagen\n"); sys.exit(1)
+    return os.path.join(root, u.hostname, urllib.parse.unquote(u.path).lstrip("/"))
+cmd = a[0]
+if cmd == "copy":
+    src, dst = local(a[1]), local(a[2])
+    if not os.path.isdir(os.path.dirname(dst)):
+        sys.stderr.write("kioclient: Der Ordner existiert nicht.\n"); sys.exit(1)
+    open(dst, "wb").write(open(src, "rb").read())
+elif cmd == "ls":
+    d = local(a[1])
+    if not os.path.isdir(d):
+        sys.stderr.write("kioclient: Der Ordner existiert nicht.\n"); sys.exit(1)
+    for n in sorted(os.listdir(d)): print(n)
+elif cmd == "remove":
+    os.remove(local(a[1]))

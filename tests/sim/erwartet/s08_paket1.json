@@ -1,0 +1,34 @@
+{
+ "blinked": true,
+ "log": [
+  "Radio: Radio BOB!",
+  "Textbaustein: Adresse",
+  "Timer 3 s gestartet",
+  "Timer 3 s abgelaufen",
+  "Stoppuhr gestartet",
+  "Pomodoro 0.05/0.05 gestartet",
+  "Pomodoro: Pause!",
+  "Pomodoro: Weiterarbeiten",
+  "Timer beendet"
+ ],
+ "sounds": [
+  3,
+  1,
+  1
+ ],
+ "typed": [
+  "KEY_LEFTSHIFT",
+  "KEY_M",
+  "KEY_U",
+  "KEY_S",
+  "KEY_T",
+  "KEY_E",
+  "KEY_R",
+  "KEY_S",
+  "KEY_T",
+  "KEY_R",
+  "KEY_DOT",
+  "KEY_SPACE",
+  "KEY_1"
+ ]
+}

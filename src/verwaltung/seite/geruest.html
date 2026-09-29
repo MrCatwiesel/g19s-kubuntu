@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>G19s-Verwaltung</title>
+<style>
+@@CSS@@
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>G19s-Verwaltung</h1>
+    <div class="sub">Logitech G19s · G-Tasten, Makros, Radio und Display</div>
+  </div>
+  <div class="spacer"></div>
+  <span class="pill" id="svcPill"><span class="dot"></span><span>Treiber …</span></span>
+</header>
+<nav id="nav">
+  <button data-tab="keys" class="active">Tasten<span class="badge"></span></button>
+  <button data-tab="radio">Radiosender<span class="badge"></span></button>
+  <button data-tab="snippets">Textbausteine<span class="badge"></span></button>
+  <button data-tab="settings">Beleuchtung & Display<span class="badge"></span></button>
+  <button data-tab="slides">Diashow<span class="badge"></span></button>
+  <button data-tab="info">Infoseiten<span class="badge"></span></button>
+  <button data-tab="service">Dienst & Sicherung</button>
+</nav>
+<main>
+  <div class="warnbox banner row" id="extBanner">
+    <span style="flex:1">Die Tastenbelegung wurde außerhalb geändert (z. B. durch eine MR-Aufnahme an der Tastatur).</span>
+    <button class="btn small" id="extReload">Neu laden (eigene Änderungen verwerfen)</button>
+  </div>
+
+  <!-- ===================== Tasten ===================== -->
+  <section class="tab active" id="tab-keys">
+    <div class="grid2">
+      <div class="card">
+        <h2>Profil</h2>
+        <p class="hint">Bis zu 10 Profile mit je 36 Belegungen. An der Tastatur wechselt die Displaytaste SETTINGS das Profil.</p>
+        <div class="row" style="flex-wrap:nowrap; gap:6px">
+          <select id="profSel" style="flex:1; min-width:0"></select>
+          <button class="btn icon small" id="profUp" title="Profil nach oben">↑</button>
+          <button class="btn icon small" id="profDown" title="Profil nach unten">↓</button>
+        </div>
+        <div class="row" style="gap:6px; margin:8px 0 10px">
+          <button class="btn small" id="profNew">+ Neu</button>
+          <button class="btn small" id="profCopy">Kopieren</button>
+          <button class="btn small" id="profRename">Umbenennen</button>
+          <button class="btn small danger" id="profDel">Löschen</button>
+        </div>
+        <div class="profcolors" id="profColors"></div>
+        <div id="profActive" style="margin:10px 0 4px"></div>
+        <h2 style="margin-top:16px">Ebene & G-Taste</h2>
+        <p class="hint">Ebene M1–M3 wählen (wie die M-Tasten), dann eine G-Taste anklicken.</p>
+        <div class="profiles" id="profiles"></div>
+        <div class="keypad" id="keypad"></div>
+        <div class="legend">Tasten ohne Belegung senden F13–F24 (M2: Strg+, M3: Alt+) und können in den KDE-Kurzbefehlen belegt werden.</div>
+      </div>
+      <div class="card" id="editor"></div>
+    </div>
+  </section>
+
+  <!-- ===================== Radio ===================== -->
+  <section class="tab" id="tab-radio">
+    <div class="card">
+      <h2>Meine Radiosender</h2>
+      <p class="hint">Diese Sender stehen im Reiter „Tasten“ zur Auswahl. Auf der Musikseite des Displays öffnet die Taste MENU diese Liste zum Auswählen, BACK schaltet das Radio aus.</p>
+      <table class="list" id="stations"></table>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" id="addStation">+ Sender hinzufügen</button>
+        <button class="btn" id="stopTest" style="display:none">■ Probehören beenden</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Sender suchen</h2>
+      <p class="hint">Durchsucht das freie Verzeichnis radio-browser.info (über 40.000 Sender).</p>
+      <form class="row" id="searchForm">
+        <input type="text" id="searchQ" placeholder="z. B. Rock Antenne, Bayern 3, SWR3 …" style="flex:1; min-width:220px">
+        <button class="btn primary" type="submit">Suchen</button>
+      </form>
+      <div class="results" id="results"></div>
+    </div>
+    <div class="card">
+      <h2>Radiowecker</h2>
+      <p class="hint">Schaltet zur eingestellten Zeit den gewählten Sender ein und weckt das Display. Der PC muss dafür laufen (nicht im Ruhezustand).</p>
+      <label class="check"><input type="checkbox" id="acOn"> Radiowecker verwenden</label>
+      <div class="row" style="margin-bottom:10px">
+        <label class="field" style="margin:0">um <input type="time" id="acTime" style="width:auto"></label>
+        <label class="field" style="margin:0">Sender <select id="acStation" style="width:auto"></select></label>
+      </div>
+      <div class="seg" id="acDays"></div>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between; margin-bottom:6px">
+        <h2>Gemerkte Songs</h2>
+        <div class="row"><button class="btn small" id="songsRefresh">↻</button><button class="btn small danger" id="songsClear">Liste leeren</button></div>
+      </div>
+      <p class="hint">Titel, die du mit einer G-Taste (Aktion „Musiksteuerung → Song merken“) gespeichert hast – mit Links zur Suche.</p>
+      <div id="songs"></div>
+    </div>
+    <div class="card">
+      <h2>Wiedergabe</h2>
+      <p class="hint">Befehl, mit dem Radiosender abgespielt werden. <code>{url}</code> wird durch die Stream-Adresse ersetzt.</p>
+      <label class="field"><span>Player-Befehl</span><input type="text" id="player"></label>
+      <div id="mpvHint"></div>
+    </div>
+  </section>
+
+  <!-- ===================== Textbausteine ===================== -->
+  <section class="tab" id="tab-snippets">
+    <div class="card">
+      <h2>Textbausteine</h2>
+      <p class="hint">Texte, die du am Display auswählst und einfügst: Lege im Reiter „Tasten“ eine G-Taste mit der Aktion <b>Textbausteine</b> an. Ein Druck darauf zeigt die Liste auf dem Display, <b>Hoch/Runter</b> wählt, <b>OK</b> tippt den Text in das gerade aktive Fenster. Mit <b>Gruppen</b> kannst du verschiedenen G-Tasten verschiedene Listen geben.</p>
+      <div id="snippetList"></div>
+      <div class="row" style="margin-top:10px"><button class="btn" id="addSnippet">+ Textbaustein hinzufügen</button></div>
+    </div>
+  </section>
+
+  <!-- ===================== Einstellungen ===================== -->
+  <section class="tab" id="tab-settings">
+    <div class="card">
+      <h2>Tastaturbeleuchtung</h2>
+      <p class="hint">Die Farben für M1/M2/M3 legst du je Profil im Reiter „Tasten“ fest.</p>
+      <label class="check"><input type="checkbox" id="keepBacklight"> Beleuchtung nicht umfärben (eigene Farbe der Tastatur behalten)</label>
+    </div>
+    <div class="card">
+      <h2>Display</h2>
+      <div class="preview">
+        <div>
+          <label class="check"><input type="checkbox" id="brightOn"> Helligkeit festlegen</label>
+          <div class="row" style="margin-bottom:14px"><input type="range" id="bright" min="0" max="100" step="5"> <span id="brightVal" class="muted"></span></div>
+          <label class="field" style="max-width:260px"><span>Startseite nach dem Start (Ebene M1)</span><select id="startPage"></select></label>
+          <p class="hint" style="max-width:300px">Displaytasten: Links/Rechts blättern. Musikseite: OK = Play/Pause, Hoch/Runter = Titel, MENU = Senderliste, BACK = Radio aus. Terminseite: Hoch/Runter = Termin markieren, OK = Details, MENU = Kalender wählen.</p>
+        </div>
+        <div>
+          <div class="row" style="margin-bottom:10px">
+            <select id="pvPages" style="width:auto"></select>
+            <div class="seg" id="pvProfiles"></div>
+          </div>
+          <img class="lcd" id="lcd" alt="Display-Vorschau">
+          <div class="hint" style="margin-top:6px">Vorschau für das im Reiter „Tasten“ gewählte Profil.</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Displayseiten</h2>
+      <p class="hint">Welche Seiten mit Links/Rechts durchgeblättert werden, und in welcher Reihenfolge – für jede Ebene (M1/M2/M3) getrennt. Beim Umschalten mit der M-Taste zeigt das Display die Seiten dieser Ebene.</p>
+      <div class="row" style="margin-bottom:10px">
+        <span class="muted">Gilt für:</span><select id="plScope" style="width:auto"></select>
+        <button class="btn small" id="plOwnOff" style="display:none">Wieder Standard verwenden</button>
+      </div>
+      <div class="row" style="margin-bottom:10px">
+        <span class="muted">Ebene:</span><div class="seg" id="plLayers"></div>
+        <button class="btn small" id="plCopy" style="margin-left:auto">Auf alle Ebenen übertragen</button>
+      </div>
+      <div class="pagelist" id="pageList"></div>
+    </div>
+    <div class="card">
+      <h2>Uhr</h2>
+      <p class="hint">Aussehen der Zifferblätter der Seite „Uhr“. Welches Zifferblatt das Display zeigt, wählst du an der Tastatur: auf der Uhr <b>MENU</b> drücken – getrennt für jedes Profil und jede Ebene.</p>
+      <div class="preview">
+        <div>
+          <label class="field" style="max-width:300px"><span>Zifferblatt</span><select id="clkFace"></select></label>
+          <div id="clkOpts"></div>
+        </div>
+        <div>
+          <img class="lcd" id="clkLcd" alt="Vorschau des Zifferblatts">
+          <div class="hint" style="margin-top:6px">Vorschau mit der Farbe der gewählten Ebene.</div>
+        </div>
+      </div>
+      <h3 style="margin:16px 0 4px">Im Displaymenü anbieten</h3>
+      <p class="hint">Nur angehakte Zifferblätter erscheinen in der Liste, die MENU auf der Uhr öffnet.</p>
+      <div class="clkgrid" id="clkMenu"></div>
+      <div class="row" style="margin-top:8px"><button class="btn small" id="clkAll">Alle anhaken</button></div>
+    </div>
+    <div class="card">
+      <h2>Nachtmodus</h2>
+      <p class="hint">Zu festen Zeiten Display und Beleuchtung abdunkeln. Ein Tastendruck weckt beides für eine Minute.</p>
+      <label class="check"><input type="checkbox" id="nightOn"> Nachtmodus verwenden</label>
+      <div class="row" style="margin-bottom:12px">
+        <label class="field" style="margin:0">von <input type="time" id="nightStart" style="width:auto"></label>
+        <label class="field" style="margin:0">bis <input type="time" id="nightEnd" style="width:auto"></label>
+      </div>
+      <div class="seg" id="nightMode" style="margin-bottom:10px"><button data-mode="dim">Display dimmen</button><button data-mode="off">Display ausschalten</button></div>
+      <div class="row" id="nightDimRow" style="margin-bottom:8px"><span class="muted">Helligkeit nachts</span><input type="range" id="nightBright" min="0" max="60" step="1"><span class="muted" id="nightBrightVal"></span></div>
+      <label class="check"><input type="checkbox" id="nightBacklight"> Tastaturbeleuchtung nachts ausschalten</label>
+    </div>
+    <div class="card">
+      <h2>Bildschirmschoner</h2>
+      <p class="hint">Wenn eine Weile weder Tastatur noch Maus benutzt wurden, zeigt das Display eine bestimmte Seite – z. B. die Diashow. Beim nächsten Tastendruck geht es zurück.</p>
+      <label class="check"><input type="checkbox" id="saverOn"> Bildschirmschoner verwenden</label>
+      <div class="row">
+        <label class="field" style="margin:0">nach <input type="number" id="saverMin" min="1" max="240" style="width:80px"> Minuten</label>
+        <label class="field" style="margin:0">Seite <select id="saverPage" style="width:auto"></select></label>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Lautstärke</h2>
+      <label class="field" style="max-width:320px"><span>Schrittweite der G-Tasten-Aktion „Lautstärke“ (Prozent)</span><input type="number" id="volStep" min="1" max="25"></label>
+      <label class="check"><input type="checkbox" id="timerSound"> Signalton, wenn ein Timer abläuft oder eine Pomodoro-Phase wechselt</label>
+    </div>
+  </section>
+
+  <!-- ===================== Diashow ===================== -->
+  <section class="tab" id="tab-slides">
+    <div class="card">
+      <h2>Bildquelle</h2>
+      <div class="seg" id="slSource"><button data-src="piwigo">Piwigo-Galerie</button><button data-src="folder">Ordner auf diesem Rechner</button></div>
+    </div>
+    <div class="card" id="folderBlock">
+      <h2>Bilderordner</h2>
+      <p class="hint">JPG, PNG, WebP, GIF, BMP und TIFF werden angezeigt – mit „Unteralben einbeziehen“ auch aus Unterordnern.</p>
+      <div class="row" style="flex-wrap:nowrap">
+        <input type="text" id="fdPath" placeholder="~/Bilder" style="flex:1">
+        <button class="btn" id="fdBrowse">Durchsuchen …</button>
+      </div>
+      <div id="fdBrowser"></div>
+    </div>
+    <div id="pwBlock">
+    <div class="card">
+      <h2>Piwigo-Galerie</h2>
+      <p class="hint">Bilder aus deinen Piwigo-Alben erscheinen auf der Displayseite „Bilder“. Benutzer und Passwort nur für private Alben nötig.</p>
+      <div class="pwgrid">
+        <label class="field"><span>Adresse der Galerie</span><input type="url" id="pwUrl" placeholder="https://fotos.example.de"></label>
+        <label class="field"><span>Benutzer (optional)</span><input type="text" id="pwUser" autocomplete="username"></label>
+        <label class="field"><span>Passwort (optional)</span><input type="password" id="pwPass" autocomplete="current-password"></label>
+      </div>
+      <div class="row"><button class="btn primary" id="pwLoad">Alben laden</button><span class="muted" id="pwState"></span></div>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between; margin-bottom:6px">
+        <h2>Alben</h2>
+        <div class="row"><span class="muted" id="albumSum"></span>
+          <button class="btn small" id="albAll">alle</button><button class="btn small" id="albNone">keine</button></div>
+      </div>
+      <div class="albums" id="albums"><div class="empty">Zuerst „Alben laden“ klicken.</div></div>
+    </div>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between; margin-bottom:6px">
+        <h2>Lieblingsbilder</h2><button class="btn small" id="favRefresh">↻</button>
+      </div>
+      <p class="hint">Am Display auf der Seite „Bilder“ merkt <b>BACK</b> das gezeigte Bild als Lieblingsbild (♥), nochmal BACK entfernt es.</p>
+      <label class="check"><input type="checkbox" id="favOnly"> Diashow zeigt nur Lieblingsbilder</label>
+      <div id="favs"></div>
+    </div>
+    <div class="card">
+      <h2>Anzeige</h2>
+      <div class="preview">
+        <div style="min-width:280px">
+          <label class="field" style="max-width:220px"><span>Bildwechsel alle … Sekunden</span><input type="number" id="slInterval" min="3" max="3600" step="1"></label>
+          <label class="check"><input type="checkbox" id="slShuffle"> Zufällige Reihenfolge</label>
+          <label class="check"><input type="checkbox" id="slRecursive"> Unteralben / Unterordner einbeziehen</label>
+          <label class="check"><input type="checkbox" id="slCaption"> Bildtitel einblenden</label>
+          <div class="field"><span class="muted" style="font-size:12.5px; font-weight:550; display:block; margin-bottom:4px">Darstellung</span>
+            <div class="seg" id="slFit"><button data-fit="contain">Ganzes Bild</button><button data-fit="cover">Display füllen</button></div></div>
+          <p class="hint" style="max-width:300px; margin-top:12px">Displaytasten auf der Seite „Bilder“: OK = Pause/Weiter, Hoch/Runter = Bild zurück/vor, MENU = Piwigo-Alben am Display auswählen.</p>
+          <button class="btn" id="slTest">Testen</button> <span class="muted" id="slTestInfo"></span>
+        </div>
+        <div><img class="lcd" id="slPreview" alt="Vorschau der Diashow"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== Infoseiten ===================== -->
+  <section class="tab" id="tab-info">
+    <div class="card">
+      <h2>Wetter</h2>
+      <p class="hint">Daten von Open-Meteo (kostenlos, ohne Anmeldung), alle 15 Minuten aktualisiert.</p>
+      <div class="row" style="margin-bottom:8px"><span class="muted">Ort:</span> <b id="wxName">–</b> <span class="muted" id="wxTest"></span></div>
+      <form class="row" id="wxForm" style="flex-wrap:nowrap">
+        <input type="text" id="wxQ" placeholder="Ort suchen, z. B. Leipzig oder 04109" style="flex:1">
+        <button class="btn primary" type="submit">Suchen</button>
+      </form>
+      <div class="results georesults" id="wxResults"></div>
+    </div>
+    <div class="card">
+      <h2>Termine</h2>
+      <p class="hint">iCalendar-Adressen (<code>.ics</code>): bei Google „Geheime Adresse im iCal-Format“ (Kalendereinstellungen), bei <b>Nextcloud</b> reicht die Adresse der Nextcloud (z. B. <code>https://cloud.example.de</code>) plus Benutzername und <b>App-Passwort</b> (Persönliche Einstellungen → Sicherheit) – dann werden alle Terminkalender des Kontos in ihren Nextcloud-Farben angezeigt. Für einen einzelnen Kalender: im Kalender-Menü (⋯) „Interne Adresse kopieren“. Am Display blendet <b>MENU</b> auf der Terminseite einzelne Kalender ein und aus; Hoch/Runter markiert einen Termin, OK zeigt Ort und Beschreibung.</p>
+      <div id="calSources"></div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="calAdd">+ Kalender hinzufügen</button>
+        <label class="field" style="margin:0 0 0 auto">Erinnerung <select id="calRemind" style="width:auto">
+          <option value="0">aus</option><option value="5">5 Min. vorher</option><option value="10">10 Min. vorher</option>
+          <option value="15">15 Min. vorher</option><option value="30">30 Min. vorher</option><option value="60">1 Std. vorher</option></select></label>
+        <label class="field" style="margin:0">Zeitraum <select id="calDays" style="width:auto">
+          <option value="7">7 Tage</option><option value="14">14 Tage</option><option value="30">30 Tage</option><option value="60">60 Tage</option></select></label>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Benachrichtigungen</h2>
+      <p class="hint">KDE-Benachrichtigungen (E-Mail, Messenger, Updates …) erscheinen kurz auf dem Display.</p>
+      <label class="check"><input type="checkbox" id="ntOn"> Benachrichtigungen auf dem Display anzeigen</label>
+      <div class="row" style="margin-bottom:10px">
+        <label class="field" style="margin:0">Anzeigedauer <input type="number" id="ntSec" min="2" max="30" style="width:70px"> Sekunden</label>
+      </div>
+      <label class="field"><span>Nicht anzeigen von (Programmnamen, durch Komma getrennt)</span><input type="text" id="ntIgnore" placeholder="z. B. Discover, Spectacle"></label>
+      <button class="btn" id="ntTest">Testbenachrichtigung senden</button>
+    </div>
+    <div class="card">
+      <h2>Nachrichten</h2>
+      <p class="hint">RSS- oder Atom-Feeds für die Displayseite „Nachrichten“ (alle 15 Minuten aktualisiert). Am Display: Hoch/Runter markiert eine Meldung, OK öffnet sie im Browser, MENU lädt neu.</p>
+      <div id="newsFeeds"></div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="newsAdd">+ Feed hinzufügen</button>
+        <span class="muted">Schnell hinzufügen:</span><div class="row" id="newsPresets"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Unwetterwarnungen</h2>
+      <p class="hint">Amtliche Warnungen des Deutschen Wetterdienstes für den oben gewählten Wetter-Ort (über den freien Dienst Bright Sky, alle 10 Minuten). Die Displayseite heißt „Unwetter“; OK zeigt die Details einer Warnung.</p>
+      <label class="check"><input type="checkbox" id="warnPopup"> Neue markante Warnungen und Unwetter groß auf dem Display einblenden (auch wenn die Seite ausgeschaltet ist)</label>
+      <button class="btn" id="warnTest">Jetzt prüfen</button> <span class="muted" id="warnInfo"></span>
+    </div>
+    <div class="card">
+      <h2>Netzwerk</h2>
+      <p class="hint">Geräte, deren Erreichbarkeit die Displayseite „Netzwerk“ jede Minute prüft. <code>gateway</code> = dein Router (automatisch erkannt); <code>Name:Port</code> prüft einen Dienst, z. B. <code>nas.local:5000</code>.</p>
+      <div id="netHosts"></div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="netAdd">+ Gerät hinzufügen</button>
+        <button class="btn" id="netPiwigo" style="display:none">+ Piwigo-Server</button>
+        <button class="btn" id="netTest">Jetzt prüfen</button>
+      </div>
+      <div id="netInfo" style="margin-top:8px"></div>
+    </div>
+    <div class="card">
+      <h2>Systemupdates</h2>
+      <p class="hint">Die Displayseite „Updates“ zeigt stündlich, wie viele Paket- und Flatpak-Updates bereitstehen und ob ein Neustart nötig ist. Am Display öffnet OK die Aktualisierung (Discover), MENU prüft neu.</p>
+      <label class="check"><input type="checkbox" id="updFlatpak"> Auch Flatpak-Programme prüfen</label>
+      <button class="btn" id="updTest">Jetzt prüfen</button> <span class="muted" id="updInfo"></span>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between; margin-bottom:6px"><h2>Hardware</h2><button class="btn small" id="hwRefresh">↻ Aktualisieren</button></div>
+      <p class="hint">Diese Werte zeigt die Seite „Hardware“ auf dem Display.</p>
+      <div class="kv" id="hwInfo"></div>
+    </div>
+  </section>
+
+  <!-- ===================== Dienst ===================== -->
+  <section class="tab" id="tab-service">
+    <div class="card">
+      <h2>Treiber-Dienst</h2>
+      <div class="kv" style="margin:10px 0 14px">
+        <div>Status</div><div id="svcActive">…</div>
+        <div>Autostart</div><div id="svcEnabled">…</div>
+        <div>Radioplayer (mpv)</div><div id="toolMpv">…</div>
+        <div>Musikanzeige (playerctl)</div><div id="toolPlayerctl">…</div>
+        <div>Medientasten fürs Radio</div><div id="toolMpris">…</div>
+      </div>
+      <div class="row">
+        <button class="btn" data-svc="start">▶ Starten</button>
+        <button class="btn" data-svc="stop">■ Stoppen</button>
+        <button class="btn" data-svc="restart">↻ Neu starten</button>
+        <button class="btn" id="toggleAutostart">Autostart …</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between; margin-bottom:8px">
+        <h2>Protokoll</h2><button class="btn small" id="logRefresh">↻ Aktualisieren</button>
+      </div>
+      <div class="log" id="log">…</div>
+    </div>
+    <div class="card">
+      <h2>Programm aktualisieren</h2>
+      <p class="hint">Neue Versionen von <code>g19s.py</code> und <code>g19s-gui.py</code> hier auswählen – einzeln oder beide zusammen, der Dateiname spielt keine Rolle (auch <code>g19s(3).py</code> ist in Ordnung). Die Dateien werden geprüft, die alten Versionen gesichert und alles neu gestartet.</p>
+      <div class="kv" id="versions" style="margin-bottom:12px"></div>
+      <label class="btn primary">⬆ Update-Dateien auswählen …<input type="file" id="updateFile" accept=".py" multiple hidden></label>
+      <div id="updateResult" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
+      <h2>Sicherung</h2>
+      <p class="hint">Sichert Tastenbelegung, Einstellungen, Treiber, Autostart und KDE-Kurzbefehle in eine Datei – für den Fall einer Neuinstallation.</p>
+      <div class="row" style="margin-bottom:10px">
+        <a class="btn primary" id="backupLink" download>⬇ Sicherung herunterladen</a>
+        <label class="btn">⬆ Sicherung einspielen …<input type="file" id="restoreFile" accept=".gz,.tgz,application/gzip" hidden></label>
+      </div>
+      <div class="hint" id="backupFiles"></div>
+    </div>
+    <div class="card">
+      <h2>Automatische Sicherung</h2>
+      <p class="hint">Der Treiber legt regelmäßig eine Sicherung ab – in einem Ordner, auf dem NAS oder in der Nextcloud. Ältere automatische Sicherungen werden dort aufgeräumt.</p>
+      <label class="check"><input type="checkbox" id="abOn"> Automatisch sichern</label>
+      <label class="field" style="max-width:420px"><span>Ziel</span>
+        <select id="abTarget">
+          <option value="folder">Ordner auf diesem Rechner (auch eingebundenes NAS, Nextcloud-Sync-Ordner)</option>
+          <option value="nextcloud">Nextcloud (direkt über das Internet)</option>
+          <option value="smb">NAS – Windows-Freigabe (SMB)</option>
+          <option value="webdav">WebDAV-Server (z. B. NAS mit WebDAV-Dienst)</option>
+        </select></label>
+      <div id="abFolderBox">
+        <div class="row" style="flex-wrap:nowrap; margin-bottom:8px">
+          <input type="text" id="abFolder" placeholder="~/Nextcloud/Sicherungen" style="flex:1">
+          <button class="btn" id="abBrowse">Durchsuchen …</button>
+        </div>
+        <div id="abBrowser"></div>
+      </div>
+      <div id="abRemoteBox">
+        <label class="field"><span id="abUrlLabel">Adresse</span><input type="text" id="abUrl"></label>
+        <div class="row" style="margin-bottom:8px">
+          <label class="field" style="margin:0; flex:1"><span>Benutzername</span><input type="text" id="abUser" autocomplete="off"></label>
+          <label class="field" style="margin:0; flex:1"><span id="abPwLabel">Passwort</span><input type="password" id="abPw" autocomplete="new-password"></label>
+        </div>
+        <label class="field" id="abDirBox"><span>Ordner in der Nextcloud (wird angelegt)</span><input type="text" id="abDir" placeholder="G19s-Sicherung"></label>
+      </div>
+      <p class="hint" id="abHint"></p>
+      <div class="row" style="margin-bottom:8px">
+        <label class="field" style="margin:0">alle <select id="abDays" style="width:auto"><option value="1">1 Tag</option><option value="3">3 Tage</option><option value="7">7 Tage</option><option value="14">14 Tage</option><option value="30">30 Tage</option></select></label>
+        <label class="field" style="margin:0">aufheben: <input type="number" id="abKeep" min="1" max="100" style="width:70px"> Sicherungen</label>
+        <button class="btn" id="abTest">Verbindung testen</button>
+        <button class="btn" id="abNow">Jetzt sichern</button>
+      </div>
+      <div class="hint" id="abStatus"></div>
+    </div>
+    <div class="card">
+      <h2>Dateien</h2>
+      <div class="kv" id="paths"></div>
+    </div>
+  </section>
+</main>
+
+<div class="savebar" id="savebar"><div class="row">
+  <span class="muted" id="saveText" style="flex:1">Ungespeicherte Änderungen</span>
+  <button class="btn" id="discardSettings">Verwerfen</button>
+  <button class="btn primary" id="saveSettings">Änderungen speichern</button>
+</div></div>
+<div class="toasts" id="toasts"></div>
+<div class="overlay" id="overlay"><div class="card"><h2 id="ovTitle">Verbindung verloren</h2>
+  <p class="hint" id="ovText">Die Verwaltung wurde beendet. Bitte über das Anwendungsmenü „G19s-Verwaltung“ neu öffnen.</p></div></div>
+
+<script>
+@@JS@@
+</script>
+</body>
+</html>

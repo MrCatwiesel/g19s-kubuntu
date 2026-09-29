@@ -1,0 +1,42 @@
+{
+ "backup_files": 1,
+ "backup_state": true,
+ "favorites": [
+  [
+   "foto1",
+   "folder"
+  ]
+ ],
+ "log": [
+  "Automatische Sicherung: /tmp/g19s-test/sim/s09_paket2/bk/g19s-sicherung-DATUM.tar.gz",
+  "Einschlaftimer abgelaufen – Musik aus",
+  "Einschlaftimer: 1 Minuten",
+  "Lieblingsbild entfernt: foto2",
+  "Lieblingsbild gemerkt: foto1",
+  "Lieblingsbild gemerkt: foto2",
+  "Mikrofon an",
+  "Mikrofon stumm",
+  "Profil 1: Büro",
+  "Profil 2: Spiele",
+  "Radio: Radio BOB!",
+  "Radiowecker: Radio BOB!",
+  "Song gemerkt: AC/DC – Thunderstruck",
+  "Terminerinnerung: Zahnarzt Dr. Müller um hh:mm"
+ ],
+ "mr_led_end": 128,
+ "mr_led_on": true,
+ "pages": [
+  "clock",
+  "music",
+  "slides",
+  "hardware",
+  "clock"
+ ],
+ "songs": [
+  [
+   "AC/DC",
+   "Thunderstruck",
+   "Radio BOB!"
+  ]
+ ]
+}

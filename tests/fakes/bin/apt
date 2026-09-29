@@ -1,0 +1,6 @@
+#!/bin/sh
+echo "Listing... Done"
+echo "firefox/resolute-updates 145.0+build1 amd64 [upgradable from: 144.0]"
+echo "libssl3t64/resolute-security 3.4.1-1ubuntu2.1 amd64 [upgradable from: 3.4.1-1ubuntu2]"
+echo "openssl/resolute-security 3.4.1-1ubuntu2.1 amd64 [upgradable from: 3.4.1-1ubuntu2]"
+echo "plasma-desktop/resolute-updates 6.5.2 amd64 [upgradable from: 6.5.1]"

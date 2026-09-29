@@ -1,0 +1,33 @@
+{
+ "backlight": [
+  [
+   0,
+   110,
+   255
+  ],
+  [
+   255,
+   0,
+   0
+  ],
+  [
+   0,
+   110,
+   255
+  ]
+ ],
+ "log": [
+  "Profil 2: Spiele",
+  "Profil 3: Grafik"
+ ],
+ "state": {
+  "profile": 2
+ },
+ "typed": [
+  "KEY_A",
+  "KEY_B",
+  "KEY_B",
+  "KEY_LEFTCTRL",
+  "KEY_Z"
+ ]
+}

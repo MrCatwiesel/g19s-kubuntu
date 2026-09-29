@@ -1,0 +1,5 @@
+#!/bin/sh
+. "$(dirname "$0")/_root"
+echo "Sep 26 19:40:01 pc python3[1234]: G19s-Treiber läuft. Beenden mit Strg+C."
+echo "Sep 26 19:40:01 pc python3[1234]: Makros geladen: 3"
+cat $S/log 2>/dev/null

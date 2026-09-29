@@ -1,0 +1,3 @@
+#!/bin/sh
+echo org.mozilla.Thunderbird
+echo org.libreoffice.LibreOffice
