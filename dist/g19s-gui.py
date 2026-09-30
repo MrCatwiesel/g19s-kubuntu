@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.09.30-2"
+VERSION = "2026.09.30-3"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -906,6 +906,10 @@ class ApiService:
             threading.Thread(target=lambda: (time.sleep(0.4), self.app.server.shutdown()),
                              daemon=True).start()
 
+    def api_post_newticket(self, q):
+        """Neuer Einmal-Code (für einen zweiten Start der Verwaltung, der das Fenster öffnet)."""
+        self._send(200, {"ticket": self.app.new_ticket()})
+
     def api_post_quit(self, q):
         self._send(200, {"ok": True})
         threading.Thread(target=lambda: (time.sleep(0.2), self.app.server.shutdown()), daemon=True).start()
@@ -934,6 +938,22 @@ class App:
         self.started = time.monotonic()
         self.server = None
         self.restart = None       # nach einem Update: {"backup": Pfad der alten Verwaltung}
+        self.tickets = {}         # Einmal-Code → Ablaufzeit (zum Öffnen im Browser, siehe new_ticket)
+
+    TICKET_TTL = 120
+
+    def new_ticket(self):
+        """Einmal-Code für die Browser-Adresse: Die Adresse steht in der Prozessliste (für alle Benutzer
+        sichtbar), der Code taugt aber nur für einen Aufruf innerhalb von TICKET_TTL Sekunden."""
+        now = time.monotonic()
+        self.tickets = {k: v for k, v in self.tickets.items() if v > now}
+        ticket = secrets.token_urlsafe(18)
+        self.tickets[ticket] = now + self.TICKET_TTL
+        return ticket
+
+    def redeem_ticket(self, ticket):
+        expires = self.tickets.pop(str(ticket or ""), 0)
+        return self.token if expires > time.monotonic() else None
 
 
 class Handler(ApiKeys, ApiRadio, ApiInfo, ApiSlides, ApiService, http.server.BaseHTTPRequestHandler):
@@ -964,7 +984,7 @@ class Handler(ApiKeys, ApiRadio, ApiInfo, ApiSlides, ApiService, http.server.Bas
         return host in (f"127.0.0.1:{self.app.port}", f"localhost:{self.app.port}")
 
     def _auth(self, query):
-        token = self.headers.get("X-Token") or query.get("token", [""])[0]
+        token = self.headers.get("X-Token") or ""        # nie in der Adresse (Verlauf, Downloadliste)
         return secrets.compare_digest(token, self.app.token)
 
     def _body(self, limit=20 * 1024 * 1024):
@@ -996,13 +1016,25 @@ class Handler(ApiKeys, ApiRadio, ApiInfo, ApiSlides, ApiService, http.server.Bas
         url = urllib.parse.urlparse(self.path)
         query = urllib.parse.parse_qs(url.query)
         if method == "GET" and url.path in ("/", "/index.html"):
+            # Nur das eigene Skript /app.js darf laufen (kein Inline-Skript); Bilder/Ton dürfen von außen
+            # kommen (Senderlogos, Probehören), Einbetten in fremde Seiten ist verboten.
             return self._send(200, PAGE_HTML, "text/html; charset=utf-8",
                               {"Content-Security-Policy":
-                               "default-src 'self'; img-src 'self' data: https: http:; "
-                               "style-src 'unsafe-inline'; script-src 'unsafe-inline'; "
-                               "media-src https: http:"})
+                               "default-src 'none'; script-src 'self'; connect-src 'self'; "
+                               "style-src 'unsafe-inline'; img-src 'self' data: blob: https: http:; "
+                               "media-src https: http:; frame-ancestors 'none'; base-uri 'none'; "
+                               "form-action 'none'",
+                               "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY"})
+        if method == "GET" and url.path == "/app.js":           # enthält keine Geheimnisse
+            return self._send(200, PAGE_JS, "text/javascript; charset=utf-8")
         if not url.path.startswith("/api/"):
             return self._send(404, {"error": "Nicht gefunden"})
+        if method == "POST" and url.path == "/api/ticket":     # Einmal-Code gegen Schlüssel tauschen
+            try:
+                token = self.app.redeem_ticket(self._json().get("ticket"))
+            except (ValueError, AttributeError):
+                token = None
+            return self._send(200, {"token": token}) if token else self._send(403, {"error": "Code ungültig"})
         if not self._auth(query):
             return self._send(401, {"error": "Sitzung ungültig – bitte die Verwaltung neu öffnen"})
         self._touch()
@@ -1094,10 +1126,11 @@ def bind_server(port, tries=40):
 def restart_after_update(app, args):
     """Neue Verwaltung mit gleicher Adresse starten; startet sie nicht, alte Version zurückholen."""
     script = os.path.realpath(__file__)
-    cmd = [sys.executable, script, "--restarted", "--port", str(app.port), "--token", app.token]
+    cmd = [sys.executable, script, "--restarted", "--port", str(app.port)]
+    env = dict(os.environ, G19S_GUI_TOKEN=app.token)   # Schlüssel nicht in die (öffentliche) Befehlszeile
     backup = (app.restart or {}).get("backup")
     for attempt in ("neu", "zurück"):
-        proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, start_new_session=True)
+        proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, start_new_session=True, env=env)
         try:
             proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
@@ -1149,20 +1182,25 @@ def main():
         args.no_browser = True
     info = None if args.no_browser else existing_instance()
     if info:
-        open_window(f"http://127.0.0.1:{info['port']}/#{info['token']}", args.browser)
-        return
+        try:
+            ticket = _local("/api/newticket", info, data=b"{}")["ticket"]
+            open_window(f"http://127.0.0.1:{info['port']}/#k={ticket}", args.browser)
+            return
+        except Exception:               # laufende Instanz reagiert nicht: neue starten
+            pass
 
     try:
         g.migrate_files()                   # ältere settings.json/macros.json umstellen (wie der Treiber)
     except (OSError, ValueError) as ex:
         print(f"Umstellung älterer Dateien nicht möglich: {ex}")
-    app = App(args.token or secrets.token_urlsafe(24))
+    token = args.token or os.environ.pop("G19S_GUI_TOKEN", None) or secrets.token_urlsafe(24)
+    app = App(token)
     Handler.app = app
     server = bind_server(args.port)
     server.daemon_threads = True
     app.port = server.server_address[1]
     app.server = server
-    url = f"http://127.0.0.1:{app.port}/#{app.token}"
+    url = f"http://127.0.0.1:{app.port}/#k={app.new_ticket()}"      # Einmal-Code statt Schlüssel
 
     try:
         os.makedirs(RUNTIME_DIR, mode=0o700, exist_ok=True)
@@ -1790,7 +1828,7 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
       <h2>Sicherung</h2>
       <p class="hint">Sichert Tastenbelegung, Einstellungen, Treiber, Autostart und KDE-Kurzbefehle in eine Datei – für den Fall einer Neuinstallation.</p>
       <div class="row" style="margin-bottom:10px">
-        <a class="btn primary" id="backupLink" download>⬇ Sicherung herunterladen</a>
+        <a class="btn primary" id="backupLink" href="#">⬇ Sicherung herunterladen</a>
         <label class="btn">⬆ Sicherung einspielen …<input type="file" id="restoreFile" accept=".gz,.tgz,application/gzip" hidden></label>
       </div>
       <div class="hint" id="backupFiles"></div>
@@ -1846,9 +1884,32 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
 <div class="overlay" id="overlay"><div class="card"><h2 id="ovTitle">Verbindung verloren</h2>
   <p class="hint" id="ovText">Die Verwaltung wurde beendet. Bitte über das Anwendungsmenü „G19s-Verwaltung“ neu öffnen.</p></div></div>
 
-<script>
-"use strict";
-const TOKEN = location.hash.slice(1);
+<script src="/app.js"></script>
+</body>
+</html>
+'''
+PAGE_JS = r'''"use strict";
+// Zugangsschlüssel: Der Browser wird mit einem Einmal-Code (#k=…) geöffnet, weil die Adresse in der
+// Prozessliste steht. Der Code wird hier gegen den Schlüssel getauscht und ist danach ungültig; der
+// Schlüssel bleibt nur im Speicher dieses Tabs (sessionStorage, übersteht Neuladen). #<schlüssel> geht auch.
+const TOKEN = (() => {
+  const h = location.hash.slice(1);
+  let t = "";
+  if (h.startsWith("k=")) {
+    try {
+      const x = new XMLHttpRequest();
+      x.open("POST", "/api/ticket", false);           // synchron: alles Weitere braucht den Schlüssel
+      x.setRequestHeader("Content-Type", "application/json");
+      x.send(JSON.stringify({ticket: h.slice(2)}));
+      if (x.status === 200) t = JSON.parse(x.responseText).token || "";
+    } catch (e) { /* Code ungültig oder Server weg */ }
+  } else t = h;
+  try {
+    if (t) sessionStorage.setItem("g19s-token", t); else t = sessionStorage.getItem("g19s-token") || "";
+  } catch (e) { /* ohne sessionStorage: nur dieser Aufruf */ }
+  if (h) history.replaceState(null, "", location.pathname);   // Code/Schlüssel aus der Adresszeile
+  return t;
+})();
 const GKEYS = Array.from({length: 12}, (_, i) => "G" + (i + 1));
 const PROFILES = ["M1", "M2", "M3"];
 const TYPES = [
@@ -3206,7 +3267,7 @@ $("#updateFile").addEventListener("change", async e => {
   $("#ovText").textContent = "Bitte die Verwaltung über das Anwendungsmenü neu öffnen.";
 });
 function renderPaths() {
-  $("#backupLink").href = "/api/backup?token=" + encodeURIComponent(TOKEN);
+
   const p = S.paths || {};
   $("#paths").replaceChildren(
     el("div", {text: "Tastenbelegung"}), el("div", {}, el("code", {text: p.macros || ""})),
@@ -3275,6 +3336,19 @@ $("#abTest").addEventListener("click", async () => {
   finally { $("#abTest").disabled = false; }
 });
 
+// Sicherung herunterladen: per fetch mit Schlüssel in der Kopfzeile (nicht in der Adresse)
+$("#backupLink").addEventListener("click", async e => {
+  e.preventDefault();
+  try {
+    const r = await fetch("/api/backup", {headers: {"X-Token": TOKEN}});
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `Fehler ${r.status}`);
+    const name = (/filename="([^"]+)"/.exec(r.headers.get("Content-Disposition") || "") || [])[1] || "g19s-sicherung.tar.gz";
+    const url = URL.createObjectURL(await r.blob());
+    const a = el("a", {href: url, download: name}); document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } catch (err) { toast(err.message, true); }
+});
+
 // ---------------------------------------------------------------- Abgleich im Hintergrund
 $("#extReload").addEventListener("click", async () => {
   const d = await api("/api/state"); S.macros = d.macros; S.mtimes.macros = d.mtimes.macros; S.active = d.active;
@@ -3306,10 +3380,6 @@ window.addEventListener("beforeunload", e => {
 });
 if (!TOKEN) lost("Sitzung fehlt", "Bitte die Verwaltung über das Anwendungsmenü „G19s-Verwaltung“ öffnen.");
 else loadState().catch(e => toast(e.message, true));
-
-</script>
-</body>
-</html>
 '''
 
 if __name__ == "__main__":

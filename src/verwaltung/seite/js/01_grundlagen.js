@@ -1,5 +1,25 @@
 "use strict";
-const TOKEN = location.hash.slice(1);
+// Zugangsschlüssel: Der Browser wird mit einem Einmal-Code (#k=…) geöffnet, weil die Adresse in der
+// Prozessliste steht. Der Code wird hier gegen den Schlüssel getauscht und ist danach ungültig; der
+// Schlüssel bleibt nur im Speicher dieses Tabs (sessionStorage, übersteht Neuladen). #<schlüssel> geht auch.
+const TOKEN = (() => {
+  const h = location.hash.slice(1);
+  let t = "";
+  if (h.startsWith("k=")) {
+    try {
+      const x = new XMLHttpRequest();
+      x.open("POST", "/api/ticket", false);           // synchron: alles Weitere braucht den Schlüssel
+      x.setRequestHeader("Content-Type", "application/json");
+      x.send(JSON.stringify({ticket: h.slice(2)}));
+      if (x.status === 200) t = JSON.parse(x.responseText).token || "";
+    } catch (e) { /* Code ungültig oder Server weg */ }
+  } else t = h;
+  try {
+    if (t) sessionStorage.setItem("g19s-token", t); else t = sessionStorage.getItem("g19s-token") || "";
+  } catch (e) { /* ohne sessionStorage: nur dieser Aufruf */ }
+  if (h) history.replaceState(null, "", location.pathname);   // Code/Schlüssel aus der Adresszeile
+  return t;
+})();
 const GKEYS = Array.from({length: 12}, (_, i) => "G" + (i + 1));
 const PROFILES = ["M1", "M2", "M3"];
 const TYPES = [

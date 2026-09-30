@@ -85,7 +85,7 @@ $("#updateFile").addEventListener("change", async e => {
   $("#ovText").textContent = "Bitte die Verwaltung über das Anwendungsmenü neu öffnen.";
 });
 function renderPaths() {
-  $("#backupLink").href = "/api/backup?token=" + encodeURIComponent(TOKEN);
+
   const p = S.paths || {};
   $("#paths").replaceChildren(
     el("div", {text: "Tastenbelegung"}), el("div", {}, el("code", {text: p.macros || ""})),
@@ -152,4 +152,17 @@ $("#abTest").addEventListener("click", async () => {
     $("#abStatus").replaceChildren(el("div", {class: "okbox", text: "✓ " + r.message})); }
   catch (e) { $("#abStatus").replaceChildren(el("div", {class: "warnbox", text: "✗ " + e.message})); }
   finally { $("#abTest").disabled = false; }
+});
+
+// Sicherung herunterladen: per fetch mit Schlüssel in der Kopfzeile (nicht in der Adresse)
+$("#backupLink").addEventListener("click", async e => {
+  e.preventDefault();
+  try {
+    const r = await fetch("/api/backup", {headers: {"X-Token": TOKEN}});
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `Fehler ${r.status}`);
+    const name = (/filename="([^"]+)"/.exec(r.headers.get("Content-Disposition") || "") || [])[1] || "g19s-sicherung.tar.gz";
+    const url = URL.createObjectURL(await r.blob());
+    const a = el("a", {href: url, download: name}); document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } catch (err) { toast(err.message, true); }
 });

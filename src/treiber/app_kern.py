@@ -51,6 +51,7 @@ class AppCore:
         self.popups = deque()               # Benachrichtigungen aus dem Hintergrund-Thread (threadsicher)
         self.next_draw = 0.0
         self._last_frame, self._last_sent = None, 0.0   # zuletzt gesendetes Bild (siehe App._send)
+        self._last_draw_error = None                    # zuletzt protokollierter Anzeige-Fehler
         self.running = True
         self.prev_gm = self.prev_l = 0
         self.held = {}                      # G-Taste -> Modifier, mit dem sie gedrückt wurde

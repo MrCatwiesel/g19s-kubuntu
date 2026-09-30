@@ -15,7 +15,7 @@ cp "$HERE/../fixtures/fremd.py" "$U/fremd.py"
 
 reset_and_start() {
   [ -n "$SERVER_PID" ] && kill $SERVER_PID 2>/dev/null
-  pkill -f "g19s-gui.py --no-browser --port 8799" 2>/dev/null; sleep 0.6
+  pkill -f "g19s-gui[.]py.*--port 8799" 2>/dev/null; sleep 0.6
   rm -rf $T/home $ROOT/state; mkdir -p $ROOT/state $T/home/.local/bin $T/home/.config/g19s
   cp -r "$HERE/home_vorlage/." $T/home/
   cp "$G19S_GUI" $T/home/.local/bin/g19s-gui.py; cp "$G19S_DRIVER" $T/home/.local/bin/g19s.py
@@ -30,11 +30,11 @@ reset_and_start() {
   for i in $(seq 1 40); do curl -s -o /dev/null --noproxy '*' http://127.0.0.1:8799/ && break; sleep 0.25; done
   cd $T
 }
-for t in ui_test profiles_test slides_test new_test pkg1_test pkg2_test pkg3_test uhr_test update_test; do
+for t in ui_test profiles_test slides_test new_test pkg1_test pkg2_test pkg3_test uhr_test sicherheit_test update_test; do
   reset_and_start
   python3 "$HERE/$t.py" > $T/out_$t.txt 2>&1
   echo "ERGEBNIS $t $(grep -c '^OK' $T/out_$t.txt) $(grep -c '^FEHL' $T/out_$t.txt; true)"
   if grep -q Traceback $T/out_$t.txt; then echo "ERGEBNIS ${t}_absturz 0 1"; fi
 done
-pkill -f "g19s-gui.py --no-browser --port 8799" 2>/dev/null
+pkill -f "g19s-gui[.]py.*--port 8799" 2>/dev/null
 exit 0

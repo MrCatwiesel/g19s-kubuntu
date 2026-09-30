@@ -1,0 +1,25 @@
+{
+ "log": [
+  "Anzeige-Fehler auf „Wetter“: ZeroDivisionError: Testfehler"
+ ],
+ "pages": [
+  [
+   "clock",
+   "M1"
+  ],
+  [
+   "weather",
+   "M1"
+  ],
+  [
+   "clock",
+   "M1"
+  ]
+ ],
+ "typed": [
+  "KEY_O",
+  "KEY_K",
+  "KEY_O",
+  "KEY_K"
+ ]
+}

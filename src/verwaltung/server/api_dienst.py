@@ -90,6 +90,10 @@ class ApiService:
             threading.Thread(target=lambda: (time.sleep(0.4), self.app.server.shutdown()),
                              daemon=True).start()
 
+    def api_post_newticket(self, q):
+        """Neuer Einmal-Code (für einen zweiten Start der Verwaltung, der das Fenster öffnet)."""
+        self._send(200, {"ticket": self.app.new_ticket()})
+
     def api_post_quit(self, q):
         self._send(200, {"ok": True})
         threading.Thread(target=lambda: (time.sleep(0.2), self.app.server.shutdown()), daemon=True).start()

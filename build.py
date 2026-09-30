@@ -80,9 +80,9 @@ def build_page():
     base = os.path.join("src", "verwaltung", "seite")
     js_dir = os.path.join(HERE, base, "js")
     js = "\n".join(read(base, "js", f) for f in sorted(os.listdir(js_dir)) if f.endswith(".js"))
-    html = read(base, "geruest.html").replace("@@CSS@@", read(base, "stil.css")).replace("@@JS@@", js)
-    if "\'\'\'" in html:
-        sys.exit("Die Seite enthält dreifache Anführungszeichen")
+    html = read(base, "geruest.html").replace("@@CSS@@", read(base, "stil.css"))
+    if "\'\'\'" in html + js or js.rstrip().endswith("\\"):
+        sys.exit("Seite oder Skript enthalten dreifache Anführungszeichen bzw. enden mit \\")
     node = shutil.which("node")
     if node:                                # JavaScript-Syntax prüfen (wenn Node.js vorhanden ist)
         import subprocess
@@ -93,7 +93,7 @@ def build_page():
         os.remove(f.name)
         if r.returncode:
             sys.exit("JavaScript-Fehler in der Verwaltung:\n" + r.stderr.strip()[:1500])
-    return html
+    return html, js
 
 
 def check(name, text):
@@ -152,10 +152,10 @@ def main():
     os.makedirs(DIST, exist_ok=True)
     driver, order = bundle(os.path.join("src", "treiber"), "kopf")
     check("g19s.py", driver)
-    html = build_page()
+    html, js = build_page()
     gui, _ = bundle(os.path.join("src", "verwaltung", "server"), "kopf")
     gui = gui.replace("@@DRIVER_API@@", " ".join(driver_api(driver, gui)))   # vor dem Einsetzen der Seite
-    gui = gui.replace("@@PAGE_HTML@@", html)
+    gui = gui.replace("@@PAGE_HTML@@", html).replace("@@PAGE_JS@@", js)
     check("g19s-gui.py", gui)
     for fname, text in (("g19s.py", driver), ("g19s-gui.py", gui)):
         path = os.path.join(DIST, fname)

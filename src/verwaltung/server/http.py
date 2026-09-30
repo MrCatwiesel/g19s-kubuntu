@@ -15,6 +15,22 @@ class App:
         self.started = time.monotonic()
         self.server = None
         self.restart = None       # nach einem Update: {"backup": Pfad der alten Verwaltung}
+        self.tickets = {}         # Einmal-Code → Ablaufzeit (zum Öffnen im Browser, siehe new_ticket)
+
+    TICKET_TTL = 120
+
+    def new_ticket(self):
+        """Einmal-Code für die Browser-Adresse: Die Adresse steht in der Prozessliste (für alle Benutzer
+        sichtbar), der Code taugt aber nur für einen Aufruf innerhalb von TICKET_TTL Sekunden."""
+        now = time.monotonic()
+        self.tickets = {k: v for k, v in self.tickets.items() if v > now}
+        ticket = secrets.token_urlsafe(18)
+        self.tickets[ticket] = now + self.TICKET_TTL
+        return ticket
+
+    def redeem_ticket(self, ticket):
+        expires = self.tickets.pop(str(ticket or ""), 0)
+        return self.token if expires > time.monotonic() else None
 
 
 class Handler(ApiKeys, ApiRadio, ApiInfo, ApiSlides, ApiService, http.server.BaseHTTPRequestHandler):
@@ -45,7 +61,7 @@ class Handler(ApiKeys, ApiRadio, ApiInfo, ApiSlides, ApiService, http.server.Bas
         return host in (f"127.0.0.1:{self.app.port}", f"localhost:{self.app.port}")
 
     def _auth(self, query):
-        token = self.headers.get("X-Token") or query.get("token", [""])[0]
+        token = self.headers.get("X-Token") or ""        # nie in der Adresse (Verlauf, Downloadliste)
         return secrets.compare_digest(token, self.app.token)
 
     def _body(self, limit=20 * 1024 * 1024):
@@ -77,13 +93,25 @@ class Handler(ApiKeys, ApiRadio, ApiInfo, ApiSlides, ApiService, http.server.Bas
         url = urllib.parse.urlparse(self.path)
         query = urllib.parse.parse_qs(url.query)
         if method == "GET" and url.path in ("/", "/index.html"):
+            # Nur das eigene Skript /app.js darf laufen (kein Inline-Skript); Bilder/Ton dürfen von außen
+            # kommen (Senderlogos, Probehören), Einbetten in fremde Seiten ist verboten.
             return self._send(200, PAGE_HTML, "text/html; charset=utf-8",
                               {"Content-Security-Policy":
-                               "default-src 'self'; img-src 'self' data: https: http:; "
-                               "style-src 'unsafe-inline'; script-src 'unsafe-inline'; "
-                               "media-src https: http:"})
+                               "default-src 'none'; script-src 'self'; connect-src 'self'; "
+                               "style-src 'unsafe-inline'; img-src 'self' data: blob: https: http:; "
+                               "media-src https: http:; frame-ancestors 'none'; base-uri 'none'; "
+                               "form-action 'none'",
+                               "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY"})
+        if method == "GET" and url.path == "/app.js":           # enthält keine Geheimnisse
+            return self._send(200, PAGE_JS, "text/javascript; charset=utf-8")
         if not url.path.startswith("/api/"):
             return self._send(404, {"error": "Nicht gefunden"})
+        if method == "POST" and url.path == "/api/ticket":     # Einmal-Code gegen Schlüssel tauschen
+            try:
+                token = self.app.redeem_ticket(self._json().get("ticket"))
+            except (ValueError, AttributeError):
+                token = None
+            return self._send(200, {"token": token}) if token else self._send(403, {"error": "Code ungültig"})
         if not self._auth(query):
             return self._send(401, {"error": "Sitzung ungültig – bitte die Verwaltung neu öffnen"})
         self._touch()

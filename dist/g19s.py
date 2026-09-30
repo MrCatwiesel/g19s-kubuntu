@@ -40,7 +40,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.09.30-2"
+VERSION = "2026.09.30-3"
 
 # Weitere Importe der Module
 import http.client
@@ -9480,6 +9480,7 @@ class AppCore:
         self.popups = deque()               # Benachrichtigungen aus dem Hintergrund-Thread (threadsicher)
         self.next_draw = 0.0
         self._last_frame, self._last_sent = None, 0.0   # zuletzt gesendetes Bild (siehe App._send)
+        self._last_draw_error = None                    # zuletzt protokollierter Anzeige-Fehler
         self.running = True
         self.prev_gm = self.prev_l = 0
         self.held = {}                      # G-Taste -> Modifier, mit dem sie gedrückt wurde
@@ -10343,6 +10344,24 @@ class App(AppCore, KeyHandling, TimedTasks):
             self._send(Image.new("RGB", (WIDTH, HEIGHT), (0, 0, 0)), now)
             self.next_draw = now + 5
             return
+        try:
+            img = self._compose(now)
+        except Exception as ex:             # eine fehlerhafte Seite darf Treiber und G-Tasten nie stoppen
+            img = self._draw_error(ex)
+        self._send(img, now)
+        fast = rec or self.flash or (self.menu and self.menu.kind == "timer")
+        if not fast and self.menu is None and PAGE_IDS[self.page % len(PAGE_IDS)] == "clock":
+            fps = clock_fps(r.clock_face, self.settings())
+            if fps > 1 and not self.night_dark():   # bewegte Zifferblätter; nachts (gedimmt) 1 Bild/s
+                self.next_draw = now + 1.0 / fps
+            else:                           # kurz nach jedem Sekundenwechsel, damit kein Sekundenschritt fehlt
+                self.next_draw = now + (1.0 - time.time() % 1.0) + 0.02
+        else:
+            self.next_draw = now + (0.5 if fast else 1.0)
+
+    def _compose(self, now):
+        """Menü, Aufnahme, Einblendung oder Seite zeichnen."""
+        r, rec, menu = self.renderer, self.rec, self.menu
         if menu is not None and not rec:
             img = menu.draw(self, now)      # None = Menü hat sich geschlossen (z. B. Timer beendet)
             if img is None:
@@ -10358,16 +10377,23 @@ class App(AppCore, KeyHandling, TimedTasks):
         else:
             self.flash = None
             img = r.render(self.page, self.layer, self.store.keys(self.prof_idx))
-        self._send(img, now)
-        fast = rec or self.flash or (self.menu and self.menu.kind == "timer")
-        if not fast and self.menu is None and PAGE_IDS[self.page % len(PAGE_IDS)] == "clock":
-            fps = clock_fps(r.clock_face, self.settings())
-            if fps > 1 and not self.night_dark():   # bewegte Zifferblätter; nachts (gedimmt) 1 Bild/s
-                self.next_draw = now + 1.0 / fps
-            else:                           # kurz nach jedem Sekundenwechsel, damit kein Sekundenschritt fehlt
-                self.next_draw = now + (1.0 - time.time() % 1.0) + 0.02
-        else:
-            self.next_draw = now + (0.5 if fast else 1.0)
+        return img
+
+    def _draw_error(self, ex):
+        """Fehlerseite statt Absturz; jeder Fehler steht einmal (mit Ort) im Protokoll."""
+        import traceback
+        where = self.menu.kind if self.menu is not None else PAGE_NAMES[self.page % len(PAGE_IDS)]
+        text = f"{type(ex).__name__}: {ex}"
+        if (where, text) != self._last_draw_error:
+            self._last_draw_error = (where, text)
+            self.log(f"Anzeige-Fehler auf „{where}“: {text}\n" + "".join(traceback.format_exc(limit=4)).rstrip())
+        if self.menu is not None:
+            self.menu = None                # kaputtes Menü schließen, damit die Tasten wieder gehen
+        self.flash = None
+        try:
+            return self.renderer.render_message("Anzeige-Fehler", [where, text[:40], "Details: Protokoll"], REC_COLOR)
+        except Exception:                   # selbst die Meldung geht nicht: schwarzes Bild
+            return Image.new("RGB", (WIDTH, HEIGHT), (0, 0, 0))
 
     FRAME_REFRESH = 10.0            # unverändertes Bild spätestens nach so vielen Sekunden erneut senden
 

@@ -73,10 +73,11 @@ def bind_server(port, tries=40):
 def restart_after_update(app, args):
     """Neue Verwaltung mit gleicher Adresse starten; startet sie nicht, alte Version zurückholen."""
     script = os.path.realpath(__file__)
-    cmd = [sys.executable, script, "--restarted", "--port", str(app.port), "--token", app.token]
+    cmd = [sys.executable, script, "--restarted", "--port", str(app.port)]
+    env = dict(os.environ, G19S_GUI_TOKEN=app.token)   # Schlüssel nicht in die (öffentliche) Befehlszeile
     backup = (app.restart or {}).get("backup")
     for attempt in ("neu", "zurück"):
-        proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, start_new_session=True)
+        proc = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, start_new_session=True, env=env)
         try:
             proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
@@ -128,20 +129,25 @@ def main():
         args.no_browser = True
     info = None if args.no_browser else existing_instance()
     if info:
-        open_window(f"http://127.0.0.1:{info['port']}/#{info['token']}", args.browser)
-        return
+        try:
+            ticket = _local("/api/newticket", info, data=b"{}")["ticket"]
+            open_window(f"http://127.0.0.1:{info['port']}/#k={ticket}", args.browser)
+            return
+        except Exception:               # laufende Instanz reagiert nicht: neue starten
+            pass
 
     try:
         g.migrate_files()                   # ältere settings.json/macros.json umstellen (wie der Treiber)
     except (OSError, ValueError) as ex:
         print(f"Umstellung älterer Dateien nicht möglich: {ex}")
-    app = App(args.token or secrets.token_urlsafe(24))
+    token = args.token or os.environ.pop("G19S_GUI_TOKEN", None) or secrets.token_urlsafe(24)
+    app = App(token)
     Handler.app = app
     server = bind_server(args.port)
     server.daemon_threads = True
     app.port = server.server_address[1]
     app.server = server
-    url = f"http://127.0.0.1:{app.port}/#{app.token}"
+    url = f"http://127.0.0.1:{app.port}/#k={app.new_ticket()}"      # Einmal-Code statt Schlüssel
 
     try:
         os.makedirs(RUNTIME_DIR, mode=0o700, exist_ok=True)
@@ -188,6 +194,7 @@ def main():
 
 
 PAGE_HTML = r'''@@PAGE_HTML@@'''
+PAGE_JS = r'''@@PAGE_JS@@'''
 
 if __name__ == "__main__":
     main()

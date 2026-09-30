@@ -27,6 +27,15 @@ with sync_playwright() as p:
     ok("test" in ver(BIN + "/g19s.py") and "test" in ver(BIN + "/g19s-gui.py"), "Beide Dateien ersetzt")
     ok(any(f.startswith("g19s.py.") for f in os.listdir(H + "/.local/share/g19s/alte-versionen")), "Alte Versionen gesichert")
     ok(open(ROOT + "/state/log").read().count("restart") >= 1, "Treiberdienst neu gestartet")
+    cmds = []
+    for pid in os.listdir("/proc"):
+        try:
+            c = open(f"/proc/{pid}/cmdline", "rb").read().replace(b"\0", b" ").decode(errors="replace")
+        except OSError:
+            continue
+        if "g19s-gui.py" in c and "--restarted" in c:
+            cmds.append(c)
+    ok(cmds and not any("testtoken" in c for c in cmds), "Neustart ohne Schlüssel in der Befehlszeile: " + " | ".join(c[-70:] for c in cmds))
     pg.click("nav >> text=Dienst"); pg.wait_for_timeout(800)
     ok("2026.09.27-test" in pg.inner_text("#versions"), "Seite zeigt neue Version nach automatischem Neuladen")
     # 3) Verwaltung, die nicht startet -> alte wird wiederhergestellt
