@@ -87,7 +87,8 @@ class App(AppCore, KeyHandling, TimedTasks):
             img = self._draw_error(ex)
         self._send(img, now)
         fast = rec or self.flash or (self.menu and self.menu.kind == "timer")
-        if not fast and self.menu is None and PAGE_IDS[self.page % len(PAGE_IDS)] == "clock":
+        preview = self.menu is not None and self.menu.kind == "clocks"   # Zifferblatt-Vorschau läuft live
+        if not fast and (preview or self.menu is None and PAGE_IDS[self.page % len(PAGE_IDS)] == "clock"):
             fps = clock_fps(r.clock_face, self.settings())
             if fps > 1 and not self.night_dark():   # bewegte Zifferblätter; nachts (gedimmt) 1 Bild/s
                 self.next_draw = now + 1.0 / fps

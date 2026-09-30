@@ -85,6 +85,22 @@ class MenuViews:
         self._scroll_marks(d, first > 0, first + rows < len(items))
         return img
 
+    def render_face_preview(self, img, name, pos, total, active, color):
+        """Zifferblatt-Auswahl: das gewählte Zifferblatt groß, oben Name und Position, unten die Tasten."""
+        top = img.crop((0, 0, WIDTH, 30))
+        img.paste(Image.blend(top, Image.new("RGB", top.size, (10, 12, 18)), 0.78), (0, 0))
+        d = ImageDraw.Draw(img)
+        d.rectangle([0, 29, WIDTH, 30], fill=color)
+        d.text((10, 6), "Zifferblatt", font=self.f_tiny, fill=self.DIM)
+        cnt = f"{pos}/{total}"
+        cw = d.textlength(cnt, font=self.f_small)
+        d.text((WIDTH - 10 - cw, 6), cnt, font=self.f_small, fill=self.DIM)
+        label = ("▶ " if active else "") + name
+        self._center(d, 3, self._fit(d, label, self.f_mid, WIDTH - 2 * cw - 40), self.f_mid, self.FG)
+        d.rectangle([0, HEIGHT - FOOTER_H, WIDTH, HEIGHT], fill=(20, 24, 34))
+        self._center(d, HEIGHT - 20, "▲▼ blättern · OK übernehmen · BACK zurück", self.f_tiny, self.DIM)
+        return img
+
     def render_calendar_menu(self, cals, hidden, cursor):
         """Kalenderauswahl der Terminseite: cals = [{key, name, color}]."""
         img = Image.new("RGB", (WIDTH, HEIGHT), self.BG)

@@ -1,4 +1,5 @@
-import http.server, json, urllib.parse, base64
+import http.server, json, urllib.parse, base64, os
+GH_DIR = os.path.join(os.environ.get("G19S_TEST_ROOT", "/tmp/g19s-test"), "upd", "gh")
 ICS = """BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:a\r\nSUMMARY:Teamrunde Projekt Nordlicht\r\nLOCATION:Besprechungsraum 2\, 3. OG\r\nDESCRIPTION:Tagesordnung:\\n1. Stand der Arbeiten\\n2. Termine Oktober\\n3. Verschiedenes\\n\\nBitte Unterlagen mitbringen. Zugang über den Seiteneingang\, Code 4711.\r\nDTSTART;TZID=Europe/Berlin:20260901T100000\r\nDTEND;TZID=Europe/Berlin:20260901T110000\r\nRRULE:FREQ=WEEKLY;BYDAY=MO,WE\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:b\r\nSUMMARY:Zahnarzt\r\nDTSTART:20261001T074500Z\r\nDURATION:PT45M\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"""
 
 DAV_DIRS = {"/nc/remote.php/dav/files/mde@example.de/", "/dav/", "/dav/home/", "/dav/home/Sicherungen/"}
@@ -90,6 +91,10 @@ class H(http.server.BaseHTTPRequestHandler):
             host = "localhost" if u.path.endswith("fremd") else "127.0.0.1"
             self.send_response(302); self.send_header("Location", f"http://{host}:8812/echo-auth")
             self.send_header("Content-Length", "0"); self.end_headers(); return
+        if u.path.startswith("/gh/"):          # „GitHub“ für den Update-Test
+            f = os.path.join(GH_DIR, os.path.basename(u.path))
+            if not os.path.isfile(f): return self.send("404: Not Found", "text/plain", 404)
+            return self.send(open(f, "rb").read(), "text/plain; charset=utf-8")
         if u.path == "/echo-auth":
             return self.send(self.headers.get("Authorization") or "-", "text/plain")
         if u.path == "/v1/search":

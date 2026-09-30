@@ -15,6 +15,7 @@ class App:
         self.started = time.monotonic()
         self.server = None
         self.restart = None       # nach einem Update: {"backup": Pfad der alten Verwaltung}
+        self.github_update = None # von GitHub geladene neuere Dateien {Bauteil: (Name, Bytes)}
         self.tickets = {}         # Einmal-Code → Ablaufzeit (zum Öffnen im Browser, siehe new_ticket)
 
     TICKET_TTL = 120

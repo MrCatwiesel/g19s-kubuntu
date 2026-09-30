@@ -73,7 +73,23 @@ class ApiService:
                 raise ValueError("Datei konnte nicht gelesen werden")
         if not files:
             raise ValueError("Keine Datei ausgewählt")
-        result = install_update(files)
+        self._finish_update(install_update(files))
+
+    def api_post_update_check(self, q):
+        info, newer = check_github()
+        self.app.github_update = newer
+        self._send(200, info)
+
+    def api_post_update_github(self, q):
+        newer = getattr(self.app, "github_update", None)
+        if not newer:
+            info, newer = check_github()
+            if not newer:
+                raise ValueError("Keine neuere Version verfügbar")
+        self.app.github_update = None
+        self._finish_update(install_update(list(newer.values())))
+
+    def _finish_update(self, result):
         comps = {r["component"] for r in result}
         if "driver" in comps:
             try:

@@ -221,7 +221,11 @@ Alle Änderungen übernimmt der laufende Treiber sofort, ein Neustart ist nicht 
 |}
 
 === Programm aktualisieren (Update-Knopf) ===
-Neue Versionen von <code>g19s.py</code> und <code>g19s-gui.py</code> müssen nicht mehr von Hand kopiert werden:
+Neue Versionen von <code>g19s.py</code> und <code>g19s-gui.py</code> müssen nicht mehr von Hand kopiert werden.
+
+'''Von GitHub (empfohlen):''' '''G19s-Verwaltung → Dienst & Sicherung → 🔍 Nach Updates suchen'''. Die Verwaltung vergleicht die installierten Versionen mit denen im Projekt auf [https://github.com/MrCatwiesel/g19s-kubuntu GitHub] und zeigt, was neuer ist. '''Jetzt installieren''' lädt die neueren Dateien, prüft sie wie unten beschrieben und spielt sie ein. Es wird nur beim Klick nachgesehen, nie im Hintergrund.
+
+'''Von Hand:'''
 # Die neuen Dateien herunterladen. Der Dateiname ist egal, auch <code>g19s(3).py</code> ist in Ordnung.
 # '''G19s-Verwaltung → Dienst & Sicherung → ⬆ Update-Dateien auswählen …''' und eine oder beide Dateien auswählen.
 # Die Verwaltung erkennt an einer Kennung in der Datei, ob es der Treiber oder die Oberfläche ist, und prüft, ob die Datei vollständig ist (Endzeile <code># G19S-DATEIENDE</code>). Fremde oder abgeschnittene Dateien werden abgelehnt.
@@ -390,7 +394,7 @@ Ein kleines gefülltes Quadrat bedeutet: Das Album ist über ein gewähltes Ober
 Die Bilder werden nur geladen, solange die Seite „Bilder“ angezeigt wird. Die Bildliste wird alle 30 Minuten neu abgerufen, neue Fotos in den Alben bzw. im Ordner erscheinen also automatisch.
 
 === Zifferblatt der Uhr ===
-Auf der Seite '''Uhr''' öffnet '''MENU''' die Liste '''Zifferblatt''' mit bis zu 25 Zifferblättern. Mit Hoch/Runter wählen, '''OK''' übernimmt, '''BACK''' schließt ohne Änderung. Das Zifferblatt gilt für das aktive Profil und die aktive Ebene – z. B. im Profil „Büro“ unter M1 die Digitaluhr und unter M3 die Bahnhofsuhr. Es wird in <code>macros.json</code> beim Profil gespeichert (<code>"clock": {"M3": "station"}</code>) und gilt auch, wenn die Uhr als Bildschirmschoner erscheint. In der Seitenliste der Verwaltung gibt es nur die Seite „Uhr“.
+Auf der Seite '''Uhr''' öffnet '''MENU''' die Liste '''Zifferblatt''' mit bis zu 25 Zifferblättern. Das markierte Zifferblatt wird dabei gleich groß und mit laufenden Zeigern gezeigt (oben Name und Position, z. B. 4/25). Mit Hoch/Runter blättern, '''OK''' übernimmt, '''BACK''' schließt ohne Änderung. Das Zifferblatt gilt für das aktive Profil und die aktive Ebene – z. B. im Profil „Büro“ unter M1 die Digitaluhr und unter M3 die Bahnhofsuhr. Es wird in <code>macros.json</code> beim Profil gespeichert (<code>"clock": {"M3": "station"}</code>) und gilt auch, wenn die Uhr als Bildschirmschoner erscheint. In der Seitenliste der Verwaltung gibt es nur die Seite „Uhr“.
 
 '''Einstellungen in der Verwaltung''' (Beleuchtung & Display → '''Uhr'''): oben ein Zifferblatt wählen – daneben erscheint eine Vorschau –, darunter seine Einstellungen. Farben stehen auf „Farbe der Ebene“ bzw. „Standard“, bis eine eigene Farbe gewählt wird. Unter '''Im Displaymenü anbieten''' die Zifferblätter abhaken, die in der Liste am Display nicht erscheinen sollen. Gespeichert wird mit den übrigen Einstellungen in <code>settings.json</code> (<code>"clock"</code>).
 {| class="wikitable"

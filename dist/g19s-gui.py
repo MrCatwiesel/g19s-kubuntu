@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.09.30-4"
+VERSION = "2026.09.30-5"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -352,9 +352,8 @@ def install_update(files):
         checked[comp] = (name, text)
     if "gui" in checked and "driver" not in checked:
         # neue Verwaltung braucht passende Treiberfunktionen
-        needed = re.findall(r'for needed in \(([^)]*)\)', checked["gui"][1])
-        names = re.findall(r'"(\w+)"', needed[0]) if needed else []
-        missing = [n for n in names if not hasattr(g, n)]
+        m = re.search(r'^DRIVER_API = "([^"]*)"', checked["gui"][1], re.M)
+        missing = [n for n in (m.group(1).split() if m else []) if not hasattr(g, n)]
         if missing:
             raise ValueError("Diese Verwaltung braucht einen neueren Treiber – bitte g19s.py mit auswählen")
     targets = {"driver": os.path.join(HERE, "g19s.py"), "gui": os.path.realpath(__file__)}
@@ -376,6 +375,40 @@ def install_update(files):
         result.append({"component": comp, "file": name, "old": old, "new": version_of(text),
                        "backup": backup})
     return result
+
+
+# --------------------------------------------------------------------------- #
+# Update direkt von GitHub
+# --------------------------------------------------------------------------- #
+UPDATE_URL = os.environ.get("G19S_UPDATE_URL",
+                            "https://raw.githubusercontent.com/MrCatwiesel/g19s-kubuntu/main/dist/")
+UPDATE_FILES = {"driver": "g19s.py", "gui": "g19s-gui.py"}
+UPDATE_LIMIT = 8 * 1024 * 1024
+
+
+def version_key(v):
+    """„2026.09.30-5“ → (2026, 9, 30, 5); unbekannt → ()."""
+    return tuple(int(x) for x in re.findall(r"\d+", v or "")) if re.match(r"\d", v or "") else ()
+
+
+def check_github():
+    """Lädt beide Programmdateien von GitHub und vergleicht die Versionen.
+    Rückgabe: (Info fürs Fenster, {Bauteil: (Dateiname, Bytes)} der neueren Dateien)."""
+    installed = {"driver": file_version(os.path.join(HERE, "g19s.py")), "gui": VERSION}
+    info, newer = {"source": UPDATE_URL, "components": []}, {}
+    for comp, name in UPDATE_FILES.items():
+        try:
+            raw = g.http_get(UPDATE_URL + name, timeout=20, limit=UPDATE_LIMIT)
+        except Exception as ex:
+            raise RuntimeError(f"{name} nicht abrufbar: {g.err_text(ex)}")
+        remote = version_of(raw.decode("utf-8", "replace"))
+        is_newer = version_key(remote) > version_key(installed[comp])
+        info["components"].append({"component": comp, "file": name, "installed": installed[comp],
+                                   "available": remote, "newer": is_newer})
+        if is_newer:
+            newer[comp] = (name, raw)
+    info["update"] = bool(newer)
+    return info, newer
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -889,7 +922,23 @@ class ApiService:
                 raise ValueError("Datei konnte nicht gelesen werden")
         if not files:
             raise ValueError("Keine Datei ausgewählt")
-        result = install_update(files)
+        self._finish_update(install_update(files))
+
+    def api_post_update_check(self, q):
+        info, newer = check_github()
+        self.app.github_update = newer
+        self._send(200, info)
+
+    def api_post_update_github(self, q):
+        newer = getattr(self.app, "github_update", None)
+        if not newer:
+            info, newer = check_github()
+            if not newer:
+                raise ValueError("Keine neuere Version verfügbar")
+        self.app.github_update = None
+        self._finish_update(install_update(list(newer.values())))
+
+    def _finish_update(self, result):
         comps = {r["component"] for r in result}
         if "driver" in comps:
             try:
@@ -938,6 +987,7 @@ class App:
         self.started = time.monotonic()
         self.server = None
         self.restart = None       # nach einem Update: {"backup": Pfad der alten Verwaltung}
+        self.github_update = None # von GitHub geladene neuere Dateien {Bauteil: (Name, Bytes)}
         self.tickets = {}         # Einmal-Code → Ablaufzeit (zum Öffnen im Browser, siehe new_ticket)
 
     TICKET_TTL = 120
@@ -1819,9 +1869,12 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
     </div>
     <div class="card">
       <h2>Programm aktualisieren</h2>
-      <p class="hint">Neue Versionen von <code>g19s.py</code> und <code>g19s-gui.py</code> hier auswählen – einzeln oder beide zusammen, der Dateiname spielt keine Rolle (auch <code>g19s(3).py</code> ist in Ordnung). Die Dateien werden geprüft, die alten Versionen gesichert und alles neu gestartet.</p>
+      <p class="hint"><b>Von GitHub:</b> „Nach Updates suchen“ vergleicht die installierten Versionen mit denen auf GitHub und spielt neuere auf Wunsch ein. <b>Von Hand:</b> neue Versionen von <code>g19s.py</code> und <code>g19s-gui.py</code> auswählen – einzeln oder beide zusammen, der Dateiname spielt keine Rolle (auch <code>g19s(3).py</code> ist in Ordnung). Die Dateien werden geprüft, die alten Versionen gesichert und alles neu gestartet.</p>
       <div class="kv" id="versions" style="margin-bottom:12px"></div>
-      <label class="btn primary">⬆ Update-Dateien auswählen …<input type="file" id="updateFile" accept=".py" multiple hidden></label>
+      <div class="row" style="gap:8px;flex-wrap:wrap">
+        <button class="btn primary" id="updateCheck">🔍 Nach Updates suchen</button>
+        <label class="btn">⬆ Update-Dateien auswählen …<input type="file" id="updateFile" accept=".py" multiple hidden></label>
+      </div>
       <div id="updateResult" style="margin-top:10px"></div>
     </div>
     <div class="card">
@@ -3239,19 +3292,18 @@ function toBase64(buf) {
   for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
   return btoa(s);
 }
-$("#updateFile").addEventListener("change", async e => {
-  const files = [...e.target.files]; e.target.value = ""; if (!files.length) return;
-  if (UI.draftDirty || UI.sDirty) { toast("Bitte zuerst die offenen Änderungen speichern oder verwerfen.", true); return; }
-  if (!confirm(`${files.map(f => f.name).join(" und ")} einspielen? Treiber bzw. Verwaltung werden dabei neu gestartet.`)) return;
-  const box = $("#updateResult"); box.replaceChildren(el("span", {class: "muted", text: "Spiele Update ein …"}));
+const COMP_NAME = {driver: "Treiber", gui: "Verwaltung"};
+function updateBlocked() {
+  if (UI.draftDirty || UI.sDirty) { toast("Bitte zuerst die offenen Änderungen speichern oder verwerfen.", true); return true; }
+  return false;
+}
+async function runUpdate(path, body, busyText) {
+  const box = $("#updateResult"); box.replaceChildren(el("span", {class: "muted", text: busyText}));
   let r;
-  try {
-    const payload = [];
-    for (const f of files) payload.push({name: f.name, data: toBase64(await f.arrayBuffer())});
-    r = await api("/api/update", {body: {files: payload}});
-  } catch (err) { box.replaceChildren(el("div", {class: "warnbox", text: err.message})); return; }
+  try { r = await api(path, {body}); }
+  catch (err) { box.replaceChildren(el("div", {class: "warnbox", text: err.message})); return; }
   box.replaceChildren(...r.installed.map(x => el("div", {class: "hint", style: {margin: "2px 0"}},
-    "✓ ", el("b", {text: x.component === "driver" ? "Treiber" : "Verwaltung"}), ` aktualisiert: ${x.old} → ${x.new}`,
+    "✓ ", el("b", {text: COMP_NAME[x.component]}), ` aktualisiert: ${x.old} → ${x.new}`,
     x.warning ? el("span", {style: {color: "var(--danger)"}, text: " – " + x.warning}) : "")));
   if (!r.restart_gui) { toast("Update eingespielt, der Treiber wurde neu gestartet."); refreshService(); return; }
   $("#ovTitle").textContent = "Verwaltung wird neu gestartet …";
@@ -3265,6 +3317,34 @@ $("#updateFile").addEventListener("change", async e => {
   }
   $("#ovTitle").textContent = "Neustart dauert ungewöhnlich lange";
   $("#ovText").textContent = "Bitte die Verwaltung über das Anwendungsmenü neu öffnen.";
+}
+$("#updateFile").addEventListener("change", async e => {
+  const files = [...e.target.files]; e.target.value = ""; if (!files.length || updateBlocked()) return;
+  if (!confirm(`${files.map(f => f.name).join(" und ")} einspielen? Treiber bzw. Verwaltung werden dabei neu gestartet.`)) return;
+  const payload = [];
+  try { for (const f of files) payload.push({name: f.name, data: toBase64(await f.arrayBuffer())}); }
+  catch (err) { toast("Datei konnte nicht gelesen werden", true); return; }
+  runUpdate("/api/update", {files: payload}, "Spiele Update ein …");
+});
+$("#updateCheck").addEventListener("click", async () => {
+  const box = $("#updateResult"), btn = $("#updateCheck");
+  box.replaceChildren(el("span", {class: "muted", text: "Frage GitHub …"})); btn.disabled = true;
+  let r;
+  try { r = await api("/api/update/check", {body: {}}); }
+  catch (err) { box.replaceChildren(el("div", {class: "warnbox", text: err.message})); return; }
+  finally { btn.disabled = false; }
+  const rows = r.components.map(c => el("div", {class: "hint", style: {margin: "2px 0"}},
+    c.newer ? "⬆ " : "✓ ", el("b", {text: COMP_NAME[c.component]}),
+    c.newer ? `: ${c.installed} → ${c.available}` : `: ${c.installed} ist aktuell` +
+      (c.available !== c.installed ? ` (GitHub: ${c.available})` : "")));
+  if (!r.update) { box.replaceChildren(...rows, el("div", {class: "hint", text: "Keine neuere Version verfügbar."})); return; }
+  const go = el("button", {class: "btn primary", style: {marginTop: "6px"}, text: "Jetzt installieren"});
+  go.addEventListener("click", () => {
+    if (updateBlocked()) return;
+    if (!confirm("Neue Version von GitHub einspielen? Treiber bzw. Verwaltung werden dabei neu gestartet.")) return;
+    runUpdate("/api/update/github", {}, "Spiele Update von GitHub ein …");
+  });
+  box.replaceChildren(...rows, go);
 });
 function renderPaths() {
 

@@ -95,7 +95,8 @@ Formular in `seite/js/` fehlt noch. Regeln über mehrere Felder: `Section(..., c
 Einzelne Teile: `run_tests.py bilder sim`, `run_tests.py sim=s05`.
 Nach einer gewollten Änderung der Anzeige: `run_tests.py --referenz` (danach die neuen
 PNGs ansehen!). Die Tests laufen ohne Tastatur: `tests/stubs` ersetzt evdev,
-`tests/fakes` spielt Piwigo, CalDAV/RSS/Bright Sky und Programme wie `apt`, `ping`, `wpctl`.
+`tests/fakes` spielt Piwigo, CalDAV/RSS/Bright Sky, GitHub (Update-Suche über
+`G19S_UPDATE_URL`, Dateien aus `$G19S_TEST_ROOT/upd/gh/`) und Programme wie `apt`, `ping`, `wpctl`.
 libfaketime wird beim ersten Lauf nach `tests/.werkzeuge/` gebaut.
 
 ## Konventionen

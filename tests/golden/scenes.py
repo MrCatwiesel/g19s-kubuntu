@@ -226,6 +226,10 @@ def _(r):
              {"label": "Radio ausschalten", "stop": True, "mark": "■", "color": (235, 90, 90)}]
     return r.render_list_menu("Radiosender", items, 1, "▲▼ wählen · OK abspielen · BACK zurück", "2 Sender", (0, 110, 255))
 
+@s("zifferblatt_vorschau")
+def _(r):
+    return r.render_face_preview(_face(r, "station"), "Bahnhofsuhr", 4, 25, False, (0, 110, 255))
+
 @s("listenmenue_bausteine")
 def _(r):
     items = [{"label": f"Baustein {i}", "sub": "Büro" if i % 2 else ""} for i in range(10)]

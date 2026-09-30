@@ -17,10 +17,10 @@ ohne Logitech-Software, in zwei Python-Dateien.
   Termine (iCalendar/Nextcloud-CalDAV), Hardware, Makros, Diashow (Piwigo oder Ordner),
   Nachrichten (RSS/Atom), Unwetterwarnungen (DWD), Netzwerk, Updates
 - **25 Zifferblätter** für die Uhr – von Chronometer, Bahnhofs- und Kuckucksuhr über Astro- und
-  Sonnenuhr bis Nixie-Röhren und Wortuhr, Auswahl am Display mit MENU
+  Sonnenuhr bis Nixie-Röhren und Wortuhr, Auswahl am Display mit MENU und Live-Vorschau
 - Terminerinnerung, Radiowecker, Nachtmodus, Bildschirmschoner, KDE-Benachrichtigungen auf dem Display
 - **G19s-Verwaltung** im Browser: Tastenbelegung, Makro-Editor, Sender, Display, Infoseiten,
-  Dienst, Sicherung, Updates per Knopfdruck
+  Dienst, Sicherung, Updates direkt von GitHub
 - **Automatische Sicherung** in einen Ordner, auf ein NAS (SMB/WebDAV) oder in die Nextcloud
 
 ![Zifferblätter](doku/bilder/zifferblaetter.png)
@@ -43,8 +43,8 @@ python3 ~/.local/bin/g19s-gui.py --install-desktop     # Eintrag „G19s-Verwalt
 ```
 
 Für die Makroaufnahme zusätzlich `sudo usermod -aG input $USER`, danach den PC neu starten.
-Neue Versionen spielt man
-in der Verwaltung unter **Dienst & Sicherung → Programm aktualisieren** ein.
+Neue Versionen holt die Verwaltung unter **Dienst & Sicherung → Nach Updates suchen**
+direkt von GitHub.
 
 Entwickelt für Kubuntu 26.04 mit KDE Plasma (Wayland).
 

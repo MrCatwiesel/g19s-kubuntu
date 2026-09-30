@@ -40,7 +40,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.09.30-4"
+VERSION = "2026.09.30-5"
 
 # Weitere Importe der Module
 import http.client
@@ -8730,6 +8730,22 @@ class MenuViews:
         self._scroll_marks(d, first > 0, first + rows < len(items))
         return img
 
+    def render_face_preview(self, img, name, pos, total, active, color):
+        """Zifferblatt-Auswahl: das gewählte Zifferblatt groß, oben Name und Position, unten die Tasten."""
+        top = img.crop((0, 0, WIDTH, 30))
+        img.paste(Image.blend(top, Image.new("RGB", top.size, (10, 12, 18)), 0.78), (0, 0))
+        d = ImageDraw.Draw(img)
+        d.rectangle([0, 29, WIDTH, 30], fill=color)
+        d.text((10, 6), "Zifferblatt", font=self.f_tiny, fill=self.DIM)
+        cnt = f"{pos}/{total}"
+        cw = d.textlength(cnt, font=self.f_small)
+        d.text((WIDTH - 10 - cw, 6), cnt, font=self.f_small, fill=self.DIM)
+        label = ("▶ " if active else "") + name
+        self._center(d, 3, self._fit(d, label, self.f_mid, WIDTH - 2 * cw - 40), self.f_mid, self.FG)
+        d.rectangle([0, HEIGHT - FOOTER_H, WIDTH, HEIGHT], fill=(20, 24, 34))
+        self._center(d, HEIGHT - 20, "▲▼ blättern · OK übernehmen · BACK zurück", self.f_tiny, self.DIM)
+        return img
+
     def render_calendar_menu(self, cals, hidden, cursor):
         """Kalenderauswahl der Terminseite: cals = [{key, name, color}]."""
         img = Image.new("RGB", (WIDTH, HEIGHT), self.BG)
@@ -9101,9 +9117,14 @@ class ClockMenu(Menu):
         app.next_draw = 0
 
     def draw(self, app, now):
-        return app.renderer.render_list_menu("Zifferblatt", self.items(app), self.cursor,
-                                             "▲▼ wählen · OK übernehmen · BACK zurück", f"{self.cursor + 1}/{len(self.items(app))} · {app.layer}",
-                                             PROFILE_COLOR[app.layer])
+        """Vorschau: das markierte Zifferblatt läuft live, darüber Name und Position."""
+        items = self.items(app)
+        self.cursor = min(self.cursor, len(items) - 1)
+        it, r = items[self.cursor], app.renderer
+        r.clock_face = it["face"]           # app.draw() setzt beim nächsten Bild wieder das eingestellte
+        img = r.render(PAGE_IDS.index("clock"), app.layer, {})
+        return r.render_face_preview(img, it["label"], self.cursor + 1, len(items), bool(it["mark"]),
+                                     PROFILE_COLOR[app.layer])
 
 
 class CalendarMenu(Menu):
@@ -10403,7 +10424,8 @@ class App(AppCore, KeyHandling, TimedTasks):
             img = self._draw_error(ex)
         self._send(img, now)
         fast = rec or self.flash or (self.menu and self.menu.kind == "timer")
-        if not fast and self.menu is None and PAGE_IDS[self.page % len(PAGE_IDS)] == "clock":
+        preview = self.menu is not None and self.menu.kind == "clocks"   # Zifferblatt-Vorschau läuft live
+        if not fast and (preview or self.menu is None and PAGE_IDS[self.page % len(PAGE_IDS)] == "clock"):
             fps = clock_fps(r.clock_face, self.settings())
             if fps > 1 and not self.night_dark():   # bewegte Zifferblätter; nachts (gedimmt) 1 Bild/s
                 self.next_draw = now + 1.0 / fps

@@ -57,19 +57,18 @@ function toBase64(buf) {
   for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
   return btoa(s);
 }
-$("#updateFile").addEventListener("change", async e => {
-  const files = [...e.target.files]; e.target.value = ""; if (!files.length) return;
-  if (UI.draftDirty || UI.sDirty) { toast("Bitte zuerst die offenen Änderungen speichern oder verwerfen.", true); return; }
-  if (!confirm(`${files.map(f => f.name).join(" und ")} einspielen? Treiber bzw. Verwaltung werden dabei neu gestartet.`)) return;
-  const box = $("#updateResult"); box.replaceChildren(el("span", {class: "muted", text: "Spiele Update ein …"}));
+const COMP_NAME = {driver: "Treiber", gui: "Verwaltung"};
+function updateBlocked() {
+  if (UI.draftDirty || UI.sDirty) { toast("Bitte zuerst die offenen Änderungen speichern oder verwerfen.", true); return true; }
+  return false;
+}
+async function runUpdate(path, body, busyText) {
+  const box = $("#updateResult"); box.replaceChildren(el("span", {class: "muted", text: busyText}));
   let r;
-  try {
-    const payload = [];
-    for (const f of files) payload.push({name: f.name, data: toBase64(await f.arrayBuffer())});
-    r = await api("/api/update", {body: {files: payload}});
-  } catch (err) { box.replaceChildren(el("div", {class: "warnbox", text: err.message})); return; }
+  try { r = await api(path, {body}); }
+  catch (err) { box.replaceChildren(el("div", {class: "warnbox", text: err.message})); return; }
   box.replaceChildren(...r.installed.map(x => el("div", {class: "hint", style: {margin: "2px 0"}},
-    "✓ ", el("b", {text: x.component === "driver" ? "Treiber" : "Verwaltung"}), ` aktualisiert: ${x.old} → ${x.new}`,
+    "✓ ", el("b", {text: COMP_NAME[x.component]}), ` aktualisiert: ${x.old} → ${x.new}`,
     x.warning ? el("span", {style: {color: "var(--danger)"}, text: " – " + x.warning}) : "")));
   if (!r.restart_gui) { toast("Update eingespielt, der Treiber wurde neu gestartet."); refreshService(); return; }
   $("#ovTitle").textContent = "Verwaltung wird neu gestartet …";
@@ -83,6 +82,34 @@ $("#updateFile").addEventListener("change", async e => {
   }
   $("#ovTitle").textContent = "Neustart dauert ungewöhnlich lange";
   $("#ovText").textContent = "Bitte die Verwaltung über das Anwendungsmenü neu öffnen.";
+}
+$("#updateFile").addEventListener("change", async e => {
+  const files = [...e.target.files]; e.target.value = ""; if (!files.length || updateBlocked()) return;
+  if (!confirm(`${files.map(f => f.name).join(" und ")} einspielen? Treiber bzw. Verwaltung werden dabei neu gestartet.`)) return;
+  const payload = [];
+  try { for (const f of files) payload.push({name: f.name, data: toBase64(await f.arrayBuffer())}); }
+  catch (err) { toast("Datei konnte nicht gelesen werden", true); return; }
+  runUpdate("/api/update", {files: payload}, "Spiele Update ein …");
+});
+$("#updateCheck").addEventListener("click", async () => {
+  const box = $("#updateResult"), btn = $("#updateCheck");
+  box.replaceChildren(el("span", {class: "muted", text: "Frage GitHub …"})); btn.disabled = true;
+  let r;
+  try { r = await api("/api/update/check", {body: {}}); }
+  catch (err) { box.replaceChildren(el("div", {class: "warnbox", text: err.message})); return; }
+  finally { btn.disabled = false; }
+  const rows = r.components.map(c => el("div", {class: "hint", style: {margin: "2px 0"}},
+    c.newer ? "⬆ " : "✓ ", el("b", {text: COMP_NAME[c.component]}),
+    c.newer ? `: ${c.installed} → ${c.available}` : `: ${c.installed} ist aktuell` +
+      (c.available !== c.installed ? ` (GitHub: ${c.available})` : "")));
+  if (!r.update) { box.replaceChildren(...rows, el("div", {class: "hint", text: "Keine neuere Version verfügbar."})); return; }
+  const go = el("button", {class: "btn primary", style: {marginTop: "6px"}, text: "Jetzt installieren"});
+  go.addEventListener("click", () => {
+    if (updateBlocked()) return;
+    if (!confirm("Neue Version von GitHub einspielen? Treiber bzw. Verwaltung werden dabei neu gestartet.")) return;
+    runUpdate("/api/update/github", {}, "Spiele Update von GitHub ein …");
+  });
+  box.replaceChildren(...rows, go);
 });
 function renderPaths() {
 

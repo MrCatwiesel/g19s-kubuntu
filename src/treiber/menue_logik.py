@@ -91,9 +91,14 @@ class ClockMenu(Menu):
         app.next_draw = 0
 
     def draw(self, app, now):
-        return app.renderer.render_list_menu("Zifferblatt", self.items(app), self.cursor,
-                                             "▲▼ wählen · OK übernehmen · BACK zurück", f"{self.cursor + 1}/{len(self.items(app))} · {app.layer}",
-                                             PROFILE_COLOR[app.layer])
+        """Vorschau: das markierte Zifferblatt läuft live, darüber Name und Position."""
+        items = self.items(app)
+        self.cursor = min(self.cursor, len(items) - 1)
+        it, r = items[self.cursor], app.renderer
+        r.clock_face = it["face"]           # app.draw() setzt beim nächsten Bild wieder das eingestellte
+        img = r.render(PAGE_IDS.index("clock"), app.layer, {})
+        return r.render_face_preview(img, it["label"], self.cursor + 1, len(items), bool(it["mark"]),
+                                     PROFILE_COLOR[app.layer])
 
 
 class CalendarMenu(Menu):

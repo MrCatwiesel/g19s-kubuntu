@@ -56,9 +56,8 @@ def install_update(files):
         checked[comp] = (name, text)
     if "gui" in checked and "driver" not in checked:
         # neue Verwaltung braucht passende Treiberfunktionen
-        needed = re.findall(r'for needed in \(([^)]*)\)', checked["gui"][1])
-        names = re.findall(r'"(\w+)"', needed[0]) if needed else []
-        missing = [n for n in names if not hasattr(g, n)]
+        m = re.search(r'^DRIVER_API = "([^"]*)"', checked["gui"][1], re.M)
+        missing = [n for n in (m.group(1).split() if m else []) if not hasattr(g, n)]
         if missing:
             raise ValueError("Diese Verwaltung braucht einen neueren Treiber – bitte g19s.py mit auswählen")
     targets = {"driver": os.path.join(HERE, "g19s.py"), "gui": os.path.realpath(__file__)}
@@ -80,3 +79,37 @@ def install_update(files):
         result.append({"component": comp, "file": name, "old": old, "new": version_of(text),
                        "backup": backup})
     return result
+
+
+# --------------------------------------------------------------------------- #
+# Update direkt von GitHub
+# --------------------------------------------------------------------------- #
+UPDATE_URL = os.environ.get("G19S_UPDATE_URL",
+                            "https://raw.githubusercontent.com/MrCatwiesel/g19s-kubuntu/main/dist/")
+UPDATE_FILES = {"driver": "g19s.py", "gui": "g19s-gui.py"}
+UPDATE_LIMIT = 8 * 1024 * 1024
+
+
+def version_key(v):
+    """„2026.09.30-5“ → (2026, 9, 30, 5); unbekannt → ()."""
+    return tuple(int(x) for x in re.findall(r"\d+", v or "")) if re.match(r"\d", v or "") else ()
+
+
+def check_github():
+    """Lädt beide Programmdateien von GitHub und vergleicht die Versionen.
+    Rückgabe: (Info fürs Fenster, {Bauteil: (Dateiname, Bytes)} der neueren Dateien)."""
+    installed = {"driver": file_version(os.path.join(HERE, "g19s.py")), "gui": VERSION}
+    info, newer = {"source": UPDATE_URL, "components": []}, {}
+    for comp, name in UPDATE_FILES.items():
+        try:
+            raw = g.http_get(UPDATE_URL + name, timeout=20, limit=UPDATE_LIMIT)
+        except Exception as ex:
+            raise RuntimeError(f"{name} nicht abrufbar: {g.err_text(ex)}")
+        remote = version_of(raw.decode("utf-8", "replace"))
+        is_newer = version_key(remote) > version_key(installed[comp])
+        info["components"].append({"component": comp, "file": name, "installed": installed[comp],
+                                   "available": remote, "newer": is_newer})
+        if is_newer:
+            newer[comp] = (name, raw)
+    info["update"] = bool(newer)
+    return info, newer
