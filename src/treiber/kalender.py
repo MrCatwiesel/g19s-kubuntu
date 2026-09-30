@@ -260,13 +260,12 @@ def is_single_calendar(url):
 
 
 def dav_request(url, method, body, user, password, depth="0", timeout=30):
-    import base64
     import urllib.request
-    headers = {"User-Agent": "g19s/1.0", "Depth": depth, "Content-Type": "application/xml; charset=utf-8"}
+    headers = {"User-Agent": USER_AGENT, "Depth": depth, "Content-Type": "application/xml; charset=utf-8"}
     if user:
-        headers["Authorization"] = "Basic " + base64.b64encode(f"{user}:{password or ''}".encode()).decode()
+        headers["Authorization"] = basic_auth(user, password)
     req = urllib.request.Request(url, data=body.encode(), headers=headers, method=method)
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    with open_url(req, timeout) as r:
         return r.read(4 * 1024 * 1024)
 
 
@@ -288,7 +287,10 @@ def discover_calendars(url, user, password):
     def props(href, xml_props, depth="0"):
         body = ('<?xml version="1.0"?><d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav" '
                 f'xmlns:a="http://apple.com/ns/ical/"><d:prop>{xml_props}</d:prop></d:propfind>')
-        raw = dav_request(urllib.parse.urljoin(origin, href), "PROPFIND", body, user, password, depth)
+        target = urllib.parse.urljoin(origin, href)
+        if not same_origin(target, origin):         # Zugangsdaten nie an einen anderen Server schicken
+            raise ValueError("Der Server verweist auf einen anderen Server – Kalendersuche abgebrochen")
+        raw = dav_request(target, "PROPFIND", body, user, password, depth)
         try:
             return ET.fromstring(raw).findall(f"{D}response")
         except ET.ParseError:
@@ -322,7 +324,10 @@ def discover_calendars(url, user, password):
         cm = re.match(r"#?([0-9a-fA-F]{6})", (r.findtext(f".//{A}calendar-color") or "").strip())
         if cm:
             color = [int(cm.group(1)[i:i + 2], 16) for i in (0, 2, 4)]
-        found.append({"name": name, "url": urllib.parse.urljoin(origin, h) + "?export", "color": color})
+        cal_url = urllib.parse.urljoin(origin, h)
+        if not same_origin(cal_url, origin):
+            continue                                    # Kalender auf fremdem Server: ignorieren
+        found.append({"name": name, "url": cal_url + "?export", "color": color})
     if not found:
         raise ValueError("Keine Terminkalender in diesem Konto gefunden")
     return found
@@ -355,7 +360,7 @@ def calendar_error(ex, url):
         if ex.code == 429:
             return "Zu viele Fehlversuche – Nextcloud bremst gerade, in einigen Minuten erneut versuchen"
         return f"Server antwortet mit Fehler {ex.code}"
-    reason = str(getattr(ex, "reason", None) or ex)
+    reason = err_text(ex)
     if "CERTIFICATE_VERIFY_FAILED" in reason:
         return "Das Zertifikat des Servers ist ungültig oder selbst signiert"
     if "WRONG_VERSION_NUMBER" in reason or "wrong version number" in reason:

@@ -1,7 +1,9 @@
 """Karte „Uhr“: Zifferblatt-Optionen, Vorschau, Auswahl fürs Displaymenü, Speichern."""
 import json
 from playwright.sync_api import sync_playwright
-H = "/tmp/g19s-test/gui/home"; SET = H + "/.config/g19s/settings.json"
+import os as _os
+ROOT = _os.environ.get("G19S_TEST_ROOT", "/tmp/g19s-test")
+H = ROOT + "/gui/home"; SET = H + "/.config/g19s/settings.json"
 def ok(c, m): print(("OK   " if c else "FEHL ") + m)
 def cfg(): return json.load(open(SET))
 errors = []
@@ -35,7 +37,7 @@ with sync_playwright() as p:
     pg.evaluate("document.querySelector('#clkLcd').removeAttribute('src')"); pg.wait_for_timeout(100)
     opts.nth(5).locator("input").uncheck()
     ok(wait_img(pg, "#clkLcd"), "Vorschau Binäruhr aktualisiert")
-    pg.locator("#clkLcd").screenshot(path="/tmp/g19s-test/shots/uhr_binaer.png")
+    pg.locator("#clkLcd").screenshot(path=ROOT + "/shots/uhr_binaer.png")
     # Weltzeituhr: Stadt tauschen
     pg.select_option("#clkFace", "world"); pg.wait_for_timeout(300)
     sels = pg.locator("#clkOpts .clkcities select")
@@ -46,7 +48,7 @@ with sync_playwright() as p:
     # Zifferblatt ohne Einstellungen
     pg.select_option("#clkFace", "radar"); pg.wait_for_timeout(300)
     ok("keine Einstellungen" in pg.inner_text("#clkOpts"), "Radaruhr ohne Einstellungen")
-    pg.screenshot(path="/tmp/g19s-test/shots/uhr_karte.png", full_page=True)
+    pg.screenshot(path=ROOT + "/shots/uhr_karte.png", full_page=True)
     pg.click("#saveSettings"); pg.wait_for_timeout(600)
     c = cfg()["clock"]
     ok(c["binary"]["color_h"] == [255, 48, 48] and c["binary"]["mode"] == "binary" and c["binary"]["digits"] is False,

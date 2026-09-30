@@ -217,6 +217,11 @@ def migrate_system_page(settings_path=None, macros_path=None, log=print):
 
 def migrate_files(log=print):
     """Umstellungen älterer Dateien beim Start (Treiber und Verwaltung, mehrfach aufrufbar)."""
+    try:                                     # Konfigurationsordner (enthält Passwörter) nur für den Benutzer
+        if os.path.isdir(CONFIG_DIR) and os.stat(CONFIG_DIR).st_mode & 0o077:
+            os.chmod(CONFIG_DIR, 0o700)
+    except OSError:
+        pass
     migrate_system_page(log=log)
     migrate_clock_pages(log=log)
 

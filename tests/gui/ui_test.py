@@ -1,6 +1,8 @@
 import json, time, os
 from playwright.sync_api import sync_playwright
-T = "/tmp/g19s-test/gui"; H = T + "/home"
+import os as _os
+ROOT = _os.environ.get("G19S_TEST_ROOT", "/tmp/g19s-test")
+T = ROOT + "/gui"; H = T + "/home"
 MAC = H + "/.config/g19s/macros.json"; SET = H + "/.config/g19s/settings.json"
 URL = "http://127.0.0.1:8799/#testtoken"
 errors = []
@@ -17,7 +19,7 @@ with sync_playwright() as p:
     pg.on("pageerror", lambda e: (errors.append(str(e)), print("SEITENFEHLER", e)))
     pg.on("dialog", lambda d: d.accept())
     pg.goto(URL); pg.wait_for_selector(".gkey")
-    pg.screenshot(path="/tmp/g19s-test/shots/01_tasten.png")
+    pg.screenshot(path=ROOT + "/shots/01_tasten.png")
     ok(pg.locator(".gkey.has").count() == 3, "3 belegte Tasten angezeigt")
     ok("Test-Satz" in pg.inner_text("#keypad"), "Name Test-Satz sichtbar")
 
@@ -42,7 +44,7 @@ with sync_playwright() as p:
     pg.keyboard.down("Control"); pg.keyboard.down("Shift"); pg.keyboard.down("KeyT")
     pg.keyboard.up("KeyT"); pg.keyboard.up("Shift"); pg.keyboard.up("Control")
     ok("Strg" in pg.inner_text(".chips") and "Umschalt" in pg.inner_text(".chips"), "Kombination erfasst: " + pg.inner_text(".chips").replace("\n", " "))
-    pg.screenshot(path="/tmp/g19s-test/shots/02_kombination.png")
+    pg.screenshot(path=ROOT + "/shots/02_kombination.png")
     pg.click("#applyBtn"); pg.wait_for_timeout(300)
     ok(macros()["M1"]["G5"] == {"combo": "KEY_LEFTCTRL+KEY_LEFTSHIFT+KEY_T"}, "G5 Kombination gespeichert: %s" % macros()["M1"]["G5"])
 
@@ -58,7 +60,7 @@ with sync_playwright() as p:
     pg.click("text=+ Schritt")
     last = pg.locator("table.steps tbody tr").last
     last.locator("select").first.select_option("KEY_F5")
-    pg.screenshot(path="/tmp/g19s-test/shots/03_makro.png", full_page=True)
+    pg.screenshot(path=ROOT + "/shots/03_makro.png", full_page=True)
     pg.click("#applyBtn"); pg.wait_for_timeout(300)
     st = macros()["M1"]["G6"]["steps"]
     ok([s[1] for s in st] == ["KEY_H", "KEY_Z", "KEY_ENTER", "KEY_F5"] and all(s[2] == "tap" for s in st), "G6 Makro gespeichert: %s" % [s[1] for s in st])
@@ -96,7 +98,7 @@ with sync_playwright() as p:
     pg.click(".gkey >> text=G1"); pg.click("text=Belegung entfernen"); pg.wait_for_timeout(300)
     ok("M2" not in macros(), "M2/G1 entfernt, leeres Profil bereinigt")
     pg.click(".profiles button >> text=M1"); pg.click(".gkey >> text=G1")
-    pg.screenshot(path="/tmp/g19s-test/shots/04_tasten_belegt.png")
+    pg.screenshot(path=ROOT + "/shots/04_tasten_belegt.png")
 
     # Externe Änderung (wie MR-Aufnahme) wird übernommen
     m = _full(); m["profiles"][0]["keys"]["M1"]["G12"] = {"name": "Makro G12", "steps": [[0, "KEY_A", "tap"]]}
@@ -112,7 +114,7 @@ with sync_playwright() as p:
     ok(pg.is_visible("#savebar"), "Speicherleiste erscheint")
     pg.locator("#stations tbody tr").last.locator("button[title=Probehören]").click(); pg.wait_for_timeout(700)
     ok(pg.locator("#stations tr.playing").count() == 1, "Probehören markiert den Sender")
-    pg.screenshot(path="/tmp/g19s-test/shots/05_radio.png", full_page=True)
+    pg.screenshot(path=ROOT + "/shots/05_radio.png", full_page=True)
     pg.click("#stopTest"); pg.wait_for_timeout(300)
     pg.click("#saveSettings"); pg.wait_for_timeout(300)
     s = json.load(open(SET))
@@ -128,7 +130,7 @@ with sync_playwright() as p:
     ok((pg.get_attribute("#lcd", "src") or "").startswith("data:image/png"), "Display-Vorschau geladen")
     pg.check("#brightOn"); pg.locator("#bright").fill("60"); pg.select_option("#startPage", "1")
     pg.click("#pvProfiles >> text=M2"); pg.wait_for_timeout(700)
-    pg.screenshot(path="/tmp/g19s-test/shots/06_einstellungen.png", full_page=True)
+    pg.screenshot(path=ROOT + "/shots/06_einstellungen.png", full_page=True)
     pg.click("#saveSettings"); pg.wait_for_timeout(300)
     s = json.load(open(SET))
     ok(s["brightness"] == 60 and s["start_page"] == 1, "Helligkeit/Startseite gespeichert")
@@ -147,7 +149,7 @@ with sync_playwright() as p:
     path = dl.value.path(); import tarfile
     names = tarfile.open(path).getnames()
     ok(".config/g19s/macros.json" in names and ".config/g19s/settings.json" in names and ".local/bin/g19s.py" in names, "Sicherung: " + ", ".join(names))
-    pg.screenshot(path="/tmp/g19s-test/shots/07_dienst.png", full_page=True)
+    pg.screenshot(path=ROOT + "/shots/07_dienst.png", full_page=True)
     # Wiederherstellen: Makros kaputt machen, dann Sicherung einspielen
     json.dump({"M1": {}}, open(MAC, "w"))
     pg.set_input_files("#restoreFile", path); pg.wait_for_timeout(1500)
@@ -158,9 +160,9 @@ with sync_playwright() as p:
     pd = b.new_page(viewport={"width": 1280, "height": 900}, color_scheme="dark")
     pd.on("pageerror", lambda e: errors.append(str(e)))
     pd.goto(URL); pd.wait_for_selector(".gkey"); pd.click(".gkey >> text=G4")
-    pd.screenshot(path="/tmp/g19s-test/shots/08_dunkel.png")
+    pd.screenshot(path=ROOT + "/shots/08_dunkel.png")
     # schmales Fenster
     pn = b.new_page(viewport={"width": 760, "height": 1000})
-    pn.goto(URL); pn.wait_for_selector(".gkey"); pn.screenshot(path="/tmp/g19s-test/shots/09_schmal.png", full_page=True)
+    pn.goto(URL); pn.wait_for_selector(".gkey"); pn.screenshot(path=ROOT + "/shots/09_schmal.png", full_page=True)
     b.close()
 print("Konsolenfehler:", errors or "keine")

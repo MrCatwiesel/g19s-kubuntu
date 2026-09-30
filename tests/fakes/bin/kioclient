@@ -7,7 +7,11 @@ def local(url):
     u = urllib.parse.urlsplit(url)
     if u.scheme == "file":
         return urllib.parse.unquote(u.path)
-    if (urllib.parse.unquote(u.username or ""), urllib.parse.unquote(u.password or "")) != ("nas", "geh%eim"):
+    if u.password:                                   # Passwort in der Adresse darf nicht mehr vorkommen
+        sys.stderr.write("kioclient: TEST: Passwort in der Befehlszeile!\n"); sys.exit(2)
+    # „KWallet“: Datei mit dem Benutzer, für den ein Passwort gespeichert ist
+    wallet = os.path.join(root, "wallet")
+    if urllib.parse.unquote(u.username or "") != (open(wallet).read().strip() if os.path.exists(wallet) else None):
         sys.stderr.write("kioclient: Anmeldung fehlgeschlagen\n"); sys.exit(1)
     return os.path.join(root, u.hostname, urllib.parse.unquote(u.path).lstrip("/"))
 cmd = a[0]

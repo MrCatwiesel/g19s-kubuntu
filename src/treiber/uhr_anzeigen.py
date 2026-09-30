@@ -10,7 +10,6 @@ from PIL import ImageFilter
 
 _disp_cond = "/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed{}.ttf"
 _disp_sans = "/usr/share/fonts/truetype/dejavu/DejaVuSans{}.ttf"
-_disp_mono = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono{}.ttf"
 
 
 def _disp_shrink(img, w, h):

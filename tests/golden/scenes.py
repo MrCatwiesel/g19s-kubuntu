@@ -1,6 +1,6 @@
 """Referenzbilder aller Displayseiten, Menüs und Einblendungen.
 
-Aufruf (mit eingefrorener Zeit, siehe tests/run_tests.sh):
+Aufruf (mit eingefrorener Zeit, siehe tests/run_tests.py):
     python3 scenes.py TREIBER.py AUSGABEORDNER
 
 Das Skript lädt die angegebene g19s.py, füttert den Renderer mit festen

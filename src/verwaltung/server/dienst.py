@@ -14,11 +14,20 @@ def run(cmd, timeout=10):
         return 124, "Zeitüberschreitung"
 
 
-def service_status():
+_service_cache = [0.0, None]
+
+
+def service_status(max_age=0.0):
+    """Zustand des Dienstes; max_age > 0: so lange zwischengespeichert (für die regelmäßige Abfrage)."""
+    now = time.monotonic()
+    if _service_cache[1] is not None and now - _service_cache[0] < max_age:
+        return _service_cache[1]
     _, active = run(["systemctl", "--user", "is-active", SERVICE])
     _, enabled = run(["systemctl", "--user", "is-enabled", SERVICE])
-    return {"active": active.splitlines()[0] if active else "unbekannt",
-            "enabled": enabled.splitlines()[0] if enabled else "unbekannt"}
+    st = {"active": active.splitlines()[0] if active else "unbekannt",
+          "enabled": enabled.splitlines()[0] if enabled else "unbekannt"}
+    _service_cache[:] = [now, st]
+    return st
 
 
 def service_log(lines=80):

@@ -15,14 +15,14 @@ Ausgeliefert wird weiterhin **je eine Datei**; die Aufteilung in Module gibt es 
     python3 build.py
 
 `build.py` hängt die Module in der Reihenfolge aus `REIHENFOLGE` aneinander, sammelt die
-Importe oben, macht aus jedem Modul-Docstring einen Kommentarkopf `# ==== Modul: … ====`
+Importe oben, macht aus jedem Modul-Docstring einen Kommentarkopf (`# ═══…` / `# Modul <name>`)
 und prüft das Ergebnis: Syntax, doppelte Namen auf oberster Ebene, undefinierte Namen,
 gleiche `VERSION` in beiden Programmen, Endzeile `# G19S-DATEIENDE …`.
 Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
 
 ## Aufbau
 
-    src/treiber/            54 Module, Reihenfolge in REIHENFOLGE
+    src/treiber/            Module des Treibers, Reihenfolge in REIHENFOLGE
       kopf, konstanten        Version, Pfade, USB-Konstanten, Seitenliste
       einstellungen           SCHEMA: ein Schema für alle Einstellungen
       makros, tastatur, …     Makrodatei, Tastennamen, Makro-Abspieler
@@ -35,7 +35,7 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
       aktionen                G-Tasten-Aktionen (@gkey_action)
       app_kern / app_tasten / app_zeit / app
                               App = AppCore + KeyHandling + TimedTasks
-    src/verwaltung/server/  14 Module (HTTP-Handler aus Api*-Mixins)
+    src/verwaltung/server/  Module der Verwaltung (HTTP-Handler aus Api*-Mixins)
     src/verwaltung/seite/   geruest.html + stil.css + js/*.js (nach Dateiname sortiert)
     doku/wiki_vorlage.txt   Wiki-Text mit Platzhaltern @@G19S_PY@@, @@GUI_PY@@, …
     dateien/                udev-Regel, systemd-Dienst, Beispiel-Makros
@@ -85,15 +85,28 @@ Formular in `seite/js/` fehlt noch. Regeln über mehrere Felder: `Section(..., c
 
     python3 build.py && python3 tests/run_tests.py
 
-| Teil | Was | Umfang |
+| Teil | Was | Dateien |
 |---|---|---|
-| `einheit` | Kalender, Texte, Einstellungen/Schema, Dienste, Uhren (jedes Zifferblatt zu Grenzzeiten) | 118 Prüfungen |
-| `bilder` | jede Displayseite, jedes Zifferblatt, Einblendungen als PNG, pixelgenau gegen `golden/ref` (feste Zeit per libfaketime) | 69 Szenen |
-| `sim` | Bediensimulationen (Tasten, Menüs, Timer, Profile, Aufnahme, Zifferblatt) gegen `sim/erwartet` | 12 Abläufe |
-| `gui` | Verwaltung im Browser (Playwright/Chromium) | 9 Gruppen, 184 Prüfungen |
+| `einheit` | Kalender, Texte, Einstellungen/Schema, Dienste, Uhren (jedes Zifferblatt zu Grenzzeiten), Sicherung (Ordner/Nextcloud/WebDAV/SMB), Sicherheit | `einheit/test_*.py` |
+| `bilder` | jede Displayseite, jedes Zifferblatt, Einblendungen als PNG, pixelgenau gegen `golden/ref` (feste Zeit per libfaketime) | `golden/scenes.py` |
+| `sim` | Bediensimulationen (Tasten, Menüs, Timer, Profile, Aufnahme, Zifferblatt) gegen `sim/erwartet` | `sim/s*.py` |
+| `gui` | Verwaltung im Browser (Playwright/Chromium) | `gui/*_test.py` |
 
 Einzelne Teile: `run_tests.py bilder sim`, `run_tests.py sim=s05`.
 Nach einer gewollten Änderung der Anzeige: `run_tests.py --referenz` (danach die neuen
 PNGs ansehen!). Die Tests laufen ohne Tastatur: `tests/stubs` ersetzt evdev,
 `tests/fakes` spielt Piwigo, CalDAV/RSS/Bright Sky und Programme wie `apt`, `ping`, `wpctl`.
 libfaketime wird beim ersten Lauf nach `tests/.werkzeuge/` gebaut.
+
+## Konventionen
+
+- **Gemeinsamer Namensraum:** Treiber-Module importieren einander nicht. Standardbibliotheken, die
+  mehrere Module brauchen, stehen in `kopf.py`; nur-lokale Importe im Modul selbst. Ein Modul darf Namen
+  aus später geladenen Modulen nur *innerhalb von Funktionen* benutzen (zur Ladezeit gibt es sie noch nicht).
+- **Neue Displayseiten-IDs nur hinten** an `PAGE_IDS` anhängen – die Startseite wird als Nummer gespeichert.
+- **Verwaltung ↔ Treiber:** Die Verwaltung benutzt Treiber-Namen als `g.<name>`; `build.py` prüft, dass es
+  jeden davon im Treiber gibt, und trägt die Liste in `DRIVER_API` ein (Meldung „zu alt“ bei alter `g19s.py`).
+- **Daten von außen:** Abrufe über `http_get`/`open_url` (keine Zugangsdaten bei Weiterleitung auf fremde
+  Server), Bilder über `open_remote_image` (Größenlimit), Fehlertexte über `err_text`.
+- **Breite `except Exception`** nur mit Kommentar, warum hier jeder Fehler abgefangen wird.
+- Nach `python3 build.py` immer `python3 tests/run_tests.py`; `dist/` wird mit eingecheckt.

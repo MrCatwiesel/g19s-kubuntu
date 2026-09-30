@@ -21,7 +21,7 @@ verkleinert (weiche Kanten); Unveränderliches wird mit _clock_canvas zwischenge
 import math
 
 CLOCK_SS = 3                                # Vergrößerung beim Zeichnen (Kantenglättung)
-CLOCK_H = HEIGHT - 26                       # Fläche über der Fußzeile
+CLOCK_H = HEIGHT - FOOTER_H                 # Fläche über der Fußzeile
 WEEKDAY_2 = ["MO", "DI", "MI", "DO", "FR", "SA", "SO"]
 MONTH_3 = ["JAN", "FEB", "MÄR", "APR", "MAI", "JUN", "JUL", "AUG", "SEP", "OKT", "NOV", "DEZ"]
 
@@ -142,15 +142,27 @@ class ClockBase:
     def _clock_canvas(self, key, bg, build):
         """Zwischengespeichertes Zifferblatt kopieren (build zeichnet es beim ersten Mal)."""
         self._clock_fonts()
+        if key not in self._cdials and len(self._cdials) >= 8:
+            self._cdials.clear()                  # z. B. nach vielen Farbwechseln: Speicher begrenzen
         if key not in self._cdials:
             c = _Canvas(Image.new("RGB", (WIDTH * CLOCK_SS, CLOCK_H * CLOCK_SS), bg))
             build(c)
             self._cdials[key] = c.img
         return _Canvas(self._cdials[key].copy())
 
+    # Zwischenspeicher der Zifferblatt-Module (je ~2–3 MB pro Eintrag); Schriften bleiben erhalten
+    CLOCK_CACHES = ("_cdials", "_sky_cache", "_disp_mem", "_info_static")
+
+    def _clock_drop_caches(self):
+        """Beim Wechsel des Zifferblatts die Zwischenspeicher der anderen Zifferblätter freigeben."""
+        for name in self.CLOCK_CACHES:
+            cache = self.__dict__.get(name)
+            if isinstance(cache, dict):
+                cache.clear()
+
     def _clock_finish(self, c):
         img = Image.new("RGB", (WIDTH, HEIGHT), self.BG)
-        img.paste(c.img.resize((WIDTH, CLOCK_H), Image.LANCZOS), (0, 0))
+        img.paste(c.img.reduce(CLOCK_SS), (0, 0))     # Mittelwert je 3×3 – 15× schneller als LANCZOS
         return img
 
     @staticmethod

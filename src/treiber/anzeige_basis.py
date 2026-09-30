@@ -97,7 +97,7 @@ class RendererBase:
 
     def _footer(self, draw, profile, page, pages):
         color = PROFILE_COLOR.get(profile, self.FG)
-        draw.rectangle([0, HEIGHT - 26, WIDTH, HEIGHT], fill=(20, 24, 34))
+        draw.rectangle([0, HEIGHT - FOOTER_H, WIDTH, HEIGHT], fill=(20, 24, 34))
         draw.rectangle([10, HEIGHT - 19, 22, HEIGHT - 7], fill=color)
         label = f"{self.profile_name} · {profile}" if self.profile_name else f"Profil {profile}"
         step = 14 if pages <= 12 else 10               # viele Seiten: Punkte enger

@@ -8,7 +8,7 @@ class Slideshow(threading.Thread):
     """Lädt die Bildliste der gewählten Alben und wechselt die Bilder.
     Netzwerkzugriffe gibt es nur, solange die Displayseite „Bilder“ sichtbar ist."""
 
-    AREA = (WIDTH, HEIGHT - 26)       # Fläche über der Fußzeile
+    AREA = (WIDTH, HEIGHT - FOOTER_H)  # Fläche über der Fußzeile
     LIST_REFRESH = 1800               # Bildliste alle 30 Minuten neu laden
     RETRY = 60                        # nach einem Fehler erneut versuchen
     CACHE_MAX = 400                   # höchstens so viele Bilder zwischenspeichern
@@ -251,7 +251,7 @@ class Slideshow(threading.Thread):
         if os.path.exists(path):
             os.utime(path)
             return Image.open(path).convert("RGB")
-        img = Image.open(io.BytesIO(self.client.fetch(info["url"])))
+        img = open_remote_image(self.client.fetch(info["url"]))
         from PIL import ImageOps
         img = ImageOps.exif_transpose(img).convert("RGB")
         img.thumbnail((640, 480), Image.LANCZOS)          # klein speichern, reicht fürs Display

@@ -48,7 +48,8 @@ class RadioManager:
             is_mpv = False
         urls = [s["url"] for s in stations]
         if is_mpv and url in urls:
-            playlist = os.path.join(os.environ.get("XDG_RUNTIME_DIR") or "/tmp", "g19s-radio.m3u")
+            playlist = os.path.join(os.environ.get("XDG_RUNTIME_DIR") or CACHE_DIR, "g19s-radio.m3u")
+            os.makedirs(os.path.dirname(playlist), exist_ok=True)
             with open(playlist, "w", encoding="utf-8") as f:
                 f.write("#EXTM3U\n")
                 for s in stations:
@@ -67,9 +68,12 @@ class RadioManager:
     def play(self, station, player_cmd, stations=None):
         self.stop()
         url = station.get("url", "")
-        if not url:
+        if not url or not re.fullmatch(URL_RE, url):
+            if url:
+                self.log(f"Radio: ungültige Senderadresse ignoriert: {url[:80]!r}")
             return False
-        stations = [dict(s) for s in (stations or []) if isinstance(s, dict) and s.get("url")]
+        stations = [dict(s) for s in (stations or []) if isinstance(s, dict)
+                    and re.fullmatch(URL_RE, str(s.get("url") or ""))]
         if url not in [s["url"] for s in stations]:
             stations = [dict(station)]
         cmd, uses_list = self._build_cmd(player_cmd or DEFAULT_SETTINGS["radio_player"], url, stations)

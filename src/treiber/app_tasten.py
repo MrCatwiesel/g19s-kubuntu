@@ -63,7 +63,7 @@ class KeyHandling:
                 self.show("Gespeichert", [f"{gkey} im Profil {layer}", f"{n} Tastendrücke"], PROFILE_COLOR[layer])
                 self.log(f"Makro {layer}/{gkey} gespeichert ({n} Tastendrücke)")
             elif store.delete(self.prof_idx, layer, gkey):
-                self.show("Gelöscht", [f"{gkey} im Profil {layer}", f"sendet wieder F{12 + int(gkey[1:])}"], self.renderer.DIM)
+                self.show("Gelöscht", [f"{gkey} im Profil {layer}", f"sendet wieder F{FKEY_BASE - 1 + int(gkey[1:])}"], self.renderer.DIM)
                 self.log(f"Makro {layer}/{gkey} gelöscht")
             else:
                 self.show("Nichts aufgenommen", ["Kein Makro gespeichert"], self.renderer.DIM)
@@ -96,7 +96,7 @@ class KeyHandling:
             self.ui.write(e.EV_KEY, self.fkeys[i], 1)
             self.ui.syn()
         if self.args.debug:
-            print(f"  {name} gedrückt -> {'Strg+' if mod == e.KEY_LEFTCTRL else 'Alt+' if mod else ''}F{13 + i}")
+            print(f"  {name} gedrückt -> {'Strg+' if mod == e.KEY_LEFTCTRL else 'Alt+' if mod else ''}F{FKEY_BASE + i}")
 
     def _gkey_up(self, i, name):
         e, mod = self.e, self.held.pop(name)

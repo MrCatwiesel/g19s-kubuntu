@@ -30,7 +30,7 @@ def piwigo_test(cfg):
         try:
             raw = Image.open(pick["url"])
             raw.load()
-        except Exception as ex:
+        except Exception as ex:         # beliebige Bilddatei: jeden Lesefehler melden
             raise RuntimeError(f"Bild „{os.path.basename(pick['url'])}“ nicht lesbar: {ex}")
     else:
         if not cfg["url"]:
@@ -43,7 +43,7 @@ def piwigo_test(cfg):
             if not images:
                 return {"count": 0, "image": None}
             pick = random.choice(images) if cfg["shuffle"] else images[0]
-            raw = Image.open(io.BytesIO(client.fetch(pick["url"])))
+            raw = g.open_remote_image(client.fetch(pick["url"]))
         except g.PiwigoError as ex:
             raise RuntimeError(str(ex))
     fitted = g.fit_photo(raw, g.Slideshow.AREA, cfg["fit"])
@@ -78,8 +78,8 @@ class PreviewData:
             return hit
         try:
             res = (poller.fetch(), None, time.time())
-        except Exception as ex:
-            res = (None, str(getattr(ex, "reason", None) or ex), time.time())
+        except Exception as ex:         # Dienst im Netz: Fehler in der Vorschau anzeigen
+            res = (None, g.err_text(ex), time.time())
         self.cache = {key: res}
         return res
 

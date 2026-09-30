@@ -25,11 +25,11 @@ def radio_search(query):
     for host in RADIO_BROWSER_HOSTS:
         url = f"https://{host}/json/stations/search?{params}"
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "g19s-gui/1.0"})
+            req = urllib.request.Request(url, headers={"User-Agent": g.USER_AGENT})
             with urllib.request.urlopen(req, timeout=8) as r:
                 items = json.load(r)
             break
-        except Exception as ex:
+        except Exception as ex:         # nächsten Server des Radio-Verzeichnisses versuchen
             last = ex
     else:
         raise RuntimeError(f"Radio-Verzeichnis nicht erreichbar: {last}")

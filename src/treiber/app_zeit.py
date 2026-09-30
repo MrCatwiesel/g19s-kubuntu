@@ -54,11 +54,11 @@ class TimedTasks:
             self.menu = None                # Menü schließt sich nach 30 s ohne Tastendruck
             self.next_draw = 0
         r = self.renderer
-        if r.cal_sel is not None and self.menu is None and now - self.sel_t["calendar"] > 30:
+        if r.cal_sel is not None and self.menu is None and now - self.sel_t["calendar"] > SELECTION_TIMEOUT:
             r.cal_sel = None                # Terminmarkierung verschwindet wieder
             self.next_draw = 0
         for k in r.sel:
-            if r.sel[k] is not None and self.menu is None and now - self.sel_t[k] > 30:
+            if r.sel[k] is not None and self.menu is None and now - self.sel_t[k] > SELECTION_TIMEOUT:
                 r.sel[k] = None
                 self.next_draw = 0
 

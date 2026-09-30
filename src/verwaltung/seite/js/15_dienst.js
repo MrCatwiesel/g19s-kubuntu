@@ -39,7 +39,15 @@ $("#restoreFile").addEventListener("change", async e => {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
   if (!confirm(`Sicherung „${f.name}“ einspielen? Die aktuellen Dateien werden vorher automatisch gesichert.`)) return;
   try {
-    const r = await api("/api/restore", {body: await f.arrayBuffer(), raw: true});
+    const body = await f.arrayBuffer();
+    const info = await api("/api/restore?inspect=1", {body, raw: true});
+    let programs = false;
+    if (info.programs.length)
+      programs = confirm("Die Sicherung enthält auch Programmdateien und KDE-Kurzbefehle:\n\n" +
+        info.programs.map(p => "~/" + p).join("\n") +
+        "\n\nDiese nur einspielen, wenn die Sicherung sicher von dir stammt (z. B. nach einer Neuinstallation)." +
+        "\n\nOK = mit einspielen · Abbrechen = nur Einstellungen und Makros");
+    const r = await api("/api/restore?programs=" + (programs ? "1" : "0"), {body, raw: true});
     toast(`Wiederhergestellt: ${r.restored.length} Dateien. Treiber neu starten, damit alles greift.`);
     await loadState(); refreshService();
   } catch (err) { toast(err.message, true); }
@@ -88,7 +96,7 @@ function renderPaths() {
 const AB_HINTS = {
   folder: "Ein Ordner auf diesem Rechner. Ein NAS muss dafür eingebunden sein (z. B. per /etc/fstab unter /mnt/nas); ein Nextcloud-Ordner, den der Nextcloud-Client synchronisiert, funktioniert direkt (z. B. ~/Nextcloud/Sicherungen). Hinweis: Freigaben, die nur in Dolphin geöffnet sind (smb://…), sind kein Ordner – dafür „NAS – Windows-Freigabe“ wählen.",
   nextcloud: "Adresse deiner Nextcloud (z. B. https://cloud.example.de – auch die Adresse aus dem Browser geht), dein Benutzername und am besten ein App-Passwort: Nextcloud → Persönliche Einstellungen → Sicherheit → „Neues App-Passwort erstellen“. Der Ordner wird bei Bedarf angelegt.",
-  smb: "Freigabe und Ordner wie im Dateimanager, z. B. \\\\nas\\backup\\G19s oder smb://nas/backup/G19s – der Ordner muss vorhanden sein. Benötigt das Programm smbclient (sudo apt install smbclient); ohne smbclient wird KDEs kioclient benutzt.",
+  smb: "Freigabe und Ordner wie im Dateimanager, z. B. \\\\nas\\backup\\G19s oder smb://nas/backup/G19s – der Ordner muss vorhanden sein. Benötigt das Programm smbclient (sudo apt install smbclient). Ohne smbclient wird KDEs kioclient benutzt – dann die Freigabe einmal in Dolphin öffnen und das Passwort speichern (das Passwort hier wird aus Sicherheitsgründen nicht an kioclient übergeben).",
   webdav: "Vollständige Adresse des Ordners, z. B. https://nas.local:5006/home/Sicherungen (Synology: Paket „WebDAV Server“, QNAP: WebDAV in den Freigabe-Einstellungen). Der Ordner muss vorhanden sein.",
 };
 const AB_URL = {nextcloud: ["Adresse der Nextcloud", "https://cloud.example.de"], smb: ["Freigabe und Ordner", "\\\\nas\\backup\\G19s"],

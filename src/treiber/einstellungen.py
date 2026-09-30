@@ -169,7 +169,10 @@ class Items(Field):
                 continue
             if self.required and not str(v.get(self.required) or "").strip():
                 continue
-            out.append(self.item.clean(v, strict))
+            item = self.item.clean(v, strict)
+            if self.required and not str(item.get(self.required) or "").strip():
+                continue                            # Pflichtfeld nach der Prüfung ungültig (tolerant)
+            out.append(item)
         return out[:self.limit] if self.limit else out
 
 
@@ -203,6 +206,7 @@ class Optional(Field):
 
 # --- Regeln über mehrere Felder --------------------------------------------- #
 TIME_RE = r"([01]\d|2[0-3]):[0-5]\d"
+URL_RE = r"(?i)https?://\S+"                  # Senderadressen: keine Leerzeichen/Zeilenumbrüche (m3u!)
 
 
 def _check_backup(b, strict):
@@ -260,7 +264,9 @@ SCHEMA = {
     "start_page": Int(0, -10 ** 6, 10 ** 6),             # Index in PAGE_IDS (modulo Anzahl, −1 = letzte)
     "radio_player": Str("mpv --no-video --really-quiet --load-scripts=no {url}", strip=False, empty_default=True),
     "stations": Items([{"name": "Rockantenne", "url": "https://stream.rockantenne.de/rockantenne/stream/aacp", "logo": ""}],
-                      Entry({"name": Str(), "url": Str(), "logo": Str()}), required="url"),
+                      Entry({"name": Str(), "url": Str(pattern=URL_RE, msg="Senderadressen müssen mit http:// oder "
+                                                                             "https:// beginnen (ohne Leerzeichen)"),
+                             "logo": Str()}), required="url"),
     "slideshow": Section({
         "url": Str(),                     # Adresse der Piwigo-Galerie
         "user": Str(),                    # leer = nur öffentliche Alben
@@ -342,7 +348,7 @@ def _check_feeds(s):
 @_strict_rule
 def _check_hosts(s):
     for h in s["network"]["hosts"]:
-        if not re.fullmatch(r"[A-Za-z0-9._:\-\[\]]+", h["host"]):
+        if not re.fullmatch(r"[A-Za-z0-9\[][A-Za-z0-9._:\-\[\]]*", h["host"]):    # nie mit „-“ beginnend
             raise Invalid(f"Ungültiger Gerätename: {h['host']}")
 
 
@@ -420,7 +426,7 @@ def normalize_pages(data):
 def save_json(path, data, compact_steps=False, private=False):
     """Schreibt JSON atomar (erst temporäre Datei, dann umbenennen).
     private=True: nur für den Benutzer lesbar (z. B. wegen Piwigo-Passwort)."""
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)   # neu angelegt: nur für den Benutzer
     text = json.dumps(data, indent=2, ensure_ascii=False)
     if compact_steps:
         # innerste Listen (einzelne Schritte, Farben) auf eine Zeile zusammenziehen

@@ -40,12 +40,15 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.09.29-4"
+VERSION = "2026.09.30-1"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
 HOME = os.path.expanduser("~")
-RUNTIME_DIR = os.environ.get("XDG_RUNTIME_DIR") or "/tmp"
+# Laufzeitordner des Benutzers; ohne XDG_RUNTIME_DIR nicht /tmp (dort könnte ein anderer Benutzer
+# die Instanzdatei vorher anlegen), sondern der eigene Cache-Ordner
+RUNTIME_DIR = os.environ.get("XDG_RUNTIME_DIR") or os.path.join(
+    os.environ.get("XDG_CACHE_HOME", os.path.join(HOME, ".cache")), "g19s")
 INSTANCE_FILE = os.path.join(RUNTIME_DIR, "g19s-gui.json")
 IDLE_TIMEOUT = 45          # Sekunden ohne Lebenszeichen der Seite -> Server beenden
 FIRST_CONTACT_TIMEOUT = 180
@@ -58,15 +61,15 @@ def load_driver():
     spec = importlib.util.spec_from_file_location("g19s", path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    for needed in ("text_to_steps", "load_settings", "key_label", "RadioManager", "find_mpris_plugin",
-                   "PiwigoClient", "Slideshow", "normalize_macros", "WeatherPoller", "CalendarPoller",
-                   "Hardware", "VOLUME_ACTIONS", "normalize_pages", "BACKUP_FILES", "auto_backup",
-                   "valid_profile_pages", "load_list", "SONGS_FILE", "FAVORITES_FILE", "NewsPoller",
-                   "WarningsPoller", "NetworkPoller", "UpdatesPoller", "parse_feed", "clean_settings", "clean_macros",
-                   "migrate_files", "CLOCK_OPTIONS", "test_backup_target"):
-        if not hasattr(mod, needed):
-            sys.exit("Die installierte g19s.py ist zu alt für die Oberfläche – bitte aktualisieren.")
+    missing = [name for name in DRIVER_API if not hasattr(mod, name)]
+    if missing:
+        sys.exit("Die installierte g19s.py ist zu alt für die Oberfläche – bitte aktualisieren "
+                 f"(es fehlt: {', '.join(missing[:5])}).")
     return mod
+
+
+# Alle Namen des Treibers, die die Verwaltung benutzt (g.<name>) – build.py trägt sie beim Bauen ein
+DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller auto_backup backup_members clean_macros clean_settings err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed save_json save_state test_backup_target valid_colors".split()
 
 
 g = load_driver()
@@ -163,11 +166,20 @@ def run(cmd, timeout=10):
         return 124, "Zeitüberschreitung"
 
 
-def service_status():
+_service_cache = [0.0, None]
+
+
+def service_status(max_age=0.0):
+    """Zustand des Dienstes; max_age > 0: so lange zwischengespeichert (für die regelmäßige Abfrage)."""
+    now = time.monotonic()
+    if _service_cache[1] is not None and now - _service_cache[0] < max_age:
+        return _service_cache[1]
     _, active = run(["systemctl", "--user", "is-active", SERVICE])
     _, enabled = run(["systemctl", "--user", "is-enabled", SERVICE])
-    return {"active": active.splitlines()[0] if active else "unbekannt",
-            "enabled": enabled.splitlines()[0] if enabled else "unbekannt"}
+    st = {"active": active.splitlines()[0] if active else "unbekannt",
+          "enabled": enabled.splitlines()[0] if enabled else "unbekannt"}
+    _service_cache[:] = [now, st]
+    return st
 
 
 def service_log(lines=80):
@@ -211,7 +223,29 @@ def make_backup():
     return g.make_backup(HOME)
 
 
-def restore_backup(raw):
+# Dateien, die Programmcode oder Befehle enthalten: nur nach ausdrücklicher Zustimmung einspielen
+# (ein ausgetauschtes Archiv auf einem NAS dürfte sonst beliebige Programme unterschieben)
+PROGRAM_FILES = {".local/bin/g19s.py", ".local/bin/g19s-gui.py", ".config/systemd/user/g19s.service",
+                 ".config/kglobalshortcutsrc"}
+MAX_MEMBER = 5 * 1024 * 1024
+PRIVATE_FILES = {".config/g19s/settings.json"}          # enthält Passwörter
+
+
+def is_program_file(name):
+    return name in PROGRAM_FILES or bool(DESKTOP_RE.fullmatch(name))
+
+
+def _write_private(path, data):
+    """Datei nur für den Benutzer lesbar schreiben (0600)."""
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "wb") as f:
+        f.write(data)
+    os.chmod(path, 0o600)
+
+
+def restore_backup(raw, programs=False, inspect=False):
+    """Sicherung einspielen. inspect=True: nur Inhalt melden ({"config": [...], "programs": [...]}).
+    programs=False: Programmdateien, Dienst, KDE-Kurzbefehle und Starter werden übersprungen."""
     try:
         tar = tarfile.open(fileobj=io.BytesIO(raw), mode="r:gz")
     except tarfile.TarError as ex:
@@ -220,26 +254,37 @@ def restore_backup(raw):
     with tar:
         for m in tar.getmembers():
             name = m.name[2:] if m.name.startswith("./") else m.name
-            if not m.isfile():
+            if not m.isfile() or m.size > MAX_MEMBER:
                 continue
             if name in BACKUP_FILES or DESKTOP_RE.fullmatch(name):
                 allowed.append((name, m))
         if not allowed:
             raise ValueError("Die Datei enthält keine G19s-Dateien")
-        # vorherigen Stand sichern
+        if inspect:
+            return {"config": [n for n, _ in allowed if not is_program_file(n)],
+                    "programs": [n for n, _ in allowed if is_program_file(n)]}
+        if not programs:
+            allowed = [(n, m) for n, m in allowed if not is_program_file(n)]
+            if not allowed:
+                raise ValueError("Die Sicherung enthält nur Programmdateien – nichts eingespielt")
+        # vorherigen Stand sichern (enthält Passwörter → 0600)
         stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         safety = os.path.join(HOME, ".config/g19s", f"vor-wiederherstellung-{stamp}.tar.gz")
-        os.makedirs(os.path.dirname(safety), exist_ok=True)
-        with open(safety, "wb") as f:
-            f.write(make_backup())
+        os.makedirs(os.path.dirname(safety), mode=0o700, exist_ok=True)
+        _write_private(safety, make_backup())
         restored = []
         for name, m in allowed:
             dest = os.path.join(HOME, name)
             os.makedirs(os.path.dirname(dest), exist_ok=True)
-            data = tar.extractfile(m).read()
+            data = tar.extractfile(m).read(MAX_MEMBER + 1)
+            if len(data) > MAX_MEMBER:
+                continue
             tmp = dest + ".tmp"
-            with open(tmp, "wb") as f:
-                f.write(data)
+            if name in PRIVATE_FILES:
+                _write_private(tmp, data)
+            else:
+                with open(tmp, "wb") as f:
+                    f.write(data)
             if name.endswith(".py"):
                 os.chmod(tmp, 0o755)
             os.replace(tmp, dest)
@@ -362,11 +407,11 @@ def radio_search(query):
     for host in RADIO_BROWSER_HOSTS:
         url = f"https://{host}/json/stations/search?{params}"
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "g19s-gui/1.0"})
+            req = urllib.request.Request(url, headers={"User-Agent": g.USER_AGENT})
             with urllib.request.urlopen(req, timeout=8) as r:
                 items = json.load(r)
             break
-        except Exception as ex:
+        except Exception as ex:         # nächsten Server des Radio-Verzeichnisses versuchen
             last = ex
     else:
         raise RuntimeError(f"Radio-Verzeichnis nicht erreichbar: {last}")
@@ -418,7 +463,7 @@ def piwigo_test(cfg):
         try:
             raw = Image.open(pick["url"])
             raw.load()
-        except Exception as ex:
+        except Exception as ex:         # beliebige Bilddatei: jeden Lesefehler melden
             raise RuntimeError(f"Bild „{os.path.basename(pick['url'])}“ nicht lesbar: {ex}")
     else:
         if not cfg["url"]:
@@ -431,7 +476,7 @@ def piwigo_test(cfg):
             if not images:
                 return {"count": 0, "image": None}
             pick = random.choice(images) if cfg["shuffle"] else images[0]
-            raw = Image.open(io.BytesIO(client.fetch(pick["url"])))
+            raw = g.open_remote_image(client.fetch(pick["url"]))
         except g.PiwigoError as ex:
             raise RuntimeError(str(ex))
     fitted = g.fit_photo(raw, g.Slideshow.AREA, cfg["fit"])
@@ -466,8 +511,8 @@ class PreviewData:
             return hit
         try:
             res = (poller.fetch(), None, time.time())
-        except Exception as ex:
-            res = (None, str(getattr(ex, "reason", None) or ex), time.time())
+        except Exception as ex:         # Dienst im Netz: Fehler in der Vorschau anzeigen
+            res = (None, g.err_text(ex), time.time())
         self.cache = {key: res}
         return res
 
@@ -567,7 +612,7 @@ class ApiKeys:
                                     "settings": mtime(g.SETTINGS_FILE)},
                          "active": active_profile(len(macros["profiles"])),
                          "version": VERSION,
-                         "service": service_status(),
+                         "service": service_status(max_age=10),
                          "radio": test_radio.current()})
 
     def api_post_macros(self, q):
@@ -579,10 +624,6 @@ class ApiKeys:
         data = clean_settings(self._json().get("settings"))
         g.save_json(g.SETTINGS_FILE, data, compact_steps=True, private=True)
         self._send(200, {"ok": True, "settings": data, "mtime": mtime(g.SETTINGS_FILE)})
-
-    def api_post_textcheck(self, q):
-        steps, unknown = g.text_to_steps(str(self._json().get("text", "")))
-        self._send(200, {"steps": len(steps), "unknown": unknown})
 
     # -- API: Vorschau ----------------------------------------------------- #
     def api_post_preview(self, q):
@@ -633,17 +674,18 @@ class ApiInfo:
         if len(name) < 2:
             raise ValueError("Bitte mindestens zwei Buchstaben eingeben")
         try:
-            self._send(200, {"results": g.geocode(name)})
-        except Exception as ex:
-            raise RuntimeError(f"Ortssuche nicht erreichbar: {getattr(ex, 'reason', None) or ex}")
+            results = g.geocode(name)
+        except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
+            raise RuntimeError(f"Ortssuche nicht erreichbar: {g.err_text(ex)}")
+        self._send(200, {"results": results})
 
     def api_post_weather_test(self, q):
         w = self._json()
         poller = g.WeatherPoller(lambda: {"weather": w, "pages": ["weather"]})
         try:
             data = poller.fetch()
-        except Exception as ex:
-            raise RuntimeError(f"Wetterdienst nicht erreichbar: {getattr(ex, 'reason', None) or ex}")
+        except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
+            raise RuntimeError(f"Wetterdienst nicht erreichbar: {g.err_text(ex)}")
         cur = data.get("current") or {}
         desc = g.WEATHER_CODES.get(int(cur.get("weather_code") or 0), ("", ""))[0]
         self._send(200, {"temp": cur.get("temperature_2m"), "desc": desc})
@@ -653,7 +695,7 @@ class ApiInfo:
         s = {"calendar": {"sources": [src], "days": 30}, "pages": ["calendar"]}
         try:
             data = g.CalendarPoller(lambda: s).fetch()
-        except Exception as ex:
+        except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
             raise RuntimeError(str(ex))
         if data["errors"]:
             raise RuntimeError(data["errors"][0])
@@ -701,8 +743,8 @@ class ApiInfo:
             raise ValueError("Die Adresse muss mit http:// oder https:// beginnen")
         try:
             items = g.parse_feed(g.http_get(url, timeout=20), f.get("name") or "")
-        except Exception as ex:
-            raise RuntimeError(f"Feed nicht lesbar: {getattr(ex, 'reason', None) or ex}")
+        except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
+            raise RuntimeError(f"Feed nicht lesbar: {g.err_text(ex)}")
         if not items:
             raise RuntimeError("Keine Meldungen gefunden – ist das ein RSS- oder Atom-Feed?")
         self._send(200, {"count": len(items), "first": items[0]["title"]})
@@ -713,8 +755,8 @@ class ApiInfo:
             raise ValueError("Zuerst oben einen Wetter-Ort wählen")
         try:
             data = g.WarningsPoller(lambda: s).fetch()
-        except Exception as ex:
-            raise RuntimeError(f"Warndienst nicht erreichbar: {getattr(ex, 'reason', None) or ex}")
+        except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
+            raise RuntimeError(f"Warndienst nicht erreichbar: {g.err_text(ex)}")
         self._send(200, {"place": data["place"], "alerts": [f"{g.SEVERITY.get(a['severity'], ('', ''))[0]}: {a['event']}"
                                                              for a in data["alerts"]]})
 
@@ -825,7 +867,10 @@ class ApiService:
         self._send(200, {"files": backup_members()})
 
     def api_post_restore(self, q):
-        restored, safety = restore_backup(self._body())
+        raw = self._body()
+        if q.get("inspect") == ["1"]:
+            return self._send(200, restore_backup(raw, inspect=True))
+        restored, safety = restore_backup(raw, programs=q.get("programs") == ["1"])
         self._send(200, {"restored": restored, "safety": safety})
 
     def api_get_versions(self, q):
@@ -1013,14 +1058,14 @@ def existing_instance():
         with open(INSTANCE_FILE) as f:
             info = json.load(f)
         state = _local("/api/poll", info)
-    except Exception:
+    except Exception:                   # keine oder abgestürzte Instanz: neu starten
         return None
     if state.get("version") == VERSION:
         return info
     print(f"Ältere Verwaltung ({state.get('version') or 'ohne Version'}) wird beendet …", flush=True)
     try:
         _local("/api/quit", info, data=b"{}")
-    except Exception:
+    except Exception:                   # alte Instanz reagiert nicht auf /api/quit
         try:
             os.kill(int(info.get("pid")), signal.SIGTERM)    # alte Versionen ohne /api/quit
         except (OSError, TypeError, ValueError):
@@ -1029,7 +1074,7 @@ def existing_instance():
         time.sleep(0.2)
         try:
             _local("/api/poll", info, timeout=0.5)
-        except Exception:
+        except Exception:               # nicht mehr erreichbar = beendet
             break
     return None
 
@@ -1119,6 +1164,7 @@ def main():
     url = f"http://127.0.0.1:{app.port}/#{app.token}"
 
     try:
+        os.makedirs(RUNTIME_DIR, mode=0o700, exist_ok=True)
         fd = os.open(INSTANCE_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w") as f:
             json.dump({"port": app.port, "token": app.token, "pid": os.getpid()}, f)
@@ -1750,7 +1796,7 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
     </div>
     <div class="card">
       <h2>Automatische Sicherung</h2>
-      <p class="hint">Der Treiber legt regelmäßig eine Sicherung ab – in einem Ordner, auf dem NAS oder in der Nextcloud. Ältere automatische Sicherungen werden dort aufgeräumt.</p>
+      <p class="hint">Der Treiber legt regelmäßig eine Sicherung ab – in einem Ordner, auf dem NAS oder in der Nextcloud. Ältere automatische Sicherungen werden dort aufgeräumt. Sicherungen enthalten auch die gespeicherten Passwörter – nur an Orten ablegen, auf die sonst niemand Zugriff hat.</p>
       <label class="check"><input type="checkbox" id="abOn"> Automatisch sichern</label>
       <label class="field" style="max-width:420px"><span>Ziel</span>
         <select id="abTarget">
@@ -2459,7 +2505,7 @@ function setProfileColor(layer, value) {
 }
 
 // ---------------------------------------------------------------- Radiosender
-function touchSettings() { UI.sDirty = true; markTabs(); renderSavebar(); }
+function touchSettings() { UI.sDirty = true; markTabs(); renderSavebar(); schedulePreview(); }
 function renderStations() {
   const t = $("#stations"), sd = UI.sdraft; if (!sd) return;
   t.replaceChildren(el("thead", {}, el("tr", {}, el("th", {}), el("th", {}, "Name"), el("th", {}, "Stream-Adresse"), el("th", {}, "Logo (optional)"), el("th", {}))));
@@ -2702,6 +2748,7 @@ $("#saverOn").addEventListener("change", e => { UI.sdraft.screensaver.enabled = 
 $("#saverMin").addEventListener("input", e => { UI.sdraft.screensaver.minutes = Math.max(1, parseInt(e.target.value) || 5); touchSettings(); });
 $("#saverPage").addEventListener("change", e => { UI.sdraft.screensaver.page = e.target.value; touchSettings(); });
 $("#volStep").addEventListener("input", e => { UI.sdraft.volume_step = Math.max(1, Math.min(25, parseInt(e.target.value) || 5)); touchSettings(); });
+// Vorschau nach Änderungen an den Einstellungen verzögert neu laden (touchSettings ruft das auf)
 let pvTimer = null;
 function schedulePreview() { clearTimeout(pvTimer); pvTimer = setTimeout(refreshPreview, 250); }
 async function refreshPreview() {
@@ -3105,7 +3152,15 @@ $("#restoreFile").addEventListener("change", async e => {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
   if (!confirm(`Sicherung „${f.name}“ einspielen? Die aktuellen Dateien werden vorher automatisch gesichert.`)) return;
   try {
-    const r = await api("/api/restore", {body: await f.arrayBuffer(), raw: true});
+    const body = await f.arrayBuffer();
+    const info = await api("/api/restore?inspect=1", {body, raw: true});
+    let programs = false;
+    if (info.programs.length)
+      programs = confirm("Die Sicherung enthält auch Programmdateien und KDE-Kurzbefehle:\n\n" +
+        info.programs.map(p => "~/" + p).join("\n") +
+        "\n\nDiese nur einspielen, wenn die Sicherung sicher von dir stammt (z. B. nach einer Neuinstallation)." +
+        "\n\nOK = mit einspielen · Abbrechen = nur Einstellungen und Makros");
+    const r = await api("/api/restore?programs=" + (programs ? "1" : "0"), {body, raw: true});
     toast(`Wiederhergestellt: ${r.restored.length} Dateien. Treiber neu starten, damit alles greift.`);
     await loadState(); refreshService();
   } catch (err) { toast(err.message, true); }
@@ -3154,7 +3209,7 @@ function renderPaths() {
 const AB_HINTS = {
   folder: "Ein Ordner auf diesem Rechner. Ein NAS muss dafür eingebunden sein (z. B. per /etc/fstab unter /mnt/nas); ein Nextcloud-Ordner, den der Nextcloud-Client synchronisiert, funktioniert direkt (z. B. ~/Nextcloud/Sicherungen). Hinweis: Freigaben, die nur in Dolphin geöffnet sind (smb://…), sind kein Ordner – dafür „NAS – Windows-Freigabe“ wählen.",
   nextcloud: "Adresse deiner Nextcloud (z. B. https://cloud.example.de – auch die Adresse aus dem Browser geht), dein Benutzername und am besten ein App-Passwort: Nextcloud → Persönliche Einstellungen → Sicherheit → „Neues App-Passwort erstellen“. Der Ordner wird bei Bedarf angelegt.",
-  smb: "Freigabe und Ordner wie im Dateimanager, z. B. \\\\nas\\backup\\G19s oder smb://nas/backup/G19s – der Ordner muss vorhanden sein. Benötigt das Programm smbclient (sudo apt install smbclient); ohne smbclient wird KDEs kioclient benutzt.",
+  smb: "Freigabe und Ordner wie im Dateimanager, z. B. \\\\nas\\backup\\G19s oder smb://nas/backup/G19s – der Ordner muss vorhanden sein. Benötigt das Programm smbclient (sudo apt install smbclient). Ohne smbclient wird KDEs kioclient benutzt – dann die Freigabe einmal in Dolphin öffnen und das Passwort speichern (das Passwort hier wird aus Sicherheitsgründen nicht an kioclient übergeben).",
   webdav: "Vollständige Adresse des Ordners, z. B. https://nas.local:5006/home/Sicherungen (Synology: Paket „WebDAV Server“, QNAP: WebDAV in den Freigabe-Einstellungen). Der Ordner muss vorhanden sein.",
 };
 const AB_URL = {nextcloud: ["Adresse der Nextcloud", "https://cloud.example.de"], smb: ["Freigabe und Ordner", "\\\\nas\\backup\\G19s"],
@@ -3234,7 +3289,9 @@ async function poll() {
   const cur = d.radio ? d.radio.url : null;
   if ((UI.testing && UI.testing.url) !== cur) { UI.testing = d.radio; renderStations(); renderResults(); }
 }
-setInterval(poll, 3000);
+// Abgleich alle 3 s; im Hintergrund-Tab nur alle 15 s (hält die Sitzung am Leben, spart Prozessaufrufe)
+let pollHidden = 0;
+setInterval(() => { if (!document.hidden || ++pollHidden % 5 === 0) poll(); }, 3000);
 window.addEventListener("beforeunload", e => {
   fetch("/api/bye", {method: "POST", headers: {"X-Token": TOKEN}, keepalive: true}).catch(() => {});
   if (UI.draftDirty || UI.sDirty) { e.preventDefault(); e.returnValue = ""; }

@@ -20,7 +20,9 @@ async function poll() {
   const cur = d.radio ? d.radio.url : null;
   if ((UI.testing && UI.testing.url) !== cur) { UI.testing = d.radio; renderStations(); renderResults(); }
 }
-setInterval(poll, 3000);
+// Abgleich alle 3 s; im Hintergrund-Tab nur alle 15 s (hält die Sitzung am Leben, spart Prozessaufrufe)
+let pollHidden = 0;
+setInterval(() => { if (!document.hidden || ++pollHidden % 5 === 0) poll(); }, 3000);
 window.addEventListener("beforeunload", e => {
   fetch("/api/bye", {method: "POST", headers: {"X-Token": TOKEN}, keepalive: true}).catch(() => {});
   if (UI.draftDirty || UI.sDirty) { e.preventDefault(); e.returnValue = ""; }

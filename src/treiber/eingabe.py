@@ -178,3 +178,7 @@ class ActivityWatcher(threading.Thread):
                     self.last = time.monotonic()
                 except (BlockingIOError, OSError):
                     pass
+            if ready:
+                # Aktivität erkannt – für den Bildschirmschoner reicht Sekundengenauigkeit. Ohne diese
+                # Pause wacht der Thread bei Mausbewegung Hunderte Male pro Sekunde auf.
+                time.sleep(1.0)

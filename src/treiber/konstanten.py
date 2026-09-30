@@ -13,6 +13,9 @@ EP_LKEYS = 0x81              # Interrupt IN, Interface 0: Displaytasten
 EP_GKEYS = 0x83              # Interrupt IN, Interface 1: G-/M-Tasten
 
 WIDTH, HEIGHT = 320, 240
+FOOTER_H = 26               # Höhe der Fußzeile (Profil, Seitenpunkte) unten auf jeder Seite
+FKEY_BASE = 13              # G1 sendet F13, G12 sendet F24
+SELECTION_TIMEOUT = 30      # Sekunden, nach denen eine Markierung (Termin, Meldung) verschwindet
 
 # G-/M-Tasten (Report-ID 0x02): Wert = d[1] | d[2] << 8
 #   d[1]: G1–G8, d[2]: G9–G12 (Bits 0–3), M1/M2/M3/MR (Bits 4–7)

@@ -40,12 +40,15 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.09.29-4"
+VERSION = "2026.09.30-1"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
 HOME = os.path.expanduser("~")
-RUNTIME_DIR = os.environ.get("XDG_RUNTIME_DIR") or "/tmp"
+# Laufzeitordner des Benutzers; ohne XDG_RUNTIME_DIR nicht /tmp (dort könnte ein anderer Benutzer
+# die Instanzdatei vorher anlegen), sondern der eigene Cache-Ordner
+RUNTIME_DIR = os.environ.get("XDG_RUNTIME_DIR") or os.path.join(
+    os.environ.get("XDG_CACHE_HOME", os.path.join(HOME, ".cache")), "g19s")
 INSTANCE_FILE = os.path.join(RUNTIME_DIR, "g19s-gui.json")
 IDLE_TIMEOUT = 45          # Sekunden ohne Lebenszeichen der Seite -> Server beenden
 FIRST_CONTACT_TIMEOUT = 180
@@ -58,15 +61,15 @@ def load_driver():
     spec = importlib.util.spec_from_file_location("g19s", path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    for needed in ("text_to_steps", "load_settings", "key_label", "RadioManager", "find_mpris_plugin",
-                   "PiwigoClient", "Slideshow", "normalize_macros", "WeatherPoller", "CalendarPoller",
-                   "Hardware", "VOLUME_ACTIONS", "normalize_pages", "BACKUP_FILES", "auto_backup",
-                   "valid_profile_pages", "load_list", "SONGS_FILE", "FAVORITES_FILE", "NewsPoller",
-                   "WarningsPoller", "NetworkPoller", "UpdatesPoller", "parse_feed", "clean_settings", "clean_macros",
-                   "migrate_files", "CLOCK_OPTIONS", "test_backup_target"):
-        if not hasattr(mod, needed):
-            sys.exit("Die installierte g19s.py ist zu alt für die Oberfläche – bitte aktualisieren.")
+    missing = [name for name in DRIVER_API if not hasattr(mod, name)]
+    if missing:
+        sys.exit("Die installierte g19s.py ist zu alt für die Oberfläche – bitte aktualisieren "
+                 f"(es fehlt: {', '.join(missing[:5])}).")
     return mod
+
+
+# Alle Namen des Treibers, die die Verwaltung benutzt (g.<name>) – build.py trägt sie beim Bauen ein
+DRIVER_API = "@@DRIVER_API@@".split()
 
 
 g = load_driver()

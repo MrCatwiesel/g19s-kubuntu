@@ -27,7 +27,7 @@ class PiwigoClient:
         self.user, self.password, self.timeout = user or "", password or "", timeout
         self.jar = http.cookiejar.CookieJar()
         self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.jar))
-        self.opener.addheaders = [("User-Agent", "g19s/1.0")]
+        self.opener.addheaders = [("User-Agent", USER_AGENT)]
         self.logged_in = False
 
     def _call(self, method, params=None, post=False):
@@ -52,7 +52,7 @@ class PiwigoClient:
         except urllib.error.HTTPError as ex:
             raise PiwigoError(f"Piwigo antwortet mit Fehler {ex.code} ({url.split('?')[0]})")
         except NET_ERRORS as ex:
-            reason = str(getattr(ex, "reason", ex))
+            reason = err_text(ex)
             if "WRONG_VERSION_NUMBER" in reason or "wrong version number" in reason:
                 raise PiwigoError("Die Galerie unterstützt kein https – Adresse mit http:// eintragen")
             if "CERTIFICATE_VERIFY_FAILED" in reason:
@@ -146,11 +146,13 @@ class PiwigoClient:
         import urllib.parse
         if not re.match(r"^https?://", url, re.I):
             url = urllib.parse.urljoin(self.base + "/", url)
+        if not re.match(r"^https?://", url, re.I):        # z. B. file:// aus der Serverantwort
+            raise PiwigoError("Ungültige Bildadresse vom Server")
         try:
             with self.opener.open(url, timeout=self.timeout) as r:
                 return r.read(limit)
         except NET_ERRORS as ex:
-            raise PiwigoError(f"Bild nicht abrufbar: {getattr(ex, 'reason', ex)}")
+            raise PiwigoError(f"Bild nicht abrufbar: {err_text(ex)}")
 
 
 def fit_photo(img, size, mode="contain"):

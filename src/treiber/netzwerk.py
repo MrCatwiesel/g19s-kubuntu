@@ -36,8 +36,10 @@ def check_host(host, timeout=2):
                 return True, (time.monotonic() - t0) * 1000
         except OSError:
             return False, None
+    if host.startswith("-"):
+        return False, None                   # wäre eine ping-Option
     try:
-        r = subprocess.run(["ping", "-c", "1", "-W", str(timeout), host], capture_output=True, text=True,
+        r = subprocess.run(["ping", "-c", "1", "-W", str(timeout), "--", host], capture_output=True, text=True,
                            timeout=timeout + 3, env=dict(os.environ, LC_ALL="C"))
     except (OSError, subprocess.TimeoutExpired):
         return False, None

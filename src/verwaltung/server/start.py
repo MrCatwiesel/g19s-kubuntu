@@ -38,14 +38,14 @@ def existing_instance():
         with open(INSTANCE_FILE) as f:
             info = json.load(f)
         state = _local("/api/poll", info)
-    except Exception:
+    except Exception:                   # keine oder abgestürzte Instanz: neu starten
         return None
     if state.get("version") == VERSION:
         return info
     print(f"Ältere Verwaltung ({state.get('version') or 'ohne Version'}) wird beendet …", flush=True)
     try:
         _local("/api/quit", info, data=b"{}")
-    except Exception:
+    except Exception:                   # alte Instanz reagiert nicht auf /api/quit
         try:
             os.kill(int(info.get("pid")), signal.SIGTERM)    # alte Versionen ohne /api/quit
         except (OSError, TypeError, ValueError):
@@ -54,7 +54,7 @@ def existing_instance():
         time.sleep(0.2)
         try:
             _local("/api/poll", info, timeout=0.5)
-        except Exception:
+        except Exception:               # nicht mehr erreichbar = beendet
             break
     return None
 
@@ -144,6 +144,7 @@ def main():
     url = f"http://127.0.0.1:{app.port}/#{app.token}"
 
     try:
+        os.makedirs(RUNTIME_DIR, mode=0o700, exist_ok=True)
         fd = os.open(INSTANCE_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w") as f:
             json.dump({"port": app.port, "token": app.token, "pid": os.getpid()}, f)

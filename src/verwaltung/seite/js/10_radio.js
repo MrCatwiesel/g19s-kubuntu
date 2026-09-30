@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------- Radiosender
-function touchSettings() { UI.sDirty = true; markTabs(); renderSavebar(); }
+function touchSettings() { UI.sDirty = true; markTabs(); renderSavebar(); schedulePreview(); }
 function renderStations() {
   const t = $("#stations"), sd = UI.sdraft; if (!sd) return;
   t.replaceChildren(el("thead", {}, el("tr", {}, el("th", {}), el("th", {}, "Name"), el("th", {}, "Stream-Adresse"), el("th", {}, "Logo (optional)"), el("th", {}))));

@@ -8,17 +8,18 @@ class ApiInfo:
         if len(name) < 2:
             raise ValueError("Bitte mindestens zwei Buchstaben eingeben")
         try:
-            self._send(200, {"results": g.geocode(name)})
-        except Exception as ex:
-            raise RuntimeError(f"Ortssuche nicht erreichbar: {getattr(ex, 'reason', None) or ex}")
+            results = g.geocode(name)
+        except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
+            raise RuntimeError(f"Ortssuche nicht erreichbar: {g.err_text(ex)}")
+        self._send(200, {"results": results})
 
     def api_post_weather_test(self, q):
         w = self._json()
         poller = g.WeatherPoller(lambda: {"weather": w, "pages": ["weather"]})
         try:
             data = poller.fetch()
-        except Exception as ex:
-            raise RuntimeError(f"Wetterdienst nicht erreichbar: {getattr(ex, 'reason', None) or ex}")
+        except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
+            raise RuntimeError(f"Wetterdienst nicht erreichbar: {g.err_text(ex)}")
         cur = data.get("current") or {}
         desc = g.WEATHER_CODES.get(int(cur.get("weather_code") or 0), ("", ""))[0]
         self._send(200, {"temp": cur.get("temperature_2m"), "desc": desc})
@@ -28,7 +29,7 @@ class ApiInfo:
         s = {"calendar": {"sources": [src], "days": 30}, "pages": ["calendar"]}
         try:
             data = g.CalendarPoller(lambda: s).fetch()
-        except Exception as ex:
+        except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
             raise RuntimeError(str(ex))
         if data["errors"]:
             raise RuntimeError(data["errors"][0])
@@ -76,8 +77,8 @@ class ApiInfo:
             raise ValueError("Die Adresse muss mit http:// oder https:// beginnen")
         try:
             items = g.parse_feed(g.http_get(url, timeout=20), f.get("name") or "")
-        except Exception as ex:
-            raise RuntimeError(f"Feed nicht lesbar: {getattr(ex, 'reason', None) or ex}")
+        except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
+            raise RuntimeError(f"Feed nicht lesbar: {g.err_text(ex)}")
         if not items:
             raise RuntimeError("Keine Meldungen gefunden – ist das ein RSS- oder Atom-Feed?")
         self._send(200, {"count": len(items), "first": items[0]["title"]})
@@ -88,8 +89,8 @@ class ApiInfo:
             raise ValueError("Zuerst oben einen Wetter-Ort wählen")
         try:
             data = g.WarningsPoller(lambda: s).fetch()
-        except Exception as ex:
-            raise RuntimeError(f"Warndienst nicht erreichbar: {getattr(ex, 'reason', None) or ex}")
+        except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
+            raise RuntimeError(f"Warndienst nicht erreichbar: {g.err_text(ex)}")
         self._send(200, {"place": data["place"], "alerts": [f"{g.SEVERITY.get(a['severity'], ('', ''))[0]}: {a['event']}"
                                                              for a in data["alerts"]]})
 

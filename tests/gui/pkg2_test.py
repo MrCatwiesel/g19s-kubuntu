@@ -1,6 +1,8 @@
 import json, os, glob, shutil
 from playwright.sync_api import sync_playwright
-H = "/tmp/g19s-test/gui/home"; C = H + "/.config/g19s"; SET = C + "/settings.json"; MAC = C + "/macros.json"
+import os as _os
+ROOT = _os.environ.get("G19S_TEST_ROOT", "/tmp/g19s-test")
+H = ROOT + "/gui/home"; C = H + "/.config/g19s"; SET = C + "/settings.json"; MAC = C + "/macros.json"
 def ok(c, m): print(("OK   " if c else "FEHL ") + m)
 def cfg(): return json.load(open(SET))
 def mac(): return json.load(open(MAC))
@@ -39,7 +41,7 @@ with sync_playwright() as p:
     ok("clock" not in pp["M1"] and "clock" in pp["M2"], "Uhr nur in M1 des Profils aus: " + ",".join(pp["M1"]))
     ok("clock" in cfg().get("layer_pages", {}).get("M1", ["clock"]) if os.path.exists(SET) else True, "Standard unverändert")
     ok("eigene Seiten" in pg.inner_text("#plScope"), "Auswahl zeigt „eigene Seiten“")
-    pg.screenshot(path="/tmp/g19s-test/shots/21_seiten_profil.png", full_page=True)
+    pg.screenshot(path=ROOT + "/shots/21_seiten_profil.png", full_page=True)
     pg.click("#plOwnOff"); pg.wait_for_timeout(600)
     ok("pages" not in mac()["profiles"][0], "Wieder Standard verwendet")
     # Terminerinnerung
@@ -54,7 +56,7 @@ with sync_playwright() as p:
     rows.last.locator("input").nth(0).fill("Rockantenne"); rows.last.locator("input").nth(1).fill("https://stream.rockantenne.de/rockantenne/stream/mp3")
     pg.check("#acOn"); pg.fill("#acTime", "06:30"); pg.click("#acDays >> text=Sa")
     pg.wait_for_timeout(200)
-    pg.screenshot(path="/tmp/g19s-test/shots/22_radiowecker.png", full_page=True)
+    pg.screenshot(path=ROOT + "/shots/22_radiowecker.png", full_page=True)
     pg.click("#saveSettings"); pg.wait_for_timeout(400)
     ac = cfg()["alarm_clock"]
     ok({k: ac[k] for k in ("enabled", "time", "days")} == {"enabled": True, "time": "06:30", "days": [0, 1, 2, 3, 4, 5]}
@@ -100,17 +102,17 @@ with sync_playwright() as p:
     ok("Verbindung in Ordnung" in pg.inner_text("#abStatus"), "Test Nextcloud: " + pg.inner_text("#abStatus"))
     pg.click("#abNow"); pg.wait_for_timeout(1500)
     ok("remote.php/dav/files/mde@example.de/Backups/G19s/g19s-sicherung-" in pg.inner_text("#abStatus"), "In die Nextcloud gesichert: " + pg.inner_text("#abStatus"))
-    pg.screenshot(path="/tmp/g19s-test/shots/23_autosicherung.png", full_page=True)
+    pg.screenshot(path=ROOT + "/shots/23_autosicherung.png", full_page=True)
     pg.click("#saveSettings"); pg.wait_for_timeout(500)
     bk = cfg()["backup"]
     ok((bk["target"], bk["url"], bk["user"], bk["password"], bk["remote_dir"]) == ("nextcloud", "http://127.0.0.1:8812/nc", "mde@example.de", "app-pw", "Backups/G19s"), "Nextcloud gespeichert")
     # NAS (SMB): Freigabe fehlt → verständliche Meldung, dann richtig
-    shutil.rmtree("/tmp/g19s-test/smb/nas/backup/G19s", ignore_errors=True); os.makedirs("/tmp/g19s-test/smb/nas/backup/G19s")
+    shutil.rmtree(ROOT + "/smb/nas/backup/G19s", ignore_errors=True); os.makedirs(ROOT + "/smb/nas/backup/G19s")
     pg.select_option("#abTarget", "smb"); pg.wait_for_timeout(200)
     pg.fill("#abUrl", "\\\\nas\\backup\\Fehlt"); pg.fill("#abUser", "nas"); pg.fill("#abPw", "geh%eim")
     pg.click("#abTest"); pg.wait_for_timeout(1200)
     ok("Ordner nicht gefunden" in pg.inner_text("#abStatus"), "SMB Ordner fehlt: " + pg.inner_text("#abStatus"))
     pg.fill("#abUrl", "\\\\nas\\backup\\G19s"); pg.click("#abNow"); pg.wait_for_timeout(1500)
-    ok(len(glob.glob("/tmp/g19s-test/smb/nas/backup/G19s/g19s-sicherung-*.tar.gz")) == 1, "Auf das NAS gesichert: " + pg.inner_text("#abStatus"))
+    ok(len(glob.glob(ROOT + "/smb/nas/backup/G19s/g19s-sicherung-*.tar.gz")) == 1, "Auf das NAS gesichert: " + pg.inner_text("#abStatus"))
     b.close()
 print("Seitenfehler:", errors or "keine")

@@ -1,6 +1,8 @@
 import json, os
 from playwright.sync_api import sync_playwright
-H = "/tmp/g19s-test/gui/home"; SET = H + "/.config/g19s/settings.json"; MAC = H + "/.config/g19s/macros.json"
+import os as _os
+ROOT = _os.environ.get("G19S_TEST_ROOT", "/tmp/g19s-test")
+H = ROOT + "/gui/home"; SET = H + "/.config/g19s/settings.json"; MAC = H + "/.config/g19s/macros.json"
 def ok(c, m): print(("OK   " if c else "FEHL ") + m)
 def cfg(): return json.load(open(SET))
 def keys(): return json.load(open(MAC))["profiles"][0]["keys"]["M1"]
@@ -17,7 +19,7 @@ with sync_playwright() as p:
         row.locator("input").nth(0).fill(name); row.locator("input").nth(1).fill(grp); row.locator("textarea").fill(text)
     pg.locator(".snip").nth(2).locator("button[title='nach oben']").click()
     ok(pg.locator("#savebar.show").count() == 1, "Speicherleiste erscheint")
-    pg.screenshot(path="/tmp/g19s-test/shots/19_textbausteine.png", full_page=True)
+    pg.screenshot(path=ROOT + "/shots/19_textbausteine.png", full_page=True)
     pg.click("#saveSettings"); pg.wait_for_timeout(400)
     sn = cfg()["snippets"]
     ok([x["name"] for x in sn] == ["Grußformel", "IBAN", "Adresse"], "Reihenfolge gespeichert: " + ", ".join(x["name"] for x in sn))
@@ -45,7 +47,7 @@ with sync_playwright() as p:
     ok(keys()["G8"] == {"timer": {"mode": "stopwatch"}}, "G8 = Stoppuhr")
     pg.click(".gkey >> text=G6"); pg.wait_for_timeout(200)
     ok("active" in pg.get_attribute("#editor .seg >> text=Pomodoro", "class"), "Pomodoro beim erneuten Öffnen gewählt")
-    pg.screenshot(path="/tmp/g19s-test/shots/20_timer.png", full_page=True)
+    pg.screenshot(path=ROOT + "/shots/20_timer.png", full_page=True)
     # Signalton
     pg.click("nav >> text=Beleuchtung"); pg.wait_for_timeout(300)
     ok(pg.is_checked("#timerSound"), "Signalton standardmäßig an")

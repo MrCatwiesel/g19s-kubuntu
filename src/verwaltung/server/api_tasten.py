@@ -38,7 +38,7 @@ class ApiKeys:
                                     "settings": mtime(g.SETTINGS_FILE)},
                          "active": active_profile(len(macros["profiles"])),
                          "version": VERSION,
-                         "service": service_status(),
+                         "service": service_status(max_age=10),
                          "radio": test_radio.current()})
 
     def api_post_macros(self, q):
@@ -50,10 +50,6 @@ class ApiKeys:
         data = clean_settings(self._json().get("settings"))
         g.save_json(g.SETTINGS_FILE, data, compact_steps=True, private=True)
         self._send(200, {"ok": True, "settings": data, "mtime": mtime(g.SETTINGS_FILE)})
-
-    def api_post_textcheck(self, q):
-        steps, unknown = g.text_to_steps(str(self._json().get("text", "")))
-        self._send(200, {"steps": len(steps), "unknown": unknown})
 
     # -- API: Vorschau ----------------------------------------------------- #
     def api_post_preview(self, q):

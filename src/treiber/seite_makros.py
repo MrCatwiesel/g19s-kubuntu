@@ -27,5 +27,5 @@ class MacrosPage:
                 label = self._fit(d, entry_label(m, self.settings), self.f_small, col_w - 48)
                 d.text((x + 42, y), label, font=self.f_small, fill=self.FG)
             else:
-                d.text((x + 42, y), f"F{13 + i}", font=self.f_small, fill=self.DIM)
+                d.text((x + 42, y), f"F{FKEY_BASE + i}", font=self.f_small, fill=self.DIM)
         return img

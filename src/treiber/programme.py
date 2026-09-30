@@ -13,7 +13,19 @@ class Launcher:
         self.log = log
         self.children = []
 
+    ENV_TTL = 30            # Sekunden, die die Sitzungsumgebung zwischengespeichert wird
+
     def _env(self):
+        """Umgebung der Desktop-Sitzung (systemctl --user show-environment), 30 s zwischengespeichert."""
+        now = time.monotonic()
+        cached = getattr(self, "_env_cache", None)
+        if cached and now - cached[0] < self.ENV_TTL:
+            return dict(cached[1])
+        env = self._session_env()
+        self._env_cache = (now, env)
+        return dict(env)
+
+    def _session_env(self):
         env = dict(os.environ)
         try:
             out = subprocess.run(["systemctl", "--user", "show-environment"],

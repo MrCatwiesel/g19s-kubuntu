@@ -6,7 +6,7 @@ Displaytasten „gedrückt“. Aufgezeichnet werden Displaybilder, Beleuchtung,
 getippte Tasten, Protokollzeilen und gestartete Programme.
 
 Jede Simulation liefert am Ende eine Zusammenfassung ohne Zeitstempel.
-tests/run_tests.sh vergleicht sie mit tests/sim/erwartet/NAME.json –
+tests/run_tests.py vergleicht sie mit tests/sim/erwartet/NAME.json –
 so fällt jede Verhaltensänderung durch ein Refactoring auf.
 """
 import importlib.util
@@ -31,15 +31,19 @@ GK.update({"M1": 0x1000, "M2": 0x2000, "M3": 0x4000, "MR": 0x8000})
 
 
 class Tee(io.TextIOBase):
+    """Fängt die Ausgabe ab. Zeilen werden je Thread gesammelt: print() schreibt Text und Zeilenende
+    getrennt, sonst könnten Ausgaben zweier Threads in einer Zeile landen."""
     def __init__(self, lines):
-        self.lines, self.buf = lines, ""
+        self.lines, self.local, self.lock = lines, threading.local(), threading.Lock()
 
     def write(self, s):
         sys.__stdout__.write(s)
-        self.buf += s
-        while "\n" in self.buf:
-            line, self.buf = self.buf.split("\n", 1)
-            self.lines.append(line)
+        buf = getattr(self.local, "buf", "") + s
+        while "\n" in buf:
+            line, buf = buf.split("\n", 1)
+            with self.lock:
+                self.lines.append(line)
+        self.local.buf = buf
         return len(s)
 
     def flush(self):

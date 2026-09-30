@@ -100,6 +100,7 @@ $("#saverOn").addEventListener("change", e => { UI.sdraft.screensaver.enabled = 
 $("#saverMin").addEventListener("input", e => { UI.sdraft.screensaver.minutes = Math.max(1, parseInt(e.target.value) || 5); touchSettings(); });
 $("#saverPage").addEventListener("change", e => { UI.sdraft.screensaver.page = e.target.value; touchSettings(); });
 $("#volStep").addEventListener("input", e => { UI.sdraft.volume_step = Math.max(1, Math.min(25, parseInt(e.target.value) || 5)); touchSettings(); });
+// Vorschau nach Änderungen an den Einstellungen verzögert neu laden (touchSettings ruft das auf)
 let pvTimer = null;
 function schedulePreview() { clearTimeout(pvTimer); pvTimer = setTimeout(refreshPreview, 250); }
 async function refreshPreview() {

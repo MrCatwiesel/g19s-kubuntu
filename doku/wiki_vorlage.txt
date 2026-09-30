@@ -448,7 +448,7 @@ Auf der Seite '''Uhr''' öffnet '''MENU''' die Liste '''Zifferblatt''' mit bis z
 |}
 Die meisten Zifferblätter werden genau zum Sekundenwechsel neu gezeichnet. Bewegte Zifferblätter (Pendel-, Kuckucks-, Sand- und Kerzenuhr, Planeten, Radar, Klappzahlen, Zählwerk) zeichnen 5-mal pro Sekunde, das Terminal 2-mal (Cursor).
 
-'''Eigene Zifferblätter''' (für Entwickler): siehe <code>README.md</code> im Projektarchiv – ein Zifferblatt ist eine Methode mit <code>@clock_face("id")</code>, der Name steht in <code>CLOCK_FACES</code>, die Einstellungen in <code>CLOCK_OPTIONS</code>; <code>tests/uhren_vorschau.py</code> zeigt es als Bild.
+'''Eigene Zifferblätter''' (für Entwickler): siehe <code>ENTWICKLUNG.md</code> auf https://github.com/MrCatwiesel/g19s-kubuntu – ein Zifferblatt ist eine Methode mit <code>@clock_face("id")</code>, der Name steht in <code>CLOCK_FACES</code>, die Einstellungen in <code>CLOCK_OPTIONS</code>; <code>tests/uhren_vorschau.py</code> zeigt es als Bild.
 
 === Textbausteine ===
 Im Reiter '''Textbausteine''' der Verwaltung Texte anlegen (Name, optionale Gruppe, Text – auch mehrzeilig). Dann einer G-Taste die Aktion '''Textbausteine''' geben (alle oder nur eine Gruppe). Ein Druck auf die G-Taste zeigt die Liste auf dem Display:
@@ -804,11 +804,11 @@ getfacl /dev/bus/usb/BUS/GERÄT                      # Rechte (Nummern aus lsusb
 * Netzwerk: <code>ping -c 1 -W 2</code> bzw. TCP-Verbindung bei <code>Name:Port</code>; Router aus <code>/proc/net/route</code>.
 * Updates: <code>apt list --upgradable</code> (nutzt die von Discover bzw. apt zuletzt geladenen Paketlisten), <code>flatpak remote-ls --updates</code>, <code>/var/run/reboot-required</code>.
 * Update-Knopf: erkennt die Dateien an <code>G19S_COMPONENT</code> und <code>VERSION</code> im Kopf und an der Endzeile <code># G19S-DATEIENDE</code>. Eine unvollständig heruntergeladene Datei wird abgewiesen („unvollständig“).
-* Aufbau des Quelltexts: Beide Programme werden aus einzelnen Modulen zusammengesetzt (Treiber: 49 Module, Verwaltung: 14 Server-Module plus Seite aus HTML, CSS und 17 JavaScript-Dateien) und als je eine Datei ausgeliefert. Jeder Abschnitt beginnt mit einem Kommentarkopf <code># ==== Modul: … ====</code>, der beschreibt, was darin steht.
+* Aufbau des Quelltexts: Beide Programme werden aus einzelnen Modulen zusammengesetzt (Treiber und Verwaltung aus je einer Reihe von Python-Modulen, die Seite der Verwaltung aus HTML, CSS und JavaScript-Dateien) und als je eine Datei ausgeliefert. Jeder Abschnitt beginnt mit einem Kommentarkopf <code># Modul …</code>, der beschreibt, was darin steht. Quelltext und Tests: https://github.com/MrCatwiesel/g19s-kubuntu
 ** Einstellungen: ein gemeinsames Schema (<code>SCHEMA</code>) für Treiber und Verwaltung – der Treiber liest tolerant (Ungültiges → Standardwert), die Verwaltung prüft streng mit verständlicher Fehlermeldung.
 ** Displayseiten melden sich mit <code>@page("id")</code> an, ihre Tasten mit <code>@page_keys("id")</code>; Menüs am Display sind Klassen (<code>ProfileMenu</code>, <code>CalendarMenu</code>, <code>AlbumMenu</code>, …); G-Tasten-Aktionen stehen in einer Tabelle (<code>@gkey_action</code>).
 ** Die Anwendung besteht aus <code>AppCore</code> (Zustand, Profile, Licht), <code>KeyHandling</code> (Tasten) und <code>TimedTasks</code> (Zeitaufgaben).
-** Das Projektarchiv mit allen Modulen, dem Bauskript <code>build.py</code> und den automatischen Tests (Einheitentests, Bildvergleiche aller Displayseiten, Bediensimulationen, Oberflächentests) liegt als <code>g19s-projekt.zip</code> bei.
+** Das Projektarchiv mit allen Modulen, dem Bauskript <code>build.py</code> und den automatischen Tests (Einheitentests, Bildvergleiche aller Displayseiten, Bediensimulationen, Oberflächentests) liegt auf GitHub: https://github.com/MrCatwiesel/g19s-kubuntu
 
 [[Kategorie:Linux]]
 [[Kategorie:Hardware]]

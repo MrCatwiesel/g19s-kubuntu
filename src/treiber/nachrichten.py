@@ -67,7 +67,7 @@ class NewsPoller(Poller):
             try:
                 items += parse_feed(http_get(url, timeout=20), name)
             except FEED_ERRORS as ex:
-                errors.append(f"{name}: {getattr(ex, 'reason', None) or ex}")
+                errors.append(f"{name}: {err_text(ex)}")
         if errors and not items:
             raise RuntimeError("; ".join(errors))
         old = dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc)

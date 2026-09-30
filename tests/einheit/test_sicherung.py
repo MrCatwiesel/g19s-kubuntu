@@ -83,13 +83,16 @@ raises(lambda: g.test_backup_target(dict(sm, url="\\\\offline\\backup")), "nicht
 raises(lambda: g.backup_target(dict(sm, url="nas")), "Freigabe angeben", "SMB ohne Freigabe")
 
 # Windows-Freigabe über kioclient (ohne smbclient)
+open(os.path.join(ROOT, "smb", "wallet"), "w").write("nas")          # Passwort in „KWallet“ gespeichert
 k = g.SmbTarget("smb://nas/backup/G19s Sicherung", "nas", "geh%eim", tool="kioclient")
+ok("geh" not in k._kio_url("x"), "kioclient: Passwort nicht in der Adresse: " + k._kio_url("x"))
 k.prepare()
 k.upload("probe.txt", b"x")
 ok("probe.txt" in k.names() and os.path.isfile(os.path.join(share, "G19s Sicherung", "probe.txt")), "kioclient: hochgeladen und gelistet")
 k.delete("probe.txt")
 ok("probe.txt" not in k.names(), "kioclient: gelöscht")
-raises(lambda: g.SmbTarget("smb://nas/backup/G19s Sicherung", "nas", "falsch", tool="kioclient").prepare(), "NAS:", "kioclient falsches Passwort")
+os.remove(os.path.join(ROOT, "smb", "wallet"))
+raises(lambda: g.SmbTarget("smb://nas/backup/G19s Sicherung", "nas", "geh%eim", tool="kioclient").prepare(), "Dolphin", "kioclient ohne gespeichertes Passwort")
 
 # Einstellungen
 try:

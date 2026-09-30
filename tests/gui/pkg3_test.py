@@ -1,6 +1,8 @@
 import json
 from playwright.sync_api import sync_playwright
-H = "/tmp/g19s-test/gui/home"; SET = H + "/.config/g19s/settings.json"
+import os as _os
+ROOT = _os.environ.get("G19S_TEST_ROOT", "/tmp/g19s-test")
+H = ROOT + "/gui/home"; SET = H + "/.config/g19s/settings.json"
 def ok(c, m): print(("OK   " if c else "FEHL ") + m)
 def cfg(): return json.load(open(SET))
 errors = []
@@ -38,7 +40,7 @@ with sync_playwright() as p:
     # Updates
     pg.uncheck("#updFlatpak"); pg.click("#updTest"); pg.wait_for_timeout(2500)
     ok("4 Paket-Updates (davon 2 Sicherheit)" in pg.inner_text("#updInfo"), "Updates geprüft: " + pg.inner_text("#updInfo"))
-    pg.screenshot(path="/tmp/g19s-test/shots/24_infoseiten_neu.png", full_page=True)
+    pg.screenshot(path=ROOT + "/shots/24_infoseiten_neu.png", full_page=True)
     pg.click("#saveSettings"); pg.wait_for_timeout(500)
     s = cfg()
     ok([f["url"] for f in s["news"]["feeds"]] == ["http://127.0.0.1:8812/rss.xml", "https://www.heise.de/rss/heise-atom.xml"], "Feeds gespeichert")
@@ -56,7 +58,7 @@ with sync_playwright() as p:
             if (pg.get_attribute("#lcd", "src") or "").startswith("data:image/png"): break
             pg.wait_for_timeout(150)
         ok((pg.get_attribute("#lcd", "src") or "").startswith("data:image/png"), f"Vorschau {nm}")
-        pg.locator("#lcd").screenshot(path=f"/tmp/g19s-test/shots/pv_{i}.png")
+        pg.locator("#lcd").screenshot(path=f"{ROOT}/shots/pv_{i}.png")
     pg.locator(".pagerow", has_text="Nachrichten").locator("input").check(); pg.click("#saveSettings"); pg.wait_for_timeout(400)
     ok("news" in cfg()["layer_pages"]["M1"] and "news" in cfg()["pages"], "Nachrichten eingeschaltet")
     b.close()

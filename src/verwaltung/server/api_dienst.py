@@ -52,7 +52,10 @@ class ApiService:
         self._send(200, {"files": backup_members()})
 
     def api_post_restore(self, q):
-        restored, safety = restore_backup(self._body())
+        raw = self._body()
+        if q.get("inspect") == ["1"]:
+            return self._send(200, restore_backup(raw, inspect=True))
+        restored, safety = restore_backup(raw, programs=q.get("programs") == ["1"])
         self._send(200, {"restored": restored, "safety": safety})
 
     def api_get_versions(self, q):

@@ -25,7 +25,7 @@ class AppCore:
         from evdev import UInput, ecodes as e
         self.args, self.e = args, e
         migrate_files()                     # ältere settings.json/macros.json umstellen
-        self.fkeys = [getattr(e, f"KEY_F{n}") for n in range(13, 25)]
+        self.fkeys = [getattr(e, f"KEY_F{FKEY_BASE + i}") for i in range(12)]
         self.modifiers = {"M1": None, "M2": e.KEY_LEFTCTRL, "M3": e.KEY_LEFTALT}
 
         # --- Zustand ---
@@ -50,6 +50,7 @@ class AppCore:
         self.mic = {"muted": False, "known": False}
         self.popups = deque()               # Benachrichtigungen aus dem Hintergrund-Thread (threadsicher)
         self.next_draw = 0.0
+        self._last_frame, self._last_sent = None, 0.0   # zuletzt gesendetes Bild (siehe App._send)
         self.running = True
         self.prev_gm = self.prev_l = 0
         self.held = {}                      # G-Taste -> Modifier, mit dem sie gedrückt wurde
@@ -70,6 +71,7 @@ class AppCore:
         threading.Thread(target=self._mic_poll, daemon=True).start()
         self.media = r.media = MediaWatcher(self.launcher._env, log=self.log, radio=self.radio,
                                             radio_control=self.radio_control)
+        self.media.want_fast = lambda: PAGE_IDS[self.page % len(PAGE_IDS)] == "music" or self.radio.playing
         self.slideshow = r.slideshow = Slideshow(self.settings, log=self.log)
         self.weather = r.weather = WeatherPoller(self.settings, log=self.log)
         self.calendar = r.calendar = CalendarPoller(self.settings, log=self.log)
@@ -124,7 +126,7 @@ class AppCore:
                 self.mic.update(muted=state, known=True)
                 self.renderer.mic_muted = state
                 self.mic["changed"] = True
-            time.sleep(5)
+            time.sleep(15)                  # nur für Änderungen von außen; die G-Taste meldet sofort
 
     # --- Radio ---------------------------------------------------------------- #
     def radio_play(self, station, announce=True):

@@ -1,6 +1,8 @@
 import json, os
 from playwright.sync_api import sync_playwright
-H = "/tmp/g19s-test/gui/home"; SET = H + "/.config/g19s/settings.json"; MAC = H + "/.config/g19s/macros.json"
+import os as _os
+ROOT = _os.environ.get("G19S_TEST_ROOT", "/tmp/g19s-test")
+H = ROOT + "/gui/home"; SET = H + "/.config/g19s/settings.json"; MAC = H + "/.config/g19s/macros.json"
 def ok(c, m): print(("OK   " if c else "FEHL ") + m)
 def cfg(): return json.load(open(SET))
 errors = []
@@ -27,7 +29,7 @@ with sync_playwright() as p:
     ok(not pg.is_visible("#nightDimRow"), "Helligkeitsregler bei „ausschalten“ ausgeblendet")
     pg.check("#saverOn"); pg.fill("#saverMin", "10"); pg.select_option("#saverPage", "weather"); pg.fill("#volStep", "10")
     pg.select_option("#pvPages", "4"); pg.wait_for_timeout(600)
-    pg.screenshot(path="/tmp/g19s-test/shots/14_display.png", full_page=True)
+    pg.screenshot(path=ROOT + "/shots/14_display.png", full_page=True)
     pg.click("#saveSettings"); pg.wait_for_timeout(400)
     s = cfg()
     ok(s["layer_pages"]["M1"] == ["clock", "music", "weather", "hardware", "calendar", "slides"], "Seiten M1 gespeichert: " + ",".join(s["layer_pages"]["M1"]))
@@ -44,7 +46,7 @@ with sync_playwright() as p:
     s = cfg()
     ok(s["layer_pages"]["M3"] == ["clock"] and "clock" not in s["layer_pages"]["M2"] and "clock" in s["layer_pages"]["M1"], "Uhr nur in M1 und M3: " + str({k: len(v) for k, v in s["layer_pages"].items()}))
     pg.click("#plLayers >> text=M3"); pg.wait_for_timeout(300)
-    pg.screenshot(path="/tmp/g19s-test/shots/18_ebenenseiten.png", full_page=True)
+    pg.screenshot(path=ROOT + "/shots/18_ebenenseiten.png", full_page=True)
     pg.click("#plLayers >> text=M1"); pg.click("#plCopy"); pg.click("#saveSettings"); pg.wait_for_timeout(400)
     s = cfg()
     ok(s["layer_pages"]["M2"] == s["layer_pages"]["M3"] == s["layer_pages"]["M1"], "Auf alle Ebenen übertragen")
@@ -61,7 +63,7 @@ with sync_playwright() as p:
     ok(pg.input_value("#fdPath") == "~/Bilder", "Ordner übernommen")
     pg.click("#slTest"); pg.wait_for_timeout(1200)
     ok("4 Bilder" in pg.inner_text("#slTestInfo"), "Test mit Unterordnern: " + pg.inner_text("#slTestInfo"))
-    pg.screenshot(path="/tmp/g19s-test/shots/15_ordner.png", full_page=True)
+    pg.screenshot(path=ROOT + "/shots/15_ordner.png", full_page=True)
     pg.click("#saveSettings"); pg.wait_for_timeout(400)
     ok(cfg()["slideshow"]["source"] == "folder" and cfg()["slideshow"]["folder"] == "~/Bilder", "Ordnerquelle gespeichert")
     # Infoseiten
@@ -87,14 +89,14 @@ with sync_playwright() as p:
     pg.locator(".srcrow").last.locator("text=Testen").click(); pg.wait_for_timeout(1500)
     t3 = pg.inner_text("#calSources")
     ok("aus 6 Kalendern: Persönlich, Geburtstage von Kontakten, Marco" in t3 and "Geburtstag Oma" in t3, "Nextcloud-Konto: Kalender gefunden: " + t3.replace("\n", " ")[-120:])
-    pg.screenshot(path="/tmp/g19s-test/shots/17_nextcloud.png", full_page=True)
+    pg.screenshot(path=ROOT + "/shots/17_nextcloud.png", full_page=True)
     pg.locator(".srcrow").last.locator("button[title=entfernen]").click(); pg.wait_for_timeout(200)
     pg.fill("#ntIgnore", "Discover"); pg.fill("#ntSec", "8")
     pg.click("#ntTest"); pg.wait_for_timeout(500)
-    ok("Testbenachrichtigung" in open("/tmp/g19s-test/state/notify.log").read(), "Testbenachrichtigung über notify-send")
+    ok("Testbenachrichtigung" in open(ROOT + "/state/notify.log").read(), "Testbenachrichtigung über notify-send")
     pg.click("#hwRefresh"); pg.wait_for_timeout(500)
     ok("Laufwerke" in pg.inner_text("#hwInfo"), "Hardwarewerte angezeigt")
-    pg.screenshot(path="/tmp/g19s-test/shots/16_info.png", full_page=True)
+    pg.screenshot(path=ROOT + "/shots/16_info.png", full_page=True)
     pg.click("#saveSettings"); pg.wait_for_timeout(400)
     s = cfg()
     ok(s["weather"] == {"name": "Leipzig", "lat": 51.34, "lon": 12.37}, "Wetter-Ort gespeichert")

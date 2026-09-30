@@ -5,6 +5,9 @@ class ClockPage:
     @page("clock")
     def page_clock(self, profile, macros):
         face = getattr(self, "clock_face", "digital")
+        if face != getattr(self, "_clock_last", None):
+            self._clock_drop_caches()                 # anderes Zifferblatt: Speicher freigeben
+            self._clock_last = face
         fn = CLOCK_RENDERERS.get(face) or CLOCK_RENDERERS["digital"]
         return fn(self, profile)
 

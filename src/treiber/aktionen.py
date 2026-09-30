@@ -75,6 +75,7 @@ def act_radio(app, macro, name):
 
 @gkey_action(lambda m: m.get("media") == "remember")
 def act_remember_song(app, macro, name):
+    app.media.refresh()                     # aktuellen Titel holen (im Hintergrund evtl. 5 s alt)
     info = app.media.snapshot()[0]
     entry = remember_song(info, app.radio.current())
     if entry:

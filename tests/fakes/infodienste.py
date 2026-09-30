@@ -4,7 +4,10 @@ ICS = """BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:a\r\nSUMMARY:Team
 DAV_DIRS = {"/nc/remote.php/dav/files/mde@example.de/", "/dav/", "/dav/home/", "/dav/home/Sicherungen/"}
 DAV_FILES = {}
 NCAUTH = "Basic " + base64.b64encode(b"mde@example.de:app-pw").decode()
-BDAY = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:bd\r\nSUMMARY:Geburtstag Oma\r\nDTSTART;VALUE=DATE:20260929\r\nRRULE:FREQ=YEARLY\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+import datetime as _dt
+# Geburtstag immer „morgen“ (sonst fällt er je nach Testdatum aus dem 30-Tage-Fenster)
+BDAY = ("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:bd\r\nSUMMARY:Geburtstag Oma\r\nDTSTART;VALUE=DATE:"
+        + (_dt.date.today() + _dt.timedelta(days=1)).strftime("%Y%m%d") + "\r\nRRULE:FREQ=YEARLY\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n")
 def resp(href, props):
     return f"<d:response><d:href>{href}</d:href><d:propstat><d:prop>{props}</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>"
 def ms(*r):
@@ -82,6 +85,13 @@ class H(http.server.BaseHTTPRequestHandler):
         self.send("nope", "text/plain", 404)
     def do_GET(self):
         u = urllib.parse.urlparse(self.path); q = urllib.parse.parse_qs(u.query)
+        # Weiterleitungen für den Sicherheitstest: fremder Host (localhost statt 127.0.0.1) bzw. gleicher Host
+        if u.path in ("/umleitung-fremd", "/umleitung-gleich"):
+            host = "localhost" if u.path.endswith("fremd") else "127.0.0.1"
+            self.send_response(302); self.send_header("Location", f"http://{host}:8812/echo-auth")
+            self.send_header("Content-Length", "0"); self.end_headers(); return
+        if u.path == "/echo-auth":
+            return self.send(self.headers.get("Authorization") or "-", "text/plain")
         if u.path == "/v1/search":
             res = [{"name": "Leipzig", "latitude": 51.34, "longitude": 12.37, "admin1": "Sachsen", "country": "Deutschland"},
                    {"name": "Leipzig", "latitude": 46.9, "longitude": 29.4, "country": "Ukraine"}] if "leip" in q["name"][0].lower() else []

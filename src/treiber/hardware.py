@@ -55,7 +55,7 @@ class Hardware:
     def _nvidia_query(self, out):
         import shutil
         now = time.monotonic()
-        if now - self._nvidia[0] > 5:
+        if now - self._nvidia[0] > 30:          # nvidia-smi ist teuer und kann die Grafikkarte wecken
             val = None
             if shutil.which("nvidia-smi"):
                 try:

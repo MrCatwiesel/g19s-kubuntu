@@ -1,6 +1,8 @@
 import json, os
 from playwright.sync_api import sync_playwright
-H = "/tmp/g19s-test/gui/home"; MAC = H + "/.config/g19s/macros.json"; ST = H + "/.config/g19s/state.json"
+import os as _os
+ROOT = _os.environ.get("G19S_TEST_ROOT", "/tmp/g19s-test")
+H = ROOT + "/gui/home"; MAC = H + "/.config/g19s/macros.json"; ST = H + "/.config/g19s/state.json"
 def ok(c, m): print(("OK   " if c else "FEHL ") + m)
 answers = []
 def on_dialog(d):
@@ -51,7 +53,7 @@ with sync_playwright() as p:
     ok("Test-Satz" in pg.inner_text("#keypad"), "Profil 1 zeigt seine Belegung")
     pg.select_option("#profSel", "1"); pg.wait_for_timeout(200)
     ok("Test-Satz" not in pg.inner_text("#keypad") and "Text" in pg.inner_text("#keypad"), "„Spiele“ zeigt seine Belegung")
-    pg.screenshot(path="/tmp/g19s-test/shots/11_profile.png")
+    pg.screenshot(path=ROOT + "/shots/11_profile.png")
     # Obergrenze 10
     for i in range(8):
         answers.append(f"P{i + 3}"); pg.click("#profNew"); pg.wait_for_timeout(350)
@@ -59,6 +61,6 @@ with sync_playwright() as p:
     # Vorschau nutzt Profilfarben/-namen
     pg.select_option("#profSel", "1"); pg.click("nav >> text=Beleuchtung"); pg.wait_for_timeout(900)
     ok((pg.get_attribute("#lcd", "src") or "").startswith("data:image/png"), "Displayvorschau mit Profil")
-    pg.screenshot(path="/tmp/g19s-test/shots/12_vorschau.png")
+    pg.screenshot(path=ROOT + "/shots/12_vorschau.png")
     b.close()
 print("Seitenfehler:", errors or "keine")

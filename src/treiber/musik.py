@@ -5,14 +5,18 @@
 # Aktuelle Wiedergabe (MPRIS über playerctl)
 # --------------------------------------------------------------------------- #
 class MediaWatcher(threading.Thread):
-    """Fragt jede Sekunde ab, was gerade läuft, und lädt das Cover."""
+    """Fragt ab, was gerade läuft, und lädt das Cover: jede Sekunde, solange want_fast() gilt
+    (Musikseite sichtbar oder Radio an), sonst alle SLOW_INTERVAL Sekunden – playerctl weckt
+    bei jedem Aufruf alle Player über D-Bus."""
+
+    SLOW_INTERVAL = 5
 
     FIELDS = ("player", "status", "title", "artist", "album", "art", "position", "length", "url")
     FMT = "\t".join(["{{playerName}}", "{{status}}", "{{title}}", "{{artist}}",
                      "{{album}}", "{{mpris:artUrl}}", "{{position}}", "{{mpris:length}}",
                      "{{xesam:url}}"])
     COVER_SIZE = 132
-    ICY_INTERVAL = 15       # Sekunden zwischen zwei Abfragen beim Radiosender
+    ICY_INTERVAL = 30       # Sekunden zwischen zwei Abfragen beim Radiosender (je eine neue Verbindung)
 
     RADIO_PLAYER = "g19s-radio"
 
@@ -24,6 +28,8 @@ class MediaWatcher(threading.Thread):
         self.lock = threading.Lock()
         self.wake = threading.Event()
         self.running = True
+        self.want_fast = lambda: True       # setzt der Treiber (Musikseite sichtbar / Radio an)
+        self.fast_now = True
         self.info = None
         self.error = None
         self.cover_url = None
@@ -81,8 +87,17 @@ class MediaWatcher(threading.Thread):
             except Exception as ex:  # Sicherheitsnetz: nie wegen der Musikseite abstürzen
                 with self.lock:
                     self.error = str(ex)
-            self.wake.wait(1.0)
+            self.fast_now = bool(self.want_fast())
+            self.wake.wait(1.0 if self.fast_now else self.SLOW_INTERVAL)
             self.wake.clear()
+
+    def refresh(self):
+        """Sofort abfragen (z. B. vor „Song merken“), im aufrufenden Thread."""
+        try:
+            self._poll()
+        except Exception as ex:             # wie in run(): nie wegen der Musikabfrage abstürzen
+            with self.lock:
+                self.error = str(ex)
 
     def _poll(self):
         error = None
@@ -183,10 +198,10 @@ class MediaWatcher(threading.Thread):
         title = None
         try:
             req = urllib.request.Request(url, headers={"Icy-MetaData": "1",
-                                                       "User-Agent": "g19s"})
+                                                       "User-Agent": USER_AGENT})
             with urllib.request.urlopen(req, timeout=6) as r:
                 metaint = int(r.headers.get("icy-metaint") or 0)
-                if metaint:
+                if 0 < metaint <= 256 * 1024:      # übliche Werte 8–64 KiB; mehr = kein Titel
                     remaining = metaint
                     while remaining > 0:          # Audiodaten bis zum Metadatenblock überspringen
                         chunk = r.read(min(remaining, 16384))
@@ -219,15 +234,18 @@ class MediaWatcher(threading.Thread):
         from PIL import ImageEnhance, ImageFilter, ImageOps
         try:
             if url.startswith("file://"):
-                with open(urllib.parse.unquote(urllib.parse.urlparse(url).path), "rb") as f:
-                    raw = f.read()
+                path = urllib.parse.unquote(urllib.parse.urlparse(url).path)
+                if not os.path.isfile(path):
+                    return None, None
+                with open(path, "rb") as f:
+                    raw = f.read(8 * 1024 * 1024)
             elif url.startswith(("http://", "https://")):
-                req = urllib.request.Request(url, headers={"User-Agent": "g19s"})
+                req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
                 with urllib.request.urlopen(req, timeout=5) as r:
                     raw = r.read(8 * 1024 * 1024)
             else:
                 return None, None
-            img = Image.open(io.BytesIO(raw)).convert("RGB")
+            img = open_remote_image(raw, draft=(640, 640)).convert("RGB")
         except (NET_ERRORS + (Image.DecompressionBombError,)) as ex:    # PIL meldet kaputte Bilder als OSError
             self.log(f"Cover konnte nicht geladen werden: {ex}")
             return None, None

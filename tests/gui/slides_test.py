@@ -1,6 +1,8 @@
 import json, os, stat
 from playwright.sync_api import sync_playwright
-H = "/tmp/g19s-test/gui/home"; SET = H + "/.config/g19s/settings.json"
+import os as _os
+ROOT = _os.environ.get("G19S_TEST_ROOT", "/tmp/g19s-test")
+H = ROOT + "/gui/home"; SET = H + "/.config/g19s/settings.json"
 def ok(c, m): print(("OK   " if c else "FEHL ") + m)
 errors = []
 with sync_playwright() as p:
@@ -24,7 +26,7 @@ with sync_playwright() as p:
     pg.click("#slTest"); pg.wait_for_timeout(1500)
     ok("6 Bilder" in pg.inner_text("#slTestInfo"), "Test: " + pg.inner_text("#slTestInfo"))
     ok((pg.get_attribute("#slPreview", "src") or "").startswith("data:image/png"), "Vorschaubild angezeigt")
-    pg.screenshot(path="/tmp/g19s-test/shots/10_diashow.png", full_page=True)
+    pg.screenshot(path=ROOT + "/shots/10_diashow.png", full_page=True)
     ok(pg.is_visible("#savebar"), "Speicherleiste sichtbar")
     pg.click("#saveSettings"); pg.wait_for_timeout(400)
     s = json.load(open(SET))["slideshow"]

@@ -79,8 +79,10 @@ class FolderTarget:
             raise BackupError(f"Ordner nicht gefunden: {self.folder or '(leer)'} – ist das NAS eingebunden?")
 
     def upload(self, name, data):
+        """Nur für den Benutzer lesbar (0600) – die Sicherung enthält Passwörter aus settings.json."""
         path = os.path.join(self.folder, name)
-        with open(path + ".tmp", "wb") as f:
+        fd = os.open(path + ".tmp", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "wb") as f:
             f.write(data)
         os.replace(path + ".tmp", path)
 
@@ -131,12 +133,12 @@ class WebDavTarget:
         return self.describe() + name
 
     def _req(self, method, url, data=None, headers=None, ok=(200, 201, 204, 207)):
-        h = dict(headers or {})
+        h = dict(headers or {}, **{"User-Agent": USER_AGENT})
         if self.user:
-            h["Authorization"] = "Basic " + base64.b64encode(f"{self.user}:{self.password}".encode()).decode()
+            h["Authorization"] = basic_auth(self.user, self.password)
         req = urllib.request.Request(url, data=data, headers=h, method=method)
         try:
-            with urllib.request.urlopen(req, timeout=60) as r:
+            with open_url(req, 60) as r:
                 return r.status, r.read()
         except urllib.error.HTTPError as ex:
             if ex.code in ok:
@@ -190,6 +192,8 @@ class SmbTarget:
         if len(parts) < 2:
             raise BackupError("Bitte die Freigabe angeben, z. B. \\\\nas\\freigabe\\Sicherungen")
         self.host, self.share, self.dir = parts[0], parts[1], "/".join(parts[2:])
+        if any(c in raw for c in '";\n\r') or not re.fullmatch(r"[\w.\-\[\]:]+", self.host):
+            raise BackupError("Die Freigabe enthält ungültige Zeichen (\" ; oder Zeilenumbruch)")
         self.user, self.password = str(user or "").strip(), str(password or "")
         self.tool = tool or ("smbclient" if shutil.which("smbclient") else
                              next((t for t in ("kioclient", "kioclient5") if shutil.which(t)), None))
@@ -234,10 +238,11 @@ class SmbTarget:
         return r.stdout
 
     # kioclient -------------------------------------------------------------- #
+    # Das Passwort kommt NICHT in die Adresse (sie stünde für alle Benutzer sichtbar in der
+    # Prozessliste). kioclient holt es aus KWallet – dafür die Freigabe einmal in Dolphin öffnen
+    # und das Passwort speichern. Sicherer und ohne diesen Schritt: smbclient installieren.
     def _kio_url(self, name=""):
-        cred = ""
-        if self.user:
-            cred = urllib.parse.quote(self.user, safe="") + ":" + urllib.parse.quote(self.password, safe="") + "@"
+        cred = urllib.parse.quote(self.user, safe="") + "@" if self.user else ""
         path = "/".join(urllib.parse.quote(p) for p in [self.share] + [d for d in self.dir.split("/") if d])
         return f"smb://{cred}{self.host}/{path}/" + urllib.parse.quote(name)
 
@@ -253,7 +258,8 @@ class SmbTarget:
             raise BackupError(f"{self.tool}: {ex}")
         if r.returncode:
             msg = (r.stderr.strip().splitlines() or [""])[-1] or f"Fehler {r.returncode}"
-            raise BackupError(f"NAS: {msg.replace(self.password, '***') if self.password else msg}")
+            raise BackupError(f"NAS: {msg} – Tipp: smbclient installieren (sudo apt install smbclient) "
+                              "oder die Freigabe einmal in Dolphin öffnen und das Passwort speichern")
         return r.stdout
 
     def prepare(self):

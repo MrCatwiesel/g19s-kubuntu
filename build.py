@@ -130,12 +130,31 @@ def check(name, text):
         sys.exit(f"{name}:\n  " + "\n  ".join(sorted(set(problems))))
 
 
+def driver_api(driver, gui):
+    """Namen des Treibers, die die Verwaltung als g.<name> benutzt – jeder muss im Treiber existieren."""
+    tree = ast.parse(driver)
+    defined = set()
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+            defined.add(node.name)
+        elif isinstance(node, ast.Assign):
+            defined.update(t.id for t in node.targets if isinstance(t, ast.Name))
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            defined.update((a.asname or a.name).split(".")[0] for a in node.names)
+    used = sorted(set(re.findall(r"\bg\.([A-Za-z_]\w*)", gui)))
+    unknown = [n for n in used if n not in defined]
+    if unknown:
+        sys.exit("Die Verwaltung benutzt Namen, die es im Treiber nicht gibt: " + ", ".join(unknown))
+    return used
+
+
 def main():
     os.makedirs(DIST, exist_ok=True)
     driver, order = bundle(os.path.join("src", "treiber"), "kopf")
     check("g19s.py", driver)
     html = build_page()
     gui, _ = bundle(os.path.join("src", "verwaltung", "server"), "kopf")
+    gui = gui.replace("@@DRIVER_API@@", " ".join(driver_api(driver, gui)))   # vor dem Einsetzen der Seite
     gui = gui.replace("@@PAGE_HTML@@", html)
     check("g19s-gui.py", gui)
     for fname, text in (("g19s.py", driver), ("g19s-gui.py", gui)):

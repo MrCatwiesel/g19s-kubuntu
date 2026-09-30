@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.09.29-4)
+| 28.09.2026 (Version 2026.09.30-1)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -164,7 +164,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.09.29-4"
+VERSION = "2026.09.30-1"
 
 # Weitere Importe der Module
 import http.client
@@ -200,6 +200,9 @@ EP_LKEYS = 0x81              # Interrupt IN, Interface 0: Displaytasten
 EP_GKEYS = 0x83              # Interrupt IN, Interface 1: G-/M-Tasten
 
 WIDTH, HEIGHT = 320, 240
+FOOTER_H = 26               # Höhe der Fußzeile (Profil, Seitenpunkte) unten auf jeder Seite
+FKEY_BASE = 13              # G1 sendet F13, G12 sendet F24
+SELECTION_TIMEOUT = 30      # Sekunden, nach denen eine Markierung (Termin, Meldung) verschwindet
 
 # G-/M-Tasten (Report-ID 0x02): Wert = d[1] | d[2] << 8
 #   d[1]: G1–G8, d[2]: G9–G12 (Bits 0–3), M1/M2/M3/MR (Bits 4–7)
@@ -519,7 +522,10 @@ class Items(Field):
                 continue
             if self.required and not str(v.get(self.required) or "").strip():
                 continue
-            out.append(self.item.clean(v, strict))
+            item = self.item.clean(v, strict)
+            if self.required and not str(item.get(self.required) or "").strip():
+                continue                            # Pflichtfeld nach der Prüfung ungültig (tolerant)
+            out.append(item)
         return out[:self.limit] if self.limit else out
 
 
@@ -553,6 +559,7 @@ class Optional(Field):
 
 # --- Regeln über mehrere Felder --------------------------------------------- #
 TIME_RE = r"([01]\d|2[0-3]):[0-5]\d"
+URL_RE = r"(?i)https?://\S+"                  # Senderadressen: keine Leerzeichen/Zeilenumbrüche (m3u!)
 
 
 def _check_backup(b, strict):
@@ -610,7 +617,9 @@ SCHEMA = {
     "start_page": Int(0, -10 ** 6, 10 ** 6),             # Index in PAGE_IDS (modulo Anzahl, −1 = letzte)
     "radio_player": Str("mpv --no-video --really-quiet --load-scripts=no {url}", strip=False, empty_default=True),
     "stations": Items([{"name": "Rockantenne", "url": "https://stream.rockantenne.de/rockantenne/stream/aacp", "logo": ""}],
-                      Entry({"name": Str(), "url": Str(), "logo": Str()}), required="url"),
+                      Entry({"name": Str(), "url": Str(pattern=URL_RE, msg="Senderadressen müssen mit http:// oder "
+                                                                             "https:// beginnen (ohne Leerzeichen)"),
+                             "logo": Str()}), required="url"),
     "slideshow": Section({
         "url": Str(),                     # Adresse der Piwigo-Galerie
         "user": Str(),                    # leer = nur öffentliche Alben
@@ -692,7 +701,7 @@ def _check_feeds(s):
 @_strict_rule
 def _check_hosts(s):
     for h in s["network"]["hosts"]:
-        if not re.fullmatch(r"[A-Za-z0-9._:\-\[\]]+", h["host"]):
+        if not re.fullmatch(r"[A-Za-z0-9\[][A-Za-z0-9._:\-\[\]]*", h["host"]):    # nie mit „-“ beginnend
             raise Invalid(f"Ungültiger Gerätename: {h['host']}")
 
 
@@ -770,7 +779,7 @@ def normalize_pages(data):
 def save_json(path, data, compact_steps=False, private=False):
     """Schreibt JSON atomar (erst temporäre Datei, dann umbenennen).
     private=True: nur für den Benutzer lesbar (z. B. wegen Piwigo-Passwort)."""
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)   # neu angelegt: nur für den Benutzer
     text = json.dumps(data, indent=2, ensure_ascii=False)
     if compact_steps:
         # innerste Listen (einzelne Schritte, Farben) auf eine Zeile zusammenziehen
@@ -1193,6 +1202,11 @@ def migrate_system_page(settings_path=None, macros_path=None, log=print):
 
 def migrate_files(log=print):
     """Umstellungen älterer Dateien beim Start (Treiber und Verwaltung, mehrfach aufrufbar)."""
+    try:                                     # Konfigurationsordner (enthält Passwörter) nur für den Benutzer
+        if os.path.isdir(CONFIG_DIR) and os.stat(CONFIG_DIR).st_mode & 0o077:
+            os.chmod(CONFIG_DIR, 0o700)
+    except OSError:
+        pass
     migrate_system_page(log=log)
     migrate_clock_pages(log=log)
 
@@ -1793,6 +1807,10 @@ class ActivityWatcher(threading.Thread):
                     self.last = time.monotonic()
                 except (BlockingIOError, OSError):
                     pass
+            if ready:
+                # Aktivität erkannt – für den Bildschirmschoner reicht Sekundengenauigkeit. Ohne diese
+                # Pause wacht der Thread bei Mausbewegung Hunderte Male pro Sekunde auf.
+                time.sleep(1.0)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1812,7 +1830,19 @@ class Launcher:
         self.log = log
         self.children = []
 
+    ENV_TTL = 30            # Sekunden, die die Sitzungsumgebung zwischengespeichert wird
+
     def _env(self):
+        """Umgebung der Desktop-Sitzung (systemctl --user show-environment), 30 s zwischengespeichert."""
+        now = time.monotonic()
+        cached = getattr(self, "_env_cache", None)
+        if cached and now - cached[0] < self.ENV_TTL:
+            return dict(cached[1])
+        env = self._session_env()
+        self._env_cache = (now, env)
+        return dict(env)
+
+    def _session_env(self):
         env = dict(os.environ)
         try:
             out = subprocess.run(["systemctl", "--user", "show-environment"],
@@ -1887,7 +1917,7 @@ class PiwigoClient:
         self.user, self.password, self.timeout = user or "", password or "", timeout
         self.jar = http.cookiejar.CookieJar()
         self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.jar))
-        self.opener.addheaders = [("User-Agent", "g19s/1.0")]
+        self.opener.addheaders = [("User-Agent", USER_AGENT)]
         self.logged_in = False
 
     def _call(self, method, params=None, post=False):
@@ -1912,7 +1942,7 @@ class PiwigoClient:
         except urllib.error.HTTPError as ex:
             raise PiwigoError(f"Piwigo antwortet mit Fehler {ex.code} ({url.split('?')[0]})")
         except NET_ERRORS as ex:
-            reason = str(getattr(ex, "reason", ex))
+            reason = err_text(ex)
             if "WRONG_VERSION_NUMBER" in reason or "wrong version number" in reason:
                 raise PiwigoError("Die Galerie unterstützt kein https – Adresse mit http:// eintragen")
             if "CERTIFICATE_VERIFY_FAILED" in reason:
@@ -2006,11 +2036,13 @@ class PiwigoClient:
         import urllib.parse
         if not re.match(r"^https?://", url, re.I):
             url = urllib.parse.urljoin(self.base + "/", url)
+        if not re.match(r"^https?://", url, re.I):        # z. B. file:// aus der Serverantwort
+            raise PiwigoError("Ungültige Bildadresse vom Server")
         try:
             with self.opener.open(url, timeout=self.timeout) as r:
                 return r.read(limit)
         except NET_ERRORS as ex:
-            raise PiwigoError(f"Bild nicht abrufbar: {getattr(ex, 'reason', ex)}")
+            raise PiwigoError(f"Bild nicht abrufbar: {err_text(ex)}")
 
 
 def fit_photo(img, size, mode="contain"):
@@ -2079,7 +2111,8 @@ class RadioManager:
             is_mpv = False
         urls = [s["url"] for s in stations]
         if is_mpv and url in urls:
-            playlist = os.path.join(os.environ.get("XDG_RUNTIME_DIR") or "/tmp", "g19s-radio.m3u")
+            playlist = os.path.join(os.environ.get("XDG_RUNTIME_DIR") or CACHE_DIR, "g19s-radio.m3u")
+            os.makedirs(os.path.dirname(playlist), exist_ok=True)
             with open(playlist, "w", encoding="utf-8") as f:
                 f.write("#EXTM3U\n")
                 for s in stations:
@@ -2098,9 +2131,12 @@ class RadioManager:
     def play(self, station, player_cmd, stations=None):
         self.stop()
         url = station.get("url", "")
-        if not url:
+        if not url or not re.fullmatch(URL_RE, url):
+            if url:
+                self.log(f"Radio: ungültige Senderadresse ignoriert: {url[:80]!r}")
             return False
-        stations = [dict(s) for s in (stations or []) if isinstance(s, dict) and s.get("url")]
+        stations = [dict(s) for s in (stations or []) if isinstance(s, dict)
+                    and re.fullmatch(URL_RE, str(s.get("url") or ""))]
         if url not in [s["url"] for s in stations]:
             stations = [dict(station)]
         cmd, uses_list = self._build_cmd(player_cmd or DEFAULT_SETTINGS["radio_player"], url, stations)
@@ -2155,14 +2191,18 @@ class RadioManager:
 # Aktuelle Wiedergabe (MPRIS über playerctl)
 # --------------------------------------------------------------------------- #
 class MediaWatcher(threading.Thread):
-    """Fragt jede Sekunde ab, was gerade läuft, und lädt das Cover."""
+    """Fragt ab, was gerade läuft, und lädt das Cover: jede Sekunde, solange want_fast() gilt
+    (Musikseite sichtbar oder Radio an), sonst alle SLOW_INTERVAL Sekunden – playerctl weckt
+    bei jedem Aufruf alle Player über D-Bus."""
+
+    SLOW_INTERVAL = 5
 
     FIELDS = ("player", "status", "title", "artist", "album", "art", "position", "length", "url")
     FMT = "\t".join(["{{playerName}}", "{{status}}", "{{title}}", "{{artist}}",
                      "{{album}}", "{{mpris:artUrl}}", "{{position}}", "{{mpris:length}}",
                      "{{xesam:url}}"])
     COVER_SIZE = 132
-    ICY_INTERVAL = 15       # Sekunden zwischen zwei Abfragen beim Radiosender
+    ICY_INTERVAL = 30       # Sekunden zwischen zwei Abfragen beim Radiosender (je eine neue Verbindung)
 
     RADIO_PLAYER = "g19s-radio"
 
@@ -2174,6 +2214,8 @@ class MediaWatcher(threading.Thread):
         self.lock = threading.Lock()
         self.wake = threading.Event()
         self.running = True
+        self.want_fast = lambda: True       # setzt der Treiber (Musikseite sichtbar / Radio an)
+        self.fast_now = True
         self.info = None
         self.error = None
         self.cover_url = None
@@ -2231,8 +2273,17 @@ class MediaWatcher(threading.Thread):
             except Exception as ex:  # Sicherheitsnetz: nie wegen der Musikseite abstürzen
                 with self.lock:
                     self.error = str(ex)
-            self.wake.wait(1.0)
+            self.fast_now = bool(self.want_fast())
+            self.wake.wait(1.0 if self.fast_now else self.SLOW_INTERVAL)
             self.wake.clear()
+
+    def refresh(self):
+        """Sofort abfragen (z. B. vor „Song merken“), im aufrufenden Thread."""
+        try:
+            self._poll()
+        except Exception as ex:             # wie in run(): nie wegen der Musikabfrage abstürzen
+            with self.lock:
+                self.error = str(ex)
 
     def _poll(self):
         error = None
@@ -2333,10 +2384,10 @@ class MediaWatcher(threading.Thread):
         title = None
         try:
             req = urllib.request.Request(url, headers={"Icy-MetaData": "1",
-                                                       "User-Agent": "g19s"})
+                                                       "User-Agent": USER_AGENT})
             with urllib.request.urlopen(req, timeout=6) as r:
                 metaint = int(r.headers.get("icy-metaint") or 0)
-                if metaint:
+                if 0 < metaint <= 256 * 1024:      # übliche Werte 8–64 KiB; mehr = kein Titel
                     remaining = metaint
                     while remaining > 0:          # Audiodaten bis zum Metadatenblock überspringen
                         chunk = r.read(min(remaining, 16384))
@@ -2369,15 +2420,18 @@ class MediaWatcher(threading.Thread):
         from PIL import ImageEnhance, ImageFilter, ImageOps
         try:
             if url.startswith("file://"):
-                with open(urllib.parse.unquote(urllib.parse.urlparse(url).path), "rb") as f:
-                    raw = f.read()
+                path = urllib.parse.unquote(urllib.parse.urlparse(url).path)
+                if not os.path.isfile(path):
+                    return None, None
+                with open(path, "rb") as f:
+                    raw = f.read(8 * 1024 * 1024)
             elif url.startswith(("http://", "https://")):
-                req = urllib.request.Request(url, headers={"User-Agent": "g19s"})
+                req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
                 with urllib.request.urlopen(req, timeout=5) as r:
                     raw = r.read(8 * 1024 * 1024)
             else:
                 return None, None
-            img = Image.open(io.BytesIO(raw)).convert("RGB")
+            img = open_remote_image(raw, draft=(640, 640)).convert("RGB")
         except (NET_ERRORS + (Image.DecompressionBombError,)) as ex:    # PIL meldet kaputte Bilder als OSError
             self.log(f"Cover konnte nicht geladen werden: {ex}")
             return None, None
@@ -2399,7 +2453,7 @@ class Slideshow(threading.Thread):
     """Lädt die Bildliste der gewählten Alben und wechselt die Bilder.
     Netzwerkzugriffe gibt es nur, solange die Displayseite „Bilder“ sichtbar ist."""
 
-    AREA = (WIDTH, HEIGHT - 26)       # Fläche über der Fußzeile
+    AREA = (WIDTH, HEIGHT - FOOTER_H)  # Fläche über der Fußzeile
     LIST_REFRESH = 1800               # Bildliste alle 30 Minuten neu laden
     RETRY = 60                        # nach einem Fehler erneut versuchen
     CACHE_MAX = 400                   # höchstens so viele Bilder zwischenspeichern
@@ -2642,7 +2696,7 @@ class Slideshow(threading.Thread):
         if os.path.exists(path):
             os.utime(path)
             return Image.open(path).convert("RGB")
-        img = Image.open(io.BytesIO(self.client.fetch(info["url"])))
+        img = open_remote_image(self.client.fetch(info["url"]))
         from PIL import ImageOps
         img = ImageOps.exif_transpose(img).convert("RGB")
         img.thumbnail((640, 480), Image.LANCZOS)          # klein speichern, reicht fürs Display
@@ -2677,15 +2731,78 @@ FEED_ERRORS = NET_ERRORS + (ET.ParseError,)
 # --------------------------------------------------------------------------- #
 # Hintergrund-Abrufe für Infoseiten (Wetter, Termine)
 # --------------------------------------------------------------------------- #
-def http_get(url, timeout=12, user=None, password=None, limit=10 * 1024 * 1024):
+USER_AGENT = f"g19s/{VERSION}"         # gleiche Kennung für alle Abrufe
+
+
+def err_text(ex):
+    """Kurzer Fehlertext für Meldungen (urllib-Fehler haben den eigentlichen Grund in .reason)."""
+    return str(getattr(ex, "reason", None) or ex)
+
+
+def basic_auth(user, password):
+    """Kopfzeile für HTTP-Basic-Anmeldung."""
     import base64
+    return "Basic " + base64.b64encode(f"{user}:{password or ''}".encode()).decode()
+
+
+def _safe_opener():
+    """urllib-Opener, der Zugangsdaten nicht an fremde Server weiterreicht: Bei einer Weiterleitung
+    auf einen anderen Server oder von https auf http wird die Authorization-Kopfzeile entfernt."""
+    import urllib.parse
     import urllib.request
-    headers = {"User-Agent": "g19s/1.0"}
+
+    class SafeRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            new = super().redirect_request(req, fp, code, msg, headers, newurl)
+            if new is not None:
+                old_u, new_u = urllib.parse.urlsplit(req.full_url), urllib.parse.urlsplit(new.full_url)
+                if (old_u.scheme, old_u.netloc) != (new_u.scheme, new_u.netloc):
+                    for h in [k for k in new.headers if k.lower() == "authorization"]:
+                        del new.headers[h]
+                    new.unredirected_hdrs.pop("Authorization", None)
+            return new
+
+    return urllib.request.build_opener(SafeRedirect)
+
+
+def open_url(req, timeout):
+    """Wie urllib.request.urlopen, aber mit sicheren Weiterleitungen (siehe _safe_opener)."""
+    return _safe_opener().open(req, timeout=timeout)
+
+
+def same_origin(url, base):
+    """True, wenn url auf demselben Server (Schema + Host + Port) liegt wie base."""
+    import urllib.parse
+    a, b = urllib.parse.urlsplit(url), urllib.parse.urlsplit(base)
+    return (a.scheme.lower(), a.netloc.lower()) == (b.scheme.lower(), b.netloc.lower())
+
+
+REMOTE_IMAGE_PIXELS = 25_000_000       # Bilder aus dem Netz: höchstens 25 Megapixel
+
+
+def open_remote_image(raw, draft=(1280, 960)):
+    """Bild aus dem Netz öffnen und die Größe VOR dem Dekodieren prüfen – ein präpariertes Bild
+    (wenige MB, aber Hunderte Megapixel) würde sonst Gigabytes Speicher belegen."""
+    import io
+    try:
+        im = Image.open(io.BytesIO(raw))
+    except Image.DecompressionBombError as ex:
+        raise ValueError(f"Bild zu groß: {ex}")
+    w, h = im.size
+    if w * h > REMOTE_IMAGE_PIXELS:
+        raise ValueError(f"Bild zu groß ({w}×{h} Pixel)")
+    if draft:
+        im.draft("RGB", draft)                 # JPEG gleich verkleinert dekodieren
+    return im
+
+
+def http_get(url, timeout=12, user=None, password=None, limit=10 * 1024 * 1024):
+    import urllib.request
+    headers = {"User-Agent": USER_AGENT}
     if user:
-        token = base64.b64encode(f"{user}:{password or ''}".encode()).decode()
-        headers["Authorization"] = f"Basic {token}"
+        headers["Authorization"] = basic_auth(user, password)
     req = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    with open_url(req, timeout) as r:
         return r.read(limit)
 
 
@@ -2736,7 +2853,7 @@ class Poller(threading.Thread):
                         self.data, self.error, self.updated = data, None, time.time()
             except Exception as ex:          # Sicherheitsnetz: ein Dienst darf den Treiber nie beenden
                 with self.lock:
-                    self.error = str(getattr(ex, "reason", None) or ex)
+                    self.error = err_text(ex)
                 self.updated = time.time() - self.interval + 120     # nach 2 Minuten erneut
             self.wake.wait(5)
             self.wake.clear()
@@ -2876,7 +2993,7 @@ class NewsPoller(Poller):
             try:
                 items += parse_feed(http_get(url, timeout=20), name)
             except FEED_ERRORS as ex:
-                errors.append(f"{name}: {getattr(ex, 'reason', None) or ex}")
+                errors.append(f"{name}: {err_text(ex)}")
         if errors and not items:
             raise RuntimeError("; ".join(errors))
         old = dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc)
@@ -2981,8 +3098,10 @@ def check_host(host, timeout=2):
                 return True, (time.monotonic() - t0) * 1000
         except OSError:
             return False, None
+    if host.startswith("-"):
+        return False, None                   # wäre eine ping-Option
     try:
-        r = subprocess.run(["ping", "-c", "1", "-W", str(timeout), host], capture_output=True, text=True,
+        r = subprocess.run(["ping", "-c", "1", "-W", str(timeout), "--", host], capture_output=True, text=True,
                            timeout=timeout + 3, env=dict(os.environ, LC_ALL="C"))
     except (OSError, subprocess.TimeoutExpired):
         return False, None
@@ -3026,8 +3145,15 @@ class NetworkPoller(Poller):
 
 # --- Systemupdates (apt, Flatpak) -----------------------------------------------
 class UpdatesPoller(Poller):
+    FLATPAK_INTERVAL = 6 * 3600     # flatpak remote-ls fragt die Server im Netz ab – seltener als apt
+
     def __init__(self, get_settings, log=print):
         super().__init__(get_settings, 3600, log)
+        self._flatpak = (-1e9, None)             # (Zeitpunkt, Anzahl)
+
+    def refresh(self):
+        self._flatpak = (-1e9, None)             # MENU auf der Seite: alles neu abfragen
+        super().refresh()
 
     def enabled(self):
         return "updates" in (self.get_settings().get("pages") or [])
@@ -3044,12 +3170,17 @@ class UpdatesPoller(Poller):
                         security += 1
         flatpak = None
         if (self.get_settings().get("updates") or {}).get("flatpak", True) and shutil.which("flatpak"):
-            try:
-                r = subprocess.run(["flatpak", "remote-ls", "--updates", "--columns=application"],
-                                   capture_output=True, text=True, timeout=120, env=env)
-                flatpak = len([l for l in r.stdout.splitlines() if l.strip()]) if r.returncode == 0 else None
-            except (OSError, subprocess.TimeoutExpired):
-                flatpak = None
+            if time.monotonic() - self._flatpak[0] < self.FLATPAK_INTERVAL:
+                flatpak = self._flatpak[1]
+            else:
+                try:
+                    r = subprocess.run(["flatpak", "remote-ls", "--updates", "--columns=application"],
+                                       capture_output=True, text=True, timeout=120, env=env)
+                    flatpak = len([l for l in r.stdout.splitlines() if l.strip()]) if r.returncode == 0 else None
+                except (OSError, subprocess.TimeoutExpired):
+                    flatpak = None
+                if flatpak is not None:
+                    self._flatpak = (time.monotonic(), flatpak)
         reboot = os.path.exists("/var/run/reboot-required")
         return {"apt": len(pkgs), "security": security, "packages": pkgs[:60], "flatpak": flatpak,
                 "reboot": reboot, "checked": time.strftime("%H:%M"), "apt_ok": bool(shutil.which("apt"))}
@@ -3319,13 +3450,12 @@ def is_single_calendar(url):
 
 
 def dav_request(url, method, body, user, password, depth="0", timeout=30):
-    import base64
     import urllib.request
-    headers = {"User-Agent": "g19s/1.0", "Depth": depth, "Content-Type": "application/xml; charset=utf-8"}
+    headers = {"User-Agent": USER_AGENT, "Depth": depth, "Content-Type": "application/xml; charset=utf-8"}
     if user:
-        headers["Authorization"] = "Basic " + base64.b64encode(f"{user}:{password or ''}".encode()).decode()
+        headers["Authorization"] = basic_auth(user, password)
     req = urllib.request.Request(url, data=body.encode(), headers=headers, method=method)
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    with open_url(req, timeout) as r:
         return r.read(4 * 1024 * 1024)
 
 
@@ -3347,7 +3477,10 @@ def discover_calendars(url, user, password):
     def props(href, xml_props, depth="0"):
         body = ('<?xml version="1.0"?><d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav" '
                 f'xmlns:a="http://apple.com/ns/ical/"><d:prop>{xml_props}</d:prop></d:propfind>')
-        raw = dav_request(urllib.parse.urljoin(origin, href), "PROPFIND", body, user, password, depth)
+        target = urllib.parse.urljoin(origin, href)
+        if not same_origin(target, origin):         # Zugangsdaten nie an einen anderen Server schicken
+            raise ValueError("Der Server verweist auf einen anderen Server – Kalendersuche abgebrochen")
+        raw = dav_request(target, "PROPFIND", body, user, password, depth)
         try:
             return ET.fromstring(raw).findall(f"{D}response")
         except ET.ParseError:
@@ -3381,7 +3514,10 @@ def discover_calendars(url, user, password):
         cm = re.match(r"#?([0-9a-fA-F]{6})", (r.findtext(f".//{A}calendar-color") or "").strip())
         if cm:
             color = [int(cm.group(1)[i:i + 2], 16) for i in (0, 2, 4)]
-        found.append({"name": name, "url": urllib.parse.urljoin(origin, h) + "?export", "color": color})
+        cal_url = urllib.parse.urljoin(origin, h)
+        if not same_origin(cal_url, origin):
+            continue                                    # Kalender auf fremdem Server: ignorieren
+        found.append({"name": name, "url": cal_url + "?export", "color": color})
     if not found:
         raise ValueError("Keine Terminkalender in diesem Konto gefunden")
     return found
@@ -3414,7 +3550,7 @@ def calendar_error(ex, url):
         if ex.code == 429:
             return "Zu viele Fehlversuche – Nextcloud bremst gerade, in einigen Minuten erneut versuchen"
         return f"Server antwortet mit Fehler {ex.code}"
-    reason = str(getattr(ex, "reason", None) or ex)
+    reason = err_text(ex)
     if "CERTIFICATE_VERIFY_FAILED" in reason:
         return "Das Zertifikat des Servers ist ungültig oder selbst signiert"
     if "WRONG_VERSION_NUMBER" in reason or "wrong version number" in reason:
@@ -3560,7 +3696,7 @@ class Hardware:
     def _nvidia_query(self, out):
         import shutil
         now = time.monotonic()
-        if now - self._nvidia[0] > 5:
+        if now - self._nvidia[0] > 30:          # nvidia-smi ist teuer und kann die Grafikkarte wecken
             val = None
             if shutil.which("nvidia-smi"):
                 try:
@@ -3866,8 +4002,10 @@ class FolderTarget:
             raise BackupError(f"Ordner nicht gefunden: {self.folder or '(leer)'} – ist das NAS eingebunden?")
 
     def upload(self, name, data):
+        """Nur für den Benutzer lesbar (0600) – die Sicherung enthält Passwörter aus settings.json."""
         path = os.path.join(self.folder, name)
-        with open(path + ".tmp", "wb") as f:
+        fd = os.open(path + ".tmp", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "wb") as f:
             f.write(data)
         os.replace(path + ".tmp", path)
 
@@ -3918,12 +4056,12 @@ class WebDavTarget:
         return self.describe() + name
 
     def _req(self, method, url, data=None, headers=None, ok=(200, 201, 204, 207)):
-        h = dict(headers or {})
+        h = dict(headers or {}, **{"User-Agent": USER_AGENT})
         if self.user:
-            h["Authorization"] = "Basic " + base64.b64encode(f"{self.user}:{self.password}".encode()).decode()
+            h["Authorization"] = basic_auth(self.user, self.password)
         req = urllib.request.Request(url, data=data, headers=h, method=method)
         try:
-            with urllib.request.urlopen(req, timeout=60) as r:
+            with open_url(req, 60) as r:
                 return r.status, r.read()
         except urllib.error.HTTPError as ex:
             if ex.code in ok:
@@ -3977,6 +4115,8 @@ class SmbTarget:
         if len(parts) < 2:
             raise BackupError("Bitte die Freigabe angeben, z. B. \\\\nas\\freigabe\\Sicherungen")
         self.host, self.share, self.dir = parts[0], parts[1], "/".join(parts[2:])
+        if any(c in raw for c in '";\n\r') or not re.fullmatch(r"[\w.\-\[\]:]+", self.host):
+            raise BackupError("Die Freigabe enthält ungültige Zeichen (\" ; oder Zeilenumbruch)")
         self.user, self.password = str(user or "").strip(), str(password or "")
         self.tool = tool or ("smbclient" if shutil.which("smbclient") else
                              next((t for t in ("kioclient", "kioclient5") if shutil.which(t)), None))
@@ -4021,10 +4161,11 @@ class SmbTarget:
         return r.stdout
 
     # kioclient -------------------------------------------------------------- #
+    # Das Passwort kommt NICHT in die Adresse (sie stünde für alle Benutzer sichtbar in der
+    # Prozessliste). kioclient holt es aus KWallet – dafür die Freigabe einmal in Dolphin öffnen
+    # und das Passwort speichern. Sicherer und ohne diesen Schritt: smbclient installieren.
     def _kio_url(self, name=""):
-        cred = ""
-        if self.user:
-            cred = urllib.parse.quote(self.user, safe="") + ":" + urllib.parse.quote(self.password, safe="") + "@"
+        cred = urllib.parse.quote(self.user, safe="") + "@" if self.user else ""
         path = "/".join(urllib.parse.quote(p) for p in [self.share] + [d for d in self.dir.split("/") if d])
         return f"smb://{cred}{self.host}/{path}/" + urllib.parse.quote(name)
 
@@ -4040,7 +4181,8 @@ class SmbTarget:
             raise BackupError(f"{self.tool}: {ex}")
         if r.returncode:
             msg = (r.stderr.strip().splitlines() or [""])[-1] or f"Fehler {r.returncode}"
-            raise BackupError(f"NAS: {msg.replace(self.password, '***') if self.password else msg}")
+            raise BackupError(f"NAS: {msg} – Tipp: smbclient installieren (sudo apt install smbclient) "
+                              "oder die Freigabe einmal in Dolphin öffnen und das Passwort speichern")
         return r.stdout
 
     def prepare(self):
@@ -4220,7 +4362,7 @@ class RendererBase:
 
     def _footer(self, draw, profile, page, pages):
         color = PROFILE_COLOR.get(profile, self.FG)
-        draw.rectangle([0, HEIGHT - 26, WIDTH, HEIGHT], fill=(20, 24, 34))
+        draw.rectangle([0, HEIGHT - FOOTER_H, WIDTH, HEIGHT], fill=(20, 24, 34))
         draw.rectangle([10, HEIGHT - 19, 22, HEIGHT - 7], fill=color)
         label = f"{self.profile_name} · {profile}" if self.profile_name else f"Profil {profile}"
         step = 14 if pages <= 12 else 10               # viele Seiten: Punkte enger
@@ -4387,7 +4529,7 @@ def refresh_page(app, page_id):
 # ═══════════════════════════════════════════════════════════════════════════
 
 CLOCK_SS = 3                                # Vergrößerung beim Zeichnen (Kantenglättung)
-CLOCK_H = HEIGHT - 26                       # Fläche über der Fußzeile
+CLOCK_H = HEIGHT - FOOTER_H                 # Fläche über der Fußzeile
 WEEKDAY_2 = ["MO", "DI", "MI", "DO", "FR", "SA", "SO"]
 MONTH_3 = ["JAN", "FEB", "MÄR", "APR", "MAI", "JUN", "JUL", "AUG", "SEP", "OKT", "NOV", "DEZ"]
 
@@ -4508,15 +4650,27 @@ class ClockBase:
     def _clock_canvas(self, key, bg, build):
         """Zwischengespeichertes Zifferblatt kopieren (build zeichnet es beim ersten Mal)."""
         self._clock_fonts()
+        if key not in self._cdials and len(self._cdials) >= 8:
+            self._cdials.clear()                  # z. B. nach vielen Farbwechseln: Speicher begrenzen
         if key not in self._cdials:
             c = _Canvas(Image.new("RGB", (WIDTH * CLOCK_SS, CLOCK_H * CLOCK_SS), bg))
             build(c)
             self._cdials[key] = c.img
         return _Canvas(self._cdials[key].copy())
 
+    # Zwischenspeicher der Zifferblatt-Module (je ~2–3 MB pro Eintrag); Schriften bleiben erhalten
+    CLOCK_CACHES = ("_cdials", "_sky_cache", "_disp_mem", "_info_static")
+
+    def _clock_drop_caches(self):
+        """Beim Wechsel des Zifferblatts die Zwischenspeicher der anderen Zifferblätter freigeben."""
+        for name in self.CLOCK_CACHES:
+            cache = self.__dict__.get(name)
+            if isinstance(cache, dict):
+                cache.clear()
+
     def _clock_finish(self, c):
         img = Image.new("RGB", (WIDTH, HEIGHT), self.BG)
-        img.paste(c.img.resize((WIDTH, CLOCK_H), Image.LANCZOS), (0, 0))
+        img.paste(c.img.reduce(CLOCK_SS), (0, 0))     # Mittelwert je 3×3 – 15× schneller als LANCZOS
         return img
 
     @staticmethod
@@ -4561,6 +4715,9 @@ class ClockPage:
     @page("clock")
     def page_clock(self, profile, macros):
         face = getattr(self, "clock_face", "digital")
+        if face != getattr(self, "_clock_last", None):
+            self._clock_drop_caches()                 # anderes Zifferblatt: Speicher freigeben
+            self._clock_last = face
         fn = CLOCK_RENDERERS.get(face) or CLOCK_RENDERERS["digital"]
         return fn(self, profile)
 
@@ -6604,7 +6761,6 @@ class SkyFaces:
 
 _disp_cond = "/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed{}.ttf"
 _disp_sans = "/usr/share/fonts/truetype/dejavu/DejaVuSans{}.ttf"
-_disp_mono = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono{}.ttf"
 
 
 def _disp_shrink(img, w, h):
@@ -7848,7 +8004,7 @@ class MacrosPage:
                 label = self._fit(d, entry_label(m, self.settings), self.f_small, col_w - 48)
                 d.text((x + 42, y), label, font=self.f_small, fill=self.FG)
             else:
-                d.text((x + 42, y), f"F{13 + i}", font=self.f_small, fill=self.DIM)
+                d.text((x + 42, y), f"F{FKEY_BASE + i}", font=self.f_small, fill=self.DIM)
         return img
 
 
@@ -9313,6 +9469,7 @@ def act_radio(app, macro, name):
 
 @gkey_action(lambda m: m.get("media") == "remember")
 def act_remember_song(app, macro, name):
+    app.media.refresh()                     # aktuellen Titel holen (im Hintergrund evtl. 5 s alt)
     info = app.media.snapshot()[0]
     entry = remember_song(info, app.radio.current())
     if entry:
@@ -9423,7 +9580,7 @@ class AppCore:
         from evdev import UInput, ecodes as e
         self.args, self.e = args, e
         migrate_files()                     # ältere settings.json/macros.json umstellen
-        self.fkeys = [getattr(e, f"KEY_F{n}") for n in range(13, 25)]
+        self.fkeys = [getattr(e, f"KEY_F{FKEY_BASE + i}") for i in range(12)]
         self.modifiers = {"M1": None, "M2": e.KEY_LEFTCTRL, "M3": e.KEY_LEFTALT}
 
         # --- Zustand ---
@@ -9448,6 +9605,7 @@ class AppCore:
         self.mic = {"muted": False, "known": False}
         self.popups = deque()               # Benachrichtigungen aus dem Hintergrund-Thread (threadsicher)
         self.next_draw = 0.0
+        self._last_frame, self._last_sent = None, 0.0   # zuletzt gesendetes Bild (siehe App._send)
         self.running = True
         self.prev_gm = self.prev_l = 0
         self.held = {}                      # G-Taste -> Modifier, mit dem sie gedrückt wurde
@@ -9468,6 +9626,7 @@ class AppCore:
         threading.Thread(target=self._mic_poll, daemon=True).start()
         self.media = r.media = MediaWatcher(self.launcher._env, log=self.log, radio=self.radio,
                                             radio_control=self.radio_control)
+        self.media.want_fast = lambda: PAGE_IDS[self.page % len(PAGE_IDS)] == "music" or self.radio.playing
         self.slideshow = r.slideshow = Slideshow(self.settings, log=self.log)
         self.weather = r.weather = WeatherPoller(self.settings, log=self.log)
         self.calendar = r.calendar = CalendarPoller(self.settings, log=self.log)
@@ -9522,7 +9681,7 @@ class AppCore:
                 self.mic.update(muted=state, known=True)
                 self.renderer.mic_muted = state
                 self.mic["changed"] = True
-            time.sleep(5)
+            time.sleep(15)                  # nur für Änderungen von außen; die G-Taste meldet sofort
 
     # --- Radio ---------------------------------------------------------------- #
     def radio_play(self, station, announce=True):
@@ -9890,7 +10049,7 @@ class KeyHandling:
                 self.show("Gespeichert", [f"{gkey} im Profil {layer}", f"{n} Tastendrücke"], PROFILE_COLOR[layer])
                 self.log(f"Makro {layer}/{gkey} gespeichert ({n} Tastendrücke)")
             elif store.delete(self.prof_idx, layer, gkey):
-                self.show("Gelöscht", [f"{gkey} im Profil {layer}", f"sendet wieder F{12 + int(gkey[1:])}"], self.renderer.DIM)
+                self.show("Gelöscht", [f"{gkey} im Profil {layer}", f"sendet wieder F{FKEY_BASE - 1 + int(gkey[1:])}"], self.renderer.DIM)
                 self.log(f"Makro {layer}/{gkey} gelöscht")
             else:
                 self.show("Nichts aufgenommen", ["Kein Makro gespeichert"], self.renderer.DIM)
@@ -9923,7 +10082,7 @@ class KeyHandling:
             self.ui.write(e.EV_KEY, self.fkeys[i], 1)
             self.ui.syn()
         if self.args.debug:
-            print(f"  {name} gedrückt -> {'Strg+' if mod == e.KEY_LEFTCTRL else 'Alt+' if mod else ''}F{13 + i}")
+            print(f"  {name} gedrückt -> {'Strg+' if mod == e.KEY_LEFTCTRL else 'Alt+' if mod else ''}F{FKEY_BASE + i}")
 
     def _gkey_up(self, i, name):
         e, mod = self.e, self.held.pop(name)
@@ -10035,11 +10194,11 @@ class TimedTasks:
             self.menu = None                # Menü schließt sich nach 30 s ohne Tastendruck
             self.next_draw = 0
         r = self.renderer
-        if r.cal_sel is not None and self.menu is None and now - self.sel_t["calendar"] > 30:
+        if r.cal_sel is not None and self.menu is None and now - self.sel_t["calendar"] > SELECTION_TIMEOUT:
             r.cal_sel = None                # Terminmarkierung verschwindet wieder
             self.next_draw = 0
         for k in r.sel:
-            if r.sel[k] is not None and self.menu is None and now - self.sel_t[k] > 30:
+            if r.sel[k] is not None and self.menu is None and now - self.sel_t[k] > SELECTION_TIMEOUT:
                 r.sel[k] = None
                 self.next_draw = 0
 
@@ -10303,8 +10462,11 @@ class App(AppCore, KeyHandling, TimedTasks):
         """Das Bild wählen, das gerade gezeigt werden soll, und senden."""
         r, rec, menu = self.renderer, self.rec, self.menu
         r.clock_face = self.clock_face()
+        if not self.media.fast_now and PAGE_IDS[self.page % len(PAGE_IDS)] == "music":
+            self.media.fast_now = True
+            self.media.wake.set()           # Musikseite wurde gerade sichtbar: sofort abfragen
         if self.night_dark() and (self.settings().get("night") or {}).get("mode") == "off" and not rec and menu is None:
-            self.g19.send_frame(Image.new("RGB", (WIDTH, HEIGHT), (0, 0, 0)))
+            self._send(Image.new("RGB", (WIDTH, HEIGHT), (0, 0, 0)), now)
             self.next_draw = now + 5
             return
         if menu is not None and not rec:
@@ -10322,16 +10484,27 @@ class App(AppCore, KeyHandling, TimedTasks):
         else:
             self.flash = None
             img = r.render(self.page, self.layer, self.store.keys(self.prof_idx))
-        self.g19.send_frame(img)
+        self._send(img, now)
         fast = rec or self.flash or (self.menu and self.menu.kind == "timer")
         if not fast and self.menu is None and PAGE_IDS[self.page % len(PAGE_IDS)] == "clock":
             fps = clock_fps(r.clock_face, self.settings())
-            if fps > 1:                     # bewegte Zifferblätter (Pendel, Sanduhr, Radar …)
+            if fps > 1 and not self.night_dark():   # bewegte Zifferblätter; nachts (gedimmt) 1 Bild/s
                 self.next_draw = now + 1.0 / fps
             else:                           # kurz nach jedem Sekundenwechsel, damit kein Sekundenschritt fehlt
                 self.next_draw = now + (1.0 - time.time() % 1.0) + 0.02
         else:
             self.next_draw = now + (0.5 if fast else 1.0)
+
+    FRAME_REFRESH = 10.0            # unverändertes Bild spätestens nach so vielen Sekunden erneut senden
+
+    def _send(self, img, now):
+        """Bild nur senden, wenn es sich geändert hat (spart USB-Verkehr und CPU); zur Sicherheit
+        – etwa nach kurzem Abziehen der Tastatur – alle FRAME_REFRESH Sekunden trotzdem."""
+        data = img.tobytes()
+        if data == self._last_frame and now - self._last_sent < self.FRAME_REFRESH:
+            return
+        self.g19.send_frame(img)
+        self._last_frame, self._last_sent = data, now
 
     def shutdown(self):
         if self.rec and self.rec["stage"] == "record":
@@ -10448,12 +10621,15 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.09.29-4"
+VERSION = "2026.09.30-1"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
 HOME = os.path.expanduser("~")
-RUNTIME_DIR = os.environ.get("XDG_RUNTIME_DIR") or "/tmp"
+# Laufzeitordner des Benutzers; ohne XDG_RUNTIME_DIR nicht /tmp (dort könnte ein anderer Benutzer
+# die Instanzdatei vorher anlegen), sondern der eigene Cache-Ordner
+RUNTIME_DIR = os.environ.get("XDG_RUNTIME_DIR") or os.path.join(
+    os.environ.get("XDG_CACHE_HOME", os.path.join(HOME, ".cache")), "g19s")
 INSTANCE_FILE = os.path.join(RUNTIME_DIR, "g19s-gui.json")
 IDLE_TIMEOUT = 45          # Sekunden ohne Lebenszeichen der Seite -> Server beenden
 FIRST_CONTACT_TIMEOUT = 180
@@ -10466,15 +10642,15 @@ def load_driver():
     spec = importlib.util.spec_from_file_location("g19s", path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    for needed in ("text_to_steps", "load_settings", "key_label", "RadioManager", "find_mpris_plugin",
-                   "PiwigoClient", "Slideshow", "normalize_macros", "WeatherPoller", "CalendarPoller",
-                   "Hardware", "VOLUME_ACTIONS", "normalize_pages", "BACKUP_FILES", "auto_backup",
-                   "valid_profile_pages", "load_list", "SONGS_FILE", "FAVORITES_FILE", "NewsPoller",
-                   "WarningsPoller", "NetworkPoller", "UpdatesPoller", "parse_feed", "clean_settings", "clean_macros",
-                   "migrate_files", "CLOCK_OPTIONS", "test_backup_target"):
-        if not hasattr(mod, needed):
-            sys.exit("Die installierte g19s.py ist zu alt für die Oberfläche – bitte aktualisieren.")
+    missing = [name for name in DRIVER_API if not hasattr(mod, name)]
+    if missing:
+        sys.exit("Die installierte g19s.py ist zu alt für die Oberfläche – bitte aktualisieren "
+                 f"(es fehlt: {', '.join(missing[:5])}).")
     return mod
+
+
+# Alle Namen des Treibers, die die Verwaltung benutzt (g.<name>) – build.py trägt sie beim Bauen ein
+DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller auto_backup backup_members clean_macros clean_settings err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed save_json save_state test_backup_target valid_colors".split()
 
 
 g = load_driver()
@@ -10571,11 +10747,20 @@ def run(cmd, timeout=10):
         return 124, "Zeitüberschreitung"
 
 
-def service_status():
+_service_cache = [0.0, None]
+
+
+def service_status(max_age=0.0):
+    """Zustand des Dienstes; max_age > 0: so lange zwischengespeichert (für die regelmäßige Abfrage)."""
+    now = time.monotonic()
+    if _service_cache[1] is not None and now - _service_cache[0] < max_age:
+        return _service_cache[1]
     _, active = run(["systemctl", "--user", "is-active", SERVICE])
     _, enabled = run(["systemctl", "--user", "is-enabled", SERVICE])
-    return {"active": active.splitlines()[0] if active else "unbekannt",
-            "enabled": enabled.splitlines()[0] if enabled else "unbekannt"}
+    st = {"active": active.splitlines()[0] if active else "unbekannt",
+          "enabled": enabled.splitlines()[0] if enabled else "unbekannt"}
+    _service_cache[:] = [now, st]
+    return st
 
 
 def service_log(lines=80):
@@ -10619,7 +10804,29 @@ def make_backup():
     return g.make_backup(HOME)
 
 
-def restore_backup(raw):
+# Dateien, die Programmcode oder Befehle enthalten: nur nach ausdrücklicher Zustimmung einspielen
+# (ein ausgetauschtes Archiv auf einem NAS dürfte sonst beliebige Programme unterschieben)
+PROGRAM_FILES = {".local/bin/g19s.py", ".local/bin/g19s-gui.py", ".config/systemd/user/g19s.service",
+                 ".config/kglobalshortcutsrc"}
+MAX_MEMBER = 5 * 1024 * 1024
+PRIVATE_FILES = {".config/g19s/settings.json"}          # enthält Passwörter
+
+
+def is_program_file(name):
+    return name in PROGRAM_FILES or bool(DESKTOP_RE.fullmatch(name))
+
+
+def _write_private(path, data):
+    """Datei nur für den Benutzer lesbar schreiben (0600)."""
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "wb") as f:
+        f.write(data)
+    os.chmod(path, 0o600)
+
+
+def restore_backup(raw, programs=False, inspect=False):
+    """Sicherung einspielen. inspect=True: nur Inhalt melden ({"config": [...], "programs": [...]}).
+    programs=False: Programmdateien, Dienst, KDE-Kurzbefehle und Starter werden übersprungen."""
     try:
         tar = tarfile.open(fileobj=io.BytesIO(raw), mode="r:gz")
     except tarfile.TarError as ex:
@@ -10628,26 +10835,37 @@ def restore_backup(raw):
     with tar:
         for m in tar.getmembers():
             name = m.name[2:] if m.name.startswith("./") else m.name
-            if not m.isfile():
+            if not m.isfile() or m.size > MAX_MEMBER:
                 continue
             if name in BACKUP_FILES or DESKTOP_RE.fullmatch(name):
                 allowed.append((name, m))
         if not allowed:
             raise ValueError("Die Datei enthält keine G19s-Dateien")
-        # vorherigen Stand sichern
+        if inspect:
+            return {"config": [n for n, _ in allowed if not is_program_file(n)],
+                    "programs": [n for n, _ in allowed if is_program_file(n)]}
+        if not programs:
+            allowed = [(n, m) for n, m in allowed if not is_program_file(n)]
+            if not allowed:
+                raise ValueError("Die Sicherung enthält nur Programmdateien – nichts eingespielt")
+        # vorherigen Stand sichern (enthält Passwörter → 0600)
         stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         safety = os.path.join(HOME, ".config/g19s", f"vor-wiederherstellung-{stamp}.tar.gz")
-        os.makedirs(os.path.dirname(safety), exist_ok=True)
-        with open(safety, "wb") as f:
-            f.write(make_backup())
+        os.makedirs(os.path.dirname(safety), mode=0o700, exist_ok=True)
+        _write_private(safety, make_backup())
         restored = []
         for name, m in allowed:
             dest = os.path.join(HOME, name)
             os.makedirs(os.path.dirname(dest), exist_ok=True)
-            data = tar.extractfile(m).read()
+            data = tar.extractfile(m).read(MAX_MEMBER + 1)
+            if len(data) > MAX_MEMBER:
+                continue
             tmp = dest + ".tmp"
-            with open(tmp, "wb") as f:
-                f.write(data)
+            if name in PRIVATE_FILES:
+                _write_private(tmp, data)
+            else:
+                with open(tmp, "wb") as f:
+                    f.write(data)
             if name.endswith(".py"):
                 os.chmod(tmp, 0o755)
             os.replace(tmp, dest)
@@ -10770,11 +10988,11 @@ def radio_search(query):
     for host in RADIO_BROWSER_HOSTS:
         url = f"https://{host}/json/stations/search?{params}"
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "g19s-gui/1.0"})
+            req = urllib.request.Request(url, headers={"User-Agent": g.USER_AGENT})
             with urllib.request.urlopen(req, timeout=8) as r:
                 items = json.load(r)
             break
-        except Exception as ex:
+        except Exception as ex:         # nächsten Server des Radio-Verzeichnisses versuchen
             last = ex
     else:
         raise RuntimeError(f"Radio-Verzeichnis nicht erreichbar: {last}")
@@ -10826,7 +11044,7 @@ def piwigo_test(cfg):
         try:
             raw = Image.open(pick["url"])
             raw.load()
-        except Exception as ex:
+        except Exception as ex:         # beliebige Bilddatei: jeden Lesefehler melden
             raise RuntimeError(f"Bild „{os.path.basename(pick['url'])}“ nicht lesbar: {ex}")
     else:
         if not cfg["url"]:
@@ -10839,7 +11057,7 @@ def piwigo_test(cfg):
             if not images:
                 return {"count": 0, "image": None}
             pick = random.choice(images) if cfg["shuffle"] else images[0]
-            raw = Image.open(io.BytesIO(client.fetch(pick["url"])))
+            raw = g.open_remote_image(client.fetch(pick["url"]))
         except g.PiwigoError as ex:
             raise RuntimeError(str(ex))
     fitted = g.fit_photo(raw, g.Slideshow.AREA, cfg["fit"])
@@ -10874,8 +11092,8 @@ class PreviewData:
             return hit
         try:
             res = (poller.fetch(), None, time.time())
-        except Exception as ex:
-            res = (None, str(getattr(ex, "reason", None) or ex), time.time())
+        except Exception as ex:         # Dienst im Netz: Fehler in der Vorschau anzeigen
+            res = (None, g.err_text(ex), time.time())
         self.cache = {key: res}
         return res
 
@@ -10975,7 +11193,7 @@ class ApiKeys:
                                     "settings": mtime(g.SETTINGS_FILE)},
                          "active": active_profile(len(macros["profiles"])),
                          "version": VERSION,
-                         "service": service_status(),
+                         "service": service_status(max_age=10),
                          "radio": test_radio.current()})
 
     def api_post_macros(self, q):
@@ -10987,10 +11205,6 @@ class ApiKeys:
         data = clean_settings(self._json().get("settings"))
         g.save_json(g.SETTINGS_FILE, data, compact_steps=True, private=True)
         self._send(200, {"ok": True, "settings": data, "mtime": mtime(g.SETTINGS_FILE)})
-
-    def api_post_textcheck(self, q):
-        steps, unknown = g.text_to_steps(str(self._json().get("text", "")))
-        self._send(200, {"steps": len(steps), "unknown": unknown})
 
     # -- API: Vorschau ----------------------------------------------------- #
     def api_post_preview(self, q):
@@ -11041,17 +11255,18 @@ class ApiInfo:
         if len(name) < 2:
             raise ValueError("Bitte mindestens zwei Buchstaben eingeben")
         try:
-            self._send(200, {"results": g.geocode(name)})
-        except Exception as ex:
-            raise RuntimeError(f"Ortssuche nicht erreichbar: {getattr(ex, 'reason', None) or ex}")
+            results = g.geocode(name)
+        except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
+            raise RuntimeError(f"Ortssuche nicht erreichbar: {g.err_text(ex)}")
+        self._send(200, {"results": results})
 
     def api_post_weather_test(self, q):
         w = self._json()
         poller = g.WeatherPoller(lambda: {"weather": w, "pages": ["weather"]})
         try:
             data = poller.fetch()
-        except Exception as ex:
-            raise RuntimeError(f"Wetterdienst nicht erreichbar: {getattr(ex, 'reason', None) or ex}")
+        except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
+            raise RuntimeError(f"Wetterdienst nicht erreichbar: {g.err_text(ex)}")
         cur = data.get("current") or {}
         desc = g.WEATHER_CODES.get(int(cur.get("weather_code") or 0), ("", ""))[0]
         self._send(200, {"temp": cur.get("temperature_2m"), "desc": desc})
@@ -11061,7 +11276,7 @@ class ApiInfo:
         s = {"calendar": {"sources": [src], "days": 30}, "pages": ["calendar"]}
         try:
             data = g.CalendarPoller(lambda: s).fetch()
-        except Exception as ex:
+        except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
             raise RuntimeError(str(ex))
         if data["errors"]:
             raise RuntimeError(data["errors"][0])
@@ -11109,8 +11324,8 @@ class ApiInfo:
             raise ValueError("Die Adresse muss mit http:// oder https:// beginnen")
         try:
             items = g.parse_feed(g.http_get(url, timeout=20), f.get("name") or "")
-        except Exception as ex:
-            raise RuntimeError(f"Feed nicht lesbar: {getattr(ex, 'reason', None) or ex}")
+        except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
+            raise RuntimeError(f"Feed nicht lesbar: {g.err_text(ex)}")
         if not items:
             raise RuntimeError("Keine Meldungen gefunden – ist das ein RSS- oder Atom-Feed?")
         self._send(200, {"count": len(items), "first": items[0]["title"]})
@@ -11121,8 +11336,8 @@ class ApiInfo:
             raise ValueError("Zuerst oben einen Wetter-Ort wählen")
         try:
             data = g.WarningsPoller(lambda: s).fetch()
-        except Exception as ex:
-            raise RuntimeError(f"Warndienst nicht erreichbar: {getattr(ex, 'reason', None) or ex}")
+        except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
+            raise RuntimeError(f"Warndienst nicht erreichbar: {g.err_text(ex)}")
         self._send(200, {"place": data["place"], "alerts": [f"{g.SEVERITY.get(a['severity'], ('', ''))[0]}: {a['event']}"
                                                              for a in data["alerts"]]})
 
@@ -11233,7 +11448,10 @@ class ApiService:
         self._send(200, {"files": backup_members()})
 
     def api_post_restore(self, q):
-        restored, safety = restore_backup(self._body())
+        raw = self._body()
+        if q.get("inspect") == ["1"]:
+            return self._send(200, restore_backup(raw, inspect=True))
+        restored, safety = restore_backup(raw, programs=q.get("programs") == ["1"])
         self._send(200, {"restored": restored, "safety": safety})
 
     def api_get_versions(self, q):
@@ -11421,14 +11639,14 @@ def existing_instance():
         with open(INSTANCE_FILE) as f:
             info = json.load(f)
         state = _local("/api/poll", info)
-    except Exception:
+    except Exception:                   # keine oder abgestürzte Instanz: neu starten
         return None
     if state.get("version") == VERSION:
         return info
     print(f"Ältere Verwaltung ({state.get('version') or 'ohne Version'}) wird beendet …", flush=True)
     try:
         _local("/api/quit", info, data=b"{}")
-    except Exception:
+    except Exception:                   # alte Instanz reagiert nicht auf /api/quit
         try:
             os.kill(int(info.get("pid")), signal.SIGTERM)    # alte Versionen ohne /api/quit
         except (OSError, TypeError, ValueError):
@@ -11437,7 +11655,7 @@ def existing_instance():
         time.sleep(0.2)
         try:
             _local("/api/poll", info, timeout=0.5)
-        except Exception:
+        except Exception:               # nicht mehr erreichbar = beendet
             break
     return None
 
@@ -11527,6 +11745,7 @@ def main():
     url = f"http://127.0.0.1:{app.port}/#{app.token}"
 
     try:
+        os.makedirs(RUNTIME_DIR, mode=0o700, exist_ok=True)
         fd = os.open(INSTANCE_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w") as f:
             json.dump({"port": app.port, "token": app.token, "pid": os.getpid()}, f)
@@ -12158,7 +12377,7 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
     </div>
     <div class="card">
       <h2>Automatische Sicherung</h2>
-      <p class="hint">Der Treiber legt regelmäßig eine Sicherung ab – in einem Ordner, auf dem NAS oder in der Nextcloud. Ältere automatische Sicherungen werden dort aufgeräumt.</p>
+      <p class="hint">Der Treiber legt regelmäßig eine Sicherung ab – in einem Ordner, auf dem NAS oder in der Nextcloud. Ältere automatische Sicherungen werden dort aufgeräumt. Sicherungen enthalten auch die gespeicherten Passwörter – nur an Orten ablegen, auf die sonst niemand Zugriff hat.</p>
       <label class="check"><input type="checkbox" id="abOn"> Automatisch sichern</label>
       <label class="field" style="max-width:420px"><span>Ziel</span>
         <select id="abTarget">
@@ -12867,7 +13086,7 @@ function setProfileColor(layer, value) {
 }
 
 // ---------------------------------------------------------------- Radiosender
-function touchSettings() { UI.sDirty = true; markTabs(); renderSavebar(); }
+function touchSettings() { UI.sDirty = true; markTabs(); renderSavebar(); schedulePreview(); }
 function renderStations() {
   const t = $("#stations"), sd = UI.sdraft; if (!sd) return;
   t.replaceChildren(el("thead", {}, el("tr", {}, el("th", {}), el("th", {}, "Name"), el("th", {}, "Stream-Adresse"), el("th", {}, "Logo (optional)"), el("th", {}))));
@@ -13110,6 +13329,7 @@ $("#saverOn").addEventListener("change", e => { UI.sdraft.screensaver.enabled = 
 $("#saverMin").addEventListener("input", e => { UI.sdraft.screensaver.minutes = Math.max(1, parseInt(e.target.value) || 5); touchSettings(); });
 $("#saverPage").addEventListener("change", e => { UI.sdraft.screensaver.page = e.target.value; touchSettings(); });
 $("#volStep").addEventListener("input", e => { UI.sdraft.volume_step = Math.max(1, Math.min(25, parseInt(e.target.value) || 5)); touchSettings(); });
+// Vorschau nach Änderungen an den Einstellungen verzögert neu laden (touchSettings ruft das auf)
 let pvTimer = null;
 function schedulePreview() { clearTimeout(pvTimer); pvTimer = setTimeout(refreshPreview, 250); }
 async function refreshPreview() {
@@ -13513,7 +13733,15 @@ $("#restoreFile").addEventListener("change", async e => {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
   if (!confirm(`Sicherung „${f.name}“ einspielen? Die aktuellen Dateien werden vorher automatisch gesichert.`)) return;
   try {
-    const r = await api("/api/restore", {body: await f.arrayBuffer(), raw: true});
+    const body = await f.arrayBuffer();
+    const info = await api("/api/restore?inspect=1", {body, raw: true});
+    let programs = false;
+    if (info.programs.length)
+      programs = confirm("Die Sicherung enthält auch Programmdateien und KDE-Kurzbefehle:\n\n" +
+        info.programs.map(p => "~/" + p).join("\n") +
+        "\n\nDiese nur einspielen, wenn die Sicherung sicher von dir stammt (z. B. nach einer Neuinstallation)." +
+        "\n\nOK = mit einspielen · Abbrechen = nur Einstellungen und Makros");
+    const r = await api("/api/restore?programs=" + (programs ? "1" : "0"), {body, raw: true});
     toast(`Wiederhergestellt: ${r.restored.length} Dateien. Treiber neu starten, damit alles greift.`);
     await loadState(); refreshService();
   } catch (err) { toast(err.message, true); }
@@ -13562,7 +13790,7 @@ function renderPaths() {
 const AB_HINTS = {
   folder: "Ein Ordner auf diesem Rechner. Ein NAS muss dafür eingebunden sein (z. B. per /etc/fstab unter /mnt/nas); ein Nextcloud-Ordner, den der Nextcloud-Client synchronisiert, funktioniert direkt (z. B. ~/Nextcloud/Sicherungen). Hinweis: Freigaben, die nur in Dolphin geöffnet sind (smb://…), sind kein Ordner – dafür „NAS – Windows-Freigabe“ wählen.",
   nextcloud: "Adresse deiner Nextcloud (z. B. https://cloud.example.de – auch die Adresse aus dem Browser geht), dein Benutzername und am besten ein App-Passwort: Nextcloud → Persönliche Einstellungen → Sicherheit → „Neues App-Passwort erstellen“. Der Ordner wird bei Bedarf angelegt.",
-  smb: "Freigabe und Ordner wie im Dateimanager, z. B. \\\\nas\\backup\\G19s oder smb://nas/backup/G19s – der Ordner muss vorhanden sein. Benötigt das Programm smbclient (sudo apt install smbclient); ohne smbclient wird KDEs kioclient benutzt.",
+  smb: "Freigabe und Ordner wie im Dateimanager, z. B. \\\\nas\\backup\\G19s oder smb://nas/backup/G19s – der Ordner muss vorhanden sein. Benötigt das Programm smbclient (sudo apt install smbclient). Ohne smbclient wird KDEs kioclient benutzt – dann die Freigabe einmal in Dolphin öffnen und das Passwort speichern (das Passwort hier wird aus Sicherheitsgründen nicht an kioclient übergeben).",
   webdav: "Vollständige Adresse des Ordners, z. B. https://nas.local:5006/home/Sicherungen (Synology: Paket „WebDAV Server“, QNAP: WebDAV in den Freigabe-Einstellungen). Der Ordner muss vorhanden sein.",
 };
 const AB_URL = {nextcloud: ["Adresse der Nextcloud", "https://cloud.example.de"], smb: ["Freigabe und Ordner", "\\\\nas\\backup\\G19s"],
@@ -13642,7 +13870,9 @@ async function poll() {
   const cur = d.radio ? d.radio.url : null;
   if ((UI.testing && UI.testing.url) !== cur) { UI.testing = d.radio; renderStations(); renderResults(); }
 }
-setInterval(poll, 3000);
+// Abgleich alle 3 s; im Hintergrund-Tab nur alle 15 s (hält die Sitzung am Leben, spart Prozessaufrufe)
+let pollHidden = 0;
+setInterval(() => { if (!document.hidden || ++pollHidden % 5 === 0) poll(); }, 3000);
 window.addEventListener("beforeunload", e => {
   fetch("/api/bye", {method: "POST", headers: {"X-Token": TOKEN}, keepalive: true}).catch(() => {});
   if (UI.draftDirty || UI.sDirty) { e.preventDefault(); e.returnValue = ""; }
@@ -14031,7 +14261,7 @@ Auf der Seite '''Uhr''' öffnet '''MENU''' die Liste '''Zifferblatt''' mit bis z
 |}
 Die meisten Zifferblätter werden genau zum Sekundenwechsel neu gezeichnet. Bewegte Zifferblätter (Pendel-, Kuckucks-, Sand- und Kerzenuhr, Planeten, Radar, Klappzahlen, Zählwerk) zeichnen 5-mal pro Sekunde, das Terminal 2-mal (Cursor).
 
-'''Eigene Zifferblätter''' (für Entwickler): siehe <code>README.md</code> im Projektarchiv – ein Zifferblatt ist eine Methode mit <code>@clock_face("id")</code>, der Name steht in <code>CLOCK_FACES</code>, die Einstellungen in <code>CLOCK_OPTIONS</code>; <code>tests/uhren_vorschau.py</code> zeigt es als Bild.
+'''Eigene Zifferblätter''' (für Entwickler): siehe <code>ENTWICKLUNG.md</code> auf https://github.com/MrCatwiesel/g19s-kubuntu – ein Zifferblatt ist eine Methode mit <code>@clock_face("id")</code>, der Name steht in <code>CLOCK_FACES</code>, die Einstellungen in <code>CLOCK_OPTIONS</code>; <code>tests/uhren_vorschau.py</code> zeigt es als Bild.
 
 === Textbausteine ===
 Im Reiter '''Textbausteine''' der Verwaltung Texte anlegen (Name, optionale Gruppe, Text – auch mehrzeilig). Dann einer G-Taste die Aktion '''Textbausteine''' geben (alle oder nur eine Gruppe). Ein Druck auf die G-Taste zeigt die Liste auf dem Display:
@@ -14387,11 +14617,11 @@ getfacl /dev/bus/usb/BUS/GERÄT                      # Rechte (Nummern aus lsusb
 * Netzwerk: <code>ping -c 1 -W 2</code> bzw. TCP-Verbindung bei <code>Name:Port</code>; Router aus <code>/proc/net/route</code>.
 * Updates: <code>apt list --upgradable</code> (nutzt die von Discover bzw. apt zuletzt geladenen Paketlisten), <code>flatpak remote-ls --updates</code>, <code>/var/run/reboot-required</code>.
 * Update-Knopf: erkennt die Dateien an <code>G19S_COMPONENT</code> und <code>VERSION</code> im Kopf und an der Endzeile <code># G19S-DATEIENDE</code>. Eine unvollständig heruntergeladene Datei wird abgewiesen („unvollständig“).
-* Aufbau des Quelltexts: Beide Programme werden aus einzelnen Modulen zusammengesetzt (Treiber: 49 Module, Verwaltung: 14 Server-Module plus Seite aus HTML, CSS und 17 JavaScript-Dateien) und als je eine Datei ausgeliefert. Jeder Abschnitt beginnt mit einem Kommentarkopf <code># ==== Modul: … ====</code>, der beschreibt, was darin steht.
+* Aufbau des Quelltexts: Beide Programme werden aus einzelnen Modulen zusammengesetzt (Treiber und Verwaltung aus je einer Reihe von Python-Modulen, die Seite der Verwaltung aus HTML, CSS und JavaScript-Dateien) und als je eine Datei ausgeliefert. Jeder Abschnitt beginnt mit einem Kommentarkopf <code># Modul …</code>, der beschreibt, was darin steht. Quelltext und Tests: https://github.com/MrCatwiesel/g19s-kubuntu
 ** Einstellungen: ein gemeinsames Schema (<code>SCHEMA</code>) für Treiber und Verwaltung – der Treiber liest tolerant (Ungültiges → Standardwert), die Verwaltung prüft streng mit verständlicher Fehlermeldung.
 ** Displayseiten melden sich mit <code>@page("id")</code> an, ihre Tasten mit <code>@page_keys("id")</code>; Menüs am Display sind Klassen (<code>ProfileMenu</code>, <code>CalendarMenu</code>, <code>AlbumMenu</code>, …); G-Tasten-Aktionen stehen in einer Tabelle (<code>@gkey_action</code>).
 ** Die Anwendung besteht aus <code>AppCore</code> (Zustand, Profile, Licht), <code>KeyHandling</code> (Tasten) und <code>TimedTasks</code> (Zeitaufgaben).
-** Das Projektarchiv mit allen Modulen, dem Bauskript <code>build.py</code> und den automatischen Tests (Einheitentests, Bildvergleiche aller Displayseiten, Bediensimulationen, Oberflächentests) liegt als <code>g19s-projekt.zip</code> bei.
+** Das Projektarchiv mit allen Modulen, dem Bauskript <code>build.py</code> und den automatischen Tests (Einheitentests, Bildvergleiche aller Displayseiten, Bediensimulationen, Oberflächentests) liegt auf GitHub: https://github.com/MrCatwiesel/g19s-kubuntu
 
 [[Kategorie:Linux]]
 [[Kategorie:Hardware]]

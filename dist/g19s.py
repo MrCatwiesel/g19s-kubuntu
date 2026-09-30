@@ -40,7 +40,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.09.29-4"
+VERSION = "2026.09.30-1"
 
 # Weitere Importe der Module
 import http.client
@@ -76,6 +76,9 @@ EP_LKEYS = 0x81              # Interrupt IN, Interface 0: Displaytasten
 EP_GKEYS = 0x83              # Interrupt IN, Interface 1: G-/M-Tasten
 
 WIDTH, HEIGHT = 320, 240
+FOOTER_H = 26               # Höhe der Fußzeile (Profil, Seitenpunkte) unten auf jeder Seite
+FKEY_BASE = 13              # G1 sendet F13, G12 sendet F24
+SELECTION_TIMEOUT = 30      # Sekunden, nach denen eine Markierung (Termin, Meldung) verschwindet
 
 # G-/M-Tasten (Report-ID 0x02): Wert = d[1] | d[2] << 8
 #   d[1]: G1–G8, d[2]: G9–G12 (Bits 0–3), M1/M2/M3/MR (Bits 4–7)
@@ -395,7 +398,10 @@ class Items(Field):
                 continue
             if self.required and not str(v.get(self.required) or "").strip():
                 continue
-            out.append(self.item.clean(v, strict))
+            item = self.item.clean(v, strict)
+            if self.required and not str(item.get(self.required) or "").strip():
+                continue                            # Pflichtfeld nach der Prüfung ungültig (tolerant)
+            out.append(item)
         return out[:self.limit] if self.limit else out
 
 
@@ -429,6 +435,7 @@ class Optional(Field):
 
 # --- Regeln über mehrere Felder --------------------------------------------- #
 TIME_RE = r"([01]\d|2[0-3]):[0-5]\d"
+URL_RE = r"(?i)https?://\S+"                  # Senderadressen: keine Leerzeichen/Zeilenumbrüche (m3u!)
 
 
 def _check_backup(b, strict):
@@ -486,7 +493,9 @@ SCHEMA = {
     "start_page": Int(0, -10 ** 6, 10 ** 6),             # Index in PAGE_IDS (modulo Anzahl, −1 = letzte)
     "radio_player": Str("mpv --no-video --really-quiet --load-scripts=no {url}", strip=False, empty_default=True),
     "stations": Items([{"name": "Rockantenne", "url": "https://stream.rockantenne.de/rockantenne/stream/aacp", "logo": ""}],
-                      Entry({"name": Str(), "url": Str(), "logo": Str()}), required="url"),
+                      Entry({"name": Str(), "url": Str(pattern=URL_RE, msg="Senderadressen müssen mit http:// oder "
+                                                                             "https:// beginnen (ohne Leerzeichen)"),
+                             "logo": Str()}), required="url"),
     "slideshow": Section({
         "url": Str(),                     # Adresse der Piwigo-Galerie
         "user": Str(),                    # leer = nur öffentliche Alben
@@ -568,7 +577,7 @@ def _check_feeds(s):
 @_strict_rule
 def _check_hosts(s):
     for h in s["network"]["hosts"]:
-        if not re.fullmatch(r"[A-Za-z0-9._:\-\[\]]+", h["host"]):
+        if not re.fullmatch(r"[A-Za-z0-9\[][A-Za-z0-9._:\-\[\]]*", h["host"]):    # nie mit „-“ beginnend
             raise Invalid(f"Ungültiger Gerätename: {h['host']}")
 
 
@@ -646,7 +655,7 @@ def normalize_pages(data):
 def save_json(path, data, compact_steps=False, private=False):
     """Schreibt JSON atomar (erst temporäre Datei, dann umbenennen).
     private=True: nur für den Benutzer lesbar (z. B. wegen Piwigo-Passwort)."""
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)   # neu angelegt: nur für den Benutzer
     text = json.dumps(data, indent=2, ensure_ascii=False)
     if compact_steps:
         # innerste Listen (einzelne Schritte, Farben) auf eine Zeile zusammenziehen
@@ -1069,6 +1078,11 @@ def migrate_system_page(settings_path=None, macros_path=None, log=print):
 
 def migrate_files(log=print):
     """Umstellungen älterer Dateien beim Start (Treiber und Verwaltung, mehrfach aufrufbar)."""
+    try:                                     # Konfigurationsordner (enthält Passwörter) nur für den Benutzer
+        if os.path.isdir(CONFIG_DIR) and os.stat(CONFIG_DIR).st_mode & 0o077:
+            os.chmod(CONFIG_DIR, 0o700)
+    except OSError:
+        pass
     migrate_system_page(log=log)
     migrate_clock_pages(log=log)
 
@@ -1669,6 +1683,10 @@ class ActivityWatcher(threading.Thread):
                     self.last = time.monotonic()
                 except (BlockingIOError, OSError):
                     pass
+            if ready:
+                # Aktivität erkannt – für den Bildschirmschoner reicht Sekundengenauigkeit. Ohne diese
+                # Pause wacht der Thread bei Mausbewegung Hunderte Male pro Sekunde auf.
+                time.sleep(1.0)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1688,7 +1706,19 @@ class Launcher:
         self.log = log
         self.children = []
 
+    ENV_TTL = 30            # Sekunden, die die Sitzungsumgebung zwischengespeichert wird
+
     def _env(self):
+        """Umgebung der Desktop-Sitzung (systemctl --user show-environment), 30 s zwischengespeichert."""
+        now = time.monotonic()
+        cached = getattr(self, "_env_cache", None)
+        if cached and now - cached[0] < self.ENV_TTL:
+            return dict(cached[1])
+        env = self._session_env()
+        self._env_cache = (now, env)
+        return dict(env)
+
+    def _session_env(self):
         env = dict(os.environ)
         try:
             out = subprocess.run(["systemctl", "--user", "show-environment"],
@@ -1763,7 +1793,7 @@ class PiwigoClient:
         self.user, self.password, self.timeout = user or "", password or "", timeout
         self.jar = http.cookiejar.CookieJar()
         self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.jar))
-        self.opener.addheaders = [("User-Agent", "g19s/1.0")]
+        self.opener.addheaders = [("User-Agent", USER_AGENT)]
         self.logged_in = False
 
     def _call(self, method, params=None, post=False):
@@ -1788,7 +1818,7 @@ class PiwigoClient:
         except urllib.error.HTTPError as ex:
             raise PiwigoError(f"Piwigo antwortet mit Fehler {ex.code} ({url.split('?')[0]})")
         except NET_ERRORS as ex:
-            reason = str(getattr(ex, "reason", ex))
+            reason = err_text(ex)
             if "WRONG_VERSION_NUMBER" in reason or "wrong version number" in reason:
                 raise PiwigoError("Die Galerie unterstützt kein https – Adresse mit http:// eintragen")
             if "CERTIFICATE_VERIFY_FAILED" in reason:
@@ -1882,11 +1912,13 @@ class PiwigoClient:
         import urllib.parse
         if not re.match(r"^https?://", url, re.I):
             url = urllib.parse.urljoin(self.base + "/", url)
+        if not re.match(r"^https?://", url, re.I):        # z. B. file:// aus der Serverantwort
+            raise PiwigoError("Ungültige Bildadresse vom Server")
         try:
             with self.opener.open(url, timeout=self.timeout) as r:
                 return r.read(limit)
         except NET_ERRORS as ex:
-            raise PiwigoError(f"Bild nicht abrufbar: {getattr(ex, 'reason', ex)}")
+            raise PiwigoError(f"Bild nicht abrufbar: {err_text(ex)}")
 
 
 def fit_photo(img, size, mode="contain"):
@@ -1955,7 +1987,8 @@ class RadioManager:
             is_mpv = False
         urls = [s["url"] for s in stations]
         if is_mpv and url in urls:
-            playlist = os.path.join(os.environ.get("XDG_RUNTIME_DIR") or "/tmp", "g19s-radio.m3u")
+            playlist = os.path.join(os.environ.get("XDG_RUNTIME_DIR") or CACHE_DIR, "g19s-radio.m3u")
+            os.makedirs(os.path.dirname(playlist), exist_ok=True)
             with open(playlist, "w", encoding="utf-8") as f:
                 f.write("#EXTM3U\n")
                 for s in stations:
@@ -1974,9 +2007,12 @@ class RadioManager:
     def play(self, station, player_cmd, stations=None):
         self.stop()
         url = station.get("url", "")
-        if not url:
+        if not url or not re.fullmatch(URL_RE, url):
+            if url:
+                self.log(f"Radio: ungültige Senderadresse ignoriert: {url[:80]!r}")
             return False
-        stations = [dict(s) for s in (stations or []) if isinstance(s, dict) and s.get("url")]
+        stations = [dict(s) for s in (stations or []) if isinstance(s, dict)
+                    and re.fullmatch(URL_RE, str(s.get("url") or ""))]
         if url not in [s["url"] for s in stations]:
             stations = [dict(station)]
         cmd, uses_list = self._build_cmd(player_cmd or DEFAULT_SETTINGS["radio_player"], url, stations)
@@ -2031,14 +2067,18 @@ class RadioManager:
 # Aktuelle Wiedergabe (MPRIS über playerctl)
 # --------------------------------------------------------------------------- #
 class MediaWatcher(threading.Thread):
-    """Fragt jede Sekunde ab, was gerade läuft, und lädt das Cover."""
+    """Fragt ab, was gerade läuft, und lädt das Cover: jede Sekunde, solange want_fast() gilt
+    (Musikseite sichtbar oder Radio an), sonst alle SLOW_INTERVAL Sekunden – playerctl weckt
+    bei jedem Aufruf alle Player über D-Bus."""
+
+    SLOW_INTERVAL = 5
 
     FIELDS = ("player", "status", "title", "artist", "album", "art", "position", "length", "url")
     FMT = "\t".join(["{{playerName}}", "{{status}}", "{{title}}", "{{artist}}",
                      "{{album}}", "{{mpris:artUrl}}", "{{position}}", "{{mpris:length}}",
                      "{{xesam:url}}"])
     COVER_SIZE = 132
-    ICY_INTERVAL = 15       # Sekunden zwischen zwei Abfragen beim Radiosender
+    ICY_INTERVAL = 30       # Sekunden zwischen zwei Abfragen beim Radiosender (je eine neue Verbindung)
 
     RADIO_PLAYER = "g19s-radio"
 
@@ -2050,6 +2090,8 @@ class MediaWatcher(threading.Thread):
         self.lock = threading.Lock()
         self.wake = threading.Event()
         self.running = True
+        self.want_fast = lambda: True       # setzt der Treiber (Musikseite sichtbar / Radio an)
+        self.fast_now = True
         self.info = None
         self.error = None
         self.cover_url = None
@@ -2107,8 +2149,17 @@ class MediaWatcher(threading.Thread):
             except Exception as ex:  # Sicherheitsnetz: nie wegen der Musikseite abstürzen
                 with self.lock:
                     self.error = str(ex)
-            self.wake.wait(1.0)
+            self.fast_now = bool(self.want_fast())
+            self.wake.wait(1.0 if self.fast_now else self.SLOW_INTERVAL)
             self.wake.clear()
+
+    def refresh(self):
+        """Sofort abfragen (z. B. vor „Song merken“), im aufrufenden Thread."""
+        try:
+            self._poll()
+        except Exception as ex:             # wie in run(): nie wegen der Musikabfrage abstürzen
+            with self.lock:
+                self.error = str(ex)
 
     def _poll(self):
         error = None
@@ -2209,10 +2260,10 @@ class MediaWatcher(threading.Thread):
         title = None
         try:
             req = urllib.request.Request(url, headers={"Icy-MetaData": "1",
-                                                       "User-Agent": "g19s"})
+                                                       "User-Agent": USER_AGENT})
             with urllib.request.urlopen(req, timeout=6) as r:
                 metaint = int(r.headers.get("icy-metaint") or 0)
-                if metaint:
+                if 0 < metaint <= 256 * 1024:      # übliche Werte 8–64 KiB; mehr = kein Titel
                     remaining = metaint
                     while remaining > 0:          # Audiodaten bis zum Metadatenblock überspringen
                         chunk = r.read(min(remaining, 16384))
@@ -2245,15 +2296,18 @@ class MediaWatcher(threading.Thread):
         from PIL import ImageEnhance, ImageFilter, ImageOps
         try:
             if url.startswith("file://"):
-                with open(urllib.parse.unquote(urllib.parse.urlparse(url).path), "rb") as f:
-                    raw = f.read()
+                path = urllib.parse.unquote(urllib.parse.urlparse(url).path)
+                if not os.path.isfile(path):
+                    return None, None
+                with open(path, "rb") as f:
+                    raw = f.read(8 * 1024 * 1024)
             elif url.startswith(("http://", "https://")):
-                req = urllib.request.Request(url, headers={"User-Agent": "g19s"})
+                req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
                 with urllib.request.urlopen(req, timeout=5) as r:
                     raw = r.read(8 * 1024 * 1024)
             else:
                 return None, None
-            img = Image.open(io.BytesIO(raw)).convert("RGB")
+            img = open_remote_image(raw, draft=(640, 640)).convert("RGB")
         except (NET_ERRORS + (Image.DecompressionBombError,)) as ex:    # PIL meldet kaputte Bilder als OSError
             self.log(f"Cover konnte nicht geladen werden: {ex}")
             return None, None
@@ -2275,7 +2329,7 @@ class Slideshow(threading.Thread):
     """Lädt die Bildliste der gewählten Alben und wechselt die Bilder.
     Netzwerkzugriffe gibt es nur, solange die Displayseite „Bilder“ sichtbar ist."""
 
-    AREA = (WIDTH, HEIGHT - 26)       # Fläche über der Fußzeile
+    AREA = (WIDTH, HEIGHT - FOOTER_H)  # Fläche über der Fußzeile
     LIST_REFRESH = 1800               # Bildliste alle 30 Minuten neu laden
     RETRY = 60                        # nach einem Fehler erneut versuchen
     CACHE_MAX = 400                   # höchstens so viele Bilder zwischenspeichern
@@ -2518,7 +2572,7 @@ class Slideshow(threading.Thread):
         if os.path.exists(path):
             os.utime(path)
             return Image.open(path).convert("RGB")
-        img = Image.open(io.BytesIO(self.client.fetch(info["url"])))
+        img = open_remote_image(self.client.fetch(info["url"]))
         from PIL import ImageOps
         img = ImageOps.exif_transpose(img).convert("RGB")
         img.thumbnail((640, 480), Image.LANCZOS)          # klein speichern, reicht fürs Display
@@ -2553,15 +2607,78 @@ FEED_ERRORS = NET_ERRORS + (ET.ParseError,)
 # --------------------------------------------------------------------------- #
 # Hintergrund-Abrufe für Infoseiten (Wetter, Termine)
 # --------------------------------------------------------------------------- #
-def http_get(url, timeout=12, user=None, password=None, limit=10 * 1024 * 1024):
+USER_AGENT = f"g19s/{VERSION}"         # gleiche Kennung für alle Abrufe
+
+
+def err_text(ex):
+    """Kurzer Fehlertext für Meldungen (urllib-Fehler haben den eigentlichen Grund in .reason)."""
+    return str(getattr(ex, "reason", None) or ex)
+
+
+def basic_auth(user, password):
+    """Kopfzeile für HTTP-Basic-Anmeldung."""
     import base64
+    return "Basic " + base64.b64encode(f"{user}:{password or ''}".encode()).decode()
+
+
+def _safe_opener():
+    """urllib-Opener, der Zugangsdaten nicht an fremde Server weiterreicht: Bei einer Weiterleitung
+    auf einen anderen Server oder von https auf http wird die Authorization-Kopfzeile entfernt."""
+    import urllib.parse
     import urllib.request
-    headers = {"User-Agent": "g19s/1.0"}
+
+    class SafeRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            new = super().redirect_request(req, fp, code, msg, headers, newurl)
+            if new is not None:
+                old_u, new_u = urllib.parse.urlsplit(req.full_url), urllib.parse.urlsplit(new.full_url)
+                if (old_u.scheme, old_u.netloc) != (new_u.scheme, new_u.netloc):
+                    for h in [k for k in new.headers if k.lower() == "authorization"]:
+                        del new.headers[h]
+                    new.unredirected_hdrs.pop("Authorization", None)
+            return new
+
+    return urllib.request.build_opener(SafeRedirect)
+
+
+def open_url(req, timeout):
+    """Wie urllib.request.urlopen, aber mit sicheren Weiterleitungen (siehe _safe_opener)."""
+    return _safe_opener().open(req, timeout=timeout)
+
+
+def same_origin(url, base):
+    """True, wenn url auf demselben Server (Schema + Host + Port) liegt wie base."""
+    import urllib.parse
+    a, b = urllib.parse.urlsplit(url), urllib.parse.urlsplit(base)
+    return (a.scheme.lower(), a.netloc.lower()) == (b.scheme.lower(), b.netloc.lower())
+
+
+REMOTE_IMAGE_PIXELS = 25_000_000       # Bilder aus dem Netz: höchstens 25 Megapixel
+
+
+def open_remote_image(raw, draft=(1280, 960)):
+    """Bild aus dem Netz öffnen und die Größe VOR dem Dekodieren prüfen – ein präpariertes Bild
+    (wenige MB, aber Hunderte Megapixel) würde sonst Gigabytes Speicher belegen."""
+    import io
+    try:
+        im = Image.open(io.BytesIO(raw))
+    except Image.DecompressionBombError as ex:
+        raise ValueError(f"Bild zu groß: {ex}")
+    w, h = im.size
+    if w * h > REMOTE_IMAGE_PIXELS:
+        raise ValueError(f"Bild zu groß ({w}×{h} Pixel)")
+    if draft:
+        im.draft("RGB", draft)                 # JPEG gleich verkleinert dekodieren
+    return im
+
+
+def http_get(url, timeout=12, user=None, password=None, limit=10 * 1024 * 1024):
+    import urllib.request
+    headers = {"User-Agent": USER_AGENT}
     if user:
-        token = base64.b64encode(f"{user}:{password or ''}".encode()).decode()
-        headers["Authorization"] = f"Basic {token}"
+        headers["Authorization"] = basic_auth(user, password)
     req = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    with open_url(req, timeout) as r:
         return r.read(limit)
 
 
@@ -2612,7 +2729,7 @@ class Poller(threading.Thread):
                         self.data, self.error, self.updated = data, None, time.time()
             except Exception as ex:          # Sicherheitsnetz: ein Dienst darf den Treiber nie beenden
                 with self.lock:
-                    self.error = str(getattr(ex, "reason", None) or ex)
+                    self.error = err_text(ex)
                 self.updated = time.time() - self.interval + 120     # nach 2 Minuten erneut
             self.wake.wait(5)
             self.wake.clear()
@@ -2752,7 +2869,7 @@ class NewsPoller(Poller):
             try:
                 items += parse_feed(http_get(url, timeout=20), name)
             except FEED_ERRORS as ex:
-                errors.append(f"{name}: {getattr(ex, 'reason', None) or ex}")
+                errors.append(f"{name}: {err_text(ex)}")
         if errors and not items:
             raise RuntimeError("; ".join(errors))
         old = dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc)
@@ -2857,8 +2974,10 @@ def check_host(host, timeout=2):
                 return True, (time.monotonic() - t0) * 1000
         except OSError:
             return False, None
+    if host.startswith("-"):
+        return False, None                   # wäre eine ping-Option
     try:
-        r = subprocess.run(["ping", "-c", "1", "-W", str(timeout), host], capture_output=True, text=True,
+        r = subprocess.run(["ping", "-c", "1", "-W", str(timeout), "--", host], capture_output=True, text=True,
                            timeout=timeout + 3, env=dict(os.environ, LC_ALL="C"))
     except (OSError, subprocess.TimeoutExpired):
         return False, None
@@ -2902,8 +3021,15 @@ class NetworkPoller(Poller):
 
 # --- Systemupdates (apt, Flatpak) -----------------------------------------------
 class UpdatesPoller(Poller):
+    FLATPAK_INTERVAL = 6 * 3600     # flatpak remote-ls fragt die Server im Netz ab – seltener als apt
+
     def __init__(self, get_settings, log=print):
         super().__init__(get_settings, 3600, log)
+        self._flatpak = (-1e9, None)             # (Zeitpunkt, Anzahl)
+
+    def refresh(self):
+        self._flatpak = (-1e9, None)             # MENU auf der Seite: alles neu abfragen
+        super().refresh()
 
     def enabled(self):
         return "updates" in (self.get_settings().get("pages") or [])
@@ -2920,12 +3046,17 @@ class UpdatesPoller(Poller):
                         security += 1
         flatpak = None
         if (self.get_settings().get("updates") or {}).get("flatpak", True) and shutil.which("flatpak"):
-            try:
-                r = subprocess.run(["flatpak", "remote-ls", "--updates", "--columns=application"],
-                                   capture_output=True, text=True, timeout=120, env=env)
-                flatpak = len([l for l in r.stdout.splitlines() if l.strip()]) if r.returncode == 0 else None
-            except (OSError, subprocess.TimeoutExpired):
-                flatpak = None
+            if time.monotonic() - self._flatpak[0] < self.FLATPAK_INTERVAL:
+                flatpak = self._flatpak[1]
+            else:
+                try:
+                    r = subprocess.run(["flatpak", "remote-ls", "--updates", "--columns=application"],
+                                       capture_output=True, text=True, timeout=120, env=env)
+                    flatpak = len([l for l in r.stdout.splitlines() if l.strip()]) if r.returncode == 0 else None
+                except (OSError, subprocess.TimeoutExpired):
+                    flatpak = None
+                if flatpak is not None:
+                    self._flatpak = (time.monotonic(), flatpak)
         reboot = os.path.exists("/var/run/reboot-required")
         return {"apt": len(pkgs), "security": security, "packages": pkgs[:60], "flatpak": flatpak,
                 "reboot": reboot, "checked": time.strftime("%H:%M"), "apt_ok": bool(shutil.which("apt"))}
@@ -3195,13 +3326,12 @@ def is_single_calendar(url):
 
 
 def dav_request(url, method, body, user, password, depth="0", timeout=30):
-    import base64
     import urllib.request
-    headers = {"User-Agent": "g19s/1.0", "Depth": depth, "Content-Type": "application/xml; charset=utf-8"}
+    headers = {"User-Agent": USER_AGENT, "Depth": depth, "Content-Type": "application/xml; charset=utf-8"}
     if user:
-        headers["Authorization"] = "Basic " + base64.b64encode(f"{user}:{password or ''}".encode()).decode()
+        headers["Authorization"] = basic_auth(user, password)
     req = urllib.request.Request(url, data=body.encode(), headers=headers, method=method)
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    with open_url(req, timeout) as r:
         return r.read(4 * 1024 * 1024)
 
 
@@ -3223,7 +3353,10 @@ def discover_calendars(url, user, password):
     def props(href, xml_props, depth="0"):
         body = ('<?xml version="1.0"?><d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav" '
                 f'xmlns:a="http://apple.com/ns/ical/"><d:prop>{xml_props}</d:prop></d:propfind>')
-        raw = dav_request(urllib.parse.urljoin(origin, href), "PROPFIND", body, user, password, depth)
+        target = urllib.parse.urljoin(origin, href)
+        if not same_origin(target, origin):         # Zugangsdaten nie an einen anderen Server schicken
+            raise ValueError("Der Server verweist auf einen anderen Server – Kalendersuche abgebrochen")
+        raw = dav_request(target, "PROPFIND", body, user, password, depth)
         try:
             return ET.fromstring(raw).findall(f"{D}response")
         except ET.ParseError:
@@ -3257,7 +3390,10 @@ def discover_calendars(url, user, password):
         cm = re.match(r"#?([0-9a-fA-F]{6})", (r.findtext(f".//{A}calendar-color") or "").strip())
         if cm:
             color = [int(cm.group(1)[i:i + 2], 16) for i in (0, 2, 4)]
-        found.append({"name": name, "url": urllib.parse.urljoin(origin, h) + "?export", "color": color})
+        cal_url = urllib.parse.urljoin(origin, h)
+        if not same_origin(cal_url, origin):
+            continue                                    # Kalender auf fremdem Server: ignorieren
+        found.append({"name": name, "url": cal_url + "?export", "color": color})
     if not found:
         raise ValueError("Keine Terminkalender in diesem Konto gefunden")
     return found
@@ -3290,7 +3426,7 @@ def calendar_error(ex, url):
         if ex.code == 429:
             return "Zu viele Fehlversuche – Nextcloud bremst gerade, in einigen Minuten erneut versuchen"
         return f"Server antwortet mit Fehler {ex.code}"
-    reason = str(getattr(ex, "reason", None) or ex)
+    reason = err_text(ex)
     if "CERTIFICATE_VERIFY_FAILED" in reason:
         return "Das Zertifikat des Servers ist ungültig oder selbst signiert"
     if "WRONG_VERSION_NUMBER" in reason or "wrong version number" in reason:
@@ -3436,7 +3572,7 @@ class Hardware:
     def _nvidia_query(self, out):
         import shutil
         now = time.monotonic()
-        if now - self._nvidia[0] > 5:
+        if now - self._nvidia[0] > 30:          # nvidia-smi ist teuer und kann die Grafikkarte wecken
             val = None
             if shutil.which("nvidia-smi"):
                 try:
@@ -3742,8 +3878,10 @@ class FolderTarget:
             raise BackupError(f"Ordner nicht gefunden: {self.folder or '(leer)'} – ist das NAS eingebunden?")
 
     def upload(self, name, data):
+        """Nur für den Benutzer lesbar (0600) – die Sicherung enthält Passwörter aus settings.json."""
         path = os.path.join(self.folder, name)
-        with open(path + ".tmp", "wb") as f:
+        fd = os.open(path + ".tmp", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "wb") as f:
             f.write(data)
         os.replace(path + ".tmp", path)
 
@@ -3794,12 +3932,12 @@ class WebDavTarget:
         return self.describe() + name
 
     def _req(self, method, url, data=None, headers=None, ok=(200, 201, 204, 207)):
-        h = dict(headers or {})
+        h = dict(headers or {}, **{"User-Agent": USER_AGENT})
         if self.user:
-            h["Authorization"] = "Basic " + base64.b64encode(f"{self.user}:{self.password}".encode()).decode()
+            h["Authorization"] = basic_auth(self.user, self.password)
         req = urllib.request.Request(url, data=data, headers=h, method=method)
         try:
-            with urllib.request.urlopen(req, timeout=60) as r:
+            with open_url(req, 60) as r:
                 return r.status, r.read()
         except urllib.error.HTTPError as ex:
             if ex.code in ok:
@@ -3853,6 +3991,8 @@ class SmbTarget:
         if len(parts) < 2:
             raise BackupError("Bitte die Freigabe angeben, z. B. \\\\nas\\freigabe\\Sicherungen")
         self.host, self.share, self.dir = parts[0], parts[1], "/".join(parts[2:])
+        if any(c in raw for c in '";\n\r') or not re.fullmatch(r"[\w.\-\[\]:]+", self.host):
+            raise BackupError("Die Freigabe enthält ungültige Zeichen (\" ; oder Zeilenumbruch)")
         self.user, self.password = str(user or "").strip(), str(password or "")
         self.tool = tool or ("smbclient" if shutil.which("smbclient") else
                              next((t for t in ("kioclient", "kioclient5") if shutil.which(t)), None))
@@ -3897,10 +4037,11 @@ class SmbTarget:
         return r.stdout
 
     # kioclient -------------------------------------------------------------- #
+    # Das Passwort kommt NICHT in die Adresse (sie stünde für alle Benutzer sichtbar in der
+    # Prozessliste). kioclient holt es aus KWallet – dafür die Freigabe einmal in Dolphin öffnen
+    # und das Passwort speichern. Sicherer und ohne diesen Schritt: smbclient installieren.
     def _kio_url(self, name=""):
-        cred = ""
-        if self.user:
-            cred = urllib.parse.quote(self.user, safe="") + ":" + urllib.parse.quote(self.password, safe="") + "@"
+        cred = urllib.parse.quote(self.user, safe="") + "@" if self.user else ""
         path = "/".join(urllib.parse.quote(p) for p in [self.share] + [d for d in self.dir.split("/") if d])
         return f"smb://{cred}{self.host}/{path}/" + urllib.parse.quote(name)
 
@@ -3916,7 +4057,8 @@ class SmbTarget:
             raise BackupError(f"{self.tool}: {ex}")
         if r.returncode:
             msg = (r.stderr.strip().splitlines() or [""])[-1] or f"Fehler {r.returncode}"
-            raise BackupError(f"NAS: {msg.replace(self.password, '***') if self.password else msg}")
+            raise BackupError(f"NAS: {msg} – Tipp: smbclient installieren (sudo apt install smbclient) "
+                              "oder die Freigabe einmal in Dolphin öffnen und das Passwort speichern")
         return r.stdout
 
     def prepare(self):
@@ -4096,7 +4238,7 @@ class RendererBase:
 
     def _footer(self, draw, profile, page, pages):
         color = PROFILE_COLOR.get(profile, self.FG)
-        draw.rectangle([0, HEIGHT - 26, WIDTH, HEIGHT], fill=(20, 24, 34))
+        draw.rectangle([0, HEIGHT - FOOTER_H, WIDTH, HEIGHT], fill=(20, 24, 34))
         draw.rectangle([10, HEIGHT - 19, 22, HEIGHT - 7], fill=color)
         label = f"{self.profile_name} · {profile}" if self.profile_name else f"Profil {profile}"
         step = 14 if pages <= 12 else 10               # viele Seiten: Punkte enger
@@ -4263,7 +4405,7 @@ def refresh_page(app, page_id):
 # ═══════════════════════════════════════════════════════════════════════════
 
 CLOCK_SS = 3                                # Vergrößerung beim Zeichnen (Kantenglättung)
-CLOCK_H = HEIGHT - 26                       # Fläche über der Fußzeile
+CLOCK_H = HEIGHT - FOOTER_H                 # Fläche über der Fußzeile
 WEEKDAY_2 = ["MO", "DI", "MI", "DO", "FR", "SA", "SO"]
 MONTH_3 = ["JAN", "FEB", "MÄR", "APR", "MAI", "JUN", "JUL", "AUG", "SEP", "OKT", "NOV", "DEZ"]
 
@@ -4384,15 +4526,27 @@ class ClockBase:
     def _clock_canvas(self, key, bg, build):
         """Zwischengespeichertes Zifferblatt kopieren (build zeichnet es beim ersten Mal)."""
         self._clock_fonts()
+        if key not in self._cdials and len(self._cdials) >= 8:
+            self._cdials.clear()                  # z. B. nach vielen Farbwechseln: Speicher begrenzen
         if key not in self._cdials:
             c = _Canvas(Image.new("RGB", (WIDTH * CLOCK_SS, CLOCK_H * CLOCK_SS), bg))
             build(c)
             self._cdials[key] = c.img
         return _Canvas(self._cdials[key].copy())
 
+    # Zwischenspeicher der Zifferblatt-Module (je ~2–3 MB pro Eintrag); Schriften bleiben erhalten
+    CLOCK_CACHES = ("_cdials", "_sky_cache", "_disp_mem", "_info_static")
+
+    def _clock_drop_caches(self):
+        """Beim Wechsel des Zifferblatts die Zwischenspeicher der anderen Zifferblätter freigeben."""
+        for name in self.CLOCK_CACHES:
+            cache = self.__dict__.get(name)
+            if isinstance(cache, dict):
+                cache.clear()
+
     def _clock_finish(self, c):
         img = Image.new("RGB", (WIDTH, HEIGHT), self.BG)
-        img.paste(c.img.resize((WIDTH, CLOCK_H), Image.LANCZOS), (0, 0))
+        img.paste(c.img.reduce(CLOCK_SS), (0, 0))     # Mittelwert je 3×3 – 15× schneller als LANCZOS
         return img
 
     @staticmethod
@@ -4437,6 +4591,9 @@ class ClockPage:
     @page("clock")
     def page_clock(self, profile, macros):
         face = getattr(self, "clock_face", "digital")
+        if face != getattr(self, "_clock_last", None):
+            self._clock_drop_caches()                 # anderes Zifferblatt: Speicher freigeben
+            self._clock_last = face
         fn = CLOCK_RENDERERS.get(face) or CLOCK_RENDERERS["digital"]
         return fn(self, profile)
 
@@ -6480,7 +6637,6 @@ class SkyFaces:
 
 _disp_cond = "/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed{}.ttf"
 _disp_sans = "/usr/share/fonts/truetype/dejavu/DejaVuSans{}.ttf"
-_disp_mono = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono{}.ttf"
 
 
 def _disp_shrink(img, w, h):
@@ -7724,7 +7880,7 @@ class MacrosPage:
                 label = self._fit(d, entry_label(m, self.settings), self.f_small, col_w - 48)
                 d.text((x + 42, y), label, font=self.f_small, fill=self.FG)
             else:
-                d.text((x + 42, y), f"F{13 + i}", font=self.f_small, fill=self.DIM)
+                d.text((x + 42, y), f"F{FKEY_BASE + i}", font=self.f_small, fill=self.DIM)
         return img
 
 
@@ -9189,6 +9345,7 @@ def act_radio(app, macro, name):
 
 @gkey_action(lambda m: m.get("media") == "remember")
 def act_remember_song(app, macro, name):
+    app.media.refresh()                     # aktuellen Titel holen (im Hintergrund evtl. 5 s alt)
     info = app.media.snapshot()[0]
     entry = remember_song(info, app.radio.current())
     if entry:
@@ -9299,7 +9456,7 @@ class AppCore:
         from evdev import UInput, ecodes as e
         self.args, self.e = args, e
         migrate_files()                     # ältere settings.json/macros.json umstellen
-        self.fkeys = [getattr(e, f"KEY_F{n}") for n in range(13, 25)]
+        self.fkeys = [getattr(e, f"KEY_F{FKEY_BASE + i}") for i in range(12)]
         self.modifiers = {"M1": None, "M2": e.KEY_LEFTCTRL, "M3": e.KEY_LEFTALT}
 
         # --- Zustand ---
@@ -9324,6 +9481,7 @@ class AppCore:
         self.mic = {"muted": False, "known": False}
         self.popups = deque()               # Benachrichtigungen aus dem Hintergrund-Thread (threadsicher)
         self.next_draw = 0.0
+        self._last_frame, self._last_sent = None, 0.0   # zuletzt gesendetes Bild (siehe App._send)
         self.running = True
         self.prev_gm = self.prev_l = 0
         self.held = {}                      # G-Taste -> Modifier, mit dem sie gedrückt wurde
@@ -9344,6 +9502,7 @@ class AppCore:
         threading.Thread(target=self._mic_poll, daemon=True).start()
         self.media = r.media = MediaWatcher(self.launcher._env, log=self.log, radio=self.radio,
                                             radio_control=self.radio_control)
+        self.media.want_fast = lambda: PAGE_IDS[self.page % len(PAGE_IDS)] == "music" or self.radio.playing
         self.slideshow = r.slideshow = Slideshow(self.settings, log=self.log)
         self.weather = r.weather = WeatherPoller(self.settings, log=self.log)
         self.calendar = r.calendar = CalendarPoller(self.settings, log=self.log)
@@ -9398,7 +9557,7 @@ class AppCore:
                 self.mic.update(muted=state, known=True)
                 self.renderer.mic_muted = state
                 self.mic["changed"] = True
-            time.sleep(5)
+            time.sleep(15)                  # nur für Änderungen von außen; die G-Taste meldet sofort
 
     # --- Radio ---------------------------------------------------------------- #
     def radio_play(self, station, announce=True):
@@ -9766,7 +9925,7 @@ class KeyHandling:
                 self.show("Gespeichert", [f"{gkey} im Profil {layer}", f"{n} Tastendrücke"], PROFILE_COLOR[layer])
                 self.log(f"Makro {layer}/{gkey} gespeichert ({n} Tastendrücke)")
             elif store.delete(self.prof_idx, layer, gkey):
-                self.show("Gelöscht", [f"{gkey} im Profil {layer}", f"sendet wieder F{12 + int(gkey[1:])}"], self.renderer.DIM)
+                self.show("Gelöscht", [f"{gkey} im Profil {layer}", f"sendet wieder F{FKEY_BASE - 1 + int(gkey[1:])}"], self.renderer.DIM)
                 self.log(f"Makro {layer}/{gkey} gelöscht")
             else:
                 self.show("Nichts aufgenommen", ["Kein Makro gespeichert"], self.renderer.DIM)
@@ -9799,7 +9958,7 @@ class KeyHandling:
             self.ui.write(e.EV_KEY, self.fkeys[i], 1)
             self.ui.syn()
         if self.args.debug:
-            print(f"  {name} gedrückt -> {'Strg+' if mod == e.KEY_LEFTCTRL else 'Alt+' if mod else ''}F{13 + i}")
+            print(f"  {name} gedrückt -> {'Strg+' if mod == e.KEY_LEFTCTRL else 'Alt+' if mod else ''}F{FKEY_BASE + i}")
 
     def _gkey_up(self, i, name):
         e, mod = self.e, self.held.pop(name)
@@ -9911,11 +10070,11 @@ class TimedTasks:
             self.menu = None                # Menü schließt sich nach 30 s ohne Tastendruck
             self.next_draw = 0
         r = self.renderer
-        if r.cal_sel is not None and self.menu is None and now - self.sel_t["calendar"] > 30:
+        if r.cal_sel is not None and self.menu is None and now - self.sel_t["calendar"] > SELECTION_TIMEOUT:
             r.cal_sel = None                # Terminmarkierung verschwindet wieder
             self.next_draw = 0
         for k in r.sel:
-            if r.sel[k] is not None and self.menu is None and now - self.sel_t[k] > 30:
+            if r.sel[k] is not None and self.menu is None and now - self.sel_t[k] > SELECTION_TIMEOUT:
                 r.sel[k] = None
                 self.next_draw = 0
 
@@ -10179,8 +10338,11 @@ class App(AppCore, KeyHandling, TimedTasks):
         """Das Bild wählen, das gerade gezeigt werden soll, und senden."""
         r, rec, menu = self.renderer, self.rec, self.menu
         r.clock_face = self.clock_face()
+        if not self.media.fast_now and PAGE_IDS[self.page % len(PAGE_IDS)] == "music":
+            self.media.fast_now = True
+            self.media.wake.set()           # Musikseite wurde gerade sichtbar: sofort abfragen
         if self.night_dark() and (self.settings().get("night") or {}).get("mode") == "off" and not rec and menu is None:
-            self.g19.send_frame(Image.new("RGB", (WIDTH, HEIGHT), (0, 0, 0)))
+            self._send(Image.new("RGB", (WIDTH, HEIGHT), (0, 0, 0)), now)
             self.next_draw = now + 5
             return
         if menu is not None and not rec:
@@ -10198,16 +10360,27 @@ class App(AppCore, KeyHandling, TimedTasks):
         else:
             self.flash = None
             img = r.render(self.page, self.layer, self.store.keys(self.prof_idx))
-        self.g19.send_frame(img)
+        self._send(img, now)
         fast = rec or self.flash or (self.menu and self.menu.kind == "timer")
         if not fast and self.menu is None and PAGE_IDS[self.page % len(PAGE_IDS)] == "clock":
             fps = clock_fps(r.clock_face, self.settings())
-            if fps > 1:                     # bewegte Zifferblätter (Pendel, Sanduhr, Radar …)
+            if fps > 1 and not self.night_dark():   # bewegte Zifferblätter; nachts (gedimmt) 1 Bild/s
                 self.next_draw = now + 1.0 / fps
             else:                           # kurz nach jedem Sekundenwechsel, damit kein Sekundenschritt fehlt
                 self.next_draw = now + (1.0 - time.time() % 1.0) + 0.02
         else:
             self.next_draw = now + (0.5 if fast else 1.0)
+
+    FRAME_REFRESH = 10.0            # unverändertes Bild spätestens nach so vielen Sekunden erneut senden
+
+    def _send(self, img, now):
+        """Bild nur senden, wenn es sich geändert hat (spart USB-Verkehr und CPU); zur Sicherheit
+        – etwa nach kurzem Abziehen der Tastatur – alle FRAME_REFRESH Sekunden trotzdem."""
+        data = img.tobytes()
+        if data == self._last_frame and now - self._last_sent < self.FRAME_REFRESH:
+            return
+        self.g19.send_frame(img)
+        self._last_frame, self._last_sent = data, now
 
     def shutdown(self):
         if self.rec and self.rec["stage"] == "record":
