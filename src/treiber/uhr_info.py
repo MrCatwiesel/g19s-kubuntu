@@ -3,7 +3,6 @@ import colorsys
 import math
 from PIL import ImageFilter
 
-_info_MONO = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono{}.ttf"
 _info_WHITE = (255, 255, 255)
 # Blockziffern 3×5 für das Terminal (Zeilen von oben, je 3 Bit)
 _info_BLOCKS = {
@@ -15,12 +14,6 @@ _info_BLOCKS = {
     ":": ("0", "1", "0", "1", "0"),
 }
 _info_PHOSPHOR = {"green": (70, 255, 120), "amber": (255, 176, 40), "white": (225, 235, 245), "blue": (90, 180, 255)}
-
-
-def _info_mono(size, bold=False):
-    """Monospace-Schrift (DejaVu Sans Mono), sonst DejaVu Sans."""
-    path = _info_MONO.format("-Bold" if bold else "")
-    return ImageFont.truetype(path, size) if os.path.exists(path) else load_font(size, bold)
 
 
 def _info_hsv(color, dh=0.0, ds=1.0, dv=1.0):
@@ -41,16 +34,10 @@ def _info_span(t, start, end):
 
 
 class InfoFaces:
-    def _info_font(self, size, bold=False, mono=False, scale=CLOCK_SS):
-        """Schrift zwischenspeichern (size in Displaypixeln, scale = Vergrößerung der Fläche)."""
-        cache = self.__dict__.setdefault("_info_fonts", {})
-        key = (size, bold, mono, scale)
-        if key not in cache:
-            cache[key] = (_info_mono if mono else load_font)(round(size * scale), bold)
-        return cache[key]
-
-    def _info_cache(self):
-        return self.__dict__.setdefault("_info_static", {})
+    @staticmethod
+    def _info_font(size, bold=False, mono=False, scale=CLOCK_SS):
+        """DejaVu Sans bzw. Sans Mono; size in Displaypixeln, scale = Vergrößerung der Fläche."""
+        return clock_font("mono" if mono else "sans", round(size * scale), bold)
 
     def _info_out(self, arr):
         """Fläche (numpy, CLOCK_H×WIDTH×3) ins Displaybild setzen."""
@@ -92,55 +79,53 @@ class InfoFaces:
         for x, y in self._info_DOTS[:dots]:
             d.ellipse([x - 2.6, y - 2.6, x + 2.6, y + 2.6], fill=fill)
 
+    def _info_words_plate(self, font):
+        """Frontplatte mit dunklen Buchstaben (numpy-Feld)."""
+        base = Image.new("RGB", (WIDTH, CLOCK_H), self.BG)
+        yy, xx = np.mgrid[0:CLOCK_H, 0:WIDTH]
+        v = 1 - 0.55 * (((xx - CLOCK_CX) / 200) ** 2 + ((yy - CLOCK_CY) / 150) ** 2)
+        arr = np.asarray(base, np.float32) * np.clip(v, 0.5, 1.2)[..., None] + np.array([4, 4, 6])
+        base = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
+        self._info_words_draw(ImageDraw.Draw(base), None, 4, (26, 29, 37), font)
+        return np.asarray(base, np.float32)
+
     @clock_face("words", fps=1)
     def face_words(self, profile):
         now = time.localtime(self._clock_now())
         col = self._ccolor(self._copt("words")["color"], profile)
         font = self._info_font(15, True, scale=1)
-        st = self._info_cache()
-        if "words" not in st:                              # Frontplatte mit dunklen Buchstaben
-            base = Image.new("RGB", (WIDTH, CLOCK_H), self.BG)
-            yy, xx = np.mgrid[0:CLOCK_H, 0:WIDTH]
-            v = 1 - 0.55 * (((xx - 160) / 200) ** 2 + ((yy - 107) / 150) ** 2)
-            arr = np.asarray(base, np.float32) * np.clip(v, 0.5, 1.2)[..., None] + np.array([4, 4, 6])
-            base = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
-            self._info_words_draw(ImageDraw.Draw(base), None, 4, (26, 29, 37), font)
-            st["words"] = np.asarray(base, np.float32)
+        plate = self._clock_cache("info_words", self.BG, lambda: self._info_words_plate(font))
         mask = Image.new("L", (WIDTH, CLOCK_H), 0)
         self._info_words_draw(ImageDraw.Draw(mask), self._info_words_lit(now.tm_hour, now.tm_min),
                               now.tm_min % 5, 255, font)
         m = np.asarray(mask, np.float32)[..., None] / 255
         glow = np.asarray(mask.filter(ImageFilter.GaussianBlur(4)), np.float32)[..., None] / 255
         core = np.array(mix(col, _info_WHITE, 0.35), np.float32)
-        out = st["words"] * (1 - m) + core * m + np.array(col, np.float32) * glow * 0.8
+        out = plate * (1 - m) + core * m + np.array(col, np.float32) * glow * 0.8
         return self._info_out(out)
 
     # --- Terminal ------------------------------------------------------------- #
-    def _info_term_static(self, col):
+    @staticmethod
+    def _info_term_static(col):
         """Röhrenbildschirm: Gehäuse, gewölbt wirkender Schirm, Zeilenraster (als numpy-Felder)."""
-        key = ("term", col)
-        st = self._info_cache()
-        if key not in st:
-            s = CLOCK_SS
-            img = Image.new("RGB", (WIDTH * s, CLOCK_H * s), (22, 23, 26))
-            d = ImageDraw.Draw(img)
-            d.rounded_rectangle([1 * s, 1 * s, (WIDTH - 1) * s, (CLOCK_H - 1) * s], 10 * s, fill=(34, 35, 39))
-            d.rounded_rectangle([4 * s, 4 * s, (WIDTH - 4) * s, (CLOCK_H - 4) * s], 16 * s, fill=(12, 12, 14))
-            d.rounded_rectangle([6 * s, 6 * s, (WIDTH - 6) * s, (CLOCK_H - 6) * s], 15 * s, fill=(255, 255, 255))
-            img = img.resize((WIDTH, CLOCK_H), Image.LANCZOS)
-            a = np.asarray(img, np.float32)
-            screen = np.clip((a.min(axis=2) - 40) / 215, 0, 1)[..., None]        # 1 = Schirmfläche
-            yy, xx = np.mgrid[0:CLOCK_H, 0:WIDTH]
-            vign = np.clip(1 - 0.9 * (((xx - 160) / 175) ** 4 + ((yy - 107) / 125) ** 4), 0.25, 1)[..., None]
-            glass = np.array(mix((5, 7, 6), col, 0.06), np.float32) * vign * 1.3
-            bg = a * (1 - screen) + glass * screen
-            scan = 1 - 0.32 * (yy % 2)[..., None] * screen
-            st[key] = (bg, scan, vign * screen)
-        return st[key]
+        s = CLOCK_SS
+        img = Image.new("RGB", (WIDTH * s, CLOCK_H * s), (22, 23, 26))
+        d = ImageDraw.Draw(img)
+        d.rounded_rectangle([1 * s, 1 * s, (WIDTH - 1) * s, (CLOCK_H - 1) * s], 10 * s, fill=(34, 35, 39))
+        d.rounded_rectangle([4 * s, 4 * s, (WIDTH - 4) * s, (CLOCK_H - 4) * s], 16 * s, fill=(12, 12, 14))
+        d.rounded_rectangle([6 * s, 6 * s, (WIDTH - 6) * s, (CLOCK_H - 6) * s], 15 * s, fill=(255, 255, 255))
+        img = img.resize((WIDTH, CLOCK_H), Image.LANCZOS)
+        a = np.asarray(img, np.float32)
+        screen = np.clip((a.min(axis=2) - 40) / 215, 0, 1)[..., None]        # 1 = Schirmfläche
+        yy, xx = np.mgrid[0:CLOCK_H, 0:WIDTH]
+        vign = np.clip(1 - 0.9 * (((xx - CLOCK_CX) / 175) ** 4 + ((yy - CLOCK_CY) / 125) ** 4), 0.25, 1)[..., None]
+        glass = np.array(mix((5, 7, 6), col, 0.06), np.float32) * vign * 1.3
+        bg = a * (1 - screen) + glass * screen
+        scan = 1 - 0.32 * (yy % 2)[..., None] * screen
+        return bg, scan, vign * screen
 
     def _info_term_big(self, d, x, y, txt, b):
-        """Uhrzeit aus 3×5-Blockziffern (Kantenlänge b), liefert die Breite."""
-        x0 = x
+        """Uhrzeit aus 3×5-Blockziffern (Kantenlänge b)."""
         for ch in txt:
             rows = _info_BLOCKS[ch]
             for r, bits in enumerate(rows):
@@ -148,14 +133,13 @@ class InfoFaces:
                     if bit == "1":
                         d.rectangle([x + k * b, y + r * b, x + k * b + b - 2, y + r * b + b - 2], fill=255)
             x += len(rows[0]) * b + b
-        return x - x0 - b
 
     @clock_face("terminal", fps=2)
     def face_terminal(self, profile):
         t = self._clock_now()
         now = time.localtime(t)
         col = _info_PHOSPHOR.get(self._copt("terminal")["color"], _info_PHOSPHOR["green"])
-        bg, scan, screen = self._info_term_static(col)
+        bg, scan, screen = self._clock_cache("info_term", col, lambda: self._info_term_static(col))
         f, fb = self._info_font(12, mono=True, scale=1), self._info_font(12, True, True, scale=1)
         mask = Image.new("L", (WIDTH, CLOCK_H), 0)
         d = ImageDraw.Draw(mask)
@@ -173,7 +157,7 @@ class InfoFaces:
         cmd(y, "date")
         d.text((x0, y + lh), date, font=f, fill=170, anchor="ls")
         cmd(y + 2.25 * lh, "uhr")
-        w = self._info_term_big(d, x0 + 2, y + 2.25 * lh + 9, time.strftime("%H:%M:%S", now), 8)
+        self._info_term_big(d, x0 + 2, y + 2.25 * lh + 9, time.strftime("%H:%M:%S", now), 8)
         days = 366 if now.tm_year % 4 == 0 and (now.tm_year % 100 or now.tm_year % 400 == 0) else 365
         yi = y + 2.25 * lh + 9 + 40 + 14
         d.text((x0, yi), f"KW {time.strftime('%V', now)} · Tag {now.tm_yday}/{days}", font=f, fill=170, anchor="ls")
@@ -264,7 +248,7 @@ class InfoFaces:
     _info_RINGS = ((62, 12, 12), (80, 12, 60), (98, 11, 60))      # Stunden, Minuten, Sekunden: Radius, Breite, Teilung
 
     def _info_rings_dial(self, c, col):
-        cx, cy = 160, CLOCK_H / 2
+        cx, cy = CLOCK_CX, CLOCK_CY
         for (r, w, n), rc in zip(self._info_RINGS, self._info_ring_colors(col)):
             self._info_arc(c, cx, cy, r, w + 2, 0, 360, (16, 18, 24))
             self._info_arc(c, cx, cy, r, w, 0, 360, mix(rc, self.BG, 0.86))
@@ -282,7 +266,7 @@ class InfoFaces:
     def face_rings(self, profile):
         col = PROFILE_COLOR.get(profile, self.FG)
         c = self._clock_canvas(("info_rings", col), self.BG, lambda c: self._info_rings_dial(c, col))
-        cx, cy, s = 160, CLOCK_H / 2, CLOCK_SS
+        cx, cy, s = CLOCK_CX, CLOCK_CY, CLOCK_SS
         now = time.localtime(self._clock_now())
         vals = ((now.tm_hour % 12 + now.tm_min / 60) / 12, (now.tm_min + now.tm_sec / 60) / 60, now.tm_sec / 60)
         for (r, w, n), rc, v in zip(self._info_RINGS, self._info_ring_colors(col), vals):

@@ -14,6 +14,14 @@ ein fertiges Displaybild (320×240, Fußzeile zeichnet render()) liefert:
             return self._clock_finish(c)
 
 Name und Reihenfolge stehen in CLOCK_FACES (konstanten), Optionen in CLOCK_OPTIONS.
+
+Gemeinsame Hilfen (bitte benutzen statt eigener Varianten):
+  clock_font(style, size, bold)      Schriften (sans, serif, mono, sans-cond, serif-cond), zwischengespeichert
+  self._clock_canvas(key, bg, build) 3-fach vergrößerte Fläche mit zwischengespeichertem Hintergrund
+  self._clock_cache(slot, key, build) sonstiges Unveränderliches (je slot nur der jüngste key)
+  CLOCK_CX, CLOCK_CY, CLOCK_H         Mitte und Höhe der Uhrfläche; ROMAN_XII römische Ziffern (mit „IIII“)
+Top-Level-Namen eines Moduls tragen dessen Präfix (_mech_, _sky_, _disp_, _info_), weil alle Module
+einen Namensraum teilen. Zwischenspeicher werden beim Wechsel des Zifferblatts geleert (CLOCK_CACHES); eigene Speicher nicht anlegen.
 fps > 1 lässt das Display öfter neu zeichnen (flüssige Bewegungen); fps darf auch
 eine Funktion(optionen) sein. Analoge Uhren werden CLOCK_SS-fach gezeichnet und
 verkleinert (weiche Kanten); Unveränderliches wird mit _clock_canvas zwischengespeichert.
@@ -22,6 +30,8 @@ import math
 
 CLOCK_SS = 3                                # Vergrößerung beim Zeichnen (Kantenglättung)
 CLOCK_H = HEIGHT - FOOTER_H                 # Fläche über der Fußzeile
+CLOCK_CX, CLOCK_CY = WIDTH / 2, CLOCK_H / 2   # Mitte der Uhrfläche (160, 107)
+ROMAN_XII = ["XII", "I", "II", "III", "IIII", "V", "VI", "VII", "VIII", "IX", "X", "XI"]   # Uhren-„IIII“
 WEEKDAY_2 = ["MO", "DI", "MI", "DO", "FR", "SA", "SO"]
 MONTH_3 = ["JAN", "FEB", "MÄR", "APR", "MAI", "JUN", "JUL", "AUG", "SEP", "OKT", "NOV", "DEZ"]
 
@@ -36,6 +46,27 @@ def load_serif(size, bold=False):
         if os.path.exists(path):
             return ImageFont.truetype(path, size)
     return load_font(size, bold)
+
+
+_CLOCK_FONT_FILES = {"sans": "DejaVuSans", "serif": "DejaVuSerif", "mono": "DejaVuSansMono",
+                     "sans-cond": "DejaVuSansCondensed", "serif-cond": "DejaVuSerifCondensed"}
+_CLOCK_FONTS = {}
+
+
+def clock_font(style, size, bold=False):
+    """Schrift für Zifferblätter (einmal geladen, dann aus dem Zwischenspeicher).
+    style: sans, serif, mono, sans-cond, serif-cond (DejaVu); size in Pixeln – auf der 3-fach
+    vergrößerten Fläche also z. B. 10 * CLOCK_SS. Fehlt die Datei: load_font bzw. load_serif."""
+    key = (style, int(size), bool(bold))
+    font = _CLOCK_FONTS.get(key)
+    if font is None:
+        path = f"/usr/share/fonts/truetype/dejavu/{_CLOCK_FONT_FILES[style]}{'-Bold' if bold else ''}.ttf"
+        if os.path.exists(path):
+            font = ImageFont.truetype(path, int(size))
+        else:
+            font = (load_serif if style.startswith("serif") else load_font)(int(size), bold)
+        _CLOCK_FONTS[key] = font
+    return font
 
 
 class _Canvas:
@@ -151,7 +182,16 @@ class ClockBase:
         return _Canvas(self._cdials[key].copy())
 
     # Zwischenspeicher der Zifferblatt-Module (je ~2–3 MB pro Eintrag); Schriften bleiben erhalten
-    CLOCK_CACHES = ("_cdials", "_sky_cache", "_disp_mem", "_info_static")
+    CLOCK_CACHES = ("_cdials", "_clock_slots")
+
+    def _clock_cache(self, slot, key, build):
+        """Zwischenspeicher für Unveränderliches (Hintergründe, Masken, vorberechnete Bilder):
+        je slot nur der jüngste key – ändert sich z. B. eine Farbe, wird neu gebaut statt angesammelt."""
+        slots = self.__dict__.setdefault("_clock_slots", {})
+        hit = slots.get(slot)
+        if hit is None or hit[0] != key:
+            hit = slots[slot] = (key, build())
+        return hit[1]
 
     def _clock_drop_caches(self):
         """Beim Wechsel des Zifferblatts die Zwischenspeicher der anderen Zifferblätter freigeben."""

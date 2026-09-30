@@ -6,15 +6,19 @@ def timer_label(cfg):
     if mode == "stopwatch":
         return "Stoppuhr"
     if mode == "pomodoro":
-        return f"Pomodoro {float(cfg.get('work') or 25):g}/{float(cfg.get('break') or 5):g}"
+        return f"Pomodoro {_num(cfg.get('work'), 25):g}/{_num(cfg.get('break'), 5):g}"
     return f"Timer {fmt_minutes(cfg.get('minutes') or 5)}"
 
 
-def fmt_minutes(m):
+def _num(v, default):
     try:
-        m = float(m)
+        return float(v) if v else default
     except (TypeError, ValueError):
-        m = 5
+        return default
+
+
+def fmt_minutes(m):
+    m = _num(m, 5)
     return f"{m:g} min" if m >= 1 else f"{round(m * 60)} s"
 
 

@@ -60,26 +60,32 @@ function fKeyText(gkey, p) {
 function domainOf(u) { return String(u).replace(/^[a-z]+:\/\/(www\.)?/i, "").split("/")[0]; }
 function stationName(url) {
   const s = ((UI.sdraft || S.settings).stations || []).find(x => x.url === url);
-  return s ? (s.name || domainOf(url)) : domainOf(url);
+  return (s && s.name) || domainOf(url);
 }
+// Art und Beschriftung einer Belegung: dieselben Regeln wie entry_type/entry_label im Treiber (makros.py);
+// die Reihenfolge der Arten kommt vom Treiber (S.entryTypes), tests/einheit/test_beschriftung.py vergleicht beide.
 function typeOf(e) {
   if (!e) return "default";
-  for (const t of ["radio", "media", "volume", "snippets", "timer", "sleep", "mic", "open", "run", "text", "combo", "steps"]) {
-    const v = e[t]; if (v && (!Array.isArray(v) || v.length)) return t;
+  for (const t of S.entryTypes) {
+    const v = e[t];
+    if (t === "timer" && (typeof v !== "object" || v === null || Array.isArray(v))) continue;
+    if (v && (!Array.isArray(v) || v.length)) return t;
   }
   return "default";
 }
+function num(v, dflt) { const n = parseFloat(v); return isNaN(n) || !v ? dflt : n; }
+function fmtMinutes(m) { m = num(m, 5); return m >= 1 ? `${m} min` : `${Math.round(m * 60)} s`; }
 function timerLabel(t) {
   t = t || {};
   if (t.mode === "stopwatch") return "Stoppuhr";
-  if (t.mode === "pomodoro") return `Pomodoro ${t.work || 25}/${t.break || 5}`;
-  return `Timer ${t.minutes || 5} min`;
+  if (t.mode === "pomodoro") return `Pomodoro ${num(t.work, 25)}/${num(t.break, 5)}`;
+  return `Timer ${fmtMinutes(t.minutes)}`;
 }
 function snippetGroups() {
   const sd = UI.sdraft || S.settings;
   return [...new Set(sd.snippets.map(x => (x.group || "").trim()).filter(Boolean))].sort();
 }
-function comboList(c) { return Array.isArray(c) ? c : String(c || "").split("+").map(s => s.trim()).filter(Boolean); }
+function comboList(c) { return (Array.isArray(c) ? c : String(c || "").split("+")).map(s => String(s).trim()).filter(Boolean); }
 function entryLabel(e) {
   if (!e) return "";
   if (e.name) return e.name;
@@ -92,7 +98,7 @@ function entryLabel(e) {
   if (t === "timer") return timerLabel(e.timer);
   if (t === "sleep") return `Einschlafen ${e.sleep} min`;
   if (t === "mic") return "Mikrofon";
-  if (t === "run") return String(e.run).split(/\s+/)[0];
+  if (t === "run") return String(e.run).trim().split(/\s+/)[0];
   if (t === "text") return "Text";
   if (t === "combo") return comboList(e.combo).map(keyLabel).join("+");
   if (t === "steps") return "Makro";

@@ -1,43 +1,69 @@
 """Tastenbelegung (macros.json) mit Profilen und Ebenen, Zustand (state.json), Beschriftung der Einträge."""
 
 
+# Arten von Tastenbelegungen in der Reihenfolge, in der sie erkannt werden. Gilt für die Ausführung
+# (aktionen.py), die Beschriftung (entry_label) und die Verwaltung (bekommt die Liste über /api/state).
+# Ein Eintrag hat normalerweise genau eine davon; „timer“ muss ein Objekt sein.
+ENTRY_TYPES = ["timer", "snippets", "open", "run", "radio", "media", "mic", "sleep", "volume",
+               "text", "combo", "steps"]
+
+
+def entry_type(entry):
+    """Art einer Tastenbelegung (siehe ENTRY_TYPES) oder None (Taste sendet F13–F24)."""
+    if not isinstance(entry, dict):
+        return None
+    for t in ENTRY_TYPES:
+        v = entry.get(t)
+        if t == "timer" and not isinstance(v, dict):
+            continue
+        if v:
+            return t
+    return None
+
+
+def combo_keys(combo):
+    """Tastenkombination als Liste: ["KEY_LEFTCTRL", "KEY_C"] oder "KEY_LEFTCTRL+KEY_C"."""
+    keys = combo if isinstance(combo, list) else str(combo or "").split("+")
+    return [str(k).strip() for k in keys if str(k).strip()]
+
+
 def entry_label(entry, settings=None):
-    """Kurzbeschriftung einer Tastenbelegung für Display und Oberfläche."""
+    """Kurzbeschriftung einer Tastenbelegung für Display und Oberfläche.
+    Die Verwaltung hat dieselben Regeln in seite/js/02_hilfen.js (entryLabel) – ein Test vergleicht beide."""
     if not isinstance(entry, dict):
         return ""
     if entry.get("name"):
         return str(entry["name"])
-    if entry.get("open"):
+    t = entry_type(entry)
+    if t == "open":
         return domain_of(entry["open"])
-    if entry.get("radio"):
+    if t == "radio":
         if entry["radio"] == "stop":
             return "Radio aus"
         for st in (settings or {}).get("stations", []):
             if st.get("url") == entry["radio"]:
-                return st.get("name") or "Radio"
-        return "Radio"
-    if entry.get("media"):
+                return st.get("name") or domain_of(entry["radio"])
+        return domain_of(entry["radio"])
+    if t == "media":
         return MEDIA_ACTIONS.get(entry["media"], "Musik")
-    if entry.get("volume"):
+    if t == "volume":
         return VOLUME_ACTIONS.get(entry["volume"], "Lautstärke")
-    if entry.get("snippets"):
+    if t == "snippets":
         grp = str(entry["snippets"])
         return "Textbausteine" if grp == "*" else grp
-    if isinstance(entry.get("timer"), dict):
+    if t == "timer":
         return timer_label(entry["timer"])
-    if entry.get("sleep"):
+    if t == "sleep":
         return f"Einschlafen {entry['sleep']} min"
-    if entry.get("mic"):
+    if t == "mic":
         return "Mikrofon"
-    if entry.get("run"):
-        return str(entry["run"]).split()[0]
-    if entry.get("text"):
+    if t == "run":
+        return (str(entry["run"]).split() or [""])[0]
+    if t == "text":
         return "Text"
-    if entry.get("combo"):
-        combo = entry["combo"]
-        keys = combo if isinstance(combo, list) else str(combo).split("+")
-        return "+".join(key_label(k.strip()) for k in keys)
-    if entry.get("steps"):
+    if t == "combo":
+        return "+".join(key_label(k) for k in combo_keys(entry["combo"]))
+    if t == "steps":
         return "Makro"
     return ""
 

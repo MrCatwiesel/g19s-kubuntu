@@ -14,6 +14,7 @@ class ApiKeys:
             "chars": list(g.DE_CHARS.keys()), "dead": list(g.DE_DEAD.keys()),
             "pages": g.PAGE_NAMES, "page_ids": g.PAGE_IDS, "media": g.MEDIA_ACTIONS,
             "volume": g.VOLUME_ACTIONS,
+            "entry_types": g.ENTRY_TYPES,
             "clock_faces": list(g.CLOCK_FACES.items()), "clock_options": g.CLOCK_OPTIONS,
             "world_cities": g.WORLD_CITIES,
             "mtimes": {"macros": mtime(g.MACRO_FILE), "settings": mtime(g.SETTINGS_FILE)},

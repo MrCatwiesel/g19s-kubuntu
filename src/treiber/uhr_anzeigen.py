@@ -8,15 +8,13 @@ import math
 import random
 from PIL import ImageFilter
 
-_disp_cond = "/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed{}.ttf"
-_disp_sans = "/usr/share/fonts/truetype/dejavu/DejaVuSans{}.ttf"
 
-
-def _disp_shrink(img, w, h):
-    """CLOCK_SS-fach gezeichnetes Bild auf w×h verkleinern (RGBA mit vormultipliziertem Alpha)."""
-    if img.mode == "RGBA":
-        return img.convert("RGBa").resize((w, h), Image.LANCZOS).convert("RGBA")
-    return img.resize((w, h), Image.LANCZOS)
+def _disp_sprite(w, h, build, bg=(0, 0, 0, 0)):
+    """Bild w×h (RGBA, Displaygröße): build(c) zeichnet CLOCK_SS-fach auf bg, dann verkleinert
+    (mit vormultipliziertem Alpha, damit transparente Ränder nicht dunkel ausfransen)."""
+    c = _Canvas(Image.new("RGBA", (w * CLOCK_SS, h * CLOCK_SS), bg))
+    build(c)
+    return c.img.convert("RGBa").resize((w, h), Image.LANCZOS).convert("RGBA")
 
 
 def _disp_grad(img, box, radius, stops, mask=None):
@@ -147,52 +145,29 @@ def _disp_seg_polys(x, y, w, h, t, gap, skew):
 
 class DisplayFaces:
     # --- gemeinsame Hilfen ---------------------------------------------------- #
-    def _disp_store(self):
-        """Zwischenspeicher dieser Zifferblätter (Schriften, Hintergründe, Einzelteile)."""
-        if "_disp_mem" not in self.__dict__:
-            self._disp_mem = {}
-        return self._disp_mem
+    # Alle Einzelteile liegen in self._clock_cache: der Slot benennt das Teil (z. B. ("disp_seg", "big", "7")),
+    # der Schlüssel die veränderlichen Farben – ein Farbwechsel ersetzt also, statt anzusammeln.
+    def _disp_part(self, slot, key, w, h, build):
+        """Einzelteil w×h (RGBA, Displaygröße), build(c) zeichnet es CLOCK_SS-fach auf Transparenz."""
+        return self._clock_cache(slot, key, lambda: _disp_sprite(w, h, build))
 
-    def _disp_font(self, path, size, bold=False):
-        """Schrift aus path ({} → „-Bold“); fehlt die Datei, DejaVu Sans über load_font."""
-        mem, key = self._disp_store(), ("font", path, size, bold)
-        if key not in mem:
-            p = path.format("-Bold" if bold else "")
-            mem[key] = ImageFont.truetype(p, size) if os.path.exists(p) else load_font(size, bold)
-        return mem[key]
-
-    def _disp_glyph(self, txt, path, bold, bw, bh, dh, maxw, ref="0123456789"):
-        """Zeichen als Maske (L, bw×bh): Ziffernhöhe dh, mittig; breiter als maxw (gemessen an ref) → gestaucht."""
-        mem = self._disp_store()
-        key = ("glyph", txt, path, bold, bw, bh, dh, maxw, ref)
-        if key not in mem:
-            x0, y0, x1, y1 = self._disp_font(path, 200, bold).getbbox("0")
-            font = self._disp_font(path, max(4, round(200 * dh / (y1 - y0))), bold)
+    def _disp_glyph(self, txt, style, bold, bw, bh, dh, maxw, ref="0123456789"):
+        """Zeichen als Maske (L, bw×bh): Ziffernhöhe dh, mittig; breiter als maxw (gemessen an ref) → gestaucht.
+        style wie bei clock_font; die Schriftgröße ergibt sich aus der Höhe der „0“ bei 200 px."""
+        def build():
+            x0, y0, x1, y1 = clock_font(style, 200, bold).getbbox("0")
+            font = clock_font(style, max(4, round(200 * dh / (y1 - y0))), bold)
             refw = max(font.getbbox(ch)[2] - font.getbbox(ch)[0] for ch in ref)
-            fx = min(1.0, maxw / refw)
-            tw = max(bw, round(bw / fx))
+            tw = max(bw, round(bw / min(1.0, maxw / refw)))
             m = Image.new("L", (tw, bh), 0)
             ImageDraw.Draw(m).text((tw / 2, (bh + dh) / 2), txt, font=font, fill=255, anchor="ms")
-            mem[key] = m.resize((bw, bh), Image.LANCZOS) if tw != bw else m
-        return mem[key]
+            return m.resize((bw, bh), Image.LANCZOS) if tw != bw else m
+        return self._clock_cache(("disp_glyph", txt, style, bold, bw, bh, dh, maxw, ref), None, build)
 
-    def _disp_part(self, key, w, h, build):
-        """Einzelteil w×h (RGBA, Displaygröße), build(c) zeichnet es CLOCK_SS-fach auf Transparenz."""
-        mem = self._disp_store()
-        if key not in mem:
-            c = _Canvas(Image.new("RGBA", (w * CLOCK_SS, h * CLOCK_SS), (0, 0, 0, 0)))
-            build(c)
-            mem[key] = _disp_shrink(c.img, w, h)
-        return mem[key]
-
-    def _disp_base(self, key, bg, build):
+    def _disp_base(self, face, key, bg, build):
         """Hintergrund (RGBA 320×CLOCK_H) einmal CLOCK_SS-fach zeichnen, verkleinert zwischenspeichern; Kopie."""
-        mem = self._disp_store()
-        if key not in mem:
-            c = _Canvas(Image.new("RGBA", (WIDTH * CLOCK_SS, CLOCK_H * CLOCK_SS), tuple(bg) + (255,)))
-            build(c)
-            mem[key] = _disp_shrink(c.img, WIDTH, CLOCK_H)
-        return mem[key].copy()
+        return self._clock_cache(("disp_base", face), key,
+                                 lambda: _disp_sprite(WIDTH, CLOCK_H, build, tuple(bg) + (255,))).copy()
 
     def _disp_out(self, img):
         """Displaybild 320×240 (die Fußzeile zeichnet der Aufrufer)."""
@@ -229,23 +204,21 @@ class DisplayFaces:
 
     def _disp_flip_card(self, kind, ch, ink):
         """Karte mit Zeichen ch: (ganz, obere Hälfte, untere Hälfte) als RGBA."""
-        mem, key = self._disp_store(), ("flip", kind, ch, ink)
-        if key not in mem:
-            w, h, dh, dw, r = self._disp_flip_kinds[kind]
-            s = CLOCK_SS
+        w, h, dh, dw, r = self._disp_flip_kinds[kind]
+        s = CLOCK_SS
 
-            def build(c):
-                _disp_grad(c.img, (0, 0, w * s, h * s), r * s, [(0, (60, 60, 65)), (0.5, (40, 40, 44)),
-                                                               (0.5, (34, 34, 38)), (1, (22, 22, 25))])
-                c.rect(r * 0.6, 0, w - r * 0.6, 0.4, fill=(84, 84, 90))           # Lichtkante oben
-                glyph = self._disp_glyph(ch, _disp_cond, True, w * s, h * s, dh * s, dw * s)
-                _disp_tint(c.img, ink, glyph)
-                c.rect(0, h / 2 - 0.7, w, h / 2 + 0.5, fill=(6, 6, 8))           # Trennfuge
-                c.rect(0, h / 2 + 0.5, w, h / 2 + 0.9, fill=(58, 58, 62))
+        def draw(c):
+            _disp_grad(c.img, (0, 0, w * s, h * s), r * s, [(0, (60, 60, 65)), (0.5, (40, 40, 44)),
+                                                           (0.5, (34, 34, 38)), (1, (22, 22, 25))])
+            c.rect(r * 0.6, 0, w - r * 0.6, 0.4, fill=(84, 84, 90))           # Lichtkante oben
+            _disp_tint(c.img, ink, self._disp_glyph(ch, "sans-cond", True, w * s, h * s, dh * s, dw * s))
+            c.rect(0, h / 2 - 0.7, w, h / 2 + 0.5, fill=(6, 6, 8))           # Trennfuge
+            c.rect(0, h / 2 + 0.5, w, h / 2 + 0.9, fill=(58, 58, 62))
 
-            full = self._disp_part(key + ("full",), w, h, build)
-            mem[key] = (full, full.crop((0, 0, w, h // 2)), full.crop((0, h // 2, w, h)))
-        return mem[key]
+        def build():
+            full = _disp_sprite(w, h, draw)
+            return full, full.crop((0, 0, w, h // 2)), full.crop((0, h // 2, w, h))
+        return self._clock_cache(("disp_flip", kind, ch), ink, build)
 
     def _disp_flip_draw(self, img, kind, x, y, old, new, p, ink):
         """Karte zeichnen; wechselt das Zeichen, klappt die obere Hälfte um (p = 0…1)."""
@@ -290,10 +263,11 @@ class DisplayFaces:
             for hx in (x - hw, x + w):                                     # Scharniere
                 c.rect(hx, hy - hl / 2, hx + hw, hy + hl / 2, fill=(92, 92, 98), outline=(18, 18, 20), width=0.5)
                 c.rect(hx, hy - 0.4, hx + hw, hy + 0.4, fill=(40, 40, 44))
+        cx = CLOCK_CX
         for cy in (46, 80):                                                # Doppelpunkt
-            c.d.rounded_rectangle([(160 - 4.5) * s, (cy - 4.5) * s, (160 + 4.5) * s, (cy + 4.5) * s],
+            c.d.rounded_rectangle([(cx - 4.5) * s, (cy - 4.5) * s, (cx + 4.5) * s, (cy + 4.5) * s],
                                   2 * s, fill=(62, 62, 68))
-            c.d.rounded_rectangle([(160 - 3.5) * s, (cy - 3.5) * s, (160 + 3.5) * s, (cy + 1) * s],
+            c.d.rounded_rectangle([(cx - 3.5) * s, (cy - 3.5) * s, (cx + 3.5) * s, (cy + 1) * s],
                                   1.5 * s, fill=(84, 84, 92))
 
     @clock_face("flip", fps=5)
@@ -302,12 +276,12 @@ class DisplayFaces:
         now, prev = time.localtime(t), time.localtime(math.floor(t) - 1)
         p = self._disp_step(t, 0.5)
         acc = PROFILE_COLOR.get(profile, self.FG)
-        img = self._disp_base("flip", (20, 20, 24), self._disp_flip_static)
+        img = self._disp_base("flip", None, (20, 20, 24), self._disp_flip_static)
         white, sec_ink = (238, 236, 228), mix(acc, (255, 255, 255), 0.45)
         for (kind, x, y), a, b in zip(self._disp_flip_slots(), self._disp_flip_text(prev), self._disp_flip_text(now)):
             self._disp_flip_draw(img, kind, x, y, a, b, p, sec_ink if kind == "sec" else white)
         d = ImageDraw.Draw(img)
-        small, big = self._disp_font(_disp_cond, 10, True), self._disp_font(_disp_cond, 17, True)
+        small, big = clock_font("sans-cond", 10, True), clock_font("sans-cond", 17, True)
         d.text((88, 139), "KW", font=small, fill=(120, 124, 134), anchor="mm")
         d.text((88, 155), time.strftime("%V", now), font=big, fill=(200, 202, 208), anchor="mm")
         d.text((232, 139), "JAHR", font=small, fill=(120, 124, 134), anchor="mm")
@@ -321,7 +295,7 @@ class DisplayFaces:
     def _disp_nixie_mask(self, ch):
         """Ziffernmaske einer Kathode (CLOCK_SS-fach, 40×80 Displaypixel)."""
         s = CLOCK_SS
-        return self._disp_glyph(ch, _disp_sans, False, 40 * s, 80 * s, 58 * s, 25 * s)
+        return self._disp_glyph(ch, "sans", False, 40 * s, 80 * s, 58 * s, 25 * s)
 
     def _disp_nixie_lit(self, ch):
         """Leuchtende Ziffer mit Glühen (RGBA 40×80)."""
@@ -333,7 +307,7 @@ class DisplayFaces:
             _disp_tint(c.img, (255, 110, 20), near, 0.9)
             _disp_tint(c.img, (255, 150, 50), m.filter(ImageFilter.MaxFilter(3)))
             _disp_tint(c.img, (255, 222, 170), m.filter(ImageFilter.MinFilter(3)), 0.85)
-        return self._disp_part(("nixie_lit", ch), 40, 80, build)
+        return self._disp_part(("disp_nixie_lit", ch), None, 40, 80, build)
 
     @staticmethod
     def _disp_nixie_shape(d, x, s, fill=None, outline=None, width=0, inset=0):
@@ -360,7 +334,7 @@ class DisplayFaces:
                    [(0, (214, 178, 102)), (0.5, (176, 138, 64)), (1, (120, 88, 38))])
         for sx in (120, 200):
             c.circle(sx, 198, 1.3, fill=(92, 66, 28))
-        f = self._disp_font(_disp_sans, 8 * s, True)
+        f = clock_font("sans", 8 * s, True)
         _disp_engrave(c, 34, 198, "G19s", f, (200, 168, 110), (26, 14, 8))
         c.circle(292, 198, 3.2, fill=(20, 14, 10))
         c.circle(292, 198, 2.2, fill=acc)
@@ -425,21 +399,21 @@ class DisplayFaces:
                 getter = Image.new("L", c.img.size, 0)          # Getterspiegel in der Kuppe
                 ImageDraw.Draw(getter).ellipse([(x + 9) * s, 10 * s, (x + 31) * s, 22 * s], fill=255)
                 _disp_tint(c.img, (150, 150, 158), getter.filter(ImageFilter.GaussianBlur(2 * s)), 0.45)
-        return self._disp_part("nixie_front", WIDTH, CLOCK_H, build)
+        return self._disp_part("disp_nixie_front", None, WIDTH, CLOCK_H, build)
 
     @clock_face("nixie", fps=1)
     def face_nixie(self, profile):
         now = time.localtime(self._clock_now())
         acc = PROFILE_COLOR.get(profile, self.FG)
-        img = self._disp_base(("nixie", acc), (12, 10, 10), lambda c: self._disp_nixie_static(c, acc))
+        img = self._disp_base("nixie", acc, (12, 10, 10), lambda c: self._disp_nixie_static(c, acc))
         for x, ch in zip(self._disp_nixie_x, f"{now.tm_hour:02d}{now.tm_min:02d}{now.tm_sec:02d}"):
             img.alpha_composite(self._disp_nixie_lit(ch), (x, 48))
         img.alpha_composite(self._disp_nixie_front())
         d = ImageDraw.Draw(img)
         txt = f"{WEEKDAY_2[now.tm_wday]} {now.tm_mday:02d}.{now.tm_mon:02d}.{now.tm_year}"
-        f = self._disp_font(_disp_cond, 9, True)
-        d.text((160.5, 198.5), txt, font=f, fill=(236, 206, 140), anchor="mm")
-        d.text((160, 198), txt, font=f, fill=(70, 46, 16), anchor="mm")
+        f = clock_font("sans-cond", 9, True)
+        d.text((CLOCK_CX + 0.5, 198.5), txt, font=f, fill=(236, 206, 140), anchor="mm")   # Lichtkante
+        d.text((CLOCK_CX, 198), txt, font=f, fill=(70, 46, 16), anchor="mm")
         return self._disp_out(img)
 
     # --- LED-Radiowecker ------------------------------------------------------ #
@@ -474,7 +448,7 @@ class DisplayFaces:
             _disp_tint(c.img, mix(color, (255, 255, 255), 0.45),
                        m.filter(ImageFilter.MinFilter(int(t * 0.45 * s) * 2 + 1)).filter(ImageFilter.GaussianBlur(s)),
                        0.7)
-        return self._disp_part(("seg", kind, what, color), W, H, build)
+        return self._disp_part(("disp_seg", kind, what), color, W, H, build)
 
     def _disp_seg_static(self, c, color):
         s, sk = CLOCK_SS, self._disp_seg_skew
@@ -500,12 +474,12 @@ class DisplayFaces:
                         fill=shimmer)
         # Glockensymbol und Aufschrift (unbeleuchtet)
         self._disp_seg_bell(c, 32, 134, shimmer)
-        c.d.text((42 * s, 134 * s), "ALARM", font=self._disp_font(_disp_cond, 11 * s, True), fill=shimmer,
+        c.d.text((42 * s, 134 * s), "ALARM", font=clock_font("sans-cond", 11 * s, True), fill=shimmer,
                  anchor="lm")
         # Senderskala
         _disp_grad(c.img, (18 * s, 160 * s, 238 * s, 196 * s), 5 * s, [(0, (40, 34, 26)), (1, (26, 22, 18))])
         c.d.rounded_rectangle([18 * s, 160 * s, 238 * s, 196 * s], 5 * s, outline=(90, 90, 94), width=s)
-        tiny = self._disp_font(_disp_cond, 8 * s, True)
+        tiny = clock_font("sans-cond", 8 * s, True)
         ink = (214, 196, 150)
         c.d.text((24 * s, 184 * s), "UKW", font=tiny, fill=ink, anchor="lm")
         c.d.text((232 * s, 184 * s), "MHz", font=tiny, fill=ink, anchor="rm")
@@ -558,17 +532,17 @@ class DisplayFaces:
             ImageDraw.Draw(clip).rounded_rectangle([19 * s, 19 * s, 237 * s, 151 * s], 6 * s, fill=255)
             _disp_tint(c.img, (255, 255, 255), Image.composite(m, clip, clip))
             c.rect(24, 19.4, 232, 20.2, fill=(255, 255, 255, 40))
-        return self._disp_part("seg_glass", WIDTH, CLOCK_H, build)
+        return self._disp_part("disp_seg_glass", None, WIDTH, CLOCK_H, build)
 
     @clock_face("seg7", fps=1)
     def face_seg7(self, profile):
         now = time.localtime(self._clock_now())
         color = self._ccolor(self._copt("seg7")["color"], profile, (255, 40, 30))
-        img = self._disp_base(("seg7", color), (10, 9, 9), lambda c: self._disp_seg_static(c, color))
+        img = self._disp_base("seg7", color, (10, 9, 9), lambda c: self._disp_seg_static(c, color))
         for x, ch in zip(self._disp_seg_big_x, f"{now.tm_hour:02d}{now.tm_min:02d}"):
             img.alpha_composite(self._disp_seg_sprite("big", ch, color), (x - 8, 30 - 8))
         if now.tm_sec % 2 == 0:
-            w, h, t, _g = self._disp_seg_kinds["big"]
+            w = self._disp_seg_kinds["big"][0]
             img.alpha_composite(self._disp_seg_sprite("big", ":", color), (round(124 - w / 2) - 8, 30 - 8))
         for x, ch in zip(self._disp_seg_small_x, f"{now.tm_sec:02d}"):
             img.alpha_composite(self._disp_seg_sprite("small", ch, color), (x - 8, 122 - 8))
@@ -580,10 +554,10 @@ class DisplayFaces:
                 mc = _Canvas(m)
                 self._disp_seg_bell(mc, 10, 12, 255)
                 mc.d.text((20 * s, 12 * s), "ALARM  " + str(alarm.get("time") or "07:00"),
-                          font=self._disp_font(_disp_cond, 11 * s, True), fill=255, anchor="lm")
+                          font=clock_font("sans-cond", 11 * s, True), fill=255, anchor="lm")
                 _disp_tint(c.img, color, m.filter(ImageFilter.GaussianBlur(2 * s)), 0.6)
                 _disp_tint(c.img, mix(color, (255, 255, 255), 0.15), m)
-            img.alpha_composite(self._disp_part(("seg_alarm", str(alarm.get("time")), color), 110, 24, build),
+            img.alpha_composite(self._disp_part("disp_seg_alarm", (str(alarm.get("time")), color), 110, 24, build),
                                 (22, 122))
         img.alpha_composite(self._disp_seg_glass())
         return self._disp_out(img)
@@ -605,7 +579,7 @@ class DisplayFaces:
             _disp_tint(c.img, color, halo.filter(ImageFilter.GaussianBlur(r * 0.8 * s)), 0.55)
             c.circle(m, m, r, fill=mix(color, (255, 255, 255), 0.5) if hot else color)
             c.circle(m - r * 0.25, m - r * 0.25, r * 0.4, fill=mix(color, (255, 255, 255), 0.55 if not hot else 0.85))
-        return self._disp_part(("mx_led", big, color, hot), size, size, build)
+        return self._disp_part(("disp_mx_led", big, hot), color, size, size, build)
 
     def _disp_mx_static(self, c, color):
         s = CLOCK_SS
@@ -630,7 +604,7 @@ class DisplayFaces:
                 for i in range(nc):
                     x, y = x0 + i * p, y0 + j * p
                     c.circle(x, y, r, fill=off, outline=rim, width=0.4)
-        tiny = self._disp_font(_disp_cond, 8 * s, True)
+        tiny = clock_font("sans-cond", 8 * s, True)
         silk = (150, 152, 158)
         for k in (0, 15, 30, 45):
             c.d.text(((12 + k * 5) * s, 181 * s), str(k), font=tiny, fill=silk, anchor="mm")
@@ -655,7 +629,7 @@ class DisplayFaces:
     def face_matrix(self, profile):
         now = time.localtime(self._clock_now())
         color = self._ccolor(self._copt("matrix")["color"], profile)
-        img = self._disp_base(("matrix", color), (14, 14, 16), lambda c: self._disp_mx_static(c, color))
+        img = self._disp_base("matrix", color, (14, 14, 16), lambda c: self._disp_mx_static(c, color))
         big, small = self._disp_mx_led(True, color), self._disp_mx_led(False, color)
         x0, y0, p, _nc, _nr = self._disp_mx_big
         pts = []
@@ -689,14 +663,13 @@ class DisplayFaces:
         def build(c):
             s = CLOCK_SS
             c.rect(0, 0, w, pitch, fill=bg)
-            _disp_tint(c.img, (240, 238, 230), self._disp_glyph(ch, _disp_cond, True, w * s, pitch * s, dh * s,
+            _disp_tint(c.img, (240, 238, 230), self._disp_glyph(ch, "sans-cond", True, w * s, pitch * s, dh * s,
                                                                  w * 0.66 * s))
-        return self._disp_part(("roll", kind, ch, red), w, pitch, build)
+        return self._disp_part(("disp_roll", kind, ch, red), None, w, pitch, build)
 
     def _disp_roll_shade(self, kind):
         """Wölbung der Rolle: oben und unten dunkler, Glanzstreifen über der Mitte (RGBA)."""
-        mem, key = self._disp_store(), ("roll_shade", kind)
-        if key not in mem:
+        def build():
             w, wh, _p, _dh = self._disp_roll_kinds[kind]
             shade = Image.new("RGBA", (w, wh), (0, 0, 0, 0))
             for y in range(wh):
@@ -709,8 +682,8 @@ class DisplayFaces:
                         shade.putpixel((x, y), (255, 255, 255, int(shine * edge)))
                     else:
                         shade.putpixel((x, y), (0, 0, 0, min(255, dark + int(70 * (1 - edge)))))
-            mem[key] = shade
-        return mem[key]
+            return shade
+        return self._clock_cache(("disp_roll_shade", kind), None, build)
 
     def _disp_roll(self, img, x, y, kind, old, new, mod, p, red=False):
         """Zahlenrolle im Fenster ab (x, y); wechselt die Ziffer, rollt sie von unten nach (p = 0…1)."""
@@ -759,7 +732,7 @@ class DisplayFaces:
         for sx, sy in ((14, 14), (306, 14), (14, 200), (306, 200)):
             _disp_screw(c, sx, sy, 4.2, rnd.uniform(0, 180))
         dark, light = (36, 38, 42), (190, 194, 200)
-        lab = self._disp_font(_disp_cond, 9 * s, True)
+        lab = clock_font("sans-cond", 9 * s, True)
         # Hauptzählwerk
         for g, (x, name) in enumerate(zip(self._disp_cnt_groups, ("STUNDEN", "MINUTEN", "SEKUNDEN"))):
             _disp_engrave(c, x + 35, 23, name, lab, dark, light)
@@ -780,8 +753,8 @@ class DisplayFaces:
         for rx, ry in ((80, 163), (248, 163), (80, 197), (248, 197)):
             c.circle(rx, ry, 1.9, fill=(110, 104, 92))
             c.circle(rx - 0.4, ry - 0.4, 1.1, fill=(230, 226, 214))
-        big = self._disp_font(_disp_sans, 13 * s, True)
-        tiny = self._disp_font(_disp_cond, 8 * s, True)
+        big = clock_font("sans", 13 * s, True)
+        tiny = clock_font("sans-cond", 8 * s, True)
         ink, glint = (44, 40, 34), (240, 236, 224)
         _disp_engrave(c, 164, 172, "G19s  ZÄHLWERK", big, ink, glint)
         _disp_engrave(c, 164, 188, "TYP ZW 6-5  ·  24 STD  ·  Nr. 0419", tiny, ink, glint)
@@ -792,7 +765,7 @@ class DisplayFaces:
         now, prev = time.localtime(t), time.localtime(math.floor(t) - 1)
         p = self._disp_step(t, 0.4)
         acc = PROFILE_COLOR.get(profile, self.FG)
-        img = self._disp_base(("counter", acc), (14, 14, 15), lambda c: self._disp_cnt_static(c, acc))
+        img = self._disp_base("counter", acc, (14, 14, 15), lambda c: self._disp_cnt_static(c, acc))
         fmt = "{0.tm_hour:02d}{0.tm_min:02d}{0.tm_sec:02d}"
         a, b = fmt.format(prev), fmt.format(now)
         mods = (3, 10, 6, 10, 6, 10)

@@ -1,22 +1,24 @@
 """G-Tasten-Aktionen: welcher Eintrag in macros.json was auslöst.
 
-GKEY_ACTIONS ist eine geordnete Liste (Prüfung, Ausführung). Die erste passende
-Aktion wird ausgeführt; passt keine, sendet die Taste F13–F24 (bzw. mit
-Strg/Alt in M2/M3) für KDE-Kurzbefehle. Eine neue Aktion = ein neuer Eintrag.
+Die Art eines Eintrags bestimmt entry_type() (Reihenfolge in ENTRY_TYPES, makros.py);
+GKEY_ACTIONS ordnet jeder Art ihre Ausführung zu. Ohne Art sendet die Taste F13–F24
+(bzw. mit Strg/Alt in M2/M3) für KDE-Kurzbefehle. Neue Aktion: Art in ENTRY_TYPES
+eintragen und hier mit @gkey_action("art") anmelden.
 """
 
-GKEY_ACTIONS = []
+GKEY_ACTIONS = {}
 
 
-def gkey_action(test):
-    """Ausführung für Einträge anmelden, auf die test(macro) zutrifft (Reihenfolge = Priorität)."""
+def gkey_action(*types):
+    """Ausführung für Einträge der Art(en) types anmelden."""
     def deco(fn):
-        GKEY_ACTIONS.append((test, fn))
+        for t in types:
+            GKEY_ACTIONS[t] = fn
         return fn
     return deco
 
 
-@gkey_action(lambda m: isinstance(m.get("timer"), dict))
+@gkey_action("timer")
 def act_timer(app, macro, name):
     tcfg = macro["timer"]
     if app.timer.alarm:
@@ -34,7 +36,7 @@ def act_timer(app, macro, name):
     app.next_draw = 0
 
 
-@gkey_action(lambda m: m.get("snippets"))
+@gkey_action("snippets")
 def act_snippets(app, macro, name):
     if app.menu is not None and app.menu.kind == "snippets":
         app.menu = None                     # zweiter Druck schließt die Liste
@@ -46,7 +48,7 @@ def act_snippets(app, macro, name):
     app.next_draw = 0
 
 
-@gkey_action(lambda m: m.get("open") or m.get("run"))
+@gkey_action("open", "run")
 def act_open_run(app, macro, name):
     label = str(macro.get("name") or macro.get("open") or "Befehl")
     if macro.get("open"):
@@ -60,7 +62,7 @@ def act_open_run(app, macro, name):
         app.show("Fehler", [f"{label} ließ sich", "nicht starten"], REC_COLOR, 3)
 
 
-@gkey_action(lambda m: m.get("radio"))
+@gkey_action("radio")
 def act_radio(app, macro, name):
     cur = app.radio.current()
     if macro["radio"] == "stop" or (cur and cur["url"] == macro["radio"]):
@@ -73,7 +75,6 @@ def act_radio(app, macro, name):
     app.media.wake.set()
 
 
-@gkey_action(lambda m: m.get("media") == "remember")
 def act_remember_song(app, macro, name):
     app.media.refresh()                     # aktuellen Titel holen (im Hintergrund evtl. 5 s alt)
     info = app.media.snapshot()[0]
@@ -86,12 +87,14 @@ def act_remember_song(app, macro, name):
         app.show("Song merken", ["schon gemerkt" if info else "es läuft nichts"], PROFILE_COLOR[app.layer], 1.8)
 
 
-@gkey_action(lambda m: m.get("media"))
+@gkey_action("media")
 def act_media(app, macro, name):
+    if macro["media"] == "remember":
+        return act_remember_song(app, macro, name)
     threading.Thread(target=app.media.control, args=(macro["media"],), daemon=True).start()
 
 
-@gkey_action(lambda m: m.get("mic"))
+@gkey_action("mic")
 def act_mic(app, macro, name):
     color = PROFILE_COLOR[app.layer]
 
@@ -107,7 +110,7 @@ def act_mic(app, macro, name):
     threading.Thread(target=work, daemon=True).start()
 
 
-@gkey_action(lambda m: m.get("sleep"))
+@gkey_action("sleep")
 def act_sleep(app, macro, name):
     sleep = app.sleep
     if sleep["until"]:
@@ -130,7 +133,7 @@ def act_sleep(app, macro, name):
     app.next_draw = 0
 
 
-@gkey_action(lambda m: m.get("volume"))
+@gkey_action("volume")
 def act_volume(app, macro, name):
     action, color = macro["volume"], PROFILE_COLOR[app.layer]
 
@@ -144,7 +147,7 @@ def act_volume(app, macro, name):
     threading.Thread(target=work, daemon=True).start()
 
 
-@gkey_action(lambda m: m.get("steps") or m.get("text") or m.get("combo"))
+@gkey_action("text", "combo", "steps")
 def act_keys(app, macro, name):
     if app.args.debug:
         print(f"  {name} -> „{entry_label(macro, app.settings())}“")
@@ -154,10 +157,12 @@ def act_keys(app, macro, name):
 
 def run_gkey_action(app, macro, name):
     """Passende Aktion ausführen. False = keine Aktion (Taste sendet F13–F24)."""
-    if not macro:
+    fn = GKEY_ACTIONS.get(entry_type(macro))
+    if fn is None:
         return False
-    for test, fn in GKEY_ACTIONS:
-        if test(macro):
-            fn(app, macro, name)
-            return True
-    return False
+    fn(app, macro, name)
+    return True
+
+
+assert set(GKEY_ACTIONS) == set(ENTRY_TYPES), \
+    f"G-Tasten-Arten ohne Ausführung: {set(ENTRY_TYPES) - set(GKEY_ACTIONS)}"

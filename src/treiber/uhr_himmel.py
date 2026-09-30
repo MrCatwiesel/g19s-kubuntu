@@ -8,7 +8,6 @@ from PIL import ImageFilter
 _sky_SYNODIC = 29.530588853                   # synodischer Monat in Tagen
 _sky_NEW_MOON = datetime.datetime(2000, 1, 6, 18, 14, tzinfo=datetime.timezone.utc).timestamp()
 _sky_BERLIN = (52.52, 13.405, "Berlin")
-_sky_FONT_DIR = "/usr/share/fonts/truetype/dejavu/"
 _sky_ZODIAC = [("♈", "Widder"), ("♉", "Stier"), ("♊", "Zwillinge"), ("♋", "Krebs"),
                ("♌", "Löwe"), ("♍", "Jungfrau"), ("♎", "Waage"), ("♏", "Skorpion"),
                ("♐", "Schütze"), ("♑", "Steinbock"), ("♒", "Wassermann"), ("♓", "Fische")]
@@ -17,16 +16,21 @@ _sky_PHASES = [                               # (bis Mondalter in Tagen, Name in
     (13.77, ("Zunehmender", "Mond")), (15.77, ("Vollmond",)), (21.15, ("Abnehmender", "Mond")),
     (23.15, ("Letztes", "Viertel")), (28.53, ("Abnehmende", "Sichel")), (99, ("Neumond",)),
 ]
-_sky_ROMAN = {6: "VI", 7: "VII", 8: "VIII", 9: "IX", 10: "X", 11: "XI", 12: "XII", 13: "I", 14: "II",
-              15: "III", 16: "IIII", 17: "V", 18: "VI"}
 
 
-def _sky_font(name, size, bold=True):
-    """DejaVu-Schnitt (z. B. „SansMono-Bold“) in Pixelgröße size; Ersatz: load_font."""
-    path = _sky_FONT_DIR + "DejaVu" + name + ".ttf"
-    if os.path.exists(path):
-        return ImageFont.truetype(path, size)
-    return load_font(size, bold)
+def _sky_fonts():
+    """Schriften der Himmels-Zifferblätter nach Rolle (clock_font hält sie im Zwischenspeicher)."""
+    s = CLOCK_SS
+    return {
+        "cond": clock_font("sans-cond", 9 * s, True), "cond_s": clock_font("sans-cond", 8 * s),
+        "val": clock_font("sans-cond", 14 * s, True), "glyph": clock_font("sans", 10 * s),
+        "glyph_b": clock_font("sans", 11 * s, True), "num": clock_font("serif", 8 * s, True),
+        "motto": clock_font("serif", 12 * s, True), "roman": clock_font("serif", 9 * s, True),
+        "mono": clock_font("mono", 10 * s, True), "mono_s": clock_font("mono", 8 * s, True),
+        "city": clock_font("sans-cond", 11 * s, True), "city_b": clock_font("sans-cond", 16 * s, True),
+        "q": clock_font("sans", 20 * s, True),
+        "r_val": clock_font("mono", 13, True),              # Radar: ohne Vergrößerung (Displaypixel)
+    }
 
 
 def _sky_sun(ts):
@@ -143,33 +147,6 @@ _sky_SKY_STOPS = [(-18, (8, 10, 28)), (-12, (18, 24, 62)), (-6, (44, 50, 112)), 
 
 class SkyFaces:
     # --- gemeinsame Hilfen ---------------------------------------------------- #
-    def _sky_fonts(self):
-        if not hasattr(self, "_sky_f"):
-            s = CLOCK_SS
-            self._sky_f = {
-                "cond": _sky_font("SansCondensed-Bold", 9 * s), "cond_s": _sky_font("SansCondensed", 8 * s, False),
-                "val": _sky_font("SansCondensed-Bold", 14 * s), "glyph": _sky_font("Sans", 10 * s, False),
-                "glyph_b": _sky_font("Sans-Bold", 11 * s), "num": load_serif(8 * s, bold=True),
-                "motto": load_serif(12 * s, bold=True), "roman": load_serif(9 * s, bold=True),
-                "mono": _sky_font("SansMono-Bold", 10 * s), "mono_s": _sky_font("SansMono-Bold", 8 * s),
-                "city": _sky_font("SansCondensed-Bold", 11 * s), "city_b": _sky_font("SansCondensed-Bold", 16 * s),
-                "q": _sky_font("Sans-Bold", 20 * s),
-                # Radar: ohne Vergrößerung (Displaypixel)
-                "r_lab": _sky_font("SansMono-Bold", 9), "r_val": _sky_font("SansMono-Bold", 13),
-                "r_deg": _sky_font("SansMono", 8, False),
-            }
-            self._sky_cache = {}
-        return self._sky_f
-
-    def _sky_cached(self, slot, key, build):
-        """Ein Zwischenbild je Zifferblatt (nur der jüngste Schlüssel bleibt, damit nichts anwächst)."""
-        self._sky_fonts()
-        hit = self._sky_cache.get(slot)
-        if not hit or hit[0] != key:
-            hit = (key, build())
-            self._sky_cache[slot] = hit
-        return hit[1]
-
     def _sky_place(self):
         """(Breite, Länge, Name) aus den Wetter-Einstellungen, sonst Berlin."""
         w = self.settings.get("weather") if isinstance(self.settings, dict) else None
@@ -199,7 +176,7 @@ class SkyFaces:
         return txt.rstrip() + "…"
 
     def _sky_label(self, c, x, y, label, value, lab_col, val_col, maxw=56):
-        f = self._sky_f
+        f = _sky_fonts()
         c.text(x, y, label, self._sky_fit(c, label, [f["cond"], f["cond_s"]], maxw), lab_col)
         c.text(x, y + 14, value, self._sky_fit(c, value, [f["val"], f["city"], f["cond"]], maxw), val_col)
 
@@ -211,9 +188,9 @@ class SkyFaces:
         h = lt.tm_hour + lt.tm_min / 60 + lt.tm_sec / 3600
         return (h * 15 + 180) % 360
 
-    def _sky_astro_static(self, t, lat, lon):
-        f, cx, cy = self._sky_f, 160, CLOCK_H / 2
-        c = _Canvas(Image.new("RGB", (WIDTH * CLOCK_SS, CLOCK_H * CLOCK_SS), (7, 9, 20)))
+    def _sky_astro_static(self, c, t, lat, lon):
+        """Hintergrund der Astro-Uhr für den Tag von t: Ring, Himmelsscheibe, Sterne, Auf-/Untergangsmarken."""
+        f, cx, cy = _sky_fonts(), CLOCK_CX, CLOCK_CY
         s, gold, gold_d = CLOCK_SS, (214, 176, 98), (120, 94, 48)
         for r in range(112, 60, -4):                     # Schimmer hinter der Uhr
             c.circle(cx, cy, r, fill=mix((7, 9, 20), (22, 24, 44), (112 - r) / 52))
@@ -254,11 +231,10 @@ class SkyFaces:
             c.radial(cx, cy, 98, 101, deg, 0.9, gold)
             x, y = [v / s for v in c.pt(cx, cy, 93.5, deg)]
             c.text(x, y, str(h or 24), f["num"], (240, 214, 150) if h % 6 == 0 else gold)
-        return c.img
 
     def _sky_zodiac(self, c, cx, cy, sun_deg, sun_lon):
         """Tierkreisring: ekliptikale Länge wächst gegen den Uhrzeigersinn, die Sonne steht unter dem Sonnenzeiger."""
-        f, s = self._sky_f, CLOCK_SS
+        f, s = _sky_fonts(), CLOCK_SS
         box = [(cx - 87) * s, (cy - 87) * s, (cx + 87) * s, (cy + 87) * s]
         cur = int(sun_lon // 30) % 12
         for k in range(12):
@@ -275,30 +251,31 @@ class SkyFaces:
 
     def _sky_moon_textures(self, r):
         """Mondscheibe hell und dunkel (mit Meeren), Größe 2r vergrößert, und Kreismaske."""
-        key = ("moontex", r)
-        if key not in self._sky_cache:
-            n = int(2 * r * CLOCK_SS)
-            rnd = random.Random(7)
-            maria = [(0.30, -0.35, 0.28), (-0.05, -0.30, 0.22), (0.25, 0.10, 0.26), (-0.30, 0.05, 0.18),
-                     (-0.15, 0.40, 0.16), (0.45, -0.05, 0.14), (0.05, 0.02, 0.12)]
-            out = []
-            for base, sea in (((232, 228, 208), (176, 172, 158)), ((44, 48, 66), (34, 38, 54))):
-                img = Image.new("RGB", (n, n), base)
-                d = ImageDraw.Draw(img)
-                for mx, my, mr in maria:
-                    d.ellipse([(0.5 + mx - mr) * n, (0.5 + my - mr) * n, (0.5 + mx + mr) * n, (0.5 + my + mr) * n],
-                              fill=sea)
-                img = img.filter(ImageFilter.GaussianBlur(n / 30))
-                d = ImageDraw.Draw(img)
-                for _ in range(14):                       # kleine Krater
-                    x, y, cr = rnd.uniform(0.15, 0.85), rnd.uniform(0.15, 0.85), rnd.uniform(0.012, 0.035)
-                    d.ellipse([(x - cr) * n, (y - cr) * n, (x + cr) * n, (y + cr) * n], outline=mix(base, sea, 0.8),
-                              width=max(1, n // 90))
-                out.append(img)
-            mask = Image.new("L", (n, n), 0)
-            ImageDraw.Draw(mask).ellipse([0, 0, n - 1, n - 1], fill=255)
-            self._sky_cache[key] = (out[0], out[1], mask)
-        return self._sky_cache[key]
+        return self._clock_cache("sky_moontex", r, lambda: self._sky_moon_build(r))
+
+    @staticmethod
+    def _sky_moon_build(r):
+        n = int(2 * r * CLOCK_SS)
+        rnd = random.Random(7)
+        maria = [(0.30, -0.35, 0.28), (-0.05, -0.30, 0.22), (0.25, 0.10, 0.26), (-0.30, 0.05, 0.18),
+                 (-0.15, 0.40, 0.16), (0.45, -0.05, 0.14), (0.05, 0.02, 0.12)]
+        out = []
+        for base, sea in (((232, 228, 208), (176, 172, 158)), ((44, 48, 66), (34, 38, 54))):
+            img = Image.new("RGB", (n, n), base)
+            d = ImageDraw.Draw(img)
+            for mx, my, mr in maria:
+                d.ellipse([(0.5 + mx - mr) * n, (0.5 + my - mr) * n, (0.5 + mx + mr) * n, (0.5 + my + mr) * n],
+                          fill=sea)
+            img = img.filter(ImageFilter.GaussianBlur(n / 30))
+            d = ImageDraw.Draw(img)
+            for _ in range(14):                       # kleine Krater
+                x, y, cr = rnd.uniform(0.15, 0.85), rnd.uniform(0.15, 0.85), rnd.uniform(0.012, 0.035)
+                d.ellipse([(x - cr) * n, (y - cr) * n, (x + cr) * n, (y + cr) * n], outline=mix(base, sea, 0.8),
+                          width=max(1, n // 90))
+            out.append(img)
+        mask = Image.new("L", (n, n), 0)
+        ImageDraw.Draw(mask).ellipse([0, 0, n - 1, n - 1], fill=255)
+        return out[0], out[1], mask
 
     def _sky_moon_big(self, c, cx, cy, r, frac, south):
         lit, dark, mask = self._sky_moon_textures(r)
@@ -317,13 +294,13 @@ class SkyFaces:
 
     @clock_face("astro", fps=1)
     def face_astro(self, profile):
-        f = self._sky_fonts()
+        f = _sky_fonts()
         t = self._clock_now()
         lat, lon, place = self._sky_place()
         lt = time.localtime(t)
-        key = (lt.tm_year, lt.tm_yday, round(lat, 3), round(lon, 3))
-        c = _Canvas(self._sky_cached("astro", key, lambda: self._sky_astro_static(t, lat, lon)).copy())
-        cx, cy, s = 160, CLOCK_H / 2, CLOCK_SS
+        key = ("sky_astro", lt.tm_year, lt.tm_yday, round(lat, 3), round(lon, 3))
+        c = self._clock_canvas(key, (7, 9, 20), lambda c: self._sky_astro_static(c, t, lat, lon))
+        cx, cy, s = CLOCK_CX, CLOCK_CY, CLOCK_SS
         gold, dim, white = (214, 176, 98), (128, 136, 160), (236, 232, 220)
         _, _, sun_lon = _sky_sun(t)
         age, frac, lit = _sky_moon(t)
@@ -375,7 +352,7 @@ class SkyFaces:
         return self._clock_finish(c)
 
     # --- Sonnenuhr ------------------------------------------------------------ #
-    _sky_SD = (160, 94, 86, 0.8, 0.24, -0.50)      # Mitte x/y, Plattenradius, Stauchung, Höhe → Bild (x, y)
+    _sky_SD = (CLOCK_CX, 94, 86, 0.8, 0.24, -0.50)      # Mitte x/y, Plattenradius, Stauchung, Höhe → Bild (x, y)
 
     def _sky_sd_pt(self, x, y, z=0.0):
         """Punkt der Platte (x Ost, y Nord, z Höhe; Displaypixel) → vergrößerte Bildkoordinaten."""
@@ -407,8 +384,8 @@ class SkyFaces:
         b = foot[0] * u[0] + foot[1] * u[1]
         return -b + math.sqrt(max(0.0, b * b - (foot[0] ** 2 + foot[1] ** 2) + rho * rho))
 
-    def _sky_sundial_static(self, lat, lon, place):
-        f = self._sky_f
+    def _sky_sundial_static(self, lat, lon):
+        f = _sky_fonts()
         cx, cy, R, sy, _, _ = self._sky_SD
         s = CLOCK_SS
         c = _Canvas(Image.new("RGB", (WIDTH * CLOCK_SS, CLOCK_H * CLOCK_SS), (14, 20, 17)))
@@ -461,8 +438,8 @@ class SkyFaces:
             if q % 4 == 0:
                 d = self._sky_ray_circle(foot, u, 0.845 * R)
                 x, y = self._sky_sd_pt(foot[0] + u[0] * d, foot[1] + u[1] * d)
-                c.d.text((x, y + 0.6 * s), _sky_ROMAN[int(h)], font=f["roman"], fill=hi, anchor="mm")
-                c.d.text((x, y), _sky_ROMAN[int(h)], font=f["roman"], fill=ink, anchor="mm")
+                c.d.text((x, y + 0.6 * s), ROMAN_XII[int(h) % 12], font=f["roman"], fill=hi, anchor="mm")
+                c.d.text((x, y), ROMAN_XII[int(h) % 12], font=f["roman"], fill=ink, anchor="mm")
         # Spruch und Breite im südlichen Teil
         for txt, font, yy in (("CARPE DIEM", f["motto"], -0.47 * R), (self._sky_latlon(lat, lon), f["cond_s"], -0.64 * R)):
             x, y = self._sky_sd_pt(0, yy)
@@ -477,9 +454,9 @@ class SkyFaces:
         return (f"{abs(lat):.1f}° {'N' if lat >= 0 else 'S'} · {abs(lon):.1f}° {'O' if lon >= 0 else 'W'}"
                 .replace(".", ","))
 
-    def _sky_sundial_images(self, lat, lon, place):
+    def _sky_sundial_images(self, lat, lon):
         """Tagbild, Schattenbild (dunkler) und Nachtbild der Platte sowie die Maske der Steinoberfläche."""
-        day = self._sky_sundial_static(lat, lon, place)
+        day = self._sky_sundial_static(lat, lon)
         arr = np.asarray(day).astype(np.float32)
         shade = Image.fromarray((arr * np.array([0.50, 0.50, 0.56], np.float32)).astype(np.uint8))
         night = Image.fromarray(np.clip(arr * np.array([0.21, 0.28, 0.47], np.float32) + np.array([2, 4, 10], np.float32), 0, 255).astype(np.uint8))
@@ -507,11 +484,11 @@ class SkyFaces:
 
     @clock_face("sundial", fps=1)
     def face_sundial(self, profile):
-        f = self._sky_fonts()
+        f = _sky_fonts()
         t = self._clock_now()
         lat, lon, place = self._sky_place()
-        day, shade, night, surf = self._sky_cached("sundial", (round(lat, 3), round(lon, 3)),
-                                                   lambda: self._sky_sundial_images(lat, lon, place))
+        day, shade, night, surf = self._clock_cache("sky_sundial", (round(lat, 3), round(lon, 3)),
+                                                    lambda: self._sky_sundial_images(lat, lon))
         alt, east, north = _sky_sun_dir(t, lat, lon)
         foot, length, height, _ = self._sky_sd_geometry(lat)
         is_night = alt <= 0.0
@@ -558,14 +535,14 @@ class SkyFaces:
                 if rise == "day" or rise < t:
                     rise, _ = _sky_events(_sky_day0(t) + 86400, lat, lon)
                 msg = "Die Sonnenuhr ruht – Sonnenaufgang " + (_sky_hhmm(rise) if rise not in ("day", "night") else "—")
-            c.text(160, 203, msg, f["cond"], (150, 164, 200))
+            c.text(CLOCK_CX, 203, msg, f["cond"], (150, 164, 200))
         else:
-            c.text(160, 203, self._sky_trunc(c, place or "", f["cond_s"], 200), f["cond_s"], dim)
+            c.text(CLOCK_CX, 203, self._sky_trunc(c, place or "", f["cond_s"], 200), f["cond_s"], dim)
         return self._clock_finish(c)
 
     # --- Planetenuhr ---------------------------------------------------------- #
     _sky_ORBITS = ((52, 19), (94, 34), (140, 51))   # Halbachsen: Stunden, Minuten, Sekunden
-    _sky_PC = (160, 106)                            # Sonne
+    _sky_PC = (CLOCK_CX, 106)                            # Sonne
 
     def _sky_orbit_pt(self, k, deg):
         (a, b), (cx, cy) = self._sky_ORBITS[k], self._sky_PC
@@ -638,8 +615,8 @@ class SkyFaces:
 
     @clock_face("planets", fps=5)
     def face_planets(self, profile):
-        f = self._sky_fonts()
-        bg, sun = self._sky_cached("planets", 1, self._sky_planets_static)
+        f = _sky_fonts()
+        bg, sun = self._clock_cache("sky_planets", 1, self._sky_planets_static)
         c = _Canvas(bg.copy())
         t = self._clock_now()
         lt = time.localtime(t)
@@ -722,9 +699,9 @@ class SkyFaces:
         top = y - (2 * r + time_off + 7) / 2
         return r, top + r, top + 2 * r + name_off, top + 2 * r + time_off, big
 
-    def _sky_world_static(self, cities, days):
-        f = self._sky_f
-        c = _Canvas(Image.new("RGB", (WIDTH * CLOCK_SS, CLOCK_H * CLOCK_SS), (10, 13, 22)))
+    def _sky_world_static(self, c, cities, days):
+        """Hintergrund der Weltzeituhr: je Stadt Feld, Zifferblatt (Tag/Nacht) und Name."""
+        f = _sky_fonts()
         cells = self._sky_world_grid(len(cities))
         for (name, _, tz), (x, y, w, h), day in zip(cities, cells, days):
             c.rect(x - w / 2 + 2, y - h / 2 + 2, x + w / 2 - 2, y + h / 2 - 2, fill=(16, 20, 32))
@@ -752,20 +729,19 @@ class SkyFaces:
                 c.circle(x + r * 0.05, dy + r * 0.42, max(2, r * 0.11), fill=face)
             font = f["city_b"] if big else f["city"]
             c.text(x, ny, self._sky_trunc(c, name, font, w - 8), font, (230, 232, 240))
-        return c.img
 
     @clock_face("world", fps=1)
     def face_world(self, profile):
-        f = self._sky_fonts()
+        f = _sky_fonts()
         t = self._clock_now()
         cities = self._sky_world_cities()
         local = datetime.datetime.fromtimestamp(t).date()
         nows = [datetime.datetime.fromtimestamp(t, tz) if tz else None for _, _, tz in cities]
         days = tuple(bool(n and 6 <= n.hour < 18) for n in nows)
-        key = (tuple(z for _, z, _ in cities), tuple(n for n, _, _ in cities), days)
-        c = _Canvas(self._sky_cached("world", key, lambda: self._sky_world_static(cities, days)).copy())
+        key = ("sky_world", tuple(z for _, z, _ in cities), tuple(n for n, _, _ in cities), days)
+        c = self._clock_canvas(key, (10, 13, 22), lambda c: self._sky_world_static(c, cities, days))
         acc = PROFILE_COLOR.get(profile, self.FG)
-        for (name, zone, tz), (x, y, w, h), now, day in zip(cities, self._sky_world_grid(len(cities)), nows, days):
+        for _, (x, y, w, h), now, day in zip(cities, self._sky_world_grid(len(cities)), nows, days):
             r, dy, _, ty, big = self._sky_world_layout(x, y, w, h)
             if now is None:
                 c.text(x, ty, "unbekannte Zone", f["cond_s"], (170, 120, 120))
@@ -797,12 +773,12 @@ class SkyFaces:
         return self._clock_finish(c)
 
     # --- Radaruhr ------------------------------------------------------------- #
-    _sky_RC = (108, 107, 99)                       # Mitte x/y und Radius des Schirms (Displaypixel)
+    _sky_RC = (108, CLOCK_CY, 99)                      # Mitte x/y und Radius des Schirms (Displaypixel)
     _sky_R_ROWS = (("ZEIT", 22), ("DATUM", 62), ("PEILUNG", 102), ("ZIEL STD", 142), ("ZIEL MIN", 180))
 
     def _sky_radar_static(self):
         """Schirm und Pult einmal zeichnen (vergrößert), verkleinert als Zahlenfeld."""
-        f = self._sky_f
+        f = _sky_fonts()
         cx, cy, R = self._sky_RC
         c = _Canvas(Image.new("RGB", (WIDTH * CLOCK_SS, CLOCK_H * CLOCK_SS), (20, 23, 22)))
         for k in range(20):                                      # gebürstetes Pult
@@ -853,8 +829,8 @@ class SkyFaces:
 
     @clock_face("radar", fps=5)
     def face_radar(self, profile):
-        f = self._sky_fonts()
-        base, blob_h, blob_m, core, clutter = self._sky_cached("radar", 1, self._sky_radar_static)
+        f = _sky_fonts()
+        base, blob_h, blob_m, core, clutter = self._clock_cache("sky_radar", 1, self._sky_radar_static)
         t = self._clock_now()
         lt = time.localtime(t)
         cx, cy, R = self._sky_RC

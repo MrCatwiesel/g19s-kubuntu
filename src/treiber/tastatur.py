@@ -104,9 +104,7 @@ def entry_steps(entry, log=print):
             log(f"Zeichen ohne Tastenzuordnung übersprungen: {''.join(unknown)!r}")
         return steps
     if entry.get("combo"):
-        combo = entry["combo"]
-        keys = combo if isinstance(combo, list) else str(combo).split("+")
-        return combo_to_steps([k.strip() for k in keys])
+        return combo_to_steps(combo_keys(entry["combo"]))
     return entry.get("steps") or []
 
 

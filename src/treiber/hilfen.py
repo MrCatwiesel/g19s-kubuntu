@@ -2,7 +2,7 @@
 
 
 def domain_of(url):
-    return re.sub(r"^[a-z]+://(www\.)?", "", str(url)).split("/")[0]
+    return re.sub(r"^[a-z]+://(www\.)?", "", str(url), flags=re.I).split("/")[0]
 
 
 def in_time_window(now_hm, start, end):

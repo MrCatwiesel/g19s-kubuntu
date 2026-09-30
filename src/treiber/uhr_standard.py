@@ -12,7 +12,7 @@ class StandardFaces:
     }
 
     def _chrono_dial(self, c, dial):
-        f, cx, cy = self._cfonts, 160, CLOCK_H / 2
+        f, cx, cy = self._cfonts, CLOCK_CX, CLOCK_CY
         face, sub, idx, txt, txt2, quarter, _hand = self.CHRONO_DIALS[dial]
         steel, steel_hi, steel_lo = (92, 97, 106), (190, 196, 205), (40, 43, 50)
         c.circle(cx, cy, 102, fill=steel_lo)
@@ -61,7 +61,7 @@ class StandardFaces:
         opt = self._copt("chrono")
         dial = opt["dial"] if opt["dial"] in self.CHRONO_DIALS else "black"
         c = self._clock_canvas(("chrono", dial), (10, 11, 14), lambda c: self._chrono_dial(c, dial))
-        f, cx, cy = self._cfonts, 160, CLOCK_H / 2
+        f, cx, cy = self._cfonts, CLOCK_CX, CLOCK_CY
         now = time.localtime(self._clock_now())
         acc = self._ccolor(opt["hand"], profile)
         if opt["side"] in ("both", "date"):               # links Datum
@@ -98,7 +98,7 @@ class StandardFaces:
     ]
 
     def _steam_dial(self, c):
-        f, cx, cy = self._cfonts, 160, CLOCK_H / 2
+        f, cx, cy = self._cfonts, CLOCK_CX, CLOCK_CY
         brass, brass_hi, brass_lo = (176, 134, 62), (226, 190, 110), (96, 66, 28)
         c.circle(cx, cy, 102, fill=brass_lo)
         c.circle(cx, cy, 100, fill=brass)
@@ -117,7 +117,7 @@ class StandardFaces:
         c.circle(cx, cy, 77, outline=ink, width=0.8)
         for m in range(60):
             c.radial(cx, cy, 77, 83, m * 6, 1.6 if m % 5 == 0 else 0.7, ink)
-        for h, num in enumerate(["XII", "I", "II", "III", "IIII", "V", "VI", "VII", "VIII", "IX", "X", "XI"]):
+        for h, num in enumerate(ROMAN_XII):
             if h == 6:
                 continue                                  # Platz für das Uhrwerk-Fenster
             x, y = [v / CLOCK_SS for v in c.pt(cx, cy, 63, h * 30)]
@@ -130,7 +130,7 @@ class StandardFaces:
     @clock_face("steampunk")
     def face_steampunk(self, profile):
         c = self._clock_canvas("steam", (26, 17, 9), self._steam_dial)
-        cx, cy = 160, CLOCK_H / 2
+        cx, cy = CLOCK_CX, CLOCK_CY
         t = self._clock_now()
         now = time.localtime(t)
         tick = int(t) if self._copt("steampunk")["gears"] else 0
@@ -139,12 +139,12 @@ class StandardFaces:
         for x, y, r, direction in self._STEAM_GEARS:
             layer.gear(x, y, r, max(8, round(r / 3.4)), direction * tick * 6 * 40 / r,
                        (122, 82, 38) if r > 30 else (150, 104, 48), (58, 36, 16))
-        if "steam_mask" not in self._cdials:
+        def build_mask():
             mask = Image.new("L", c.img.size, 0)
             ImageDraw.Draw(mask).ellipse([(cx - 102.5) * CLOCK_SS, (cy - 102.5) * CLOCK_SS,
                                           (cx + 102.5) * CLOCK_SS, (cy + 102.5) * CLOCK_SS], fill=255)
-            self._cdials["steam_mask"] = mask
-        layer.img.paste(c.img, (0, 0), self._cdials["steam_mask"])
+            return mask
+        layer.img.paste(c.img, (0, 0), self._clock_cache("std_steam_mask", 1, build_mask))
         c = layer
         c.gear(cx - 6, cy + 42, 11, 10, tick * 30, (196, 150, 70), (90, 60, 25))      # Unruh-Fenster
         c.gear(cx + 9, cy + 34, 7, 8, -tick * 47, (170, 126, 56), (90, 60, 25))
@@ -166,7 +166,7 @@ class StandardFaces:
 
     # --- Bahnhofsuhr ---------------------------------------------------------- #
     def _station_dial(self, c):
-        f, cx, cy = self._cfonts, 160, CLOCK_H / 2
+        f, cx, cy = self._cfonts, CLOCK_CX, CLOCK_CY
         c.circle(cx, cy, 103, fill=(28, 30, 34))
         c.circle(cx, cy, 101, fill=(70, 74, 80))
         c.circle(cx, cy, 99, fill=(34, 36, 40))
@@ -182,7 +182,7 @@ class StandardFaces:
     def face_station(self, profile):
         opt = self._copt("station")
         c = self._clock_canvas("station", (10, 12, 16), self._station_dial)
-        f, cx, cy = self._cfonts, 160, CLOCK_H / 2
+        f, cx, cy = self._cfonts, CLOCK_CX, CLOCK_CY
         now = time.localtime(self._clock_now())
         if opt["side"]:
             c.text(31, 70, WEEKDAY_DE[now.tm_wday], f["side"], (235, 238, 245))

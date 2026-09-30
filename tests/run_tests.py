@@ -184,7 +184,8 @@ def run_gui():
 
 
 prepare()
-start_servers()
+if set(parts) != {"bilder"}:            # Bildvergleich braucht keine Nachbau-Server
+    start_servers()
 try:
     for p in parts:
         {"einheit": run_unit, "bilder": run_images, "sim": run_sims, "gui": run_gui}[p]()

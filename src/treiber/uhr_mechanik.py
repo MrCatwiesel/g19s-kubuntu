@@ -2,11 +2,6 @@
 import math
 import random
 
-_MECH_ROMAN = ["XII", "I", "II", "III", "IIII", "V", "VI", "VII", "VIII", "IX", "X", "XI"]
-_MECH_MONO = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf"
-_MECH_SERIF_C = "/usr/share/fonts/truetype/dejavu/DejaVuSerifCondensed-Bold.ttf"
-
-
 def _mech_bezier(p0, p1, p2, p3, n):
     """Punkte einer kubischen Bézierkurve (Displaykoordinaten)."""
     out = []
@@ -25,20 +20,6 @@ def _mech_wave(t, parts):
 
 class MechanicalFaces:
     # --- Hilfen --------------------------------------------------------------- #
-    def _mech_fonts(self):
-        if not hasattr(self, "_mech_f"):
-            s = CLOCK_SS
-            try:
-                mono = ImageFont.truetype(_MECH_MONO, 20 * s)
-            except OSError:
-                mono = load_font(20 * s, bold=True)
-            cond = (lambda n: ImageFont.truetype(_MECH_SERIF_C, n * s)) if os.path.exists(_MECH_SERIF_C) \
-                else (lambda n: load_serif((n - 1) * s, bold=True))
-            self._mech_f = {"arab": load_serif(13 * s, bold=True), "mono": mono,
-                            "label": load_font(9 * s, bold=True), "date": load_font(11 * s, bold=True),
-                            "romc9": cond(9), "romc8": cond(8)}
-        return self._mech_f
-
     @staticmethod
     def _mech_poly(c, pts, fill=None, outline=None, width=1):
         s = CLOCK_SS
@@ -135,37 +116,38 @@ class MechanicalFaces:
 
     def _mech_side_date(self, c, now, col, dim):
         """Dezentes Datum links und rechts neben einem schmalen Gehäuse."""
-        f, mf = self._cfonts, self._mech_fonts()
-        c.text(50, 88, WEEKDAYS[now.tm_wday], mf["date"], dim)
+        f = self._cfonts
+        date_f = clock_font("sans", 11 * CLOCK_SS, True)
+        c.text(50, 88, WEEKDAYS[now.tm_wday], date_f, dim)
         c.text(50, 114, str(now.tm_mday), f["big"], col)
-        c.text(270, 100, MONTHS[now.tm_mon - 1], mf["date"], dim)
+        c.text(270, 100, MONTHS[now.tm_mon - 1], date_f, dim)
         c.text(270, 118, str(now.tm_year), f["tiny"], dim)
 
     # --- Pendeluhr ------------------------------------------------------------ #
-    _MECH_PEND = (160, 84, 96, 9.5)              # Aufhängung x, y, Pendellänge, Ausschlag (Grad)
+    _MECH_PEND = (CLOCK_CX, 84, 96, 9.5)         # Aufhängung x, y, Pendellänge, Ausschlag (Grad)
     _MECH_PEND_WIN = (124, 142, 196, 194)        # Glasfenster
 
     def _mech_pendulum_static(self, c):
-        f, mf = self._cfonts, self._mech_fonts()
-        cx, cy = 160, 84
+        f = self._cfonts
+        cx, cy = CLOCK_CX, 84
         self._mech_vgrad(c, 0, 0, WIDTH, CLOCK_H, (30, 23, 20), (12, 10, 10))
         walnut, dark, light = (104, 58, 30), (52, 28, 14), (150, 96, 54)
         brass, brass_hi, brass_lo = (190, 146, 66), (240, 204, 124), (110, 76, 30)
         c.rect(110, 36, 220, 204, fill=(8, 6, 6))                          # Schatten an der Wand
         self._mech_wood(c, 106, 32, 214, 200, walnut, 1)
         # Kranz mit Giebel, Rosette und Knäufen
-        self._mech_wood_poly(c, [(98, 30), (160, 7), (222, 30)], (120, 70, 36), 2, vertical=False)
-        self._mech_line(c, [(98, 30), (160, 7), (222, 30)], light, 1.2)
-        self._mech_poly(c, [(114, 27), (160, 12), (206, 27)], fill=(84, 46, 22))
-        self._mech_line(c, [(114, 27), (160, 12), (206, 27), (114, 27)], dark, 0.8)
+        self._mech_wood_poly(c, [(98, 30), (cx, 7), (222, 30)], (120, 70, 36), 2, vertical=False)
+        self._mech_line(c, [(98, 30), (cx, 7), (222, 30)], light, 1.2)
+        self._mech_poly(c, [(114, 27), (cx, 12), (206, 27)], fill=(84, 46, 22))
+        self._mech_line(c, [(114, 27), (cx, 12), (206, 27), (114, 27)], dark, 0.8)
         for x in (138, 182):                                               # geschnitzte Ranken im Giebel
-            d = -1 if x < 160 else 1
-            self._mech_line(c, _mech_bezier((160 + d * 6, 22), (x, 14), (x - d * 12, 30), (x + d * 10, 24), 12),
+            d = -1 if x < cx else 1
+            self._mech_line(c, _mech_bezier((cx + d * 6, 22), (x, 14), (x - d * 12, 30), (x + d * 10, 24), 12),
                             (150, 100, 58), 1.3)
         c.circle(cx, 20.5, 4.2, fill=brass_lo)
         c.circle(cx, 20.5, 3.4, fill=brass)
         c.circle(cx - 0.8, 19.7, 1.3, fill=brass_hi)
-        for x, y, r in ((100, 26, 3.2), (220, 26, 3.2), (160, 5, 3)):
+        for x, y, r in ((100, 26, 3.2), (220, 26, 3.2), (cx, 5, 3)):
             c.rect(x - 1.5, y, x + 1.5, y + 4, fill=dark)
             c.circle(x, y, r, fill=light, outline=dark, width=0.6)
         c.rect(94, 30, 226, 35, fill=light)
@@ -174,7 +156,7 @@ class MechanicalFaces:
         # Zifferblattfeld mit Messingzwickeln
         c.rect(110, 40, 210, 130, outline=dark, width=0.8)
         for sx, sy in ((113, 43), (207, 43), (113, 127), (207, 127)):
-            dx, dy = (1 if sx < 160 else -1), (1 if sy < 84 else -1)
+            dx, dy = (1 if sx < cx else -1), (1 if sy < 84 else -1)
             for k, (ox, oy) in enumerate(((0, 0), (7, 1.5), (1.5, 7))):
                 c.circle(sx + dx * ox, sy + dy * oy, 3.2 if k == 0 else 2.2, fill=brass_lo)
                 c.circle(sx + dx * ox - 0.4, sy + dy * oy - 0.4, 2.3 if k == 0 else 1.5, fill=brass)
@@ -187,9 +169,10 @@ class MechanicalFaces:
         c.circle(cx, cy, 38.5, outline=ink, width=0.6)
         for m in range(60):
             c.radial(cx, cy, 38.5, 42, m * 6, 1.4 if m % 5 == 0 else 0.5, ink)
-        for h, num in enumerate(_MECH_ROMAN):
+        roman = clock_font("serif-cond", 9 * CLOCK_SS, True)
+        for h, num in enumerate(ROMAN_XII):
             x, y = self._mech_at(c, cx, cy, 32.5, h * 30)
-            self._mech_text_rot(c, x, y, num, mf["romc9"], ink, h * 30)
+            self._mech_text_rot(c, x, y, num, roman, ink, h * 30)
         c.text(cx, cy - 15, "G19s", f["serif_s"], (110, 80, 50))
         # Gesims zwischen Zifferblatt und Fenster
         c.rect(104, 132, 216, 137, fill=light)
@@ -212,19 +195,18 @@ class MechanicalFaces:
         c.rect(98, 198, 222, 204, fill=light)
         c.rect(98, 203, 222, 204.5, fill=dark)
         self._mech_poly(c, [(110, 204), (210, 204), (196, 209), (124, 209)], fill=walnut, outline=dark, width=0.6)
-        self._mech_poly(c, [(150, 209), (170, 209), (160, 214)], fill=light)
+        self._mech_poly(c, [(150, 209), (170, 209), (cx, 214)], fill=light)
 
-    def _mech_glass_mask(self, key, w, h, stripes):
-        """Maske für einen Glasreflex (schräge Streifen), zwischengespeichert."""
-        if key not in self._cdials:
-            s = CLOCK_SS
-            m = Image.new("L", (int(w * s), int(h * s)), 0)
-            d = ImageDraw.Draw(m)
-            for x, width, alpha in stripes:
-                d.polygon([(x * s, 0), ((x + width) * s, 0), ((x + width - h * 0.45) * s, h * s),
-                           ((x - h * 0.45) * s, h * s)], fill=alpha)
-            self._cdials[key] = m
-        return self._cdials[key]
+    @staticmethod
+    def _mech_glass_mask(w, h, stripes):
+        """Maske für einen Glasreflex (schräge Streifen [(x, Breite, Deckkraft), …])."""
+        s = CLOCK_SS
+        m = Image.new("L", (int(w * s), int(h * s)), 0)
+        d = ImageDraw.Draw(m)
+        for x, width, alpha in stripes:
+            d.polygon([(x * s, 0), ((x + width) * s, 0), ((x + width - h * 0.45) * s, h * s),
+                       ((x - h * 0.45) * s, h * s)], fill=alpha)
+        return m
 
     @clock_face("pendulum", fps=lambda o: 5 if o["swing"] else 1)
     def face_pendulum(self, profile):
@@ -252,10 +234,11 @@ class MechanicalFaces:
         c.circle(bx - 3.4, by - 3.4, 2.6, fill=brass_hi)
         c.circle(bx, by, 11, outline=(90, 60, 24), width=0.6)
         c.hand(bx, by, 0, [(-11, 2.2), (-14, 2.2)], brass_lo)            # Regulierschraube
-        mask = self._mech_glass_mask("mech_pend_glass", x1 - x0, y1 - y0, ((16, 7, 34), (27, 2.5, 22), (58, 12, 16)))
+        mask = self._clock_cache("mech_pend_glass", None, lambda: self._mech_glass_mask(
+            x1 - x0, y1 - y0, ((16, 7, 34), (27, 2.5, 22), (58, 12, 16))))
         c.img.paste((255, 244, 226), (x0 * CLOCK_SS, y0 * CLOCK_SS), mask)
         # Zeiger (geschwärzt, mit Ring)
-        cx, cy = 160, 84
+        cx, cy = CLOCK_CX, 84
         ha, ma, _ = self._clock_angles(now)
         ink, dial = (26, 22, 24), (238, 228, 204)
         c.hand(cx, cy, ha, [(-8, 3.2), (0, 3.4), (14, 2), (17, 5.5), (23, 1.6), (26, 0)], ink)
@@ -272,7 +255,7 @@ class MechanicalFaces:
         return self._clock_finish(c)
 
     # --- Kuckucksuhr ---------------------------------------------------------- #
-    _MECH_CU = {"dial": (160, 105, 38), "door": (151, 42, 169, 62), "pend": (160, 152, 46),
+    _MECH_CU = {"dial": (CLOCK_CX, 105, 38), "door": (151, 42, 169, 62), "pend": (CLOCK_CX, 152, 46),
                 "chains": (132, 188), "bottom": 150}
 
     def _mech_leaf(self, c, x, y, deg, length, width, fill, vein):
@@ -283,33 +266,30 @@ class MechanicalFaces:
 
     def _mech_cone_sprite(self):
         """Tannenzapfen-Gewicht als Bild mit Maske (dreifach vergrößert)."""
-        if "mech_cone" not in self._cdials:
-            s, w, h = CLOCK_SS, 18, 34
-            img = Image.new("RGB", (w * s, h * s), (0, 0, 0))
-            mask = Image.new("L", (w * s, h * s), 0)
-            cc, md = _Canvas(img), ImageDraw.Draw(mask)
-            body = [(9 + 7 * math.sin(math.pi * min(1, (y - 4) / 26) ** 0.7) * (1 if side else -1), y)
-                    for side in (0, 1) for y in (range(4, 33) if side else range(32, 3, -1))]
-            md.polygon([(x * s, y * s) for x, y in body], fill=255)
-            md.ellipse([6 * s, 0, 12 * s, 6 * s], fill=255)
-            cc.circle(9, 3, 2.6, outline=(150, 150, 150), width=1)                  # Haken
-            self._mech_poly(cc, body, fill=(70, 40, 18))
-            for row in range(9):                                                    # Schuppen
-                y = 7 + row * 3
-                wdt = 7 * math.sin(math.pi * min(1, (y - 4) / 26) ** 0.7)
-                n = max(2, int(wdt / 2.2))
-                for k in range(n + 1):
-                    x = 9 - wdt + 1 + k * (2 * wdt - 2) / max(1, n) + (1 if row % 2 else 0)
-                    if abs(x - 9) < wdt - 0.5:
-                        self._mech_ellipse(cc, x - 2, y - 1.2, x + 2, y + 2.2, fill=(122, 76, 38),
-                                           outline=(58, 32, 14), width=0.5)
-                        self._mech_ellipse(cc, x - 1, y - 0.6, x + 0.5, y + 0.6, fill=(150, 100, 56))
-            self._cdials["mech_cone"] = (img, mask)
-        return self._cdials["mech_cone"]
+        s, w, h = CLOCK_SS, 18, 34
+        img = Image.new("RGB", (w * s, h * s), (0, 0, 0))
+        mask = Image.new("L", (w * s, h * s), 0)
+        cc, md = _Canvas(img), ImageDraw.Draw(mask)
+        body = [(9 + 7 * math.sin(math.pi * min(1, (y - 4) / 26) ** 0.7) * (1 if side else -1), y)
+                for side in (0, 1) for y in (range(4, 33) if side else range(32, 3, -1))]
+        md.polygon([(x * s, y * s) for x, y in body], fill=255)
+        md.ellipse([6 * s, 0, 12 * s, 6 * s], fill=255)
+        cc.circle(9, 3, 2.6, outline=(150, 150, 150), width=1)                  # Haken
+        self._mech_poly(cc, body, fill=(70, 40, 18))
+        for row in range(9):                                                    # Schuppen
+            y = 7 + row * 3
+            wdt = 7 * math.sin(math.pi * min(1, (y - 4) / 26) ** 0.7)
+            n = max(2, int(wdt / 2.2))
+            for k in range(n + 1):
+                x = 9 - wdt + 1 + k * (2 * wdt - 2) / max(1, n) + (1 if row % 2 else 0)
+                if abs(x - 9) < wdt - 0.5:
+                    self._mech_ellipse(cc, x - 2, y - 1.2, x + 2, y + 2.2, fill=(122, 76, 38),
+                                       outline=(58, 32, 14), width=0.5)
+                    self._mech_ellipse(cc, x - 1, y - 0.6, x + 0.5, y + 0.6, fill=(150, 100, 56))
+        return img, mask
 
     def _mech_cuckoo_static(self, c):
         cx, cy, r = self._MECH_CU["dial"]
-        f, mf = self._cfonts, self._mech_fonts()
         self._mech_vgrad(c, 0, 0, WIDTH, CLOCK_H, (30, 42, 34), (14, 20, 16))
         rnd = random.Random(7)
         for yy in range(8, CLOCK_H, 22):                                            # Tapetenmuster
@@ -318,25 +298,25 @@ class MechanicalFaces:
         wood, wood_d, wood_l = (118, 72, 38), (58, 32, 14), (160, 108, 60)
         bottom = self._MECH_CU["bottom"]
         # Vorderseite (Giebelfläche)
-        front = [(108, bottom), (108, 72), (160, 34), (212, 72), (212, bottom)]
+        front = [(108, bottom), (108, 72), (cx, 34), (212, 72), (212, bottom)]
         self._mech_poly(c, [(x + 3, y + 3) for x, y in front], fill=(10, 14, 10))
         self._mech_wood_poly(c, front, wood, 11)
         self._mech_line(c, front, wood_d, 0.8)
         # Dach mit Schindeln
-        outer_l, outer_r, apex_o, apex_i = (82, 78), (238, 78), (160, 16), (160, 32)
+        outer_l, outer_r, apex_o, apex_i = (82, 78), (238, 78), (cx, 16), (cx, 32)
         inner_l, inner_r = (98, 82), (222, 82)
         roof = [outer_l, apex_o, outer_r, inner_r, apex_i, inner_l]
         self._mech_poly(c, [(x + 3, y + 3) for x, y in roof], fill=(10, 14, 10))
         tmp = _Canvas(Image.new("RGB", c.img.size, (60, 34, 16)))
         for side in (-1, 1):
             ex, ey = (outer_l if side < 0 else outer_r)
-            ln = math.hypot(ex - 160, ey - 16)
-            dx, dy = (ex - 160) / ln, (ey - 16) / ln
+            ln = math.hypot(ex - cx, ey - 16)
+            dx, dy = (ex - cx) / ln, (ey - 16) / ln
             nx, ny = 0, 1
             for row in range(5):
                 for k in range(-1, int(ln / 5.5) + 2):
                     off = k * 5.5 + (2.75 if row % 2 else 0)
-                    x = 160 + dx * off + nx * (row * 3.8 + 1)
+                    x = cx + dx * off + nx * (row * 3.8 + 1)
                     y = 16 + dy * off + ny * (row * 3.8 + 1)
                     shade = rnd.randint(-10, 10)
                     col = (96 + shade, 58 + shade // 2, 30 + shade // 3)
@@ -350,20 +330,20 @@ class MechanicalFaces:
             ex, ey = inner_l if side < 0 else inner_r
             for k in range(1, 12):
                 u = k / 12
-                x, y = 160 + (ex - 160) * u, 32 + (ey - 32) * u
+                x, y = cx + (ex - cx) * u, 32 + (ey - 32) * u
                 c.circle(x, y + 1.6, 1.6, fill=wood_l, outline=wood_d, width=0.4)
         # Schnitzwerk: Blätter auf dem First, an den Seiten und unten
         leaf, vein = (136, 88, 44), (60, 34, 14)
         for deg, ln in ((-60, 11), (-25, 13), (0, 12), (25, 13), (60, 11)):
-            self._mech_leaf(c, 160, 17, deg, ln, 5, leaf, vein)
-        c.circle(160, 16, 2.6, fill=(170, 116, 64), outline=vein, width=0.5)
+            self._mech_leaf(c, cx, 17, deg, ln, 5, leaf, vein)
+        c.circle(cx, 16, 2.6, fill=(170, 116, 64), outline=vein, width=0.5)
         for side in (-1, 1):
-            bx = 160 + side * 50
+            bx = cx + side * 50
             for deg, ln, yy in ((side * 20, 14, 136), (side * 60, 13, 142), (side * 100, 12, 147),
                                 (side * 150, 12, 124), (side * -170, 10, 110)):
                 self._mech_leaf(c, bx, yy, deg, ln, 5, leaf, vein)
-            self._mech_leaf(c, 160 + side * 42, 72, side * 60, 11, 4.5, leaf, vein)
-            self._mech_leaf(c, 160 + side * 42, 74, side * 110, 10, 4, leaf, vein)
+            self._mech_leaf(c, cx + side * 42, 72, side * 60, 11, 4.5, leaf, vein)
+            self._mech_leaf(c, cx + side * 42, 74, side * 110, 10, 4, leaf, vein)
         for k in range(9):                                                          # Schürze
             x = 116 + k * 11
             self._mech_leaf(c, x, bottom - 3, 180 + (k - 4) * 6, 10, 5, leaf, vein)
@@ -374,7 +354,7 @@ class MechanicalFaces:
         c.rect(d0 - 2.5, d1 + 7, d2 + 2.5, d3 + 2, fill=wood_d)
         self._mech_ellipse(c, d0, d1, d2, d1 + (d2 - d0), fill=(132, 84, 44))
         c.rect(d0, d1 + 8, d2, d3, fill=(132, 84, 44))
-        c.rect(159.6, d1 + 1, 160.4, d3, fill=wood_d)
+        c.rect(cx - 0.4, d1 + 1, cx + 0.4, d3, fill=wood_d)
         c.circle(163, (d1 + d3) / 2 + 2, 1, fill=(200, 170, 100))
         # Zifferblatt: dunkles Holz mit Beinziffern
         bone = (234, 222, 192)
@@ -388,16 +368,17 @@ class MechanicalFaces:
             if m % 5:
                 x, y = self._mech_at(c, cx, cy, r - 5.5, m * 6)
                 c.circle(x, y, 0.5, fill=bone)
-        for h, num in enumerate(_MECH_ROMAN):
+        roman = clock_font("serif-cond", 8 * CLOCK_SS, True)
+        for h, num in enumerate(ROMAN_XII):
             x, y = self._mech_at(c, cx, cy, r - 12, h * 30)
-            self._mech_text_rot(c, x, y, num, mf["romc8"], bone, h * 30)
+            self._mech_text_rot(c, x, y, num, roman, bone, h * 30)
             x, y = self._mech_at(c, cx, cy, r - 5.5, h * 30)
             c.circle(x, y, 1.1, fill=bone)
         # Aufhängung der Ketten
         for x in self._MECH_CU["chains"]:
             c.rect(x - 3, bottom, x + 3, bottom + 2, fill=wood_d)
 
-    def _mech_chain_v(self, c, x, y0, y1, col, dark):
+    def _mech_chain_v(self, c, x, y0, y1, col):
         """Senkrechte Kette von y0 bis y1."""
         y, k = y0, 0
         while y < y1:
@@ -411,7 +392,8 @@ class MechanicalFaces:
     @clock_face("cuckoo", fps=5)
     def face_cuckoo(self, profile):
         c = self._clock_canvas("mech_cuckoo", (14, 20, 16), self._mech_cuckoo_static)
-        f, mf = self._cfonts, self._mech_fonts()
+        f = self._cfonts
+        date_f = clock_font("sans", 11 * CLOCK_SS, True)
         t = self._clock_now()
         now = time.localtime(t)
         cx, cy, r = self._MECH_CU["dial"]
@@ -420,15 +402,15 @@ class MechanicalFaces:
         # Gewichte sinken im Lauf des Tages, die freien Kettenenden steigen
         day = (now.tm_hour * 3600 + now.tm_min * 60 + now.tm_sec) / 86400
         steel, steel_d = (170, 170, 164), (90, 90, 86)
-        cone, mask = self._mech_cone_sprite()
+        cone, mask = self._clock_cache("mech_cone", None, self._mech_cone_sprite)
         for k, x in enumerate(self._MECH_CU["chains"]):
             frac = min(1.0, day + (0.04 if k else 0))
             top = bottom + 10 + 28 * frac
             free_end = bottom + 10 + 28 * (1 - frac)
             fx = x + (-7 if k == 0 else 7)
-            self._mech_chain_v(c, fx, bottom + 1, free_end, steel_d, steel_d)
+            self._mech_chain_v(c, fx, bottom + 1, free_end, steel_d)
             c.circle(fx, free_end + 2.2, 2.2, outline=steel, width=0.8)
-            self._mech_chain_v(c, x, bottom + 1, top + 1, steel, steel_d)
+            self._mech_chain_v(c, x, bottom + 1, top + 1, steel)
             c.img.paste(cone, (int((x - 9) * CLOCK_SS), int(top * CLOCK_SS)), mask)
         # Pendel (Periode 1 s)
         px, py, length = self._MECH_CU["pend"]
@@ -472,8 +454,8 @@ class MechanicalFaces:
         c.circle(cx, cy, 3.2, fill=bone, outline=out, width=0.5)
         c.circle(cx, cy, 1.2, fill=out)
         # dezent: Datum links, Uhrzeit rechts
-        c.text(44, 96, WEEKDAYS[now.tm_wday], mf["date"], (170, 180, 160))
-        c.text(44, 118, f"{now.tm_mday}. {MONTH_3[now.tm_mon - 1].title()}", mf["date"], (130, 142, 124))
+        c.text(44, 96, WEEKDAYS[now.tm_wday], date_f, (170, 180, 160))
+        c.text(44, 118, f"{now.tm_mday}. {MONTH_3[now.tm_mon - 1].title()}", date_f, (130, 142, 124))
         c.text(276, 106, time.strftime("%H:%M", now), f["side"], (170, 180, 160))
         return self._clock_finish(c)
 
@@ -482,7 +464,7 @@ class MechanicalFaces:
 
     def _mech_pocket_static(self, c):
         cx, cy, R = self._MECH_PO
-        f, mf = self._cfonts, self._mech_fonts()
+        f = self._cfonts
         gold, gold_hi, gold_lo = (212, 168, 78), (252, 226, 150), (112, 78, 24)
         for rr in range(260, 0, -4):                                                # Samt mit Lichtkegel
             k = min(1.0, rr / 230)
@@ -535,11 +517,12 @@ class MechanicalFaces:
         c.circle(cx, cy, R - 17, outline=ink, width=0.6)
         for m in range(60):
             c.radial(cx, cy, R - 17, R - 13, m * 6, 0.6 if m % 5 else 1.8, ink)
+        arab = clock_font("serif", 13 * CLOCK_SS, True)
         for h in range(1, 13):
             if h == 6:
                 continue
             x, y = self._mech_at(c, cx, cy, R - 27, h * 30)
-            c.text(x, y + 0.5, str(h), mf["arab"], ink)
+            c.text(x, y + 0.5, str(h), arab, ink)
         c.text(cx, cy - 26, "G19s", f["serif_s"], (60, 60, 70))
         sy, sr = cy + 29, 14
         sx = cx
@@ -548,10 +531,20 @@ class MechanicalFaces:
         for m in range(60):
             c.radial(sx, sy, sr - (3 if m % 5 == 0 else 1.6), sr, m * 6, 0.9 if m % 5 == 0 else 0.4, ink)
 
+    def _mech_pocket_glass(self):
+        """Maske des Glasreflexes: Kreis ohne versetzten Kreis – eine Sichel oben links."""
+        s, r = CLOCK_SS, self._MECH_PO[2] - 10
+        mask = Image.new("L", (int(2 * r * s), int(2 * r * s)), 0)
+        d = ImageDraw.Draw(mask)
+        d.ellipse([0, 0, 2 * r * s, 2 * r * s], fill=34)
+        d.ellipse([10 * s, 12 * s, (2 * r + 18) * s, (2 * r + 22) * s], fill=0)
+        return mask
+
     @clock_face("pocket")
     def face_pocket(self, profile):
         c = self._clock_canvas("mech_pocket", (16, 5, 8), self._mech_pocket_static)
-        f, mf = self._cfonts, self._mech_fonts()
+        f = self._cfonts
+        date_f = clock_font("sans", 11 * CLOCK_SS, True)
         cx, cy, R = self._MECH_PO
         now = time.localtime(self._clock_now())
         ha, ma, sa = self._clock_angles(now)
@@ -568,19 +561,12 @@ class MechanicalFaces:
         sy = cy + 29
         c.hand(cx, sy, sa, [(-4, 1.2), (0, 1), (12, 0.4)], blue)
         c.circle(cx, sy, 1.6, fill=blue)
-        mask = self._cdials.get("mech_pocket_glass")
-        if mask is None:                                                            # Glasreflex oben links
-            s, r = CLOCK_SS, R - 10
-            mask = Image.new("L", (int(2 * r * s), int(2 * r * s)), 0)
-            d = ImageDraw.Draw(mask)
-            d.ellipse([0, 0, 2 * r * s, 2 * r * s], fill=34)
-            d.ellipse([10 * s, 12 * s, (2 * r + 18) * s, (2 * r + 22) * s], fill=0)
-            self._cdials["mech_pocket_glass"] = mask
+        mask = self._clock_cache("mech_pocket_glass", None, self._mech_pocket_glass)   # Glasreflex oben links
         c.img.paste((255, 255, 255), (int((cx - R + 10) * CLOCK_SS), int((cy - R + 10) * CLOCK_SS)), mask)
         gold, dim = (226, 190, 118), (168, 128, 90)
-        c.text(282, 88, WEEKDAYS[now.tm_wday], mf["date"], dim)
+        c.text(282, 88, WEEKDAYS[now.tm_wday], date_f, dim)
         c.text(282, 114, str(now.tm_mday), f["big"], gold)
-        c.text(282, 140, MONTHS[now.tm_mon - 1], mf["date"], dim)
+        c.text(282, 140, MONTHS[now.tm_mon - 1], date_f, dim)
         c.text(282, 156, str(now.tm_year), f["tiny"], dim)
         return self._clock_finish(c)
 
@@ -594,22 +580,23 @@ class MechanicalFaces:
         s = min(1.0, abs(y - mid) / half)
         return neck + (wmax - neck) * math.sin(0.62 * math.pi * s) / 1.0
 
+    def _mech_hg_tables(self):
+        """Je Kolben (oben, unten): [(Sandmenge bis y, y), …] in Schritten von 0,25 ab Engstelle bzw. Boden."""
+        cx, top, bot, wmax, neck = self._MECH_HG
+        mid = (top + bot) / 2
+        tabs = []
+        for ys in ((mid - k * 0.25 for k in range(int((mid - top) * 4) + 1)),
+                   (bot - k * 0.25 for k in range(int((bot - mid) * 4) + 1))):
+            acc, tab = 0.0, []
+            for y in ys:
+                acc += 2 * self._mech_hg_w(y) * 0.25
+                tab.append((acc, y))
+            tabs.append(tab)
+        return tabs
+
     def _mech_hg_level(self, amount, upper):
         """Sandhöhe für amount (0…1 der Füllung) im oberen bzw. unteren Kolben."""
-        key = "mech_hg_tab"
-        if key not in self._cdials:
-            cx, top, bot, wmax, neck = self._MECH_HG
-            mid = (top + bot) / 2
-            tabs = []
-            for ys in ((mid - k * 0.25 for k in range(int((mid - top) * 4) + 1)),
-                       (bot - k * 0.25 for k in range(int((bot - mid) * 4) + 1))):
-                acc, tab = 0.0, []
-                for y in ys:
-                    acc += 2 * self._mech_hg_w(y) * 0.25
-                    tab.append((acc, y))
-                tabs.append(tab)
-            self._cdials[key] = tabs
-        tab = self._cdials[key][0 if upper else 1]
+        tab = self._clock_cache("mech_hg_tab", None, self._mech_hg_tables)[0 if upper else 1]
         target = amount * tab[-1][0] * 0.78
         for acc, y in tab:
             if acc >= target:
@@ -655,7 +642,8 @@ class MechanicalFaces:
     @clock_face("hourglass", fps=5)
     def face_hourglass(self, profile):
         c = self._clock_canvas("mech_hourglass", (14, 12, 14), self._mech_hourglass_static)
-        f, mf = self._cfonts, self._mech_fonts()
+        f = self._cfonts
+        date_f = clock_font("sans", 11 * CLOCK_SS, True)
         t = self._clock_now()
         now = time.localtime(t)
         cx, top, bot, wmax, neck = self._MECH_HG
@@ -706,7 +694,8 @@ class MechanicalFaces:
         # daneben: Uhrzeit und verbleibende Zeit
         tx = 246
         acc = PROFILE_COLOR.get(profile, self.FG)
-        c.text(tx, 74, time.strftime("%H:%M:%S", now), mf["mono"], (238, 222, 190))
+        c.text(tx, 74, time.strftime("%H:%M:%S", now), clock_font("mono", 20 * CLOCK_SS, True),
+               (238, 222, 190))
         left_s = 3600 - now.tm_min * 60 - now.tm_sec
         txt = f"noch {left_s} Sek." if left_s < 60 else f"noch {math.ceil(left_s / 60)} Min."
         c.text(tx, 102, txt, f["mid"], (214, 186, 130))
@@ -714,31 +703,36 @@ class MechanicalFaces:
         c.rect(tx - 50, 132, tx + 50, 135, fill=(44, 40, 40))
         c.rect(tx - 50, 132, tx - 50 + 100 * rest, 135, fill=acc)
         c.text(tx, 158, f"{WEEKDAY_DE[now.tm_wday]}, {now.tm_mday:02d}.{now.tm_mon:02d}.{now.tm_year}",
-               mf["date"], (150, 136, 116))
+               date_f, (150, 136, 116))
         return self._clock_finish(c)
 
     # --- Kerzenuhr ------------------------------------------------------------ #
     _MECH_CA = (100, 36, 178, 16)                 # Mitte x, Docht bei 0 Uhr, Fuß, halbe Kerzenbreite
 
-    def _mech_candle_static(self, c):
-        cx, top, base, hw = self._MECH_CA
-        mf = self._mech_fonts()
-        for rr in range(300, 0, -4):                                                # dunkle Wand
-            c.circle(cx, 120, rr, fill=mix((34, 24, 18), (10, 8, 8), min(1.0, rr / 260)))
+    def _mech_candle_wall(self):
+        """Dunkle Wand mit Tisch ohne Kerze (füllt die ganze Fläche; dort, wo die Kerze abgebrannt ist)."""
+        c = _Canvas(Image.new("RGB", (WIDTH * CLOCK_SS, CLOCK_H * CLOCK_SS), (10, 8, 8)))
+        for rr in range(300, 0, -4):
+            c.circle(self._MECH_CA[0], 120, rr, fill=mix((34, 24, 18), (10, 8, 8), min(1.0, rr / 260)))
         self._mech_vgrad(c, 0, 198, WIDTH, CLOCK_H, (54, 34, 20), (28, 18, 10))
         c.rect(0, 198, WIDTH, 198.6, fill=(80, 54, 32))
-        self._cdials["mech_candle_bg"] = c.img.copy()
+        return c.img
+
+    def _mech_candle_static(self, c):
+        cx, top, base, hw = self._MECH_CA
+        c.img.paste(self._clock_cache("mech_candle_bg", None, self._mech_candle_wall))
         # Kerze in voller Länge mit Stundenmarken
         wax_e, wax_m = (200, 170, 126), (250, 238, 212)
         self._mech_hgrad(c, cx - hw, top, cx + hw, base + 2, wax_e, wax_m, 0.35)
         paint = (158, 38, 30)
         step = (base - top) / 24
+        label = clock_font("sans", 9 * CLOCK_SS, True)
         for h in range(1, 24):
             y = top + h * step
             if h % 3 == 0:
                 c.rect(cx - hw, y - 0.35, cx - hw + 9, y + 0.35, fill=paint)
                 c.rect(cx + hw - 5, y - 0.35, cx + hw, y + 0.35, fill=paint)
-                c.text(cx + 1.5, y, str(h), mf["label"], paint)
+                c.text(cx + 1.5, y, str(h), label, paint)
             else:
                 c.rect(cx - hw, y - 0.25, cx - hw + 4.5, y + 0.25, fill=mix(paint, wax_m, 0.35))
         # Halter aus Messing (Teller, Tülle, Griffring)
@@ -756,21 +750,20 @@ class MechanicalFaces:
         self._mech_ellipse(c, cx - hw - 5, base - 3, cx + hw + 5, base + 3, fill=brass_hi, outline=brass_lo, width=0.6)
         c.rect(cx - hw, base - 2, cx + hw, base, fill=wax_e)
 
-    def _mech_glow_mask(self, r):
-        key = ("mech_glow", r)
-        if key not in self._cdials:
-            s = CLOCK_SS
-            m = Image.new("L", (2 * r * s, 2 * r * s), 0)
-            d = ImageDraw.Draw(m)
-            for k in range(r * s, 0, -3):
-                d.ellipse([r * s - k, r * s - k, r * s + k, r * s + k], fill=int(120 * (1 - k / (r * s)) ** 2.2))
-            self._cdials[key] = m
-        return self._cdials[key]
+    @staticmethod
+    def _mech_glow_mask(r):
+        """Maske für den Lichtschein der Flamme (Radius r, zur Mitte hin heller)."""
+        s = CLOCK_SS
+        m = Image.new("L", (2 * r * s, 2 * r * s), 0)
+        d = ImageDraw.Draw(m)
+        for k in range(r * s, 0, -3):
+            d.ellipse([r * s - k, r * s - k, r * s + k, r * s + k], fill=int(120 * (1 - k / (r * s)) ** 2.2))
+        return m
 
     @clock_face("candle", fps=5)
     def face_candle(self, profile):
         c = self._clock_canvas("mech_candle", (10, 8, 8), self._mech_candle_static)
-        f, mf = self._cfonts, self._mech_fonts()
+        f = self._cfonts
         t = self._clock_now()
         now = time.localtime(t)
         cx, top, base, hw = self._MECH_CA
@@ -778,7 +771,7 @@ class MechanicalFaces:
         day = (now.tm_hour * 3600 + now.tm_min * 60 + now.tm_sec) / 86400
         yt = top + (base - top) * day
         # abgebrannter Teil: Wand wieder herstellen
-        bg = self._cdials["mech_candle_bg"]
+        bg = self._clock_cache("mech_candle_bg", None, self._mech_candle_wall)
         box = (int((cx - hw - 3) * s), 0, int((cx + hw + 3) * s), int(yt * s) + 1)
         c.img.paste(bg.crop(box), box[:2])
         # Flackern (deterministisch aus der Zeit)
@@ -787,7 +780,7 @@ class MechanicalFaces:
         fh, sway = 17 + 3.5 * n1, 1.8 * n2
         fy = yt - 3                                       # Fuß der Flamme
         r = 70
-        glow = self._mech_glow_mask(r)
+        glow = self._clock_cache("mech_glow", r, lambda: self._mech_glow_mask(r))
         gx, gy = cx + sway * 0.6, fy - 8
         c.img.paste((255, 170 + int(12 * n1), 80), (int((gx - r) * s), int((gy - r) * s)), glow)
         # Kerzenkopf mit Wachsmulde und Tropfen
@@ -806,7 +799,6 @@ class MechanicalFaces:
         pool = 4 + 10 * day                                # Wachs sammelt sich an der Tülle
         self._mech_ellipse(c, cx - hw - 4, base - 2.5, cx - hw - 4 + pool, base + 3, fill=wax)
         # Docht und Flamme
-        tip = (cx + sway, fy - fh)
         self._mech_line(c, [(cx, yt), (cx, fy - 4), (cx + sway * 0.3 + 1, fy - 6)], (40, 30, 24), 1.2)
         for scale, col in ((1.0, (255, 150, 40)), (0.72, (255, 206, 96)), (0.42, (255, 248, 220))):
             w = 4.6 * scale
@@ -821,7 +813,8 @@ class MechanicalFaces:
         c.circle(cx, fy - 4, 1, fill=(60, 40, 30))
         # daneben: Uhrzeit, Datum, Rest des Tages
         tx = 238
-        c.text(tx, 78, time.strftime("%H:%M:%S", now), mf["mono"], (248, 222, 172))
+        c.text(tx, 78, time.strftime("%H:%M:%S", now), clock_font("mono", 20 * CLOCK_SS, True),
+               (248, 222, 172))
         c.text(tx, 104, f"{WEEKDAY_DE[now.tm_wday]}, {now.tm_mday}. {MONTHS[now.tm_mon - 1]}", f["small"],
                (200, 166, 120))
         left = 86400 - int(day * 86400)

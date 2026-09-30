@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.09.30-1"
+VERSION = "2026.09.30-2"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -69,7 +69,7 @@ def load_driver():
 
 
 # Alle Namen des Treibers, die die Verwaltung benutzt (g.<name>) – build.py trägt sie beim Bauen ein
-DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller auto_backup backup_members clean_macros clean_settings err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed save_json save_state test_backup_target valid_colors".split()
+DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD ENTRY_TYPES FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller auto_backup backup_members clean_macros clean_settings err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed save_json save_state test_backup_target valid_colors".split()
 
 
 g = load_driver()
@@ -588,6 +588,7 @@ class ApiKeys:
             "chars": list(g.DE_CHARS.keys()), "dead": list(g.DE_DEAD.keys()),
             "pages": g.PAGE_NAMES, "page_ids": g.PAGE_IDS, "media": g.MEDIA_ACTIONS,
             "volume": g.VOLUME_ACTIONS,
+            "entry_types": g.ENTRY_TYPES,
             "clock_faces": list(g.CLOCK_FACES.items()), "clock_options": g.CLOCK_OPTIONS,
             "world_cities": g.WORLD_CITIES,
             "mtimes": {"macros": mtime(g.MACRO_FILE), "settings": mtime(g.SETTINGS_FILE)},
@@ -1956,26 +1957,32 @@ function fKeyText(gkey, p) {
 function domainOf(u) { return String(u).replace(/^[a-z]+:\/\/(www\.)?/i, "").split("/")[0]; }
 function stationName(url) {
   const s = ((UI.sdraft || S.settings).stations || []).find(x => x.url === url);
-  return s ? (s.name || domainOf(url)) : domainOf(url);
+  return (s && s.name) || domainOf(url);
 }
+// Art und Beschriftung einer Belegung: dieselben Regeln wie entry_type/entry_label im Treiber (makros.py);
+// die Reihenfolge der Arten kommt vom Treiber (S.entryTypes), tests/einheit/test_beschriftung.py vergleicht beide.
 function typeOf(e) {
   if (!e) return "default";
-  for (const t of ["radio", "media", "volume", "snippets", "timer", "sleep", "mic", "open", "run", "text", "combo", "steps"]) {
-    const v = e[t]; if (v && (!Array.isArray(v) || v.length)) return t;
+  for (const t of S.entryTypes) {
+    const v = e[t];
+    if (t === "timer" && (typeof v !== "object" || v === null || Array.isArray(v))) continue;
+    if (v && (!Array.isArray(v) || v.length)) return t;
   }
   return "default";
 }
+function num(v, dflt) { const n = parseFloat(v); return isNaN(n) || !v ? dflt : n; }
+function fmtMinutes(m) { m = num(m, 5); return m >= 1 ? `${m} min` : `${Math.round(m * 60)} s`; }
 function timerLabel(t) {
   t = t || {};
   if (t.mode === "stopwatch") return "Stoppuhr";
-  if (t.mode === "pomodoro") return `Pomodoro ${t.work || 25}/${t.break || 5}`;
-  return `Timer ${t.minutes || 5} min`;
+  if (t.mode === "pomodoro") return `Pomodoro ${num(t.work, 25)}/${num(t.break, 5)}`;
+  return `Timer ${fmtMinutes(t.minutes)}`;
 }
 function snippetGroups() {
   const sd = UI.sdraft || S.settings;
   return [...new Set(sd.snippets.map(x => (x.group || "").trim()).filter(Boolean))].sort();
 }
-function comboList(c) { return Array.isArray(c) ? c : String(c || "").split("+").map(s => s.trim()).filter(Boolean); }
+function comboList(c) { return (Array.isArray(c) ? c : String(c || "").split("+")).map(s => String(s).trim()).filter(Boolean); }
 function entryLabel(e) {
   if (!e) return "";
   if (e.name) return e.name;
@@ -1988,7 +1995,7 @@ function entryLabel(e) {
   if (t === "timer") return timerLabel(e.timer);
   if (t === "sleep") return `Einschlafen ${e.sleep} min`;
   if (t === "mic") return "Mikrofon";
-  if (t === "run") return String(e.run).split(/\s+/)[0];
+  if (t === "run") return String(e.run).trim().split(/\s+/)[0];
   if (t === "text") return "Text";
   if (t === "combo") return comboList(e.combo).map(keyLabel).join("+");
   if (t === "steps") return "Makro";
@@ -1999,6 +2006,7 @@ function entryLabel(e) {
 async function loadState() {
   const d = await api("/api/state");
   S.macros = d.macros; S.settings = d.settings; S.keys = d.keys; S.media = d.media; S.pages = d.pages; S.pageIds = d.page_ids; S.volume = d.volume;
+  S.entryTypes = d.entry_types;
   S.clockFaces = d.clock_faces; S.clockOptions = d.clock_options; S.worldCities = d.world_cities;
   S.active = d.active; S.maxProfiles = d.max_profiles;
   if (UI.pidx === undefined) UI.pidx = d.active;

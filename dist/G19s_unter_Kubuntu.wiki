@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.09.30-1)
+| 28.09.2026 (Version 2026.09.30-2)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -164,7 +164,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.09.30-1"
+VERSION = "2026.09.30-2"
 
 # Weitere Importe der Module
 import http.client
@@ -800,7 +800,7 @@ def save_json(path, data, compact_steps=False, private=False):
 # ═══════════════════════════════════════════════════════════════════════════
 
 def domain_of(url):
-    return re.sub(r"^[a-z]+://(www\.)?", "", str(url)).split("/")[0]
+    return re.sub(r"^[a-z]+://(www\.)?", "", str(url), flags=re.I).split("/")[0]
 
 
 def in_time_window(now_hm, start, end):
@@ -925,9 +925,7 @@ def entry_steps(entry, log=print):
             log(f"Zeichen ohne Tastenzuordnung übersprungen: {''.join(unknown)!r}")
         return steps
     if entry.get("combo"):
-        combo = entry["combo"]
-        keys = combo if isinstance(combo, list) else str(combo).split("+")
-        return combo_to_steps([k.strip() for k in keys])
+        return combo_to_steps(combo_keys(entry["combo"]))
     return entry.get("steps") or []
 
 
@@ -986,43 +984,69 @@ def compile_steps(macro, log=print):
 #   Tastenbelegung (macros.json) mit Profilen und Ebenen, Zustand (state.json), Beschriftung der Einträge.
 # ═══════════════════════════════════════════════════════════════════════════
 
+# Arten von Tastenbelegungen in der Reihenfolge, in der sie erkannt werden. Gilt für die Ausführung
+# (aktionen.py), die Beschriftung (entry_label) und die Verwaltung (bekommt die Liste über /api/state).
+# Ein Eintrag hat normalerweise genau eine davon; „timer“ muss ein Objekt sein.
+ENTRY_TYPES = ["timer", "snippets", "open", "run", "radio", "media", "mic", "sleep", "volume",
+               "text", "combo", "steps"]
+
+
+def entry_type(entry):
+    """Art einer Tastenbelegung (siehe ENTRY_TYPES) oder None (Taste sendet F13–F24)."""
+    if not isinstance(entry, dict):
+        return None
+    for t in ENTRY_TYPES:
+        v = entry.get(t)
+        if t == "timer" and not isinstance(v, dict):
+            continue
+        if v:
+            return t
+    return None
+
+
+def combo_keys(combo):
+    """Tastenkombination als Liste: ["KEY_LEFTCTRL", "KEY_C"] oder "KEY_LEFTCTRL+KEY_C"."""
+    keys = combo if isinstance(combo, list) else str(combo or "").split("+")
+    return [str(k).strip() for k in keys if str(k).strip()]
+
+
 def entry_label(entry, settings=None):
-    """Kurzbeschriftung einer Tastenbelegung für Display und Oberfläche."""
+    """Kurzbeschriftung einer Tastenbelegung für Display und Oberfläche.
+    Die Verwaltung hat dieselben Regeln in seite/js/02_hilfen.js (entryLabel) – ein Test vergleicht beide."""
     if not isinstance(entry, dict):
         return ""
     if entry.get("name"):
         return str(entry["name"])
-    if entry.get("open"):
+    t = entry_type(entry)
+    if t == "open":
         return domain_of(entry["open"])
-    if entry.get("radio"):
+    if t == "radio":
         if entry["radio"] == "stop":
             return "Radio aus"
         for st in (settings or {}).get("stations", []):
             if st.get("url") == entry["radio"]:
-                return st.get("name") or "Radio"
-        return "Radio"
-    if entry.get("media"):
+                return st.get("name") or domain_of(entry["radio"])
+        return domain_of(entry["radio"])
+    if t == "media":
         return MEDIA_ACTIONS.get(entry["media"], "Musik")
-    if entry.get("volume"):
+    if t == "volume":
         return VOLUME_ACTIONS.get(entry["volume"], "Lautstärke")
-    if entry.get("snippets"):
+    if t == "snippets":
         grp = str(entry["snippets"])
         return "Textbausteine" if grp == "*" else grp
-    if isinstance(entry.get("timer"), dict):
+    if t == "timer":
         return timer_label(entry["timer"])
-    if entry.get("sleep"):
+    if t == "sleep":
         return f"Einschlafen {entry['sleep']} min"
-    if entry.get("mic"):
+    if t == "mic":
         return "Mikrofon"
-    if entry.get("run"):
-        return str(entry["run"]).split()[0]
-    if entry.get("text"):
+    if t == "run":
+        return (str(entry["run"]).split() or [""])[0]
+    if t == "text":
         return "Text"
-    if entry.get("combo"):
-        combo = entry["combo"]
-        keys = combo if isinstance(combo, list) else str(combo).split("+")
-        return "+".join(key_label(k.strip()) for k in keys)
-    if entry.get("steps"):
+    if t == "combo":
+        return "+".join(key_label(k) for k in combo_keys(entry["combo"]))
+    if t == "steps":
         return "Makro"
     return ""
 
@@ -1344,15 +1368,19 @@ def timer_label(cfg):
     if mode == "stopwatch":
         return "Stoppuhr"
     if mode == "pomodoro":
-        return f"Pomodoro {float(cfg.get('work') or 25):g}/{float(cfg.get('break') or 5):g}"
+        return f"Pomodoro {_num(cfg.get('work'), 25):g}/{_num(cfg.get('break'), 5):g}"
     return f"Timer {fmt_minutes(cfg.get('minutes') or 5)}"
 
 
-def fmt_minutes(m):
+def _num(v, default):
     try:
-        m = float(m)
+        return float(v) if v else default
     except (TypeError, ValueError):
-        m = 5
+        return default
+
+
+def fmt_minutes(m):
+    m = _num(m, 5)
     return f"{m:g} min" if m >= 1 else f"{round(m * 60)} s"
 
 
@@ -4523,6 +4551,14 @@ def refresh_page(app, page_id):
 #               return self._clock_finish(c)
 #
 #   Name und Reihenfolge stehen in CLOCK_FACES (konstanten), Optionen in CLOCK_OPTIONS.
+#
+#   Gemeinsame Hilfen (bitte benutzen statt eigener Varianten):
+#     clock_font(style, size, bold)      Schriften (sans, serif, mono, sans-cond, serif-cond), zwischengespeichert
+#     self._clock_canvas(key, bg, build) 3-fach vergrößerte Fläche mit zwischengespeichertem Hintergrund
+#     self._clock_cache(slot, key, build) sonstiges Unveränderliches (je slot nur der jüngste key)
+#     CLOCK_CX, CLOCK_CY, CLOCK_H         Mitte und Höhe der Uhrfläche; ROMAN_XII römische Ziffern (mit „IIII“)
+#   Top-Level-Namen eines Moduls tragen dessen Präfix (_mech_, _sky_, _disp_, _info_), weil alle Module
+#   einen Namensraum teilen. Zwischenspeicher werden beim Wechsel des Zifferblatts geleert (CLOCK_CACHES); eigene Speicher nicht anlegen.
 #   fps > 1 lässt das Display öfter neu zeichnen (flüssige Bewegungen); fps darf auch
 #   eine Funktion(optionen) sein. Analoge Uhren werden CLOCK_SS-fach gezeichnet und
 #   verkleinert (weiche Kanten); Unveränderliches wird mit _clock_canvas zwischengespeichert.
@@ -4530,6 +4566,8 @@ def refresh_page(app, page_id):
 
 CLOCK_SS = 3                                # Vergrößerung beim Zeichnen (Kantenglättung)
 CLOCK_H = HEIGHT - FOOTER_H                 # Fläche über der Fußzeile
+CLOCK_CX, CLOCK_CY = WIDTH / 2, CLOCK_H / 2   # Mitte der Uhrfläche (160, 107)
+ROMAN_XII = ["XII", "I", "II", "III", "IIII", "V", "VI", "VII", "VIII", "IX", "X", "XI"]   # Uhren-„IIII“
 WEEKDAY_2 = ["MO", "DI", "MI", "DO", "FR", "SA", "SO"]
 MONTH_3 = ["JAN", "FEB", "MÄR", "APR", "MAI", "JUN", "JUL", "AUG", "SEP", "OKT", "NOV", "DEZ"]
 
@@ -4544,6 +4582,27 @@ def load_serif(size, bold=False):
         if os.path.exists(path):
             return ImageFont.truetype(path, size)
     return load_font(size, bold)
+
+
+_CLOCK_FONT_FILES = {"sans": "DejaVuSans", "serif": "DejaVuSerif", "mono": "DejaVuSansMono",
+                     "sans-cond": "DejaVuSansCondensed", "serif-cond": "DejaVuSerifCondensed"}
+_CLOCK_FONTS = {}
+
+
+def clock_font(style, size, bold=False):
+    """Schrift für Zifferblätter (einmal geladen, dann aus dem Zwischenspeicher).
+    style: sans, serif, mono, sans-cond, serif-cond (DejaVu); size in Pixeln – auf der 3-fach
+    vergrößerten Fläche also z. B. 10 * CLOCK_SS. Fehlt die Datei: load_font bzw. load_serif."""
+    key = (style, int(size), bool(bold))
+    font = _CLOCK_FONTS.get(key)
+    if font is None:
+        path = f"/usr/share/fonts/truetype/dejavu/{_CLOCK_FONT_FILES[style]}{'-Bold' if bold else ''}.ttf"
+        if os.path.exists(path):
+            font = ImageFont.truetype(path, int(size))
+        else:
+            font = (load_serif if style.startswith("serif") else load_font)(int(size), bold)
+        _CLOCK_FONTS[key] = font
+    return font
 
 
 class _Canvas:
@@ -4659,7 +4718,16 @@ class ClockBase:
         return _Canvas(self._cdials[key].copy())
 
     # Zwischenspeicher der Zifferblatt-Module (je ~2–3 MB pro Eintrag); Schriften bleiben erhalten
-    CLOCK_CACHES = ("_cdials", "_sky_cache", "_disp_mem", "_info_static")
+    CLOCK_CACHES = ("_cdials", "_clock_slots")
+
+    def _clock_cache(self, slot, key, build):
+        """Zwischenspeicher für Unveränderliches (Hintergründe, Masken, vorberechnete Bilder):
+        je slot nur der jüngste key – ändert sich z. B. eine Farbe, wird neu gebaut statt angesammelt."""
+        slots = self.__dict__.setdefault("_clock_slots", {})
+        hit = slots.get(slot)
+        if hit is None or hit[0] != key:
+            hit = slots[slot] = (key, build())
+        return hit[1]
 
     def _clock_drop_caches(self):
         """Beim Wechsel des Zifferblatts die Zwischenspeicher der anderen Zifferblätter freigeben."""
@@ -4754,7 +4822,7 @@ class StandardFaces:
     }
 
     def _chrono_dial(self, c, dial):
-        f, cx, cy = self._cfonts, 160, CLOCK_H / 2
+        f, cx, cy = self._cfonts, CLOCK_CX, CLOCK_CY
         face, sub, idx, txt, txt2, quarter, _hand = self.CHRONO_DIALS[dial]
         steel, steel_hi, steel_lo = (92, 97, 106), (190, 196, 205), (40, 43, 50)
         c.circle(cx, cy, 102, fill=steel_lo)
@@ -4803,7 +4871,7 @@ class StandardFaces:
         opt = self._copt("chrono")
         dial = opt["dial"] if opt["dial"] in self.CHRONO_DIALS else "black"
         c = self._clock_canvas(("chrono", dial), (10, 11, 14), lambda c: self._chrono_dial(c, dial))
-        f, cx, cy = self._cfonts, 160, CLOCK_H / 2
+        f, cx, cy = self._cfonts, CLOCK_CX, CLOCK_CY
         now = time.localtime(self._clock_now())
         acc = self._ccolor(opt["hand"], profile)
         if opt["side"] in ("both", "date"):               # links Datum
@@ -4840,7 +4908,7 @@ class StandardFaces:
     ]
 
     def _steam_dial(self, c):
-        f, cx, cy = self._cfonts, 160, CLOCK_H / 2
+        f, cx, cy = self._cfonts, CLOCK_CX, CLOCK_CY
         brass, brass_hi, brass_lo = (176, 134, 62), (226, 190, 110), (96, 66, 28)
         c.circle(cx, cy, 102, fill=brass_lo)
         c.circle(cx, cy, 100, fill=brass)
@@ -4859,7 +4927,7 @@ class StandardFaces:
         c.circle(cx, cy, 77, outline=ink, width=0.8)
         for m in range(60):
             c.radial(cx, cy, 77, 83, m * 6, 1.6 if m % 5 == 0 else 0.7, ink)
-        for h, num in enumerate(["XII", "I", "II", "III", "IIII", "V", "VI", "VII", "VIII", "IX", "X", "XI"]):
+        for h, num in enumerate(ROMAN_XII):
             if h == 6:
                 continue                                  # Platz für das Uhrwerk-Fenster
             x, y = [v / CLOCK_SS for v in c.pt(cx, cy, 63, h * 30)]
@@ -4872,7 +4940,7 @@ class StandardFaces:
     @clock_face("steampunk")
     def face_steampunk(self, profile):
         c = self._clock_canvas("steam", (26, 17, 9), self._steam_dial)
-        cx, cy = 160, CLOCK_H / 2
+        cx, cy = CLOCK_CX, CLOCK_CY
         t = self._clock_now()
         now = time.localtime(t)
         tick = int(t) if self._copt("steampunk")["gears"] else 0
@@ -4881,12 +4949,12 @@ class StandardFaces:
         for x, y, r, direction in self._STEAM_GEARS:
             layer.gear(x, y, r, max(8, round(r / 3.4)), direction * tick * 6 * 40 / r,
                        (122, 82, 38) if r > 30 else (150, 104, 48), (58, 36, 16))
-        if "steam_mask" not in self._cdials:
+        def build_mask():
             mask = Image.new("L", c.img.size, 0)
             ImageDraw.Draw(mask).ellipse([(cx - 102.5) * CLOCK_SS, (cy - 102.5) * CLOCK_SS,
                                           (cx + 102.5) * CLOCK_SS, (cy + 102.5) * CLOCK_SS], fill=255)
-            self._cdials["steam_mask"] = mask
-        layer.img.paste(c.img, (0, 0), self._cdials["steam_mask"])
+            return mask
+        layer.img.paste(c.img, (0, 0), self._clock_cache("std_steam_mask", 1, build_mask))
         c = layer
         c.gear(cx - 6, cy + 42, 11, 10, tick * 30, (196, 150, 70), (90, 60, 25))      # Unruh-Fenster
         c.gear(cx + 9, cy + 34, 7, 8, -tick * 47, (170, 126, 56), (90, 60, 25))
@@ -4908,7 +4976,7 @@ class StandardFaces:
 
     # --- Bahnhofsuhr ---------------------------------------------------------- #
     def _station_dial(self, c):
-        f, cx, cy = self._cfonts, 160, CLOCK_H / 2
+        f, cx, cy = self._cfonts, CLOCK_CX, CLOCK_CY
         c.circle(cx, cy, 103, fill=(28, 30, 34))
         c.circle(cx, cy, 101, fill=(70, 74, 80))
         c.circle(cx, cy, 99, fill=(34, 36, 40))
@@ -4924,7 +4992,7 @@ class StandardFaces:
     def face_station(self, profile):
         opt = self._copt("station")
         c = self._clock_canvas("station", (10, 12, 16), self._station_dial)
-        f, cx, cy = self._cfonts, 160, CLOCK_H / 2
+        f, cx, cy = self._cfonts, CLOCK_CX, CLOCK_CY
         now = time.localtime(self._clock_now())
         if opt["side"]:
             c.text(31, 70, WEEKDAY_DE[now.tm_wday], f["side"], (235, 238, 245))
@@ -5009,11 +5077,6 @@ class StandardFaces:
 #   Zifferblätter Pendeluhr, Kuckucksuhr, Taschenuhr, Sanduhr, Kerzenuhr.
 # ═══════════════════════════════════════════════════════════════════════════
 
-_MECH_ROMAN = ["XII", "I", "II", "III", "IIII", "V", "VI", "VII", "VIII", "IX", "X", "XI"]
-_MECH_MONO = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf"
-_MECH_SERIF_C = "/usr/share/fonts/truetype/dejavu/DejaVuSerifCondensed-Bold.ttf"
-
-
 def _mech_bezier(p0, p1, p2, p3, n):
     """Punkte einer kubischen Bézierkurve (Displaykoordinaten)."""
     out = []
@@ -5032,20 +5095,6 @@ def _mech_wave(t, parts):
 
 class MechanicalFaces:
     # --- Hilfen --------------------------------------------------------------- #
-    def _mech_fonts(self):
-        if not hasattr(self, "_mech_f"):
-            s = CLOCK_SS
-            try:
-                mono = ImageFont.truetype(_MECH_MONO, 20 * s)
-            except OSError:
-                mono = load_font(20 * s, bold=True)
-            cond = (lambda n: ImageFont.truetype(_MECH_SERIF_C, n * s)) if os.path.exists(_MECH_SERIF_C) \
-                else (lambda n: load_serif((n - 1) * s, bold=True))
-            self._mech_f = {"arab": load_serif(13 * s, bold=True), "mono": mono,
-                            "label": load_font(9 * s, bold=True), "date": load_font(11 * s, bold=True),
-                            "romc9": cond(9), "romc8": cond(8)}
-        return self._mech_f
-
     @staticmethod
     def _mech_poly(c, pts, fill=None, outline=None, width=1):
         s = CLOCK_SS
@@ -5142,37 +5191,38 @@ class MechanicalFaces:
 
     def _mech_side_date(self, c, now, col, dim):
         """Dezentes Datum links und rechts neben einem schmalen Gehäuse."""
-        f, mf = self._cfonts, self._mech_fonts()
-        c.text(50, 88, WEEKDAYS[now.tm_wday], mf["date"], dim)
+        f = self._cfonts
+        date_f = clock_font("sans", 11 * CLOCK_SS, True)
+        c.text(50, 88, WEEKDAYS[now.tm_wday], date_f, dim)
         c.text(50, 114, str(now.tm_mday), f["big"], col)
-        c.text(270, 100, MONTHS[now.tm_mon - 1], mf["date"], dim)
+        c.text(270, 100, MONTHS[now.tm_mon - 1], date_f, dim)
         c.text(270, 118, str(now.tm_year), f["tiny"], dim)
 
     # --- Pendeluhr ------------------------------------------------------------ #
-    _MECH_PEND = (160, 84, 96, 9.5)              # Aufhängung x, y, Pendellänge, Ausschlag (Grad)
+    _MECH_PEND = (CLOCK_CX, 84, 96, 9.5)         # Aufhängung x, y, Pendellänge, Ausschlag (Grad)
     _MECH_PEND_WIN = (124, 142, 196, 194)        # Glasfenster
 
     def _mech_pendulum_static(self, c):
-        f, mf = self._cfonts, self._mech_fonts()
-        cx, cy = 160, 84
+        f = self._cfonts
+        cx, cy = CLOCK_CX, 84
         self._mech_vgrad(c, 0, 0, WIDTH, CLOCK_H, (30, 23, 20), (12, 10, 10))
         walnut, dark, light = (104, 58, 30), (52, 28, 14), (150, 96, 54)
         brass, brass_hi, brass_lo = (190, 146, 66), (240, 204, 124), (110, 76, 30)
         c.rect(110, 36, 220, 204, fill=(8, 6, 6))                          # Schatten an der Wand
         self._mech_wood(c, 106, 32, 214, 200, walnut, 1)
         # Kranz mit Giebel, Rosette und Knäufen
-        self._mech_wood_poly(c, [(98, 30), (160, 7), (222, 30)], (120, 70, 36), 2, vertical=False)
-        self._mech_line(c, [(98, 30), (160, 7), (222, 30)], light, 1.2)
-        self._mech_poly(c, [(114, 27), (160, 12), (206, 27)], fill=(84, 46, 22))
-        self._mech_line(c, [(114, 27), (160, 12), (206, 27), (114, 27)], dark, 0.8)
+        self._mech_wood_poly(c, [(98, 30), (cx, 7), (222, 30)], (120, 70, 36), 2, vertical=False)
+        self._mech_line(c, [(98, 30), (cx, 7), (222, 30)], light, 1.2)
+        self._mech_poly(c, [(114, 27), (cx, 12), (206, 27)], fill=(84, 46, 22))
+        self._mech_line(c, [(114, 27), (cx, 12), (206, 27), (114, 27)], dark, 0.8)
         for x in (138, 182):                                               # geschnitzte Ranken im Giebel
-            d = -1 if x < 160 else 1
-            self._mech_line(c, _mech_bezier((160 + d * 6, 22), (x, 14), (x - d * 12, 30), (x + d * 10, 24), 12),
+            d = -1 if x < cx else 1
+            self._mech_line(c, _mech_bezier((cx + d * 6, 22), (x, 14), (x - d * 12, 30), (x + d * 10, 24), 12),
                             (150, 100, 58), 1.3)
         c.circle(cx, 20.5, 4.2, fill=brass_lo)
         c.circle(cx, 20.5, 3.4, fill=brass)
         c.circle(cx - 0.8, 19.7, 1.3, fill=brass_hi)
-        for x, y, r in ((100, 26, 3.2), (220, 26, 3.2), (160, 5, 3)):
+        for x, y, r in ((100, 26, 3.2), (220, 26, 3.2), (cx, 5, 3)):
             c.rect(x - 1.5, y, x + 1.5, y + 4, fill=dark)
             c.circle(x, y, r, fill=light, outline=dark, width=0.6)
         c.rect(94, 30, 226, 35, fill=light)
@@ -5181,7 +5231,7 @@ class MechanicalFaces:
         # Zifferblattfeld mit Messingzwickeln
         c.rect(110, 40, 210, 130, outline=dark, width=0.8)
         for sx, sy in ((113, 43), (207, 43), (113, 127), (207, 127)):
-            dx, dy = (1 if sx < 160 else -1), (1 if sy < 84 else -1)
+            dx, dy = (1 if sx < cx else -1), (1 if sy < 84 else -1)
             for k, (ox, oy) in enumerate(((0, 0), (7, 1.5), (1.5, 7))):
                 c.circle(sx + dx * ox, sy + dy * oy, 3.2 if k == 0 else 2.2, fill=brass_lo)
                 c.circle(sx + dx * ox - 0.4, sy + dy * oy - 0.4, 2.3 if k == 0 else 1.5, fill=brass)
@@ -5194,9 +5244,10 @@ class MechanicalFaces:
         c.circle(cx, cy, 38.5, outline=ink, width=0.6)
         for m in range(60):
             c.radial(cx, cy, 38.5, 42, m * 6, 1.4 if m % 5 == 0 else 0.5, ink)
-        for h, num in enumerate(_MECH_ROMAN):
+        roman = clock_font("serif-cond", 9 * CLOCK_SS, True)
+        for h, num in enumerate(ROMAN_XII):
             x, y = self._mech_at(c, cx, cy, 32.5, h * 30)
-            self._mech_text_rot(c, x, y, num, mf["romc9"], ink, h * 30)
+            self._mech_text_rot(c, x, y, num, roman, ink, h * 30)
         c.text(cx, cy - 15, "G19s", f["serif_s"], (110, 80, 50))
         # Gesims zwischen Zifferblatt und Fenster
         c.rect(104, 132, 216, 137, fill=light)
@@ -5219,19 +5270,18 @@ class MechanicalFaces:
         c.rect(98, 198, 222, 204, fill=light)
         c.rect(98, 203, 222, 204.5, fill=dark)
         self._mech_poly(c, [(110, 204), (210, 204), (196, 209), (124, 209)], fill=walnut, outline=dark, width=0.6)
-        self._mech_poly(c, [(150, 209), (170, 209), (160, 214)], fill=light)
+        self._mech_poly(c, [(150, 209), (170, 209), (cx, 214)], fill=light)
 
-    def _mech_glass_mask(self, key, w, h, stripes):
-        """Maske für einen Glasreflex (schräge Streifen), zwischengespeichert."""
-        if key not in self._cdials:
-            s = CLOCK_SS
-            m = Image.new("L", (int(w * s), int(h * s)), 0)
-            d = ImageDraw.Draw(m)
-            for x, width, alpha in stripes:
-                d.polygon([(x * s, 0), ((x + width) * s, 0), ((x + width - h * 0.45) * s, h * s),
-                           ((x - h * 0.45) * s, h * s)], fill=alpha)
-            self._cdials[key] = m
-        return self._cdials[key]
+    @staticmethod
+    def _mech_glass_mask(w, h, stripes):
+        """Maske für einen Glasreflex (schräge Streifen [(x, Breite, Deckkraft), …])."""
+        s = CLOCK_SS
+        m = Image.new("L", (int(w * s), int(h * s)), 0)
+        d = ImageDraw.Draw(m)
+        for x, width, alpha in stripes:
+            d.polygon([(x * s, 0), ((x + width) * s, 0), ((x + width - h * 0.45) * s, h * s),
+                       ((x - h * 0.45) * s, h * s)], fill=alpha)
+        return m
 
     @clock_face("pendulum", fps=lambda o: 5 if o["swing"] else 1)
     def face_pendulum(self, profile):
@@ -5259,10 +5309,11 @@ class MechanicalFaces:
         c.circle(bx - 3.4, by - 3.4, 2.6, fill=brass_hi)
         c.circle(bx, by, 11, outline=(90, 60, 24), width=0.6)
         c.hand(bx, by, 0, [(-11, 2.2), (-14, 2.2)], brass_lo)            # Regulierschraube
-        mask = self._mech_glass_mask("mech_pend_glass", x1 - x0, y1 - y0, ((16, 7, 34), (27, 2.5, 22), (58, 12, 16)))
+        mask = self._clock_cache("mech_pend_glass", None, lambda: self._mech_glass_mask(
+            x1 - x0, y1 - y0, ((16, 7, 34), (27, 2.5, 22), (58, 12, 16))))
         c.img.paste((255, 244, 226), (x0 * CLOCK_SS, y0 * CLOCK_SS), mask)
         # Zeiger (geschwärzt, mit Ring)
-        cx, cy = 160, 84
+        cx, cy = CLOCK_CX, 84
         ha, ma, _ = self._clock_angles(now)
         ink, dial = (26, 22, 24), (238, 228, 204)
         c.hand(cx, cy, ha, [(-8, 3.2), (0, 3.4), (14, 2), (17, 5.5), (23, 1.6), (26, 0)], ink)
@@ -5279,7 +5330,7 @@ class MechanicalFaces:
         return self._clock_finish(c)
 
     # --- Kuckucksuhr ---------------------------------------------------------- #
-    _MECH_CU = {"dial": (160, 105, 38), "door": (151, 42, 169, 62), "pend": (160, 152, 46),
+    _MECH_CU = {"dial": (CLOCK_CX, 105, 38), "door": (151, 42, 169, 62), "pend": (CLOCK_CX, 152, 46),
                 "chains": (132, 188), "bottom": 150}
 
     def _mech_leaf(self, c, x, y, deg, length, width, fill, vein):
@@ -5290,33 +5341,30 @@ class MechanicalFaces:
 
     def _mech_cone_sprite(self):
         """Tannenzapfen-Gewicht als Bild mit Maske (dreifach vergrößert)."""
-        if "mech_cone" not in self._cdials:
-            s, w, h = CLOCK_SS, 18, 34
-            img = Image.new("RGB", (w * s, h * s), (0, 0, 0))
-            mask = Image.new("L", (w * s, h * s), 0)
-            cc, md = _Canvas(img), ImageDraw.Draw(mask)
-            body = [(9 + 7 * math.sin(math.pi * min(1, (y - 4) / 26) ** 0.7) * (1 if side else -1), y)
-                    for side in (0, 1) for y in (range(4, 33) if side else range(32, 3, -1))]
-            md.polygon([(x * s, y * s) for x, y in body], fill=255)
-            md.ellipse([6 * s, 0, 12 * s, 6 * s], fill=255)
-            cc.circle(9, 3, 2.6, outline=(150, 150, 150), width=1)                  # Haken
-            self._mech_poly(cc, body, fill=(70, 40, 18))
-            for row in range(9):                                                    # Schuppen
-                y = 7 + row * 3
-                wdt = 7 * math.sin(math.pi * min(1, (y - 4) / 26) ** 0.7)
-                n = max(2, int(wdt / 2.2))
-                for k in range(n + 1):
-                    x = 9 - wdt + 1 + k * (2 * wdt - 2) / max(1, n) + (1 if row % 2 else 0)
-                    if abs(x - 9) < wdt - 0.5:
-                        self._mech_ellipse(cc, x - 2, y - 1.2, x + 2, y + 2.2, fill=(122, 76, 38),
-                                           outline=(58, 32, 14), width=0.5)
-                        self._mech_ellipse(cc, x - 1, y - 0.6, x + 0.5, y + 0.6, fill=(150, 100, 56))
-            self._cdials["mech_cone"] = (img, mask)
-        return self._cdials["mech_cone"]
+        s, w, h = CLOCK_SS, 18, 34
+        img = Image.new("RGB", (w * s, h * s), (0, 0, 0))
+        mask = Image.new("L", (w * s, h * s), 0)
+        cc, md = _Canvas(img), ImageDraw.Draw(mask)
+        body = [(9 + 7 * math.sin(math.pi * min(1, (y - 4) / 26) ** 0.7) * (1 if side else -1), y)
+                for side in (0, 1) for y in (range(4, 33) if side else range(32, 3, -1))]
+        md.polygon([(x * s, y * s) for x, y in body], fill=255)
+        md.ellipse([6 * s, 0, 12 * s, 6 * s], fill=255)
+        cc.circle(9, 3, 2.6, outline=(150, 150, 150), width=1)                  # Haken
+        self._mech_poly(cc, body, fill=(70, 40, 18))
+        for row in range(9):                                                    # Schuppen
+            y = 7 + row * 3
+            wdt = 7 * math.sin(math.pi * min(1, (y - 4) / 26) ** 0.7)
+            n = max(2, int(wdt / 2.2))
+            for k in range(n + 1):
+                x = 9 - wdt + 1 + k * (2 * wdt - 2) / max(1, n) + (1 if row % 2 else 0)
+                if abs(x - 9) < wdt - 0.5:
+                    self._mech_ellipse(cc, x - 2, y - 1.2, x + 2, y + 2.2, fill=(122, 76, 38),
+                                       outline=(58, 32, 14), width=0.5)
+                    self._mech_ellipse(cc, x - 1, y - 0.6, x + 0.5, y + 0.6, fill=(150, 100, 56))
+        return img, mask
 
     def _mech_cuckoo_static(self, c):
         cx, cy, r = self._MECH_CU["dial"]
-        f, mf = self._cfonts, self._mech_fonts()
         self._mech_vgrad(c, 0, 0, WIDTH, CLOCK_H, (30, 42, 34), (14, 20, 16))
         rnd = random.Random(7)
         for yy in range(8, CLOCK_H, 22):                                            # Tapetenmuster
@@ -5325,25 +5373,25 @@ class MechanicalFaces:
         wood, wood_d, wood_l = (118, 72, 38), (58, 32, 14), (160, 108, 60)
         bottom = self._MECH_CU["bottom"]
         # Vorderseite (Giebelfläche)
-        front = [(108, bottom), (108, 72), (160, 34), (212, 72), (212, bottom)]
+        front = [(108, bottom), (108, 72), (cx, 34), (212, 72), (212, bottom)]
         self._mech_poly(c, [(x + 3, y + 3) for x, y in front], fill=(10, 14, 10))
         self._mech_wood_poly(c, front, wood, 11)
         self._mech_line(c, front, wood_d, 0.8)
         # Dach mit Schindeln
-        outer_l, outer_r, apex_o, apex_i = (82, 78), (238, 78), (160, 16), (160, 32)
+        outer_l, outer_r, apex_o, apex_i = (82, 78), (238, 78), (cx, 16), (cx, 32)
         inner_l, inner_r = (98, 82), (222, 82)
         roof = [outer_l, apex_o, outer_r, inner_r, apex_i, inner_l]
         self._mech_poly(c, [(x + 3, y + 3) for x, y in roof], fill=(10, 14, 10))
         tmp = _Canvas(Image.new("RGB", c.img.size, (60, 34, 16)))
         for side in (-1, 1):
             ex, ey = (outer_l if side < 0 else outer_r)
-            ln = math.hypot(ex - 160, ey - 16)
-            dx, dy = (ex - 160) / ln, (ey - 16) / ln
+            ln = math.hypot(ex - cx, ey - 16)
+            dx, dy = (ex - cx) / ln, (ey - 16) / ln
             nx, ny = 0, 1
             for row in range(5):
                 for k in range(-1, int(ln / 5.5) + 2):
                     off = k * 5.5 + (2.75 if row % 2 else 0)
-                    x = 160 + dx * off + nx * (row * 3.8 + 1)
+                    x = cx + dx * off + nx * (row * 3.8 + 1)
                     y = 16 + dy * off + ny * (row * 3.8 + 1)
                     shade = rnd.randint(-10, 10)
                     col = (96 + shade, 58 + shade // 2, 30 + shade // 3)
@@ -5357,20 +5405,20 @@ class MechanicalFaces:
             ex, ey = inner_l if side < 0 else inner_r
             for k in range(1, 12):
                 u = k / 12
-                x, y = 160 + (ex - 160) * u, 32 + (ey - 32) * u
+                x, y = cx + (ex - cx) * u, 32 + (ey - 32) * u
                 c.circle(x, y + 1.6, 1.6, fill=wood_l, outline=wood_d, width=0.4)
         # Schnitzwerk: Blätter auf dem First, an den Seiten und unten
         leaf, vein = (136, 88, 44), (60, 34, 14)
         for deg, ln in ((-60, 11), (-25, 13), (0, 12), (25, 13), (60, 11)):
-            self._mech_leaf(c, 160, 17, deg, ln, 5, leaf, vein)
-        c.circle(160, 16, 2.6, fill=(170, 116, 64), outline=vein, width=0.5)
+            self._mech_leaf(c, cx, 17, deg, ln, 5, leaf, vein)
+        c.circle(cx, 16, 2.6, fill=(170, 116, 64), outline=vein, width=0.5)
         for side in (-1, 1):
-            bx = 160 + side * 50
+            bx = cx + side * 50
             for deg, ln, yy in ((side * 20, 14, 136), (side * 60, 13, 142), (side * 100, 12, 147),
                                 (side * 150, 12, 124), (side * -170, 10, 110)):
                 self._mech_leaf(c, bx, yy, deg, ln, 5, leaf, vein)
-            self._mech_leaf(c, 160 + side * 42, 72, side * 60, 11, 4.5, leaf, vein)
-            self._mech_leaf(c, 160 + side * 42, 74, side * 110, 10, 4, leaf, vein)
+            self._mech_leaf(c, cx + side * 42, 72, side * 60, 11, 4.5, leaf, vein)
+            self._mech_leaf(c, cx + side * 42, 74, side * 110, 10, 4, leaf, vein)
         for k in range(9):                                                          # Schürze
             x = 116 + k * 11
             self._mech_leaf(c, x, bottom - 3, 180 + (k - 4) * 6, 10, 5, leaf, vein)
@@ -5381,7 +5429,7 @@ class MechanicalFaces:
         c.rect(d0 - 2.5, d1 + 7, d2 + 2.5, d3 + 2, fill=wood_d)
         self._mech_ellipse(c, d0, d1, d2, d1 + (d2 - d0), fill=(132, 84, 44))
         c.rect(d0, d1 + 8, d2, d3, fill=(132, 84, 44))
-        c.rect(159.6, d1 + 1, 160.4, d3, fill=wood_d)
+        c.rect(cx - 0.4, d1 + 1, cx + 0.4, d3, fill=wood_d)
         c.circle(163, (d1 + d3) / 2 + 2, 1, fill=(200, 170, 100))
         # Zifferblatt: dunkles Holz mit Beinziffern
         bone = (234, 222, 192)
@@ -5395,16 +5443,17 @@ class MechanicalFaces:
             if m % 5:
                 x, y = self._mech_at(c, cx, cy, r - 5.5, m * 6)
                 c.circle(x, y, 0.5, fill=bone)
-        for h, num in enumerate(_MECH_ROMAN):
+        roman = clock_font("serif-cond", 8 * CLOCK_SS, True)
+        for h, num in enumerate(ROMAN_XII):
             x, y = self._mech_at(c, cx, cy, r - 12, h * 30)
-            self._mech_text_rot(c, x, y, num, mf["romc8"], bone, h * 30)
+            self._mech_text_rot(c, x, y, num, roman, bone, h * 30)
             x, y = self._mech_at(c, cx, cy, r - 5.5, h * 30)
             c.circle(x, y, 1.1, fill=bone)
         # Aufhängung der Ketten
         for x in self._MECH_CU["chains"]:
             c.rect(x - 3, bottom, x + 3, bottom + 2, fill=wood_d)
 
-    def _mech_chain_v(self, c, x, y0, y1, col, dark):
+    def _mech_chain_v(self, c, x, y0, y1, col):
         """Senkrechte Kette von y0 bis y1."""
         y, k = y0, 0
         while y < y1:
@@ -5418,7 +5467,8 @@ class MechanicalFaces:
     @clock_face("cuckoo", fps=5)
     def face_cuckoo(self, profile):
         c = self._clock_canvas("mech_cuckoo", (14, 20, 16), self._mech_cuckoo_static)
-        f, mf = self._cfonts, self._mech_fonts()
+        f = self._cfonts
+        date_f = clock_font("sans", 11 * CLOCK_SS, True)
         t = self._clock_now()
         now = time.localtime(t)
         cx, cy, r = self._MECH_CU["dial"]
@@ -5427,15 +5477,15 @@ class MechanicalFaces:
         # Gewichte sinken im Lauf des Tages, die freien Kettenenden steigen
         day = (now.tm_hour * 3600 + now.tm_min * 60 + now.tm_sec) / 86400
         steel, steel_d = (170, 170, 164), (90, 90, 86)
-        cone, mask = self._mech_cone_sprite()
+        cone, mask = self._clock_cache("mech_cone", None, self._mech_cone_sprite)
         for k, x in enumerate(self._MECH_CU["chains"]):
             frac = min(1.0, day + (0.04 if k else 0))
             top = bottom + 10 + 28 * frac
             free_end = bottom + 10 + 28 * (1 - frac)
             fx = x + (-7 if k == 0 else 7)
-            self._mech_chain_v(c, fx, bottom + 1, free_end, steel_d, steel_d)
+            self._mech_chain_v(c, fx, bottom + 1, free_end, steel_d)
             c.circle(fx, free_end + 2.2, 2.2, outline=steel, width=0.8)
-            self._mech_chain_v(c, x, bottom + 1, top + 1, steel, steel_d)
+            self._mech_chain_v(c, x, bottom + 1, top + 1, steel)
             c.img.paste(cone, (int((x - 9) * CLOCK_SS), int(top * CLOCK_SS)), mask)
         # Pendel (Periode 1 s)
         px, py, length = self._MECH_CU["pend"]
@@ -5479,8 +5529,8 @@ class MechanicalFaces:
         c.circle(cx, cy, 3.2, fill=bone, outline=out, width=0.5)
         c.circle(cx, cy, 1.2, fill=out)
         # dezent: Datum links, Uhrzeit rechts
-        c.text(44, 96, WEEKDAYS[now.tm_wday], mf["date"], (170, 180, 160))
-        c.text(44, 118, f"{now.tm_mday}. {MONTH_3[now.tm_mon - 1].title()}", mf["date"], (130, 142, 124))
+        c.text(44, 96, WEEKDAYS[now.tm_wday], date_f, (170, 180, 160))
+        c.text(44, 118, f"{now.tm_mday}. {MONTH_3[now.tm_mon - 1].title()}", date_f, (130, 142, 124))
         c.text(276, 106, time.strftime("%H:%M", now), f["side"], (170, 180, 160))
         return self._clock_finish(c)
 
@@ -5489,7 +5539,7 @@ class MechanicalFaces:
 
     def _mech_pocket_static(self, c):
         cx, cy, R = self._MECH_PO
-        f, mf = self._cfonts, self._mech_fonts()
+        f = self._cfonts
         gold, gold_hi, gold_lo = (212, 168, 78), (252, 226, 150), (112, 78, 24)
         for rr in range(260, 0, -4):                                                # Samt mit Lichtkegel
             k = min(1.0, rr / 230)
@@ -5542,11 +5592,12 @@ class MechanicalFaces:
         c.circle(cx, cy, R - 17, outline=ink, width=0.6)
         for m in range(60):
             c.radial(cx, cy, R - 17, R - 13, m * 6, 0.6 if m % 5 else 1.8, ink)
+        arab = clock_font("serif", 13 * CLOCK_SS, True)
         for h in range(1, 13):
             if h == 6:
                 continue
             x, y = self._mech_at(c, cx, cy, R - 27, h * 30)
-            c.text(x, y + 0.5, str(h), mf["arab"], ink)
+            c.text(x, y + 0.5, str(h), arab, ink)
         c.text(cx, cy - 26, "G19s", f["serif_s"], (60, 60, 70))
         sy, sr = cy + 29, 14
         sx = cx
@@ -5555,10 +5606,20 @@ class MechanicalFaces:
         for m in range(60):
             c.radial(sx, sy, sr - (3 if m % 5 == 0 else 1.6), sr, m * 6, 0.9 if m % 5 == 0 else 0.4, ink)
 
+    def _mech_pocket_glass(self):
+        """Maske des Glasreflexes: Kreis ohne versetzten Kreis – eine Sichel oben links."""
+        s, r = CLOCK_SS, self._MECH_PO[2] - 10
+        mask = Image.new("L", (int(2 * r * s), int(2 * r * s)), 0)
+        d = ImageDraw.Draw(mask)
+        d.ellipse([0, 0, 2 * r * s, 2 * r * s], fill=34)
+        d.ellipse([10 * s, 12 * s, (2 * r + 18) * s, (2 * r + 22) * s], fill=0)
+        return mask
+
     @clock_face("pocket")
     def face_pocket(self, profile):
         c = self._clock_canvas("mech_pocket", (16, 5, 8), self._mech_pocket_static)
-        f, mf = self._cfonts, self._mech_fonts()
+        f = self._cfonts
+        date_f = clock_font("sans", 11 * CLOCK_SS, True)
         cx, cy, R = self._MECH_PO
         now = time.localtime(self._clock_now())
         ha, ma, sa = self._clock_angles(now)
@@ -5575,19 +5636,12 @@ class MechanicalFaces:
         sy = cy + 29
         c.hand(cx, sy, sa, [(-4, 1.2), (0, 1), (12, 0.4)], blue)
         c.circle(cx, sy, 1.6, fill=blue)
-        mask = self._cdials.get("mech_pocket_glass")
-        if mask is None:                                                            # Glasreflex oben links
-            s, r = CLOCK_SS, R - 10
-            mask = Image.new("L", (int(2 * r * s), int(2 * r * s)), 0)
-            d = ImageDraw.Draw(mask)
-            d.ellipse([0, 0, 2 * r * s, 2 * r * s], fill=34)
-            d.ellipse([10 * s, 12 * s, (2 * r + 18) * s, (2 * r + 22) * s], fill=0)
-            self._cdials["mech_pocket_glass"] = mask
+        mask = self._clock_cache("mech_pocket_glass", None, self._mech_pocket_glass)   # Glasreflex oben links
         c.img.paste((255, 255, 255), (int((cx - R + 10) * CLOCK_SS), int((cy - R + 10) * CLOCK_SS)), mask)
         gold, dim = (226, 190, 118), (168, 128, 90)
-        c.text(282, 88, WEEKDAYS[now.tm_wday], mf["date"], dim)
+        c.text(282, 88, WEEKDAYS[now.tm_wday], date_f, dim)
         c.text(282, 114, str(now.tm_mday), f["big"], gold)
-        c.text(282, 140, MONTHS[now.tm_mon - 1], mf["date"], dim)
+        c.text(282, 140, MONTHS[now.tm_mon - 1], date_f, dim)
         c.text(282, 156, str(now.tm_year), f["tiny"], dim)
         return self._clock_finish(c)
 
@@ -5601,22 +5655,23 @@ class MechanicalFaces:
         s = min(1.0, abs(y - mid) / half)
         return neck + (wmax - neck) * math.sin(0.62 * math.pi * s) / 1.0
 
+    def _mech_hg_tables(self):
+        """Je Kolben (oben, unten): [(Sandmenge bis y, y), …] in Schritten von 0,25 ab Engstelle bzw. Boden."""
+        cx, top, bot, wmax, neck = self._MECH_HG
+        mid = (top + bot) / 2
+        tabs = []
+        for ys in ((mid - k * 0.25 for k in range(int((mid - top) * 4) + 1)),
+                   (bot - k * 0.25 for k in range(int((bot - mid) * 4) + 1))):
+            acc, tab = 0.0, []
+            for y in ys:
+                acc += 2 * self._mech_hg_w(y) * 0.25
+                tab.append((acc, y))
+            tabs.append(tab)
+        return tabs
+
     def _mech_hg_level(self, amount, upper):
         """Sandhöhe für amount (0…1 der Füllung) im oberen bzw. unteren Kolben."""
-        key = "mech_hg_tab"
-        if key not in self._cdials:
-            cx, top, bot, wmax, neck = self._MECH_HG
-            mid = (top + bot) / 2
-            tabs = []
-            for ys in ((mid - k * 0.25 for k in range(int((mid - top) * 4) + 1)),
-                       (bot - k * 0.25 for k in range(int((bot - mid) * 4) + 1))):
-                acc, tab = 0.0, []
-                for y in ys:
-                    acc += 2 * self._mech_hg_w(y) * 0.25
-                    tab.append((acc, y))
-                tabs.append(tab)
-            self._cdials[key] = tabs
-        tab = self._cdials[key][0 if upper else 1]
+        tab = self._clock_cache("mech_hg_tab", None, self._mech_hg_tables)[0 if upper else 1]
         target = amount * tab[-1][0] * 0.78
         for acc, y in tab:
             if acc >= target:
@@ -5662,7 +5717,8 @@ class MechanicalFaces:
     @clock_face("hourglass", fps=5)
     def face_hourglass(self, profile):
         c = self._clock_canvas("mech_hourglass", (14, 12, 14), self._mech_hourglass_static)
-        f, mf = self._cfonts, self._mech_fonts()
+        f = self._cfonts
+        date_f = clock_font("sans", 11 * CLOCK_SS, True)
         t = self._clock_now()
         now = time.localtime(t)
         cx, top, bot, wmax, neck = self._MECH_HG
@@ -5713,7 +5769,8 @@ class MechanicalFaces:
         # daneben: Uhrzeit und verbleibende Zeit
         tx = 246
         acc = PROFILE_COLOR.get(profile, self.FG)
-        c.text(tx, 74, time.strftime("%H:%M:%S", now), mf["mono"], (238, 222, 190))
+        c.text(tx, 74, time.strftime("%H:%M:%S", now), clock_font("mono", 20 * CLOCK_SS, True),
+               (238, 222, 190))
         left_s = 3600 - now.tm_min * 60 - now.tm_sec
         txt = f"noch {left_s} Sek." if left_s < 60 else f"noch {math.ceil(left_s / 60)} Min."
         c.text(tx, 102, txt, f["mid"], (214, 186, 130))
@@ -5721,31 +5778,36 @@ class MechanicalFaces:
         c.rect(tx - 50, 132, tx + 50, 135, fill=(44, 40, 40))
         c.rect(tx - 50, 132, tx - 50 + 100 * rest, 135, fill=acc)
         c.text(tx, 158, f"{WEEKDAY_DE[now.tm_wday]}, {now.tm_mday:02d}.{now.tm_mon:02d}.{now.tm_year}",
-               mf["date"], (150, 136, 116))
+               date_f, (150, 136, 116))
         return self._clock_finish(c)
 
     # --- Kerzenuhr ------------------------------------------------------------ #
     _MECH_CA = (100, 36, 178, 16)                 # Mitte x, Docht bei 0 Uhr, Fuß, halbe Kerzenbreite
 
-    def _mech_candle_static(self, c):
-        cx, top, base, hw = self._MECH_CA
-        mf = self._mech_fonts()
-        for rr in range(300, 0, -4):                                                # dunkle Wand
-            c.circle(cx, 120, rr, fill=mix((34, 24, 18), (10, 8, 8), min(1.0, rr / 260)))
+    def _mech_candle_wall(self):
+        """Dunkle Wand mit Tisch ohne Kerze (füllt die ganze Fläche; dort, wo die Kerze abgebrannt ist)."""
+        c = _Canvas(Image.new("RGB", (WIDTH * CLOCK_SS, CLOCK_H * CLOCK_SS), (10, 8, 8)))
+        for rr in range(300, 0, -4):
+            c.circle(self._MECH_CA[0], 120, rr, fill=mix((34, 24, 18), (10, 8, 8), min(1.0, rr / 260)))
         self._mech_vgrad(c, 0, 198, WIDTH, CLOCK_H, (54, 34, 20), (28, 18, 10))
         c.rect(0, 198, WIDTH, 198.6, fill=(80, 54, 32))
-        self._cdials["mech_candle_bg"] = c.img.copy()
+        return c.img
+
+    def _mech_candle_static(self, c):
+        cx, top, base, hw = self._MECH_CA
+        c.img.paste(self._clock_cache("mech_candle_bg", None, self._mech_candle_wall))
         # Kerze in voller Länge mit Stundenmarken
         wax_e, wax_m = (200, 170, 126), (250, 238, 212)
         self._mech_hgrad(c, cx - hw, top, cx + hw, base + 2, wax_e, wax_m, 0.35)
         paint = (158, 38, 30)
         step = (base - top) / 24
+        label = clock_font("sans", 9 * CLOCK_SS, True)
         for h in range(1, 24):
             y = top + h * step
             if h % 3 == 0:
                 c.rect(cx - hw, y - 0.35, cx - hw + 9, y + 0.35, fill=paint)
                 c.rect(cx + hw - 5, y - 0.35, cx + hw, y + 0.35, fill=paint)
-                c.text(cx + 1.5, y, str(h), mf["label"], paint)
+                c.text(cx + 1.5, y, str(h), label, paint)
             else:
                 c.rect(cx - hw, y - 0.25, cx - hw + 4.5, y + 0.25, fill=mix(paint, wax_m, 0.35))
         # Halter aus Messing (Teller, Tülle, Griffring)
@@ -5763,21 +5825,20 @@ class MechanicalFaces:
         self._mech_ellipse(c, cx - hw - 5, base - 3, cx + hw + 5, base + 3, fill=brass_hi, outline=brass_lo, width=0.6)
         c.rect(cx - hw, base - 2, cx + hw, base, fill=wax_e)
 
-    def _mech_glow_mask(self, r):
-        key = ("mech_glow", r)
-        if key not in self._cdials:
-            s = CLOCK_SS
-            m = Image.new("L", (2 * r * s, 2 * r * s), 0)
-            d = ImageDraw.Draw(m)
-            for k in range(r * s, 0, -3):
-                d.ellipse([r * s - k, r * s - k, r * s + k, r * s + k], fill=int(120 * (1 - k / (r * s)) ** 2.2))
-            self._cdials[key] = m
-        return self._cdials[key]
+    @staticmethod
+    def _mech_glow_mask(r):
+        """Maske für den Lichtschein der Flamme (Radius r, zur Mitte hin heller)."""
+        s = CLOCK_SS
+        m = Image.new("L", (2 * r * s, 2 * r * s), 0)
+        d = ImageDraw.Draw(m)
+        for k in range(r * s, 0, -3):
+            d.ellipse([r * s - k, r * s - k, r * s + k, r * s + k], fill=int(120 * (1 - k / (r * s)) ** 2.2))
+        return m
 
     @clock_face("candle", fps=5)
     def face_candle(self, profile):
         c = self._clock_canvas("mech_candle", (10, 8, 8), self._mech_candle_static)
-        f, mf = self._cfonts, self._mech_fonts()
+        f = self._cfonts
         t = self._clock_now()
         now = time.localtime(t)
         cx, top, base, hw = self._MECH_CA
@@ -5785,7 +5846,7 @@ class MechanicalFaces:
         day = (now.tm_hour * 3600 + now.tm_min * 60 + now.tm_sec) / 86400
         yt = top + (base - top) * day
         # abgebrannter Teil: Wand wieder herstellen
-        bg = self._cdials["mech_candle_bg"]
+        bg = self._clock_cache("mech_candle_bg", None, self._mech_candle_wall)
         box = (int((cx - hw - 3) * s), 0, int((cx + hw + 3) * s), int(yt * s) + 1)
         c.img.paste(bg.crop(box), box[:2])
         # Flackern (deterministisch aus der Zeit)
@@ -5794,7 +5855,7 @@ class MechanicalFaces:
         fh, sway = 17 + 3.5 * n1, 1.8 * n2
         fy = yt - 3                                       # Fuß der Flamme
         r = 70
-        glow = self._mech_glow_mask(r)
+        glow = self._clock_cache("mech_glow", r, lambda: self._mech_glow_mask(r))
         gx, gy = cx + sway * 0.6, fy - 8
         c.img.paste((255, 170 + int(12 * n1), 80), (int((gx - r) * s), int((gy - r) * s)), glow)
         # Kerzenkopf mit Wachsmulde und Tropfen
@@ -5813,7 +5874,6 @@ class MechanicalFaces:
         pool = 4 + 10 * day                                # Wachs sammelt sich an der Tülle
         self._mech_ellipse(c, cx - hw - 4, base - 2.5, cx - hw - 4 + pool, base + 3, fill=wax)
         # Docht und Flamme
-        tip = (cx + sway, fy - fh)
         self._mech_line(c, [(cx, yt), (cx, fy - 4), (cx + sway * 0.3 + 1, fy - 6)], (40, 30, 24), 1.2)
         for scale, col in ((1.0, (255, 150, 40)), (0.72, (255, 206, 96)), (0.42, (255, 248, 220))):
             w = 4.6 * scale
@@ -5828,7 +5888,8 @@ class MechanicalFaces:
         c.circle(cx, fy - 4, 1, fill=(60, 40, 30))
         # daneben: Uhrzeit, Datum, Rest des Tages
         tx = 238
-        c.text(tx, 78, time.strftime("%H:%M:%S", now), mf["mono"], (248, 222, 172))
+        c.text(tx, 78, time.strftime("%H:%M:%S", now), clock_font("mono", 20 * CLOCK_SS, True),
+               (248, 222, 172))
         c.text(tx, 104, f"{WEEKDAY_DE[now.tm_wday]}, {now.tm_mday}. {MONTHS[now.tm_mon - 1]}", f["small"],
                (200, 166, 120))
         left = 86400 - int(day * 86400)
@@ -5858,7 +5919,6 @@ def _mech_frange(a, b, step):
 _sky_SYNODIC = 29.530588853                   # synodischer Monat in Tagen
 _sky_NEW_MOON = datetime.datetime(2000, 1, 6, 18, 14, tzinfo=datetime.timezone.utc).timestamp()
 _sky_BERLIN = (52.52, 13.405, "Berlin")
-_sky_FONT_DIR = "/usr/share/fonts/truetype/dejavu/"
 _sky_ZODIAC = [("♈", "Widder"), ("♉", "Stier"), ("♊", "Zwillinge"), ("♋", "Krebs"),
                ("♌", "Löwe"), ("♍", "Jungfrau"), ("♎", "Waage"), ("♏", "Skorpion"),
                ("♐", "Schütze"), ("♑", "Steinbock"), ("♒", "Wassermann"), ("♓", "Fische")]
@@ -5867,16 +5927,21 @@ _sky_PHASES = [                               # (bis Mondalter in Tagen, Name in
     (13.77, ("Zunehmender", "Mond")), (15.77, ("Vollmond",)), (21.15, ("Abnehmender", "Mond")),
     (23.15, ("Letztes", "Viertel")), (28.53, ("Abnehmende", "Sichel")), (99, ("Neumond",)),
 ]
-_sky_ROMAN = {6: "VI", 7: "VII", 8: "VIII", 9: "IX", 10: "X", 11: "XI", 12: "XII", 13: "I", 14: "II",
-              15: "III", 16: "IIII", 17: "V", 18: "VI"}
 
 
-def _sky_font(name, size, bold=True):
-    """DejaVu-Schnitt (z. B. „SansMono-Bold“) in Pixelgröße size; Ersatz: load_font."""
-    path = _sky_FONT_DIR + "DejaVu" + name + ".ttf"
-    if os.path.exists(path):
-        return ImageFont.truetype(path, size)
-    return load_font(size, bold)
+def _sky_fonts():
+    """Schriften der Himmels-Zifferblätter nach Rolle (clock_font hält sie im Zwischenspeicher)."""
+    s = CLOCK_SS
+    return {
+        "cond": clock_font("sans-cond", 9 * s, True), "cond_s": clock_font("sans-cond", 8 * s),
+        "val": clock_font("sans-cond", 14 * s, True), "glyph": clock_font("sans", 10 * s),
+        "glyph_b": clock_font("sans", 11 * s, True), "num": clock_font("serif", 8 * s, True),
+        "motto": clock_font("serif", 12 * s, True), "roman": clock_font("serif", 9 * s, True),
+        "mono": clock_font("mono", 10 * s, True), "mono_s": clock_font("mono", 8 * s, True),
+        "city": clock_font("sans-cond", 11 * s, True), "city_b": clock_font("sans-cond", 16 * s, True),
+        "q": clock_font("sans", 20 * s, True),
+        "r_val": clock_font("mono", 13, True),              # Radar: ohne Vergrößerung (Displaypixel)
+    }
 
 
 def _sky_sun(ts):
@@ -5993,33 +6058,6 @@ _sky_SKY_STOPS = [(-18, (8, 10, 28)), (-12, (18, 24, 62)), (-6, (44, 50, 112)), 
 
 class SkyFaces:
     # --- gemeinsame Hilfen ---------------------------------------------------- #
-    def _sky_fonts(self):
-        if not hasattr(self, "_sky_f"):
-            s = CLOCK_SS
-            self._sky_f = {
-                "cond": _sky_font("SansCondensed-Bold", 9 * s), "cond_s": _sky_font("SansCondensed", 8 * s, False),
-                "val": _sky_font("SansCondensed-Bold", 14 * s), "glyph": _sky_font("Sans", 10 * s, False),
-                "glyph_b": _sky_font("Sans-Bold", 11 * s), "num": load_serif(8 * s, bold=True),
-                "motto": load_serif(12 * s, bold=True), "roman": load_serif(9 * s, bold=True),
-                "mono": _sky_font("SansMono-Bold", 10 * s), "mono_s": _sky_font("SansMono-Bold", 8 * s),
-                "city": _sky_font("SansCondensed-Bold", 11 * s), "city_b": _sky_font("SansCondensed-Bold", 16 * s),
-                "q": _sky_font("Sans-Bold", 20 * s),
-                # Radar: ohne Vergrößerung (Displaypixel)
-                "r_lab": _sky_font("SansMono-Bold", 9), "r_val": _sky_font("SansMono-Bold", 13),
-                "r_deg": _sky_font("SansMono", 8, False),
-            }
-            self._sky_cache = {}
-        return self._sky_f
-
-    def _sky_cached(self, slot, key, build):
-        """Ein Zwischenbild je Zifferblatt (nur der jüngste Schlüssel bleibt, damit nichts anwächst)."""
-        self._sky_fonts()
-        hit = self._sky_cache.get(slot)
-        if not hit or hit[0] != key:
-            hit = (key, build())
-            self._sky_cache[slot] = hit
-        return hit[1]
-
     def _sky_place(self):
         """(Breite, Länge, Name) aus den Wetter-Einstellungen, sonst Berlin."""
         w = self.settings.get("weather") if isinstance(self.settings, dict) else None
@@ -6049,7 +6087,7 @@ class SkyFaces:
         return txt.rstrip() + "…"
 
     def _sky_label(self, c, x, y, label, value, lab_col, val_col, maxw=56):
-        f = self._sky_f
+        f = _sky_fonts()
         c.text(x, y, label, self._sky_fit(c, label, [f["cond"], f["cond_s"]], maxw), lab_col)
         c.text(x, y + 14, value, self._sky_fit(c, value, [f["val"], f["city"], f["cond"]], maxw), val_col)
 
@@ -6061,9 +6099,9 @@ class SkyFaces:
         h = lt.tm_hour + lt.tm_min / 60 + lt.tm_sec / 3600
         return (h * 15 + 180) % 360
 
-    def _sky_astro_static(self, t, lat, lon):
-        f, cx, cy = self._sky_f, 160, CLOCK_H / 2
-        c = _Canvas(Image.new("RGB", (WIDTH * CLOCK_SS, CLOCK_H * CLOCK_SS), (7, 9, 20)))
+    def _sky_astro_static(self, c, t, lat, lon):
+        """Hintergrund der Astro-Uhr für den Tag von t: Ring, Himmelsscheibe, Sterne, Auf-/Untergangsmarken."""
+        f, cx, cy = _sky_fonts(), CLOCK_CX, CLOCK_CY
         s, gold, gold_d = CLOCK_SS, (214, 176, 98), (120, 94, 48)
         for r in range(112, 60, -4):                     # Schimmer hinter der Uhr
             c.circle(cx, cy, r, fill=mix((7, 9, 20), (22, 24, 44), (112 - r) / 52))
@@ -6104,11 +6142,10 @@ class SkyFaces:
             c.radial(cx, cy, 98, 101, deg, 0.9, gold)
             x, y = [v / s for v in c.pt(cx, cy, 93.5, deg)]
             c.text(x, y, str(h or 24), f["num"], (240, 214, 150) if h % 6 == 0 else gold)
-        return c.img
 
     def _sky_zodiac(self, c, cx, cy, sun_deg, sun_lon):
         """Tierkreisring: ekliptikale Länge wächst gegen den Uhrzeigersinn, die Sonne steht unter dem Sonnenzeiger."""
-        f, s = self._sky_f, CLOCK_SS
+        f, s = _sky_fonts(), CLOCK_SS
         box = [(cx - 87) * s, (cy - 87) * s, (cx + 87) * s, (cy + 87) * s]
         cur = int(sun_lon // 30) % 12
         for k in range(12):
@@ -6125,30 +6162,31 @@ class SkyFaces:
 
     def _sky_moon_textures(self, r):
         """Mondscheibe hell und dunkel (mit Meeren), Größe 2r vergrößert, und Kreismaske."""
-        key = ("moontex", r)
-        if key not in self._sky_cache:
-            n = int(2 * r * CLOCK_SS)
-            rnd = random.Random(7)
-            maria = [(0.30, -0.35, 0.28), (-0.05, -0.30, 0.22), (0.25, 0.10, 0.26), (-0.30, 0.05, 0.18),
-                     (-0.15, 0.40, 0.16), (0.45, -0.05, 0.14), (0.05, 0.02, 0.12)]
-            out = []
-            for base, sea in (((232, 228, 208), (176, 172, 158)), ((44, 48, 66), (34, 38, 54))):
-                img = Image.new("RGB", (n, n), base)
-                d = ImageDraw.Draw(img)
-                for mx, my, mr in maria:
-                    d.ellipse([(0.5 + mx - mr) * n, (0.5 + my - mr) * n, (0.5 + mx + mr) * n, (0.5 + my + mr) * n],
-                              fill=sea)
-                img = img.filter(ImageFilter.GaussianBlur(n / 30))
-                d = ImageDraw.Draw(img)
-                for _ in range(14):                       # kleine Krater
-                    x, y, cr = rnd.uniform(0.15, 0.85), rnd.uniform(0.15, 0.85), rnd.uniform(0.012, 0.035)
-                    d.ellipse([(x - cr) * n, (y - cr) * n, (x + cr) * n, (y + cr) * n], outline=mix(base, sea, 0.8),
-                              width=max(1, n // 90))
-                out.append(img)
-            mask = Image.new("L", (n, n), 0)
-            ImageDraw.Draw(mask).ellipse([0, 0, n - 1, n - 1], fill=255)
-            self._sky_cache[key] = (out[0], out[1], mask)
-        return self._sky_cache[key]
+        return self._clock_cache("sky_moontex", r, lambda: self._sky_moon_build(r))
+
+    @staticmethod
+    def _sky_moon_build(r):
+        n = int(2 * r * CLOCK_SS)
+        rnd = random.Random(7)
+        maria = [(0.30, -0.35, 0.28), (-0.05, -0.30, 0.22), (0.25, 0.10, 0.26), (-0.30, 0.05, 0.18),
+                 (-0.15, 0.40, 0.16), (0.45, -0.05, 0.14), (0.05, 0.02, 0.12)]
+        out = []
+        for base, sea in (((232, 228, 208), (176, 172, 158)), ((44, 48, 66), (34, 38, 54))):
+            img = Image.new("RGB", (n, n), base)
+            d = ImageDraw.Draw(img)
+            for mx, my, mr in maria:
+                d.ellipse([(0.5 + mx - mr) * n, (0.5 + my - mr) * n, (0.5 + mx + mr) * n, (0.5 + my + mr) * n],
+                          fill=sea)
+            img = img.filter(ImageFilter.GaussianBlur(n / 30))
+            d = ImageDraw.Draw(img)
+            for _ in range(14):                       # kleine Krater
+                x, y, cr = rnd.uniform(0.15, 0.85), rnd.uniform(0.15, 0.85), rnd.uniform(0.012, 0.035)
+                d.ellipse([(x - cr) * n, (y - cr) * n, (x + cr) * n, (y + cr) * n], outline=mix(base, sea, 0.8),
+                          width=max(1, n // 90))
+            out.append(img)
+        mask = Image.new("L", (n, n), 0)
+        ImageDraw.Draw(mask).ellipse([0, 0, n - 1, n - 1], fill=255)
+        return out[0], out[1], mask
 
     def _sky_moon_big(self, c, cx, cy, r, frac, south):
         lit, dark, mask = self._sky_moon_textures(r)
@@ -6167,13 +6205,13 @@ class SkyFaces:
 
     @clock_face("astro", fps=1)
     def face_astro(self, profile):
-        f = self._sky_fonts()
+        f = _sky_fonts()
         t = self._clock_now()
         lat, lon, place = self._sky_place()
         lt = time.localtime(t)
-        key = (lt.tm_year, lt.tm_yday, round(lat, 3), round(lon, 3))
-        c = _Canvas(self._sky_cached("astro", key, lambda: self._sky_astro_static(t, lat, lon)).copy())
-        cx, cy, s = 160, CLOCK_H / 2, CLOCK_SS
+        key = ("sky_astro", lt.tm_year, lt.tm_yday, round(lat, 3), round(lon, 3))
+        c = self._clock_canvas(key, (7, 9, 20), lambda c: self._sky_astro_static(c, t, lat, lon))
+        cx, cy, s = CLOCK_CX, CLOCK_CY, CLOCK_SS
         gold, dim, white = (214, 176, 98), (128, 136, 160), (236, 232, 220)
         _, _, sun_lon = _sky_sun(t)
         age, frac, lit = _sky_moon(t)
@@ -6225,7 +6263,7 @@ class SkyFaces:
         return self._clock_finish(c)
 
     # --- Sonnenuhr ------------------------------------------------------------ #
-    _sky_SD = (160, 94, 86, 0.8, 0.24, -0.50)      # Mitte x/y, Plattenradius, Stauchung, Höhe → Bild (x, y)
+    _sky_SD = (CLOCK_CX, 94, 86, 0.8, 0.24, -0.50)      # Mitte x/y, Plattenradius, Stauchung, Höhe → Bild (x, y)
 
     def _sky_sd_pt(self, x, y, z=0.0):
         """Punkt der Platte (x Ost, y Nord, z Höhe; Displaypixel) → vergrößerte Bildkoordinaten."""
@@ -6257,8 +6295,8 @@ class SkyFaces:
         b = foot[0] * u[0] + foot[1] * u[1]
         return -b + math.sqrt(max(0.0, b * b - (foot[0] ** 2 + foot[1] ** 2) + rho * rho))
 
-    def _sky_sundial_static(self, lat, lon, place):
-        f = self._sky_f
+    def _sky_sundial_static(self, lat, lon):
+        f = _sky_fonts()
         cx, cy, R, sy, _, _ = self._sky_SD
         s = CLOCK_SS
         c = _Canvas(Image.new("RGB", (WIDTH * CLOCK_SS, CLOCK_H * CLOCK_SS), (14, 20, 17)))
@@ -6311,8 +6349,8 @@ class SkyFaces:
             if q % 4 == 0:
                 d = self._sky_ray_circle(foot, u, 0.845 * R)
                 x, y = self._sky_sd_pt(foot[0] + u[0] * d, foot[1] + u[1] * d)
-                c.d.text((x, y + 0.6 * s), _sky_ROMAN[int(h)], font=f["roman"], fill=hi, anchor="mm")
-                c.d.text((x, y), _sky_ROMAN[int(h)], font=f["roman"], fill=ink, anchor="mm")
+                c.d.text((x, y + 0.6 * s), ROMAN_XII[int(h) % 12], font=f["roman"], fill=hi, anchor="mm")
+                c.d.text((x, y), ROMAN_XII[int(h) % 12], font=f["roman"], fill=ink, anchor="mm")
         # Spruch und Breite im südlichen Teil
         for txt, font, yy in (("CARPE DIEM", f["motto"], -0.47 * R), (self._sky_latlon(lat, lon), f["cond_s"], -0.64 * R)):
             x, y = self._sky_sd_pt(0, yy)
@@ -6327,9 +6365,9 @@ class SkyFaces:
         return (f"{abs(lat):.1f}° {'N' if lat >= 0 else 'S'} · {abs(lon):.1f}° {'O' if lon >= 0 else 'W'}"
                 .replace(".", ","))
 
-    def _sky_sundial_images(self, lat, lon, place):
+    def _sky_sundial_images(self, lat, lon):
         """Tagbild, Schattenbild (dunkler) und Nachtbild der Platte sowie die Maske der Steinoberfläche."""
-        day = self._sky_sundial_static(lat, lon, place)
+        day = self._sky_sundial_static(lat, lon)
         arr = np.asarray(day).astype(np.float32)
         shade = Image.fromarray((arr * np.array([0.50, 0.50, 0.56], np.float32)).astype(np.uint8))
         night = Image.fromarray(np.clip(arr * np.array([0.21, 0.28, 0.47], np.float32) + np.array([2, 4, 10], np.float32), 0, 255).astype(np.uint8))
@@ -6357,11 +6395,11 @@ class SkyFaces:
 
     @clock_face("sundial", fps=1)
     def face_sundial(self, profile):
-        f = self._sky_fonts()
+        f = _sky_fonts()
         t = self._clock_now()
         lat, lon, place = self._sky_place()
-        day, shade, night, surf = self._sky_cached("sundial", (round(lat, 3), round(lon, 3)),
-                                                   lambda: self._sky_sundial_images(lat, lon, place))
+        day, shade, night, surf = self._clock_cache("sky_sundial", (round(lat, 3), round(lon, 3)),
+                                                    lambda: self._sky_sundial_images(lat, lon))
         alt, east, north = _sky_sun_dir(t, lat, lon)
         foot, length, height, _ = self._sky_sd_geometry(lat)
         is_night = alt <= 0.0
@@ -6408,14 +6446,14 @@ class SkyFaces:
                 if rise == "day" or rise < t:
                     rise, _ = _sky_events(_sky_day0(t) + 86400, lat, lon)
                 msg = "Die Sonnenuhr ruht – Sonnenaufgang " + (_sky_hhmm(rise) if rise not in ("day", "night") else "—")
-            c.text(160, 203, msg, f["cond"], (150, 164, 200))
+            c.text(CLOCK_CX, 203, msg, f["cond"], (150, 164, 200))
         else:
-            c.text(160, 203, self._sky_trunc(c, place or "", f["cond_s"], 200), f["cond_s"], dim)
+            c.text(CLOCK_CX, 203, self._sky_trunc(c, place or "", f["cond_s"], 200), f["cond_s"], dim)
         return self._clock_finish(c)
 
     # --- Planetenuhr ---------------------------------------------------------- #
     _sky_ORBITS = ((52, 19), (94, 34), (140, 51))   # Halbachsen: Stunden, Minuten, Sekunden
-    _sky_PC = (160, 106)                            # Sonne
+    _sky_PC = (CLOCK_CX, 106)                            # Sonne
 
     def _sky_orbit_pt(self, k, deg):
         (a, b), (cx, cy) = self._sky_ORBITS[k], self._sky_PC
@@ -6488,8 +6526,8 @@ class SkyFaces:
 
     @clock_face("planets", fps=5)
     def face_planets(self, profile):
-        f = self._sky_fonts()
-        bg, sun = self._sky_cached("planets", 1, self._sky_planets_static)
+        f = _sky_fonts()
+        bg, sun = self._clock_cache("sky_planets", 1, self._sky_planets_static)
         c = _Canvas(bg.copy())
         t = self._clock_now()
         lt = time.localtime(t)
@@ -6572,9 +6610,9 @@ class SkyFaces:
         top = y - (2 * r + time_off + 7) / 2
         return r, top + r, top + 2 * r + name_off, top + 2 * r + time_off, big
 
-    def _sky_world_static(self, cities, days):
-        f = self._sky_f
-        c = _Canvas(Image.new("RGB", (WIDTH * CLOCK_SS, CLOCK_H * CLOCK_SS), (10, 13, 22)))
+    def _sky_world_static(self, c, cities, days):
+        """Hintergrund der Weltzeituhr: je Stadt Feld, Zifferblatt (Tag/Nacht) und Name."""
+        f = _sky_fonts()
         cells = self._sky_world_grid(len(cities))
         for (name, _, tz), (x, y, w, h), day in zip(cities, cells, days):
             c.rect(x - w / 2 + 2, y - h / 2 + 2, x + w / 2 - 2, y + h / 2 - 2, fill=(16, 20, 32))
@@ -6602,20 +6640,19 @@ class SkyFaces:
                 c.circle(x + r * 0.05, dy + r * 0.42, max(2, r * 0.11), fill=face)
             font = f["city_b"] if big else f["city"]
             c.text(x, ny, self._sky_trunc(c, name, font, w - 8), font, (230, 232, 240))
-        return c.img
 
     @clock_face("world", fps=1)
     def face_world(self, profile):
-        f = self._sky_fonts()
+        f = _sky_fonts()
         t = self._clock_now()
         cities = self._sky_world_cities()
         local = datetime.datetime.fromtimestamp(t).date()
         nows = [datetime.datetime.fromtimestamp(t, tz) if tz else None for _, _, tz in cities]
         days = tuple(bool(n and 6 <= n.hour < 18) for n in nows)
-        key = (tuple(z for _, z, _ in cities), tuple(n for n, _, _ in cities), days)
-        c = _Canvas(self._sky_cached("world", key, lambda: self._sky_world_static(cities, days)).copy())
+        key = ("sky_world", tuple(z for _, z, _ in cities), tuple(n for n, _, _ in cities), days)
+        c = self._clock_canvas(key, (10, 13, 22), lambda c: self._sky_world_static(c, cities, days))
         acc = PROFILE_COLOR.get(profile, self.FG)
-        for (name, zone, tz), (x, y, w, h), now, day in zip(cities, self._sky_world_grid(len(cities)), nows, days):
+        for _, (x, y, w, h), now, day in zip(cities, self._sky_world_grid(len(cities)), nows, days):
             r, dy, _, ty, big = self._sky_world_layout(x, y, w, h)
             if now is None:
                 c.text(x, ty, "unbekannte Zone", f["cond_s"], (170, 120, 120))
@@ -6647,12 +6684,12 @@ class SkyFaces:
         return self._clock_finish(c)
 
     # --- Radaruhr ------------------------------------------------------------- #
-    _sky_RC = (108, 107, 99)                       # Mitte x/y und Radius des Schirms (Displaypixel)
+    _sky_RC = (108, CLOCK_CY, 99)                      # Mitte x/y und Radius des Schirms (Displaypixel)
     _sky_R_ROWS = (("ZEIT", 22), ("DATUM", 62), ("PEILUNG", 102), ("ZIEL STD", 142), ("ZIEL MIN", 180))
 
     def _sky_radar_static(self):
         """Schirm und Pult einmal zeichnen (vergrößert), verkleinert als Zahlenfeld."""
-        f = self._sky_f
+        f = _sky_fonts()
         cx, cy, R = self._sky_RC
         c = _Canvas(Image.new("RGB", (WIDTH * CLOCK_SS, CLOCK_H * CLOCK_SS), (20, 23, 22)))
         for k in range(20):                                      # gebürstetes Pult
@@ -6703,8 +6740,8 @@ class SkyFaces:
 
     @clock_face("radar", fps=5)
     def face_radar(self, profile):
-        f = self._sky_fonts()
-        base, blob_h, blob_m, core, clutter = self._sky_cached("radar", 1, self._sky_radar_static)
+        f = _sky_fonts()
+        base, blob_h, blob_m, core, clutter = self._clock_cache("sky_radar", 1, self._sky_radar_static)
         t = self._clock_now()
         lt = time.localtime(t)
         cx, cy, R = self._sky_RC
@@ -6759,15 +6796,12 @@ class SkyFaces:
 #   aufgesetzt – so bleiben auch die Zifferblätter mit fps 5 schnell.
 # ═══════════════════════════════════════════════════════════════════════════
 
-_disp_cond = "/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed{}.ttf"
-_disp_sans = "/usr/share/fonts/truetype/dejavu/DejaVuSans{}.ttf"
-
-
-def _disp_shrink(img, w, h):
-    """CLOCK_SS-fach gezeichnetes Bild auf w×h verkleinern (RGBA mit vormultipliziertem Alpha)."""
-    if img.mode == "RGBA":
-        return img.convert("RGBa").resize((w, h), Image.LANCZOS).convert("RGBA")
-    return img.resize((w, h), Image.LANCZOS)
+def _disp_sprite(w, h, build, bg=(0, 0, 0, 0)):
+    """Bild w×h (RGBA, Displaygröße): build(c) zeichnet CLOCK_SS-fach auf bg, dann verkleinert
+    (mit vormultipliziertem Alpha, damit transparente Ränder nicht dunkel ausfransen)."""
+    c = _Canvas(Image.new("RGBA", (w * CLOCK_SS, h * CLOCK_SS), bg))
+    build(c)
+    return c.img.convert("RGBa").resize((w, h), Image.LANCZOS).convert("RGBA")
 
 
 def _disp_grad(img, box, radius, stops, mask=None):
@@ -6898,52 +6932,29 @@ def _disp_seg_polys(x, y, w, h, t, gap, skew):
 
 class DisplayFaces:
     # --- gemeinsame Hilfen ---------------------------------------------------- #
-    def _disp_store(self):
-        """Zwischenspeicher dieser Zifferblätter (Schriften, Hintergründe, Einzelteile)."""
-        if "_disp_mem" not in self.__dict__:
-            self._disp_mem = {}
-        return self._disp_mem
+    # Alle Einzelteile liegen in self._clock_cache: der Slot benennt das Teil (z. B. ("disp_seg", "big", "7")),
+    # der Schlüssel die veränderlichen Farben – ein Farbwechsel ersetzt also, statt anzusammeln.
+    def _disp_part(self, slot, key, w, h, build):
+        """Einzelteil w×h (RGBA, Displaygröße), build(c) zeichnet es CLOCK_SS-fach auf Transparenz."""
+        return self._clock_cache(slot, key, lambda: _disp_sprite(w, h, build))
 
-    def _disp_font(self, path, size, bold=False):
-        """Schrift aus path ({} → „-Bold“); fehlt die Datei, DejaVu Sans über load_font."""
-        mem, key = self._disp_store(), ("font", path, size, bold)
-        if key not in mem:
-            p = path.format("-Bold" if bold else "")
-            mem[key] = ImageFont.truetype(p, size) if os.path.exists(p) else load_font(size, bold)
-        return mem[key]
-
-    def _disp_glyph(self, txt, path, bold, bw, bh, dh, maxw, ref="0123456789"):
-        """Zeichen als Maske (L, bw×bh): Ziffernhöhe dh, mittig; breiter als maxw (gemessen an ref) → gestaucht."""
-        mem = self._disp_store()
-        key = ("glyph", txt, path, bold, bw, bh, dh, maxw, ref)
-        if key not in mem:
-            x0, y0, x1, y1 = self._disp_font(path, 200, bold).getbbox("0")
-            font = self._disp_font(path, max(4, round(200 * dh / (y1 - y0))), bold)
+    def _disp_glyph(self, txt, style, bold, bw, bh, dh, maxw, ref="0123456789"):
+        """Zeichen als Maske (L, bw×bh): Ziffernhöhe dh, mittig; breiter als maxw (gemessen an ref) → gestaucht.
+        style wie bei clock_font; die Schriftgröße ergibt sich aus der Höhe der „0“ bei 200 px."""
+        def build():
+            x0, y0, x1, y1 = clock_font(style, 200, bold).getbbox("0")
+            font = clock_font(style, max(4, round(200 * dh / (y1 - y0))), bold)
             refw = max(font.getbbox(ch)[2] - font.getbbox(ch)[0] for ch in ref)
-            fx = min(1.0, maxw / refw)
-            tw = max(bw, round(bw / fx))
+            tw = max(bw, round(bw / min(1.0, maxw / refw)))
             m = Image.new("L", (tw, bh), 0)
             ImageDraw.Draw(m).text((tw / 2, (bh + dh) / 2), txt, font=font, fill=255, anchor="ms")
-            mem[key] = m.resize((bw, bh), Image.LANCZOS) if tw != bw else m
-        return mem[key]
+            return m.resize((bw, bh), Image.LANCZOS) if tw != bw else m
+        return self._clock_cache(("disp_glyph", txt, style, bold, bw, bh, dh, maxw, ref), None, build)
 
-    def _disp_part(self, key, w, h, build):
-        """Einzelteil w×h (RGBA, Displaygröße), build(c) zeichnet es CLOCK_SS-fach auf Transparenz."""
-        mem = self._disp_store()
-        if key not in mem:
-            c = _Canvas(Image.new("RGBA", (w * CLOCK_SS, h * CLOCK_SS), (0, 0, 0, 0)))
-            build(c)
-            mem[key] = _disp_shrink(c.img, w, h)
-        return mem[key]
-
-    def _disp_base(self, key, bg, build):
+    def _disp_base(self, face, key, bg, build):
         """Hintergrund (RGBA 320×CLOCK_H) einmal CLOCK_SS-fach zeichnen, verkleinert zwischenspeichern; Kopie."""
-        mem = self._disp_store()
-        if key not in mem:
-            c = _Canvas(Image.new("RGBA", (WIDTH * CLOCK_SS, CLOCK_H * CLOCK_SS), tuple(bg) + (255,)))
-            build(c)
-            mem[key] = _disp_shrink(c.img, WIDTH, CLOCK_H)
-        return mem[key].copy()
+        return self._clock_cache(("disp_base", face), key,
+                                 lambda: _disp_sprite(WIDTH, CLOCK_H, build, tuple(bg) + (255,))).copy()
 
     def _disp_out(self, img):
         """Displaybild 320×240 (die Fußzeile zeichnet der Aufrufer)."""
@@ -6980,23 +6991,21 @@ class DisplayFaces:
 
     def _disp_flip_card(self, kind, ch, ink):
         """Karte mit Zeichen ch: (ganz, obere Hälfte, untere Hälfte) als RGBA."""
-        mem, key = self._disp_store(), ("flip", kind, ch, ink)
-        if key not in mem:
-            w, h, dh, dw, r = self._disp_flip_kinds[kind]
-            s = CLOCK_SS
+        w, h, dh, dw, r = self._disp_flip_kinds[kind]
+        s = CLOCK_SS
 
-            def build(c):
-                _disp_grad(c.img, (0, 0, w * s, h * s), r * s, [(0, (60, 60, 65)), (0.5, (40, 40, 44)),
-                                                               (0.5, (34, 34, 38)), (1, (22, 22, 25))])
-                c.rect(r * 0.6, 0, w - r * 0.6, 0.4, fill=(84, 84, 90))           # Lichtkante oben
-                glyph = self._disp_glyph(ch, _disp_cond, True, w * s, h * s, dh * s, dw * s)
-                _disp_tint(c.img, ink, glyph)
-                c.rect(0, h / 2 - 0.7, w, h / 2 + 0.5, fill=(6, 6, 8))           # Trennfuge
-                c.rect(0, h / 2 + 0.5, w, h / 2 + 0.9, fill=(58, 58, 62))
+        def draw(c):
+            _disp_grad(c.img, (0, 0, w * s, h * s), r * s, [(0, (60, 60, 65)), (0.5, (40, 40, 44)),
+                                                           (0.5, (34, 34, 38)), (1, (22, 22, 25))])
+            c.rect(r * 0.6, 0, w - r * 0.6, 0.4, fill=(84, 84, 90))           # Lichtkante oben
+            _disp_tint(c.img, ink, self._disp_glyph(ch, "sans-cond", True, w * s, h * s, dh * s, dw * s))
+            c.rect(0, h / 2 - 0.7, w, h / 2 + 0.5, fill=(6, 6, 8))           # Trennfuge
+            c.rect(0, h / 2 + 0.5, w, h / 2 + 0.9, fill=(58, 58, 62))
 
-            full = self._disp_part(key + ("full",), w, h, build)
-            mem[key] = (full, full.crop((0, 0, w, h // 2)), full.crop((0, h // 2, w, h)))
-        return mem[key]
+        def build():
+            full = _disp_sprite(w, h, draw)
+            return full, full.crop((0, 0, w, h // 2)), full.crop((0, h // 2, w, h))
+        return self._clock_cache(("disp_flip", kind, ch), ink, build)
 
     def _disp_flip_draw(self, img, kind, x, y, old, new, p, ink):
         """Karte zeichnen; wechselt das Zeichen, klappt die obere Hälfte um (p = 0…1)."""
@@ -7041,10 +7050,11 @@ class DisplayFaces:
             for hx in (x - hw, x + w):                                     # Scharniere
                 c.rect(hx, hy - hl / 2, hx + hw, hy + hl / 2, fill=(92, 92, 98), outline=(18, 18, 20), width=0.5)
                 c.rect(hx, hy - 0.4, hx + hw, hy + 0.4, fill=(40, 40, 44))
+        cx = CLOCK_CX
         for cy in (46, 80):                                                # Doppelpunkt
-            c.d.rounded_rectangle([(160 - 4.5) * s, (cy - 4.5) * s, (160 + 4.5) * s, (cy + 4.5) * s],
+            c.d.rounded_rectangle([(cx - 4.5) * s, (cy - 4.5) * s, (cx + 4.5) * s, (cy + 4.5) * s],
                                   2 * s, fill=(62, 62, 68))
-            c.d.rounded_rectangle([(160 - 3.5) * s, (cy - 3.5) * s, (160 + 3.5) * s, (cy + 1) * s],
+            c.d.rounded_rectangle([(cx - 3.5) * s, (cy - 3.5) * s, (cx + 3.5) * s, (cy + 1) * s],
                                   1.5 * s, fill=(84, 84, 92))
 
     @clock_face("flip", fps=5)
@@ -7053,12 +7063,12 @@ class DisplayFaces:
         now, prev = time.localtime(t), time.localtime(math.floor(t) - 1)
         p = self._disp_step(t, 0.5)
         acc = PROFILE_COLOR.get(profile, self.FG)
-        img = self._disp_base("flip", (20, 20, 24), self._disp_flip_static)
+        img = self._disp_base("flip", None, (20, 20, 24), self._disp_flip_static)
         white, sec_ink = (238, 236, 228), mix(acc, (255, 255, 255), 0.45)
         for (kind, x, y), a, b in zip(self._disp_flip_slots(), self._disp_flip_text(prev), self._disp_flip_text(now)):
             self._disp_flip_draw(img, kind, x, y, a, b, p, sec_ink if kind == "sec" else white)
         d = ImageDraw.Draw(img)
-        small, big = self._disp_font(_disp_cond, 10, True), self._disp_font(_disp_cond, 17, True)
+        small, big = clock_font("sans-cond", 10, True), clock_font("sans-cond", 17, True)
         d.text((88, 139), "KW", font=small, fill=(120, 124, 134), anchor="mm")
         d.text((88, 155), time.strftime("%V", now), font=big, fill=(200, 202, 208), anchor="mm")
         d.text((232, 139), "JAHR", font=small, fill=(120, 124, 134), anchor="mm")
@@ -7072,7 +7082,7 @@ class DisplayFaces:
     def _disp_nixie_mask(self, ch):
         """Ziffernmaske einer Kathode (CLOCK_SS-fach, 40×80 Displaypixel)."""
         s = CLOCK_SS
-        return self._disp_glyph(ch, _disp_sans, False, 40 * s, 80 * s, 58 * s, 25 * s)
+        return self._disp_glyph(ch, "sans", False, 40 * s, 80 * s, 58 * s, 25 * s)
 
     def _disp_nixie_lit(self, ch):
         """Leuchtende Ziffer mit Glühen (RGBA 40×80)."""
@@ -7084,7 +7094,7 @@ class DisplayFaces:
             _disp_tint(c.img, (255, 110, 20), near, 0.9)
             _disp_tint(c.img, (255, 150, 50), m.filter(ImageFilter.MaxFilter(3)))
             _disp_tint(c.img, (255, 222, 170), m.filter(ImageFilter.MinFilter(3)), 0.85)
-        return self._disp_part(("nixie_lit", ch), 40, 80, build)
+        return self._disp_part(("disp_nixie_lit", ch), None, 40, 80, build)
 
     @staticmethod
     def _disp_nixie_shape(d, x, s, fill=None, outline=None, width=0, inset=0):
@@ -7111,7 +7121,7 @@ class DisplayFaces:
                    [(0, (214, 178, 102)), (0.5, (176, 138, 64)), (1, (120, 88, 38))])
         for sx in (120, 200):
             c.circle(sx, 198, 1.3, fill=(92, 66, 28))
-        f = self._disp_font(_disp_sans, 8 * s, True)
+        f = clock_font("sans", 8 * s, True)
         _disp_engrave(c, 34, 198, "G19s", f, (200, 168, 110), (26, 14, 8))
         c.circle(292, 198, 3.2, fill=(20, 14, 10))
         c.circle(292, 198, 2.2, fill=acc)
@@ -7176,21 +7186,21 @@ class DisplayFaces:
                 getter = Image.new("L", c.img.size, 0)          # Getterspiegel in der Kuppe
                 ImageDraw.Draw(getter).ellipse([(x + 9) * s, 10 * s, (x + 31) * s, 22 * s], fill=255)
                 _disp_tint(c.img, (150, 150, 158), getter.filter(ImageFilter.GaussianBlur(2 * s)), 0.45)
-        return self._disp_part("nixie_front", WIDTH, CLOCK_H, build)
+        return self._disp_part("disp_nixie_front", None, WIDTH, CLOCK_H, build)
 
     @clock_face("nixie", fps=1)
     def face_nixie(self, profile):
         now = time.localtime(self._clock_now())
         acc = PROFILE_COLOR.get(profile, self.FG)
-        img = self._disp_base(("nixie", acc), (12, 10, 10), lambda c: self._disp_nixie_static(c, acc))
+        img = self._disp_base("nixie", acc, (12, 10, 10), lambda c: self._disp_nixie_static(c, acc))
         for x, ch in zip(self._disp_nixie_x, f"{now.tm_hour:02d}{now.tm_min:02d}{now.tm_sec:02d}"):
             img.alpha_composite(self._disp_nixie_lit(ch), (x, 48))
         img.alpha_composite(self._disp_nixie_front())
         d = ImageDraw.Draw(img)
         txt = f"{WEEKDAY_2[now.tm_wday]} {now.tm_mday:02d}.{now.tm_mon:02d}.{now.tm_year}"
-        f = self._disp_font(_disp_cond, 9, True)
-        d.text((160.5, 198.5), txt, font=f, fill=(236, 206, 140), anchor="mm")
-        d.text((160, 198), txt, font=f, fill=(70, 46, 16), anchor="mm")
+        f = clock_font("sans-cond", 9, True)
+        d.text((CLOCK_CX + 0.5, 198.5), txt, font=f, fill=(236, 206, 140), anchor="mm")   # Lichtkante
+        d.text((CLOCK_CX, 198), txt, font=f, fill=(70, 46, 16), anchor="mm")
         return self._disp_out(img)
 
     # --- LED-Radiowecker ------------------------------------------------------ #
@@ -7225,7 +7235,7 @@ class DisplayFaces:
             _disp_tint(c.img, mix(color, (255, 255, 255), 0.45),
                        m.filter(ImageFilter.MinFilter(int(t * 0.45 * s) * 2 + 1)).filter(ImageFilter.GaussianBlur(s)),
                        0.7)
-        return self._disp_part(("seg", kind, what, color), W, H, build)
+        return self._disp_part(("disp_seg", kind, what), color, W, H, build)
 
     def _disp_seg_static(self, c, color):
         s, sk = CLOCK_SS, self._disp_seg_skew
@@ -7251,12 +7261,12 @@ class DisplayFaces:
                         fill=shimmer)
         # Glockensymbol und Aufschrift (unbeleuchtet)
         self._disp_seg_bell(c, 32, 134, shimmer)
-        c.d.text((42 * s, 134 * s), "ALARM", font=self._disp_font(_disp_cond, 11 * s, True), fill=shimmer,
+        c.d.text((42 * s, 134 * s), "ALARM", font=clock_font("sans-cond", 11 * s, True), fill=shimmer,
                  anchor="lm")
         # Senderskala
         _disp_grad(c.img, (18 * s, 160 * s, 238 * s, 196 * s), 5 * s, [(0, (40, 34, 26)), (1, (26, 22, 18))])
         c.d.rounded_rectangle([18 * s, 160 * s, 238 * s, 196 * s], 5 * s, outline=(90, 90, 94), width=s)
-        tiny = self._disp_font(_disp_cond, 8 * s, True)
+        tiny = clock_font("sans-cond", 8 * s, True)
         ink = (214, 196, 150)
         c.d.text((24 * s, 184 * s), "UKW", font=tiny, fill=ink, anchor="lm")
         c.d.text((232 * s, 184 * s), "MHz", font=tiny, fill=ink, anchor="rm")
@@ -7309,17 +7319,17 @@ class DisplayFaces:
             ImageDraw.Draw(clip).rounded_rectangle([19 * s, 19 * s, 237 * s, 151 * s], 6 * s, fill=255)
             _disp_tint(c.img, (255, 255, 255), Image.composite(m, clip, clip))
             c.rect(24, 19.4, 232, 20.2, fill=(255, 255, 255, 40))
-        return self._disp_part("seg_glass", WIDTH, CLOCK_H, build)
+        return self._disp_part("disp_seg_glass", None, WIDTH, CLOCK_H, build)
 
     @clock_face("seg7", fps=1)
     def face_seg7(self, profile):
         now = time.localtime(self._clock_now())
         color = self._ccolor(self._copt("seg7")["color"], profile, (255, 40, 30))
-        img = self._disp_base(("seg7", color), (10, 9, 9), lambda c: self._disp_seg_static(c, color))
+        img = self._disp_base("seg7", color, (10, 9, 9), lambda c: self._disp_seg_static(c, color))
         for x, ch in zip(self._disp_seg_big_x, f"{now.tm_hour:02d}{now.tm_min:02d}"):
             img.alpha_composite(self._disp_seg_sprite("big", ch, color), (x - 8, 30 - 8))
         if now.tm_sec % 2 == 0:
-            w, h, t, _g = self._disp_seg_kinds["big"]
+            w = self._disp_seg_kinds["big"][0]
             img.alpha_composite(self._disp_seg_sprite("big", ":", color), (round(124 - w / 2) - 8, 30 - 8))
         for x, ch in zip(self._disp_seg_small_x, f"{now.tm_sec:02d}"):
             img.alpha_composite(self._disp_seg_sprite("small", ch, color), (x - 8, 122 - 8))
@@ -7331,10 +7341,10 @@ class DisplayFaces:
                 mc = _Canvas(m)
                 self._disp_seg_bell(mc, 10, 12, 255)
                 mc.d.text((20 * s, 12 * s), "ALARM  " + str(alarm.get("time") or "07:00"),
-                          font=self._disp_font(_disp_cond, 11 * s, True), fill=255, anchor="lm")
+                          font=clock_font("sans-cond", 11 * s, True), fill=255, anchor="lm")
                 _disp_tint(c.img, color, m.filter(ImageFilter.GaussianBlur(2 * s)), 0.6)
                 _disp_tint(c.img, mix(color, (255, 255, 255), 0.15), m)
-            img.alpha_composite(self._disp_part(("seg_alarm", str(alarm.get("time")), color), 110, 24, build),
+            img.alpha_composite(self._disp_part("disp_seg_alarm", (str(alarm.get("time")), color), 110, 24, build),
                                 (22, 122))
         img.alpha_composite(self._disp_seg_glass())
         return self._disp_out(img)
@@ -7356,7 +7366,7 @@ class DisplayFaces:
             _disp_tint(c.img, color, halo.filter(ImageFilter.GaussianBlur(r * 0.8 * s)), 0.55)
             c.circle(m, m, r, fill=mix(color, (255, 255, 255), 0.5) if hot else color)
             c.circle(m - r * 0.25, m - r * 0.25, r * 0.4, fill=mix(color, (255, 255, 255), 0.55 if not hot else 0.85))
-        return self._disp_part(("mx_led", big, color, hot), size, size, build)
+        return self._disp_part(("disp_mx_led", big, hot), color, size, size, build)
 
     def _disp_mx_static(self, c, color):
         s = CLOCK_SS
@@ -7381,7 +7391,7 @@ class DisplayFaces:
                 for i in range(nc):
                     x, y = x0 + i * p, y0 + j * p
                     c.circle(x, y, r, fill=off, outline=rim, width=0.4)
-        tiny = self._disp_font(_disp_cond, 8 * s, True)
+        tiny = clock_font("sans-cond", 8 * s, True)
         silk = (150, 152, 158)
         for k in (0, 15, 30, 45):
             c.d.text(((12 + k * 5) * s, 181 * s), str(k), font=tiny, fill=silk, anchor="mm")
@@ -7406,7 +7416,7 @@ class DisplayFaces:
     def face_matrix(self, profile):
         now = time.localtime(self._clock_now())
         color = self._ccolor(self._copt("matrix")["color"], profile)
-        img = self._disp_base(("matrix", color), (14, 14, 16), lambda c: self._disp_mx_static(c, color))
+        img = self._disp_base("matrix", color, (14, 14, 16), lambda c: self._disp_mx_static(c, color))
         big, small = self._disp_mx_led(True, color), self._disp_mx_led(False, color)
         x0, y0, p, _nc, _nr = self._disp_mx_big
         pts = []
@@ -7440,14 +7450,13 @@ class DisplayFaces:
         def build(c):
             s = CLOCK_SS
             c.rect(0, 0, w, pitch, fill=bg)
-            _disp_tint(c.img, (240, 238, 230), self._disp_glyph(ch, _disp_cond, True, w * s, pitch * s, dh * s,
+            _disp_tint(c.img, (240, 238, 230), self._disp_glyph(ch, "sans-cond", True, w * s, pitch * s, dh * s,
                                                                  w * 0.66 * s))
-        return self._disp_part(("roll", kind, ch, red), w, pitch, build)
+        return self._disp_part(("disp_roll", kind, ch, red), None, w, pitch, build)
 
     def _disp_roll_shade(self, kind):
         """Wölbung der Rolle: oben und unten dunkler, Glanzstreifen über der Mitte (RGBA)."""
-        mem, key = self._disp_store(), ("roll_shade", kind)
-        if key not in mem:
+        def build():
             w, wh, _p, _dh = self._disp_roll_kinds[kind]
             shade = Image.new("RGBA", (w, wh), (0, 0, 0, 0))
             for y in range(wh):
@@ -7460,8 +7469,8 @@ class DisplayFaces:
                         shade.putpixel((x, y), (255, 255, 255, int(shine * edge)))
                     else:
                         shade.putpixel((x, y), (0, 0, 0, min(255, dark + int(70 * (1 - edge)))))
-            mem[key] = shade
-        return mem[key]
+            return shade
+        return self._clock_cache(("disp_roll_shade", kind), None, build)
 
     def _disp_roll(self, img, x, y, kind, old, new, mod, p, red=False):
         """Zahlenrolle im Fenster ab (x, y); wechselt die Ziffer, rollt sie von unten nach (p = 0…1)."""
@@ -7510,7 +7519,7 @@ class DisplayFaces:
         for sx, sy in ((14, 14), (306, 14), (14, 200), (306, 200)):
             _disp_screw(c, sx, sy, 4.2, rnd.uniform(0, 180))
         dark, light = (36, 38, 42), (190, 194, 200)
-        lab = self._disp_font(_disp_cond, 9 * s, True)
+        lab = clock_font("sans-cond", 9 * s, True)
         # Hauptzählwerk
         for g, (x, name) in enumerate(zip(self._disp_cnt_groups, ("STUNDEN", "MINUTEN", "SEKUNDEN"))):
             _disp_engrave(c, x + 35, 23, name, lab, dark, light)
@@ -7531,8 +7540,8 @@ class DisplayFaces:
         for rx, ry in ((80, 163), (248, 163), (80, 197), (248, 197)):
             c.circle(rx, ry, 1.9, fill=(110, 104, 92))
             c.circle(rx - 0.4, ry - 0.4, 1.1, fill=(230, 226, 214))
-        big = self._disp_font(_disp_sans, 13 * s, True)
-        tiny = self._disp_font(_disp_cond, 8 * s, True)
+        big = clock_font("sans", 13 * s, True)
+        tiny = clock_font("sans-cond", 8 * s, True)
         ink, glint = (44, 40, 34), (240, 236, 224)
         _disp_engrave(c, 164, 172, "G19s  ZÄHLWERK", big, ink, glint)
         _disp_engrave(c, 164, 188, "TYP ZW 6-5  ·  24 STD  ·  Nr. 0419", tiny, ink, glint)
@@ -7543,7 +7552,7 @@ class DisplayFaces:
         now, prev = time.localtime(t), time.localtime(math.floor(t) - 1)
         p = self._disp_step(t, 0.4)
         acc = PROFILE_COLOR.get(profile, self.FG)
-        img = self._disp_base(("counter", acc), (14, 14, 15), lambda c: self._disp_cnt_static(c, acc))
+        img = self._disp_base("counter", acc, (14, 14, 15), lambda c: self._disp_cnt_static(c, acc))
         fmt = "{0.tm_hour:02d}{0.tm_min:02d}{0.tm_sec:02d}"
         a, b = fmt.format(prev), fmt.format(now)
         mods = (3, 10, 6, 10, 6, 10)
@@ -7565,7 +7574,6 @@ class DisplayFaces:
 #   Zifferblätter Wortuhr, Terminal, Tagesfortschritt, Ringuhr, Tacho-Uhr.
 # ═══════════════════════════════════════════════════════════════════════════
 
-_info_MONO = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono{}.ttf"
 _info_WHITE = (255, 255, 255)
 # Blockziffern 3×5 für das Terminal (Zeilen von oben, je 3 Bit)
 _info_BLOCKS = {
@@ -7577,12 +7585,6 @@ _info_BLOCKS = {
     ":": ("0", "1", "0", "1", "0"),
 }
 _info_PHOSPHOR = {"green": (70, 255, 120), "amber": (255, 176, 40), "white": (225, 235, 245), "blue": (90, 180, 255)}
-
-
-def _info_mono(size, bold=False):
-    """Monospace-Schrift (DejaVu Sans Mono), sonst DejaVu Sans."""
-    path = _info_MONO.format("-Bold" if bold else "")
-    return ImageFont.truetype(path, size) if os.path.exists(path) else load_font(size, bold)
 
 
 def _info_hsv(color, dh=0.0, ds=1.0, dv=1.0):
@@ -7603,16 +7605,10 @@ def _info_span(t, start, end):
 
 
 class InfoFaces:
-    def _info_font(self, size, bold=False, mono=False, scale=CLOCK_SS):
-        """Schrift zwischenspeichern (size in Displaypixeln, scale = Vergrößerung der Fläche)."""
-        cache = self.__dict__.setdefault("_info_fonts", {})
-        key = (size, bold, mono, scale)
-        if key not in cache:
-            cache[key] = (_info_mono if mono else load_font)(round(size * scale), bold)
-        return cache[key]
-
-    def _info_cache(self):
-        return self.__dict__.setdefault("_info_static", {})
+    @staticmethod
+    def _info_font(size, bold=False, mono=False, scale=CLOCK_SS):
+        """DejaVu Sans bzw. Sans Mono; size in Displaypixeln, scale = Vergrößerung der Fläche."""
+        return clock_font("mono" if mono else "sans", round(size * scale), bold)
 
     def _info_out(self, arr):
         """Fläche (numpy, CLOCK_H×WIDTH×3) ins Displaybild setzen."""
@@ -7654,55 +7650,53 @@ class InfoFaces:
         for x, y in self._info_DOTS[:dots]:
             d.ellipse([x - 2.6, y - 2.6, x + 2.6, y + 2.6], fill=fill)
 
+    def _info_words_plate(self, font):
+        """Frontplatte mit dunklen Buchstaben (numpy-Feld)."""
+        base = Image.new("RGB", (WIDTH, CLOCK_H), self.BG)
+        yy, xx = np.mgrid[0:CLOCK_H, 0:WIDTH]
+        v = 1 - 0.55 * (((xx - CLOCK_CX) / 200) ** 2 + ((yy - CLOCK_CY) / 150) ** 2)
+        arr = np.asarray(base, np.float32) * np.clip(v, 0.5, 1.2)[..., None] + np.array([4, 4, 6])
+        base = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
+        self._info_words_draw(ImageDraw.Draw(base), None, 4, (26, 29, 37), font)
+        return np.asarray(base, np.float32)
+
     @clock_face("words", fps=1)
     def face_words(self, profile):
         now = time.localtime(self._clock_now())
         col = self._ccolor(self._copt("words")["color"], profile)
         font = self._info_font(15, True, scale=1)
-        st = self._info_cache()
-        if "words" not in st:                              # Frontplatte mit dunklen Buchstaben
-            base = Image.new("RGB", (WIDTH, CLOCK_H), self.BG)
-            yy, xx = np.mgrid[0:CLOCK_H, 0:WIDTH]
-            v = 1 - 0.55 * (((xx - 160) / 200) ** 2 + ((yy - 107) / 150) ** 2)
-            arr = np.asarray(base, np.float32) * np.clip(v, 0.5, 1.2)[..., None] + np.array([4, 4, 6])
-            base = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
-            self._info_words_draw(ImageDraw.Draw(base), None, 4, (26, 29, 37), font)
-            st["words"] = np.asarray(base, np.float32)
+        plate = self._clock_cache("info_words", self.BG, lambda: self._info_words_plate(font))
         mask = Image.new("L", (WIDTH, CLOCK_H), 0)
         self._info_words_draw(ImageDraw.Draw(mask), self._info_words_lit(now.tm_hour, now.tm_min),
                               now.tm_min % 5, 255, font)
         m = np.asarray(mask, np.float32)[..., None] / 255
         glow = np.asarray(mask.filter(ImageFilter.GaussianBlur(4)), np.float32)[..., None] / 255
         core = np.array(mix(col, _info_WHITE, 0.35), np.float32)
-        out = st["words"] * (1 - m) + core * m + np.array(col, np.float32) * glow * 0.8
+        out = plate * (1 - m) + core * m + np.array(col, np.float32) * glow * 0.8
         return self._info_out(out)
 
     # --- Terminal ------------------------------------------------------------- #
-    def _info_term_static(self, col):
+    @staticmethod
+    def _info_term_static(col):
         """Röhrenbildschirm: Gehäuse, gewölbt wirkender Schirm, Zeilenraster (als numpy-Felder)."""
-        key = ("term", col)
-        st = self._info_cache()
-        if key not in st:
-            s = CLOCK_SS
-            img = Image.new("RGB", (WIDTH * s, CLOCK_H * s), (22, 23, 26))
-            d = ImageDraw.Draw(img)
-            d.rounded_rectangle([1 * s, 1 * s, (WIDTH - 1) * s, (CLOCK_H - 1) * s], 10 * s, fill=(34, 35, 39))
-            d.rounded_rectangle([4 * s, 4 * s, (WIDTH - 4) * s, (CLOCK_H - 4) * s], 16 * s, fill=(12, 12, 14))
-            d.rounded_rectangle([6 * s, 6 * s, (WIDTH - 6) * s, (CLOCK_H - 6) * s], 15 * s, fill=(255, 255, 255))
-            img = img.resize((WIDTH, CLOCK_H), Image.LANCZOS)
-            a = np.asarray(img, np.float32)
-            screen = np.clip((a.min(axis=2) - 40) / 215, 0, 1)[..., None]        # 1 = Schirmfläche
-            yy, xx = np.mgrid[0:CLOCK_H, 0:WIDTH]
-            vign = np.clip(1 - 0.9 * (((xx - 160) / 175) ** 4 + ((yy - 107) / 125) ** 4), 0.25, 1)[..., None]
-            glass = np.array(mix((5, 7, 6), col, 0.06), np.float32) * vign * 1.3
-            bg = a * (1 - screen) + glass * screen
-            scan = 1 - 0.32 * (yy % 2)[..., None] * screen
-            st[key] = (bg, scan, vign * screen)
-        return st[key]
+        s = CLOCK_SS
+        img = Image.new("RGB", (WIDTH * s, CLOCK_H * s), (22, 23, 26))
+        d = ImageDraw.Draw(img)
+        d.rounded_rectangle([1 * s, 1 * s, (WIDTH - 1) * s, (CLOCK_H - 1) * s], 10 * s, fill=(34, 35, 39))
+        d.rounded_rectangle([4 * s, 4 * s, (WIDTH - 4) * s, (CLOCK_H - 4) * s], 16 * s, fill=(12, 12, 14))
+        d.rounded_rectangle([6 * s, 6 * s, (WIDTH - 6) * s, (CLOCK_H - 6) * s], 15 * s, fill=(255, 255, 255))
+        img = img.resize((WIDTH, CLOCK_H), Image.LANCZOS)
+        a = np.asarray(img, np.float32)
+        screen = np.clip((a.min(axis=2) - 40) / 215, 0, 1)[..., None]        # 1 = Schirmfläche
+        yy, xx = np.mgrid[0:CLOCK_H, 0:WIDTH]
+        vign = np.clip(1 - 0.9 * (((xx - CLOCK_CX) / 175) ** 4 + ((yy - CLOCK_CY) / 125) ** 4), 0.25, 1)[..., None]
+        glass = np.array(mix((5, 7, 6), col, 0.06), np.float32) * vign * 1.3
+        bg = a * (1 - screen) + glass * screen
+        scan = 1 - 0.32 * (yy % 2)[..., None] * screen
+        return bg, scan, vign * screen
 
     def _info_term_big(self, d, x, y, txt, b):
-        """Uhrzeit aus 3×5-Blockziffern (Kantenlänge b), liefert die Breite."""
-        x0 = x
+        """Uhrzeit aus 3×5-Blockziffern (Kantenlänge b)."""
         for ch in txt:
             rows = _info_BLOCKS[ch]
             for r, bits in enumerate(rows):
@@ -7710,14 +7704,13 @@ class InfoFaces:
                     if bit == "1":
                         d.rectangle([x + k * b, y + r * b, x + k * b + b - 2, y + r * b + b - 2], fill=255)
             x += len(rows[0]) * b + b
-        return x - x0 - b
 
     @clock_face("terminal", fps=2)
     def face_terminal(self, profile):
         t = self._clock_now()
         now = time.localtime(t)
         col = _info_PHOSPHOR.get(self._copt("terminal")["color"], _info_PHOSPHOR["green"])
-        bg, scan, screen = self._info_term_static(col)
+        bg, scan, screen = self._clock_cache("info_term", col, lambda: self._info_term_static(col))
         f, fb = self._info_font(12, mono=True, scale=1), self._info_font(12, True, True, scale=1)
         mask = Image.new("L", (WIDTH, CLOCK_H), 0)
         d = ImageDraw.Draw(mask)
@@ -7735,7 +7728,7 @@ class InfoFaces:
         cmd(y, "date")
         d.text((x0, y + lh), date, font=f, fill=170, anchor="ls")
         cmd(y + 2.25 * lh, "uhr")
-        w = self._info_term_big(d, x0 + 2, y + 2.25 * lh + 9, time.strftime("%H:%M:%S", now), 8)
+        self._info_term_big(d, x0 + 2, y + 2.25 * lh + 9, time.strftime("%H:%M:%S", now), 8)
         days = 366 if now.tm_year % 4 == 0 and (now.tm_year % 100 or now.tm_year % 400 == 0) else 365
         yi = y + 2.25 * lh + 9 + 40 + 14
         d.text((x0, yi), f"KW {time.strftime('%V', now)} · Tag {now.tm_yday}/{days}", font=f, fill=170, anchor="ls")
@@ -7826,7 +7819,7 @@ class InfoFaces:
     _info_RINGS = ((62, 12, 12), (80, 12, 60), (98, 11, 60))      # Stunden, Minuten, Sekunden: Radius, Breite, Teilung
 
     def _info_rings_dial(self, c, col):
-        cx, cy = 160, CLOCK_H / 2
+        cx, cy = CLOCK_CX, CLOCK_CY
         for (r, w, n), rc in zip(self._info_RINGS, self._info_ring_colors(col)):
             self._info_arc(c, cx, cy, r, w + 2, 0, 360, (16, 18, 24))
             self._info_arc(c, cx, cy, r, w, 0, 360, mix(rc, self.BG, 0.86))
@@ -7844,7 +7837,7 @@ class InfoFaces:
     def face_rings(self, profile):
         col = PROFILE_COLOR.get(profile, self.FG)
         c = self._clock_canvas(("info_rings", col), self.BG, lambda c: self._info_rings_dial(c, col))
-        cx, cy, s = 160, CLOCK_H / 2, CLOCK_SS
+        cx, cy, s = CLOCK_CX, CLOCK_CY, CLOCK_SS
         now = time.localtime(self._clock_now())
         vals = ((now.tm_hour % 12 + now.tm_min / 60) / 12, (now.tm_min + now.tm_sec / 60) / 60, now.tm_sec / 60)
         for (r, w, n), rc, v in zip(self._info_RINGS, self._info_ring_colors(col), vals):
@@ -9394,23 +9387,25 @@ class TimerView(Menu):
 # Modul aktionen
 #   G-Tasten-Aktionen: welcher Eintrag in macros.json was auslöst.
 #
-#   GKEY_ACTIONS ist eine geordnete Liste (Prüfung, Ausführung). Die erste passende
-#   Aktion wird ausgeführt; passt keine, sendet die Taste F13–F24 (bzw. mit
-#   Strg/Alt in M2/M3) für KDE-Kurzbefehle. Eine neue Aktion = ein neuer Eintrag.
+#   Die Art eines Eintrags bestimmt entry_type() (Reihenfolge in ENTRY_TYPES, makros.py);
+#   GKEY_ACTIONS ordnet jeder Art ihre Ausführung zu. Ohne Art sendet die Taste F13–F24
+#   (bzw. mit Strg/Alt in M2/M3) für KDE-Kurzbefehle. Neue Aktion: Art in ENTRY_TYPES
+#   eintragen und hier mit @gkey_action("art") anmelden.
 # ═══════════════════════════════════════════════════════════════════════════
 
-GKEY_ACTIONS = []
+GKEY_ACTIONS = {}
 
 
-def gkey_action(test):
-    """Ausführung für Einträge anmelden, auf die test(macro) zutrifft (Reihenfolge = Priorität)."""
+def gkey_action(*types):
+    """Ausführung für Einträge der Art(en) types anmelden."""
     def deco(fn):
-        GKEY_ACTIONS.append((test, fn))
+        for t in types:
+            GKEY_ACTIONS[t] = fn
         return fn
     return deco
 
 
-@gkey_action(lambda m: isinstance(m.get("timer"), dict))
+@gkey_action("timer")
 def act_timer(app, macro, name):
     tcfg = macro["timer"]
     if app.timer.alarm:
@@ -9428,7 +9423,7 @@ def act_timer(app, macro, name):
     app.next_draw = 0
 
 
-@gkey_action(lambda m: m.get("snippets"))
+@gkey_action("snippets")
 def act_snippets(app, macro, name):
     if app.menu is not None and app.menu.kind == "snippets":
         app.menu = None                     # zweiter Druck schließt die Liste
@@ -9440,7 +9435,7 @@ def act_snippets(app, macro, name):
     app.next_draw = 0
 
 
-@gkey_action(lambda m: m.get("open") or m.get("run"))
+@gkey_action("open", "run")
 def act_open_run(app, macro, name):
     label = str(macro.get("name") or macro.get("open") or "Befehl")
     if macro.get("open"):
@@ -9454,7 +9449,7 @@ def act_open_run(app, macro, name):
         app.show("Fehler", [f"{label} ließ sich", "nicht starten"], REC_COLOR, 3)
 
 
-@gkey_action(lambda m: m.get("radio"))
+@gkey_action("radio")
 def act_radio(app, macro, name):
     cur = app.radio.current()
     if macro["radio"] == "stop" or (cur and cur["url"] == macro["radio"]):
@@ -9467,7 +9462,6 @@ def act_radio(app, macro, name):
     app.media.wake.set()
 
 
-@gkey_action(lambda m: m.get("media") == "remember")
 def act_remember_song(app, macro, name):
     app.media.refresh()                     # aktuellen Titel holen (im Hintergrund evtl. 5 s alt)
     info = app.media.snapshot()[0]
@@ -9480,12 +9474,14 @@ def act_remember_song(app, macro, name):
         app.show("Song merken", ["schon gemerkt" if info else "es läuft nichts"], PROFILE_COLOR[app.layer], 1.8)
 
 
-@gkey_action(lambda m: m.get("media"))
+@gkey_action("media")
 def act_media(app, macro, name):
+    if macro["media"] == "remember":
+        return act_remember_song(app, macro, name)
     threading.Thread(target=app.media.control, args=(macro["media"],), daemon=True).start()
 
 
-@gkey_action(lambda m: m.get("mic"))
+@gkey_action("mic")
 def act_mic(app, macro, name):
     color = PROFILE_COLOR[app.layer]
 
@@ -9501,7 +9497,7 @@ def act_mic(app, macro, name):
     threading.Thread(target=work, daemon=True).start()
 
 
-@gkey_action(lambda m: m.get("sleep"))
+@gkey_action("sleep")
 def act_sleep(app, macro, name):
     sleep = app.sleep
     if sleep["until"]:
@@ -9524,7 +9520,7 @@ def act_sleep(app, macro, name):
     app.next_draw = 0
 
 
-@gkey_action(lambda m: m.get("volume"))
+@gkey_action("volume")
 def act_volume(app, macro, name):
     action, color = macro["volume"], PROFILE_COLOR[app.layer]
 
@@ -9538,7 +9534,7 @@ def act_volume(app, macro, name):
     threading.Thread(target=work, daemon=True).start()
 
 
-@gkey_action(lambda m: m.get("steps") or m.get("text") or m.get("combo"))
+@gkey_action("text", "combo", "steps")
 def act_keys(app, macro, name):
     if app.args.debug:
         print(f"  {name} -> „{entry_label(macro, app.settings())}“")
@@ -9548,13 +9544,15 @@ def act_keys(app, macro, name):
 
 def run_gkey_action(app, macro, name):
     """Passende Aktion ausführen. False = keine Aktion (Taste sendet F13–F24)."""
-    if not macro:
+    fn = GKEY_ACTIONS.get(entry_type(macro))
+    if fn is None:
         return False
-    for test, fn in GKEY_ACTIONS:
-        if test(macro):
-            fn(app, macro, name)
-            return True
-    return False
+    fn(app, macro, name)
+    return True
+
+
+assert set(GKEY_ACTIONS) == set(ENTRY_TYPES), \
+    f"G-Tasten-Arten ohne Ausführung: {set(ENTRY_TYPES) - set(GKEY_ACTIONS)}"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -10621,7 +10619,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.09.30-1"
+VERSION = "2026.09.30-2"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -10650,7 +10648,7 @@ def load_driver():
 
 
 # Alle Namen des Treibers, die die Verwaltung benutzt (g.<name>) – build.py trägt sie beim Bauen ein
-DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller auto_backup backup_members clean_macros clean_settings err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed save_json save_state test_backup_target valid_colors".split()
+DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD ENTRY_TYPES FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller auto_backup backup_members clean_macros clean_settings err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed save_json save_state test_backup_target valid_colors".split()
 
 
 g = load_driver()
@@ -11169,6 +11167,7 @@ class ApiKeys:
             "chars": list(g.DE_CHARS.keys()), "dead": list(g.DE_DEAD.keys()),
             "pages": g.PAGE_NAMES, "page_ids": g.PAGE_IDS, "media": g.MEDIA_ACTIONS,
             "volume": g.VOLUME_ACTIONS,
+            "entry_types": g.ENTRY_TYPES,
             "clock_faces": list(g.CLOCK_FACES.items()), "clock_options": g.CLOCK_OPTIONS,
             "world_cities": g.WORLD_CITIES,
             "mtimes": {"macros": mtime(g.MACRO_FILE), "settings": mtime(g.SETTINGS_FILE)},
@@ -12537,26 +12536,32 @@ function fKeyText(gkey, p) {
 function domainOf(u) { return String(u).replace(/^[a-z]+:\/\/(www\.)?/i, "").split("/")[0]; }
 function stationName(url) {
   const s = ((UI.sdraft || S.settings).stations || []).find(x => x.url === url);
-  return s ? (s.name || domainOf(url)) : domainOf(url);
+  return (s && s.name) || domainOf(url);
 }
+// Art und Beschriftung einer Belegung: dieselben Regeln wie entry_type/entry_label im Treiber (makros.py);
+// die Reihenfolge der Arten kommt vom Treiber (S.entryTypes), tests/einheit/test_beschriftung.py vergleicht beide.
 function typeOf(e) {
   if (!e) return "default";
-  for (const t of ["radio", "media", "volume", "snippets", "timer", "sleep", "mic", "open", "run", "text", "combo", "steps"]) {
-    const v = e[t]; if (v && (!Array.isArray(v) || v.length)) return t;
+  for (const t of S.entryTypes) {
+    const v = e[t];
+    if (t === "timer" && (typeof v !== "object" || v === null || Array.isArray(v))) continue;
+    if (v && (!Array.isArray(v) || v.length)) return t;
   }
   return "default";
 }
+function num(v, dflt) { const n = parseFloat(v); return isNaN(n) || !v ? dflt : n; }
+function fmtMinutes(m) { m = num(m, 5); return m >= 1 ? `${m} min` : `${Math.round(m * 60)} s`; }
 function timerLabel(t) {
   t = t || {};
   if (t.mode === "stopwatch") return "Stoppuhr";
-  if (t.mode === "pomodoro") return `Pomodoro ${t.work || 25}/${t.break || 5}`;
-  return `Timer ${t.minutes || 5} min`;
+  if (t.mode === "pomodoro") return `Pomodoro ${num(t.work, 25)}/${num(t.break, 5)}`;
+  return `Timer ${fmtMinutes(t.minutes)}`;
 }
 function snippetGroups() {
   const sd = UI.sdraft || S.settings;
   return [...new Set(sd.snippets.map(x => (x.group || "").trim()).filter(Boolean))].sort();
 }
-function comboList(c) { return Array.isArray(c) ? c : String(c || "").split("+").map(s => s.trim()).filter(Boolean); }
+function comboList(c) { return (Array.isArray(c) ? c : String(c || "").split("+")).map(s => String(s).trim()).filter(Boolean); }
 function entryLabel(e) {
   if (!e) return "";
   if (e.name) return e.name;
@@ -12569,7 +12574,7 @@ function entryLabel(e) {
   if (t === "timer") return timerLabel(e.timer);
   if (t === "sleep") return `Einschlafen ${e.sleep} min`;
   if (t === "mic") return "Mikrofon";
-  if (t === "run") return String(e.run).split(/\s+/)[0];
+  if (t === "run") return String(e.run).trim().split(/\s+/)[0];
   if (t === "text") return "Text";
   if (t === "combo") return comboList(e.combo).map(keyLabel).join("+");
   if (t === "steps") return "Makro";
@@ -12580,6 +12585,7 @@ function entryLabel(e) {
 async function loadState() {
   const d = await api("/api/state");
   S.macros = d.macros; S.settings = d.settings; S.keys = d.keys; S.media = d.media; S.pages = d.pages; S.pageIds = d.page_ids; S.volume = d.volume;
+  S.entryTypes = d.entry_types;
   S.clockFaces = d.clock_faces; S.clockOptions = d.clock_options; S.worldCities = d.world_cities;
   S.active = d.active; S.maxProfiles = d.max_profiles;
   if (UI.pidx === undefined) UI.pidx = d.active;
