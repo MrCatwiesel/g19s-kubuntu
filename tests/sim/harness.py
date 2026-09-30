@@ -100,22 +100,30 @@ class Sim:
                 self.i = 0
                 sim.t0 = self.t0
 
+            lock = threading.Lock()
+
             def read(self, ep, size, timeout_ms):
-                time.sleep(timeout_ms / 1000)
-                now = time.monotonic() - self.t0
-                while self.i < len(sim.script) and now >= sim.script[self.i][0]:
-                    t, kind, val = sim.script[self.i]
-                    if kind == "call":
-                        self.i += 1
-                        val(sim)
-                        continue
-                    if (kind == "g") != (ep == g.EP_GKEYS):
+                """Wie das echte Gerät: blockiert bis ein Report für diesen Endpunkt fällig ist
+                oder das Zeitlimit abläuft (wird ggf. aus zwei Lese-Threads gleichzeitig benutzt)."""
+                end = time.monotonic() + timeout_ms / 1000
+                while True:
+                    with self.lock:
+                        now = time.monotonic() - self.t0
+                        while self.i < len(sim.script) and now >= sim.script[self.i][0]:
+                            t, kind, val = sim.script[self.i]
+                            if kind == "call":
+                                self.i += 1
+                                val(sim)
+                                continue
+                            if (kind == "g") != (ep == g.EP_GKEYS):
+                                break
+                            self.i += 1
+                            if kind == "g":
+                                return bytes([2, val & 0xFF, (val >> 8) & 0xFF, 0])
+                            return bytes([val, 0x80])
+                    if time.monotonic() >= end:
                         return None
-                    self.i += 1
-                    if kind == "g":
-                        return bytes([2, val & 0xFF, (val >> 8) & 0xFF, 0])
-                    return bytes([val, 0x80])
-                return None
+                    time.sleep(0.005)
 
             def send_frame(self, img):
                 sim.frames.append((time.monotonic() - self.t0, img))

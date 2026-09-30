@@ -11,6 +11,30 @@ LCD_HEADER = bytes(
 assert len(LCD_HEADER) == 512
 
 
+class UsbReader(threading.Thread):
+    """Liest einen Tasten-Endpunkt blockierend (Zeitlimit READ_TIMEOUT_MS) und legt jeden Report in
+    die Warteschlange. So muss die Hauptschleife nicht ständig nachsehen, sondern wacht nur bei einem
+    Tastendruck oder zum nächsten Bild auf. Ein USB-Fehler (z. B. Tastatur abgezogen) landet als
+    ("error", Ausnahme) in der Warteschlange; die Hauptschleife beendet sich dann wie bisher."""
+
+    READ_TIMEOUT_MS = 1000
+
+    def __init__(self, g19, endpoint, size, queue):
+        super().__init__(daemon=True)
+        self.g19, self.endpoint, self.size, self.queue = g19, endpoint, size, queue
+        self.running = True
+
+    def run(self):
+        while self.running:
+            try:
+                data = self.g19.read(self.endpoint, self.size, self.READ_TIMEOUT_MS)
+            except Exception as ex:          # jeder USB-Fehler beendet den Treiber (systemd startet neu)
+                self.queue.put(("error", ex))
+                return
+            if data:
+                self.queue.put((self.endpoint, data))
+
+
 # --------------------------------------------------------------------------- #
 # USB-Zugriff
 # --------------------------------------------------------------------------- #

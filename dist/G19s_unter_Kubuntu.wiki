@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.09.30-3)
+| 28.09.2026 (Version 2026.09.30-4)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -164,7 +164,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.09.30-3"
+VERSION = "2026.09.30-4"
 
 # Weitere Importe der Module
 import http.client
@@ -1580,6 +1580,30 @@ LCD_HEADER = bytes(
     + list(range(256))
 )
 assert len(LCD_HEADER) == 512
+
+
+class UsbReader(threading.Thread):
+    """Liest einen Tasten-Endpunkt blockierend (Zeitlimit READ_TIMEOUT_MS) und legt jeden Report in
+    die Warteschlange. So muss die Hauptschleife nicht ständig nachsehen, sondern wacht nur bei einem
+    Tastendruck oder zum nächsten Bild auf. Ein USB-Fehler (z. B. Tastatur abgezogen) landet als
+    ("error", Ausnahme) in der Warteschlange; die Hauptschleife beendet sich dann wie bisher."""
+
+    READ_TIMEOUT_MS = 1000
+
+    def __init__(self, g19, endpoint, size, queue):
+        super().__init__(daemon=True)
+        self.g19, self.endpoint, self.size, self.queue = g19, endpoint, size, queue
+        self.running = True
+
+    def run(self):
+        while self.running:
+            try:
+                data = self.g19.read(self.endpoint, self.size, self.READ_TIMEOUT_MS)
+            except Exception as ex:          # jeder USB-Fehler beendet den Treiber (systemd startet neu)
+                self.queue.put(("error", ex))
+                return
+            if data:
+                self.queue.put((self.endpoint, data))
 
 
 # --------------------------------------------------------------------------- #
@@ -10442,17 +10466,46 @@ class App(AppCore, KeyHandling, TimedTasks):
             self.page = self.visible_pages()[0]
         self.log("G19s-Treiber läuft. Beenden mit Strg+C.")
         self.log(f"Makrodatei: {MACRO_FILE}")
+        import queue
+        reports = queue.Queue()
+        self.readers = [UsbReader(self.g19, EP_GKEYS, 20, reports), UsbReader(self.g19, EP_LKEYS, 2, reports)]
+        for r in self.readers:
+            r.start()
         try:
             while self.running:
-                self.handle_gm_report(self.g19.read(EP_GKEYS, 20, 25))
-                self.handle_display_report(self.g19.read(EP_LKEYS, 2, 10))
+                try:                        # schlafen bis Tastendruck, nächstes Bild oder spätestens _max_wait
+                    item = reports.get(timeout=max(0.0, min(self.next_draw - time.monotonic(), self._max_wait())))
+                    while item is not None:
+                        self._handle_report(*item)
+                        item = reports.get_nowait()
+                except queue.Empty:
+                    pass
                 self.poll_recording()
                 now = time.monotonic()
                 self.tick(now)
                 if now >= self.next_draw:
                     self.draw(now)
         finally:
+            for r in getattr(self, "readers", []):
+                r.running = False
             self.shutdown()
+
+    def _handle_report(self, source, data):
+        if source == "error":
+            raise data                      # USB-Fehler aus dem Lese-Thread: wie bisher beenden
+        if source == EP_GKEYS:
+            self.handle_gm_report(data)
+        else:
+            self.handle_display_report(data)
+
+    def _max_wait(self):
+        """Wie lange die Hauptschleife höchstens schlafen darf: kurz während Makroaufnahme und
+        Blinken, sonst 0,25 s (Zeitaufgaben wie Erinnerungen, Nachtmodus, Menü-Zeitlimit)."""
+        if self.rec is not None and self.rec.get("stage") == "record":
+            return 0.02
+        if self.alarm["blink_until"]:
+            return 0.05
+        return 0.25
 
     def stop(self, *_):
         self.running = False
@@ -10645,7 +10698,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.09.30-3"
+VERSION = "2026.09.30-4"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"

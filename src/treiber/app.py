@@ -26,17 +26,46 @@ class App(AppCore, KeyHandling, TimedTasks):
             self.page = self.visible_pages()[0]
         self.log("G19s-Treiber läuft. Beenden mit Strg+C.")
         self.log(f"Makrodatei: {MACRO_FILE}")
+        import queue
+        reports = queue.Queue()
+        self.readers = [UsbReader(self.g19, EP_GKEYS, 20, reports), UsbReader(self.g19, EP_LKEYS, 2, reports)]
+        for r in self.readers:
+            r.start()
         try:
             while self.running:
-                self.handle_gm_report(self.g19.read(EP_GKEYS, 20, 25))
-                self.handle_display_report(self.g19.read(EP_LKEYS, 2, 10))
+                try:                        # schlafen bis Tastendruck, nächstes Bild oder spätestens _max_wait
+                    item = reports.get(timeout=max(0.0, min(self.next_draw - time.monotonic(), self._max_wait())))
+                    while item is not None:
+                        self._handle_report(*item)
+                        item = reports.get_nowait()
+                except queue.Empty:
+                    pass
                 self.poll_recording()
                 now = time.monotonic()
                 self.tick(now)
                 if now >= self.next_draw:
                     self.draw(now)
         finally:
+            for r in getattr(self, "readers", []):
+                r.running = False
             self.shutdown()
+
+    def _handle_report(self, source, data):
+        if source == "error":
+            raise data                      # USB-Fehler aus dem Lese-Thread: wie bisher beenden
+        if source == EP_GKEYS:
+            self.handle_gm_report(data)
+        else:
+            self.handle_display_report(data)
+
+    def _max_wait(self):
+        """Wie lange die Hauptschleife höchstens schlafen darf: kurz während Makroaufnahme und
+        Blinken, sonst 0,25 s (Zeitaufgaben wie Erinnerungen, Nachtmodus, Menü-Zeitlimit)."""
+        if self.rec is not None and self.rec.get("stage") == "record":
+            return 0.02
+        if self.alarm["blink_until"]:
+            return 0.05
+        return 0.25
 
     def stop(self, *_):
         self.running = False
