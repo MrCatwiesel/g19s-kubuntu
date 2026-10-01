@@ -17,7 +17,7 @@ jobs:
     env:
       PLAYWRIGHT_BROWSERS_PATH: /opt/pw-browsers
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Pakete installieren
         # systemweit, weil die Tests Programme mit eigenem HOME und PATH=/usr/bin starten
@@ -37,7 +37,7 @@ jobs:
 
       - name: Bilder und Protokolle bei Fehlern sichern
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: testergebnisse
           path: |
@@ -55,7 +55,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Release anlegen (nur wenn die Version neu ist)
         env:
