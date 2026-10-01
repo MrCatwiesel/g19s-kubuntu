@@ -35,13 +35,14 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
 - 2026.09.30-5: Update direkt von GitHub (Dienst & Sicherung → „Nach Updates suchen“),
   Live-Vorschau der Zifferblätter im Uhr-MENU.
 - 2026.10.01-1: Tastatur abziehen/Ruhezustand ohne Treiber-Neustart (`Keyboard` in
-  `src/treiber/geraet.py`), Sim `s14_abziehen`.
+  `src/treiber/geraet.py`), Sim `s14_abziehen`. Am echten Gerät bestätigt: Abziehen bei
+  laufendem Radio (Ton läuft weiter, Seite kommt wieder), Zifferblatt-Vorschau,
+  „Nach Updates suchen“ gegen echtes GitHub, Ruhezustand.
+- Beobachtet: Benachrichtigungen erscheinen im Journal doppelt (vermutlich sendet Plasma zweimal) – harmlos.
 
 ## Offene Punkte
-1. Rückmeldung vom echten Gerät zu 2026.10.01-1 abwarten: Abziehen bei laufendem Radio,
-   Zifferblatt-Vorschau, „Nach Updates suchen“ (echtes GitHub), Ruhezustand.
-2. GitHub-Releases statt Hauptzweig für die Update-Suche, mit „Was ist neu“ – zusammen mit
-3. GitHub Actions (Tests bei jedem Push).
-4. `install.sh` (mit `--deinstallieren`).
-5. Knopf „Vorherige Version wiederherstellen“ (Sicherungen in `~/.local/share/g19s/alte-versionen`).
-6. Optional: täglicher Update-Hinweis auf der Displayseite „Updates“ (abschaltbar).
+1. GitHub-Releases statt Hauptzweig für die Update-Suche, mit „Was ist neu“ – zusammen mit
+2. GitHub Actions (Tests bei jedem Push).
+3. `install.sh` (mit `--deinstallieren`).
+4. Knopf „Vorherige Version wiederherstellen“ (Sicherungen in `~/.local/share/g19s/alte-versionen`).
+5. Optional: täglicher Update-Hinweis auf der Displayseite „Updates“ (abschaltbar).
