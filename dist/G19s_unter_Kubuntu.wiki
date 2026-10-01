@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.10.01-5)
+| 28.09.2026 (Version 2026.10.01-6)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -164,7 +164,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.10.01-5"
+VERSION = "2026.10.01-6"
 
 # Weitere Importe der Module
 import http.client
@@ -207,6 +207,7 @@ SELECTION_TIMEOUT = 30      # Sekunden, nach denen eine Markierung (Termin, Meld
 # G-/M-Tasten (Report-ID 0x02): Wert = d[1] | d[2] << 8
 #   d[1]: G1–G8, d[2]: G9–G12 (Bits 0–3), M1/M2/M3/MR (Bits 4–7)
 GKEY_BITS = {f"G{i + 1}": 1 << i for i in range(12)}
+GKEY_MASK = 0x0FFF
 MKEY_BITS = {"M1": 0x1000, "M2": 0x2000, "M3": 0x4000, "MR": 0x8000}
 
 # Displaytasten: erstes Byte
@@ -9890,6 +9891,7 @@ class AppCore:
         self._last_draw_error = None                    # zuletzt protokollierter Anzeige-Fehler
         self.running = True
         self.prev_gm = self.prev_l = 0
+        self.last_gm_raw = None             # letzter Report 0x02 (Bytes 1–3), erkennt einen erneuten Druck
         self.held = {}                      # G-Taste -> Modifier, mit dem sie gedrückt wurde
         self.next_reload = 0.0
         self.last_station = None
@@ -10283,26 +10285,42 @@ class AppCore:
 class KeyHandling:
     # --- G- und M-Tasten ----------------------------------------------------- #
     def handle_gm_report(self, data):
-        # Nur Report-ID 0x02 enthält die G-/M-Bits. Report 0x03 ist ein
-        # zusätzlicher Tastatur-Report (G1 = F1 usw.) und wird ignoriert.
+        # Report 0x02 enthält die G-/M-Bits. Die G19s meldet das Loslassen einer G-Taste dort aber
+        # nicht immer: Oft folgt nur Report 0x03 (Tastatur-Report, G1 = F1 usw.), und beim nächsten
+        # Druck kommt derselbe Report 0x02 noch einmal. Daher gilt:
+        #   – Report 0x03 ohne gedrückte Taste (nur Nullen) = alle G-Tasten losgelassen
+        #   – derselbe Report 0x02 noch einmal = die G-Tasten darin wurden erneut gedrückt
+        if self.args.debug and data:
+            print("G/M-Report:", data.hex(" "))
+        if data and len(data) >= 2 and data[0] == 0x03:
+            if not any(data[1:]) and self.prev_gm & GKEY_MASK:
+                self._apply_gm(self.prev_gm & ~GKEY_MASK, again=0)
+            return
         if not (data and len(data) >= 4 and data[0] == 0x02):
             return
-        if self.args.debug:
-            print("G/M-Report:", data.hex(" "))
-        value = (data[1] | (data[2] << 8)) & 0xFFFF
-        pressed = value & ~self.prev_gm
-        released = self.prev_gm & ~value
+        raw = bytes(data[1:4])
+        again = self.prev_gm & GKEY_MASK if raw == self.last_gm_raw else 0
+        self.last_gm_raw = raw
+        self._apply_gm((data[1] | (data[2] << 8)) & 0xFFFF, again)
+
+    def _apply_gm(self, value, again):
+        """Neuen Zustand der G-/M-Tasten übernehmen. again: G-Tasten, die als losgelassen und neu
+        gedrückt gelten (ihr Loslassen hat die Tastatur nicht gemeldet)."""
+        pressed = value & ~(self.prev_gm & ~again)
+        released = (self.prev_gm & ~value) | again
         self.prev_gm = value
+        if (value & GKEY_MASK) == 0:
+            self.last_gm_raw = None             # nach dem Loslassen zählt jeder Report wieder als neu
         if pressed:
             self.activity.touch()
             self.wake()
         if pressed & MKEY_BITS["MR"]:
             self._record_key()
         for i, (name, bit) in enumerate(GKEY_BITS.items()):
-            if pressed & bit:
-                self._gkey_down(i, name)
             if released & bit and name in self.held:
                 self._gkey_up(i, name)
+            if pressed & bit:
+                self._gkey_down(i, name)
         for name, bit in MKEY_BITS.items():
             if pressed & bit and name in self.modifiers:
                 if self.args.debug:
@@ -10974,7 +10992,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.10.01-5"
+VERSION = "2026.10.01-6"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -15143,6 +15161,8 @@ Danach mit Schritt 3 „udev-Regel“ weitermachen. Treiber und Dienst sind dann
 |-
 | G-Taste löst mehrere Tasten aus || alte Version mit Report-Fehler || aktuelle <code>g19s.py</code> von dieser Seite einspielen
 |-
+| G-Taste löst nur beim ersten Druck aus, nach M1/M2/M3 wieder einmal || Version vor 2026.10.01-6 (Loslassen der G-Taste nicht erkannt) || Update über „Nach Updates suchen“
+|-
 | MR, <code>open</code>, Radio oder Text ohne Funktion || alte Version installiert || <code>grep -c RadioManager ~/.local/bin/g19s.py</code> muss größer als 0 sein
 |-
 | Musikseite: „playerctl fehlt“ || Paket fehlt || <code>sudo apt install playerctl</code>
@@ -15255,7 +15275,7 @@ getfacl /dev/bus/usb/BUS/GERÄT                      # Rechte (Nummern aus lsusb
 |}
 * Displaytaste SETTINGS (<code>0x01</code>) öffnet das Profilmenü.
 * Report <code>0x02</code>: Byte 1 = G1–G8 (Bit 0–7), Byte 2 = G9–G12 (Bit 0–3), M1 0x10, M2 0x20, M3 0x40, MR 0x80.
-* Report <code>0x03</code> ist ein zusätzlicher Tastatur-Report (G1 = F1 usw.) und wird ignoriert.
+* Report <code>0x03</code> ist ein zusätzlicher Tastatur-Report (G1 = F1 usw.). Die G19s meldet das Loslassen einer G-Taste in Report <code>0x02</code> nicht immer: Oft kommt nur Report <code>0x03</code> ohne Taste (nur Nullen), oder beim nächsten Druck derselbe Report <code>0x02</code> noch einmal (z. B. <code>02 01 00 40</code>). Der Treiber wertet beides als Loslassen bzw. erneuten Druck.
 * Beleuchtung: Control-Transfer <code>0x21/0x09</code>, wValue <code>0x0307</code>, Daten <code>[7, R, G, B]</code>.
 * M-LEDs: Control-Transfer <code>0x21/0x09</code>, wValue <code>0x0305</code>, Daten <code>[5, Maske]</code> (M1 0x80, M2 0x40, M3 0x20, MR 0x10).
 * Verwaltung: HTTP-Server auf <code>127.0.0.1</code> mit zufälligem Port und Zugangsschlüssel; prüft den Host-Header und lässt beim Einspielen einer Sicherung nur die bekannten Dateien zu.

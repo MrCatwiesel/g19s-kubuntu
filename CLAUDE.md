@@ -34,7 +34,7 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
 - Aus der Sandbox ist `raw.githubusercontent.com` nicht erreichbar; die Update-Suche wird
   mit dem Fake-GitHub (`G19S_UPDATE_URL`, `tests/fakes/infodienste.py`) getestet.
 
-## Stand (2026.10.01-5)
+## Stand (2026.10.01-6)
 - Alle Punkte der Prüfung Sicherheit/Lesbarkeit/Performance umgesetzt; L7 (Umbenennung
   profile→layer) bewusst verworfen.
 - 2026.09.30-5: Update direkt von GitHub (Dienst & Sicherung → „Nach Updates suchen“),
@@ -54,11 +54,17 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
 - 2026.10.01-5: Einzelner Textbaustein direkt auf G-Taste (`{"snippets": "*", "snippet": "<Name>"}`, jeder Druck
   fügt ein; Verweis über den Namen wie in `snippet_list`), Liste bleibt nach OK offen (`"keep_open": true`);
   Sim `s17_textbaustein_direkt`. Anlass: Nutzer erwartete bei G-Taste „Textbausteine“ Einfügen bei jedem Druck.
+- 2026.10.01-6: Ursache „G-Taste nur einmal“ gefunden (am echten Gerät mit --debug): Die G19s meldet das
+  Loslassen einer G-Taste nicht in Report 0x02 – derselbe Report `02 01 00 40` kommt beim nächsten Druck erneut,
+  M-Tasten melden das Loslassen normal. Treiber: gleicher Report 0x02 = erneuter Druck, Report 0x03 nur Nullen =
+  G-Tasten los (`handle_gm_report`/`_apply_gm` in `src/treiber/app_tasten.py`); --debug zeigt jetzt auch 0x03.
+  Sim `s18_g19s_loslassen`.
 - Beobachtet: Benachrichtigungen erscheinen im Journal doppelt (vermutlich sendet Plasma zweimal) – harmlos.
 
 ## Offene Punkte
-1. Rückmeldung zu 2026.10.01-5: G-Taste „Direkt einfügen: <Baustein>“ mehrfach drücken, Liste mit
-   „offen lassen“ (mehrmals OK); Update 10.01-4 → 10.01-5 über Releases mit „Was ist neu“.
+1. Rückmeldung zu 2026.10.01-6: G-Taste mehrfach drücken ohne M-Wechsel (Textbaustein direkt, Text);
+   mit --debug prüfen, ob Report 0x03 beim Loslassen kommt und ob eine G-Taste ohne Belegung (F13…)
+   nicht doppelt auslöst. Liste „offen lassen“ (mehrmals OK) noch ungetestet.
 2. `install.sh` (mit `--deinstallieren`).
 3. Knopf „Vorherige Version wiederherstellen“ (Sicherungen in `~/.local/share/g19s/alte-versionen`).
 4. Optional: täglicher Update-Hinweis auf der Displayseite „Updates“ (abschaltbar).

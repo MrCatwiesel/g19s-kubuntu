@@ -74,7 +74,7 @@ class Sim:
                 open(path, "wb").write(content)
             else:
                 open(path, "w").write(content if isinstance(content, str) else json.dumps(content))
-        self.script = []           # (t, "l"|"g"|"call", Wert)
+        self.script = []           # (t, "l"|"g"|"raw"|"call", Wert)
         self.frames, self.backlight, self.leds, self.brightness = [], [], [], []
         self.log, self.opened, self.sounds, self.pages = [], [], [], []
         self.summary = {}
@@ -87,6 +87,10 @@ class Sim:
 
     def gkey(self, t, name, hold=0.15):
         self.script += [(t, "g", GK[name]), (t + hold, "g", 0)]
+
+    def report(self, t, data):
+        """Rohen Report des G-/M-Endpunkts senden (z. B. wie die echte G19s ohne Loslass-Meldung)."""
+        self.script.append((t, "raw", bytes(data)))
 
     def call(self, t, fn):
         self.script.append((t, "call", fn))
@@ -139,9 +143,11 @@ class Sim:
                                 sim.i += 1
                                 val(sim)
                                 continue
-                            if (kind == "g") != (ep == g.EP_GKEYS):
+                            if (kind in ("g", "raw")) != (ep == g.EP_GKEYS):
                                 break
                             sim.i += 1
+                            if kind == "raw":
+                                return val
                             if kind == "g":
                                 return bytes([2, val & 0xFF, (val >> 8) & 0xFF, 0])
                             return bytes([val, 0x80])

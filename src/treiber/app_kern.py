@@ -54,6 +54,7 @@ class AppCore:
         self._last_draw_error = None                    # zuletzt protokollierter Anzeige-Fehler
         self.running = True
         self.prev_gm = self.prev_l = 0
+        self.last_gm_raw = None             # letzter Report 0x02 (Bytes 1–3), erkennt einen erneuten Druck
         self.held = {}                      # G-Taste -> Modifier, mit dem sie gedrückt wurde
         self.next_reload = 0.0
         self.last_station = None

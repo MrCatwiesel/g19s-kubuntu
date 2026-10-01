@@ -3,6 +3,10 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.10.01-6
+- Fehler behoben: Eine G-Taste löste manchmal nur beim ersten Druck aus und erst nach einem Wechsel der Ebene (M1/M2/M3) wieder einmal. Ursache: Die G19s meldet das Loslassen einer G-Taste nicht immer; der Treiber hielt die Taste deshalb für weiter gedrückt. Jetzt zählt jeder Druck – für Textbausteine, Texte und alle anderen Belegungen.
+- Mit `--debug` erscheinen alle Tasten-Reports der Tastatur im Protokoll (auch Report 0x03).
+
 ## 2026.10.01-5
 - Ein einzelner Textbaustein lässt sich jetzt direkt auf eine G-Taste legen: Jeder Druck fügt ihn sofort ein, ohne Liste und ohne OK. Im Tasten-Editor unter „Textbausteine“ den Eintrag „Direkt einfügen: <Name>“ wählen.
 - Neue Option „Liste nach dem Einfügen offen lassen“ für G-Tasten mit Textbaustein-Liste: Nach OK bleibt die Liste stehen, so lässt sich mehrmals einfügen oder gleich der nächste Baustein wählen. BACK oder die G-Taste schließen sie.

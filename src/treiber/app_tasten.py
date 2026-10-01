@@ -14,26 +14,42 @@ import time
 class KeyHandling:
     # --- G- und M-Tasten ----------------------------------------------------- #
     def handle_gm_report(self, data):
-        # Nur Report-ID 0x02 enthält die G-/M-Bits. Report 0x03 ist ein
-        # zusätzlicher Tastatur-Report (G1 = F1 usw.) und wird ignoriert.
+        # Report 0x02 enthält die G-/M-Bits. Die G19s meldet das Loslassen einer G-Taste dort aber
+        # nicht immer: Oft folgt nur Report 0x03 (Tastatur-Report, G1 = F1 usw.), und beim nächsten
+        # Druck kommt derselbe Report 0x02 noch einmal. Daher gilt:
+        #   – Report 0x03 ohne gedrückte Taste (nur Nullen) = alle G-Tasten losgelassen
+        #   – derselbe Report 0x02 noch einmal = die G-Tasten darin wurden erneut gedrückt
+        if self.args.debug and data:
+            print("G/M-Report:", data.hex(" "))
+        if data and len(data) >= 2 and data[0] == 0x03:
+            if not any(data[1:]) and self.prev_gm & GKEY_MASK:
+                self._apply_gm(self.prev_gm & ~GKEY_MASK, again=0)
+            return
         if not (data and len(data) >= 4 and data[0] == 0x02):
             return
-        if self.args.debug:
-            print("G/M-Report:", data.hex(" "))
-        value = (data[1] | (data[2] << 8)) & 0xFFFF
-        pressed = value & ~self.prev_gm
-        released = self.prev_gm & ~value
+        raw = bytes(data[1:4])
+        again = self.prev_gm & GKEY_MASK if raw == self.last_gm_raw else 0
+        self.last_gm_raw = raw
+        self._apply_gm((data[1] | (data[2] << 8)) & 0xFFFF, again)
+
+    def _apply_gm(self, value, again):
+        """Neuen Zustand der G-/M-Tasten übernehmen. again: G-Tasten, die als losgelassen und neu
+        gedrückt gelten (ihr Loslassen hat die Tastatur nicht gemeldet)."""
+        pressed = value & ~(self.prev_gm & ~again)
+        released = (self.prev_gm & ~value) | again
         self.prev_gm = value
+        if (value & GKEY_MASK) == 0:
+            self.last_gm_raw = None             # nach dem Loslassen zählt jeder Report wieder als neu
         if pressed:
             self.activity.touch()
             self.wake()
         if pressed & MKEY_BITS["MR"]:
             self._record_key()
         for i, (name, bit) in enumerate(GKEY_BITS.items()):
-            if pressed & bit:
-                self._gkey_down(i, name)
             if released & bit and name in self.held:
                 self._gkey_up(i, name)
+            if pressed & bit:
+                self._gkey_down(i, name)
         for name, bit in MKEY_BITS.items():
             if pressed & bit and name in self.modifiers:
                 if self.args.debug:

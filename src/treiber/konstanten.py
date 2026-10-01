@@ -20,6 +20,7 @@ SELECTION_TIMEOUT = 30      # Sekunden, nach denen eine Markierung (Termin, Meld
 # G-/M-Tasten (Report-ID 0x02): Wert = d[1] | d[2] << 8
 #   d[1]: G1–G8, d[2]: G9–G12 (Bits 0–3), M1/M2/M3/MR (Bits 4–7)
 GKEY_BITS = {f"G{i + 1}": 1 << i for i in range(12)}
+GKEY_MASK = 0x0FFF
 MKEY_BITS = {"M1": 0x1000, "M2": 0x2000, "M3": 0x4000, "MR": 0x8000}
 
 # Displaytasten: erstes Byte
