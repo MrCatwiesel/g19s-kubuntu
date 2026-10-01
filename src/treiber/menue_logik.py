@@ -212,7 +212,7 @@ class SnippetMenu(PickMenu):
         if not insert_text(app, item["text"], item.get("paste"), "Textbaustein"):
             app.log("Es läuft bereits ein Makro – ignoriert")
         else:
-            app.log(f"Textbaustein: {item['name']}" + (" (Zwischenablage)" if item.get("paste") else ""))
+            app.log(f"Textbaustein: {item['name']}")
 
     def draw(self, app, now):
         items = self.items(app)

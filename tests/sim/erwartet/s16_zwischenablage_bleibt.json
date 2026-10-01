@@ -1,0 +1,39 @@
+{
+ "gesetzt": [
+  "klipper:Eins|",
+  "klipper:Eins|",
+  "klipper:Zwei|",
+  "klipper:Eins|",
+  "klipper:Zwei|",
+  "klipper:Eins|",
+  "klipper:alt|"
+ ],
+ "log": [
+  "G1: eingefügt über Klipper (4 Zeichen)",
+  "G1: eingefügt über Klipper (4 Zeichen)",
+  "G2: eingefügt über Klipper (4 Zeichen)",
+  "G1: eingefügt über Klipper (4 Zeichen)",
+  "G2: eingefügt über Klipper (4 Zeichen)",
+  "G1: eingefügt über Klipper (4 Zeichen)"
+ ],
+ "typed": [
+  "KEY_LEFTCTRL",
+  "KEY_V",
+  "KEY_LEFTCTRL",
+  "KEY_V",
+  "KEY_LEFTCTRL",
+  "KEY_V",
+  "KEY_LEFTCTRL",
+  "KEY_V",
+  "KEY_LEFTCTRL",
+  "KEY_V",
+  "KEY_LEFTCTRL",
+  "KEY_V"
+ ],
+ "zwischenablage_zu": [
+  "Eins",
+  "Zwei",
+  "Eins",
+  "alt"
+ ]
+}

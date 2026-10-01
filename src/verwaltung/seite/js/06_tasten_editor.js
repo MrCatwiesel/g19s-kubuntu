@@ -45,7 +45,7 @@ function edText(box, d) {
   };
   const hint = el("p", {class: "hint"});
   const explain = () => hint.textContent = d.paste
-    ? "Der Text kommt in die Zwischenablage und wird mit einem Tastendruck eingefügt – schnell, mit allen Zeichen (auch Emojis) und Zeilenumbrüchen. Was vorher in der Zwischenablage war, wird danach zurückgeholt (abschaltbar im Reiter „Textbausteine“)."
+    ? "Der Text kommt in die Zwischenablage und wird mit einem Tastendruck eingefügt – schnell, mit allen Zeichen (auch Emojis) und Zeilenumbrüchen. Der Text bleibt danach in der Zwischenablage – mit Strg+V lässt er sich beliebig oft selbst einfügen."
     : "Der Text wird Zeichen für Zeichen getippt (Zeilenumbruch = Enter). Umlaute, ß, @, € und Sonderzeichen werden für das deutsche Tastaturlayout umgesetzt.";
   box.append(el("label", {class: "field"}, el("span", {text: "Text"}),
     el("textarea", {value: d.text, placeholder: "z. B. Mit freundlichen Grüßen\nMax Mustermann",

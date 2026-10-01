@@ -21,9 +21,9 @@ function renderSnippets() {
         oninput: e => { sn.text = e.target.value; touchSettings(); }}, sn.text || ""),
       el("div", {class: "row", style: {marginTop: "4px"}}, pasteSelect(sn.paste, v => { sn.paste = v; touchSettings(); }))));
   });
-  $("#clipRestore").checked = sd.clipboard_restore !== false;
+  $("#clipRestore").checked = !!sd.paste_restore;
 }
-$("#clipRestore").addEventListener("change", e => { UI.sdraft.clipboard_restore = e.target.checked; touchSettings(); });
+$("#clipRestore").addEventListener("change", e => { UI.sdraft.paste_restore = e.target.checked; touchSettings(); });
 $("#addSnippet").addEventListener("click", () => {
   UI.sdraft.snippets.push({name: "", group: "", text: "", paste: "ctrl+v"}); touchSettings(); renderSnippets();
   const ins = $("#snippetList").querySelectorAll(".snip input[type=text]"); ins[ins.length - 2].focus(); });

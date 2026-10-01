@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.10.01-3"
+VERSION = "2026.10.01-4"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -1672,7 +1672,7 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
       <p class="hint"><b>Einfügen:</b> „Über die Zwischenablage“ fügt den Text auf einmal ein, wie Kopieren und Einfügen – schnell, mit allen Zeichen (auch Emojis) und Zeilenumbrüchen. In der Konsole „Strg+Umschalt+V“ wählen. „Zeichen für Zeichen tippen“ gibt den Text als Tastendrücke aus (für Programme, die kein Einfügen erlauben).</p>
       <div id="snippetList"></div>
       <div class="row" style="margin-top:10px"><button class="btn" id="addSnippet">+ Textbaustein hinzufügen</button></div>
-      <label class="check" style="margin-top:10px"><input type="checkbox" id="clipRestore"> Nach dem Einfügen den vorherigen Inhalt der Zwischenablage zurückholen (gilt auch für G-Tasten mit Text)</label>
+      <label class="check" style="margin-top:10px"><input type="checkbox" id="clipRestore"> Nach dem Einfügen den vorherigen Inhalt der Zwischenablage zurückholen (gilt auch für G-Tasten mit Text). Aus: Der Text bleibt in der Zwischenablage und lässt sich mit Strg+V beliebig oft selbst einfügen.</label>
     </div>
   </section>
 
@@ -2327,7 +2327,7 @@ function edText(box, d) {
   };
   const hint = el("p", {class: "hint"});
   const explain = () => hint.textContent = d.paste
-    ? "Der Text kommt in die Zwischenablage und wird mit einem Tastendruck eingefügt – schnell, mit allen Zeichen (auch Emojis) und Zeilenumbrüchen. Was vorher in der Zwischenablage war, wird danach zurückgeholt (abschaltbar im Reiter „Textbausteine“)."
+    ? "Der Text kommt in die Zwischenablage und wird mit einem Tastendruck eingefügt – schnell, mit allen Zeichen (auch Emojis) und Zeilenumbrüchen. Der Text bleibt danach in der Zwischenablage – mit Strg+V lässt er sich beliebig oft selbst einfügen."
     : "Der Text wird Zeichen für Zeichen getippt (Zeilenumbruch = Enter). Umlaute, ß, @, € und Sonderzeichen werden für das deutsche Tastaturlayout umgesetzt.";
   box.append(el("label", {class: "field"}, el("span", {text: "Text"}),
     el("textarea", {value: d.text, placeholder: "z. B. Mit freundlichen Grüßen\nMax Mustermann",
@@ -2829,9 +2829,9 @@ function renderSnippets() {
         oninput: e => { sn.text = e.target.value; touchSettings(); }}, sn.text || ""),
       el("div", {class: "row", style: {marginTop: "4px"}}, pasteSelect(sn.paste, v => { sn.paste = v; touchSettings(); }))));
   });
-  $("#clipRestore").checked = sd.clipboard_restore !== false;
+  $("#clipRestore").checked = !!sd.paste_restore;
 }
-$("#clipRestore").addEventListener("change", e => { UI.sdraft.clipboard_restore = e.target.checked; touchSettings(); });
+$("#clipRestore").addEventListener("change", e => { UI.sdraft.paste_restore = e.target.checked; touchSettings(); });
 $("#addSnippet").addEventListener("click", () => {
   UI.sdraft.snippets.push({name: "", group: "", text: "", paste: "ctrl+v"}); touchSettings(); renderSnippets();
   const ins = $("#snippetList").querySelectorAll(".snip input[type=text]"); ins[ins.length - 2].focus(); });

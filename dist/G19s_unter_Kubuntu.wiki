@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.10.01-3)
+| 28.09.2026 (Version 2026.10.01-4)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -164,7 +164,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.10.01-3"
+VERSION = "2026.10.01-4"
 
 # Weitere Importe der Module
 import http.client
@@ -639,7 +639,7 @@ SCHEMA = {
     "snippets": Items([], Entry({"name": Str(maxlen=40), "group": Str(maxlen=30), "text": Str(strip=False, maxlen=5000),
                                  "paste": Choice("", lambda: ("", *PASTE_KEYS))}),   # "" = tippen
                       required="text", limit=200),
-    "clipboard_restore": Bool(True, only_false=True),   # nach dem Einfügen alte Zwischenablage zurückholen
+    "paste_restore": Bool(False),     # nach dem Einfügen den vorherigen Inhalt der Zwischenablage zurückholen
     "timer_sound": Bool(True, only_false=True),                  # Signalton, wenn ein Timer abläuft
     "news": Section({
         "feeds": Items([{"name": "tagesschau", "url": "https://www.tagesschau.de/index~rss2.xml"}],
@@ -2039,15 +2039,15 @@ def find_mpris_plugin():
 # ═══════════════════════════════════════════════════════════════════════════
 # Modul zwischenablage
 #   Texte über die Zwischenablage einfügen statt sie Zeichen für Zeichen zu tippen: Text in die
-#   Zwischenablage (KDE-Klipper über D-Bus, sonst wl-copy), Strg+V drücken, danach den vorherigen
-#   Inhalt der Zwischenablage zurückholen.
+#   Zwischenablage (KDE-Klipper über D-Bus, sonst wl-copy), dann Strg+V drücken. Der Text bleibt danach
+#   in der Zwischenablage (wie Kopieren) – auf Wunsch wird der vorherige Inhalt zurückgeholt.
 # ═══════════════════════════════════════════════════════════════════════════
 
 # Einfügeart eines Textes ("paste" in macros.json und bei Textbausteinen); "" = tippen
 PASTE_KEYS = {"ctrl+v": ["KEY_LEFTCTRL", "KEY_V"],
               "ctrl+shift+v": ["KEY_LEFTCTRL", "KEY_LEFTSHIFT", "KEY_V"]}   # Konsole
-PASTE_SETTLE_S = 0.15        # Pause zwischen Zwischenablage setzen und Strg+V
-PASTE_RESTORE_S = 1.0        # so lange nach Strg+V bleibt der Text in der Zwischenablage
+PASTE_SETTLE_S = 0.3         # Pause zwischen Zwischenablage setzen und Strg+V (RDP gleicht verzögert ab)
+PASTE_RESTORE_S = 1.0        # so lange nach Strg+V bleibt der Text mindestens in der Zwischenablage
 KLIPPER = ["org.kde.klipper", "/klipper"]
 KLIPPER_IF = "org.kde.klipper.klipper."
 
@@ -2057,7 +2057,9 @@ class Clipboard:
 
     def __init__(self, env, log=print):
         self.env, self.log = env, log          # env(): Umgebung der Desktop-Sitzung
-        self.lock = threading.Lock()           # immer nur ein Einfügen gleichzeitig
+        self.lock = threading.Lock()           # setzen + Strg+V nie gleichzeitig
+        self.generation = 0                    # zählt Einfügevorgänge (Zurückholen nur nach dem letzten)
+        self.saved = None                      # vorheriger Inhalt, solange ein Zurückholen aussteht
 
     def _qdbus(self, env):
         return next((q for q in ("qdbus6", "qdbus") if shutil.which(q, path=env.get("PATH"))), None)
@@ -2082,21 +2084,25 @@ class Clipboard:
         return None
 
     def set(self, text):
-        """Text in die Zwischenablage legen. False = weder Klipper noch wl-copy erreichbar."""
+        """Text in die Zwischenablage legen. Rückgabe: "Klipper", "wl-copy" oder None (beides nicht erreichbar)."""
         env = self.env()
         q = self._qdbus(env)
         try:
-            if q and subprocess.run([q, *KLIPPER, KLIPPER_IF + "setClipboardContents", text], env=env,
-                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3).returncode == 0:
-                return True
+            if q:
+                r = subprocess.run([q, *KLIPPER, KLIPPER_IF + "setClipboardContents", text], env=env,
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, timeout=3)
+                if r.returncode == 0:
+                    return "Klipper"
+                self.log(f"Klipper: {(r.stderr or '').strip()[:150] or f'Fehler {r.returncode}'}")
             if shutil.which("wl-copy", path=env.get("PATH")):
                 # wl-copy bleibt im Hintergrund und liefert den Text aus – seine Ausgaben nicht in eine
                 # Pipe leiten (capture_output), sonst wartet run() auf das Ende dieses Hintergrundprozesses
-                return subprocess.run(["wl-copy", "--type", "text/plain;charset=utf-8"], input=text.encode(), env=env,
-                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3).returncode == 0
-        except (OSError, subprocess.SubprocessError):
-            pass
-        return False
+                if subprocess.run(["wl-copy", "--type", "text/plain;charset=utf-8"], input=text.encode(), env=env,
+                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3).returncode == 0:
+                    return "wl-copy"
+        except (OSError, subprocess.SubprocessError) as ex:
+            self.log(f"Zwischenablage: {ex}")
+        return None
 
 
 def paste_mode(entry):
@@ -2107,18 +2113,25 @@ def paste_mode(entry):
 
 def insert_text(app, text, mode, what="Text"):
     """Text ins aktive Fenster bringen: mode None = tippen, sonst über die Zwischenablage einfügen.
-    False = es läuft schon ein Makro bzw. Einfügen."""
+    False = es läuft gerade ein Makro."""
     if not mode:
         return app.player.play(compile_steps({"text": text}, app.log))
-    clip = app.clipboard
-    if app.player.busy or not clip.lock.acquire(blocking=False):
+    if app.player.busy:
         return False
+    clip = app.clipboard
+    with clip.lock:
+        clip.generation += 1
+        gen = clip.generation
 
     def work():
-        try:
-            restore = app.settings().get("clipboard_restore", True)
-            old = clip.get() if restore else None
-            if not clip.set(text):
+        with clip.lock:                               # wartet höchstens auf ein laufendes Setzen + Strg+V
+            if gen != clip.generation:
+                return                                # inzwischen erneut gedrückt: der neuere Druck gewinnt
+            restore = app.settings().get("paste_restore", False)
+            if restore and clip.saved is None:
+                clip.saved = clip.get()               # vorherigen Inhalt nur beim ersten von mehreren Drücken merken
+            how = clip.set(text)
+            if not how:
                 app.log(f"{what}: Zwischenablage nicht erreichbar (Klipper/wl-copy fehlen) – Text wird getippt")
                 app.player.play(compile_steps({"text": text}, app.log))
                 return
@@ -2127,12 +2140,17 @@ def insert_text(app, text, mode, what="Text"):
                 app.log("Es läuft bereits ein Makro – ignoriert")
                 return
             app.player.thread.join(5)
-            if old:                                   # nur Text zurückholen (ein Bild liefert hier "")
-                time.sleep(PASTE_RESTORE_S)           # das Zielprogramm liest die Zwischenablage verzögert
-                if clip.get() == text:                # inzwischen nichts Neues kopiert?
-                    clip.set(old)
-        finally:
-            clip.lock.release()
+            app.log(f"{what}: eingefügt über {how} ({len(text)} Zeichen)")
+        if not restore:
+            clip.saved = None
+            return
+        time.sleep(PASTE_RESTORE_S)                   # das Zielprogramm liest die Zwischenablage verzögert
+        with clip.lock:
+            old, clip.saved = clip.saved, None
+            if gen != clip.generation:
+                clip.saved = old                      # ein neuerer Druck holt später zurück
+            elif old and clip.get() == text:          # nur Text zurückholen, nicht wenn Neues kopiert wurde
+                clip.set(old)
 
     threading.Thread(target=work, daemon=True).start()
     return True
@@ -9562,7 +9580,7 @@ class SnippetMenu(PickMenu):
         if not insert_text(app, item["text"], item.get("paste"), "Textbaustein"):
             app.log("Es läuft bereits ein Makro – ignoriert")
         else:
-            app.log(f"Textbaustein: {item['name']}" + (" (Zwischenablage)" if item.get("paste") else ""))
+            app.log(f"Textbaustein: {item['name']}")
 
     def draw(self, app, now):
         items = self.items(app)
@@ -9784,7 +9802,7 @@ def act_keys(app, macro, name):
     if app.args.debug:
         print(f"  {name} -> „{entry_label(macro, app.settings())}“")
     mode = paste_mode(macro) if entry_type(macro) == "text" else None
-    ok = insert_text(app, str(macro["text"]), mode) if mode else app.player.play(compile_steps(macro, app.log))
+    ok = insert_text(app, str(macro["text"]), mode, name) if mode else app.player.play(compile_steps(macro, app.log))
     if not ok:
         app.log("Es läuft bereits ein Makro – ignoriert")
 
@@ -10688,7 +10706,7 @@ class App(AppCore, KeyHandling, TimedTasks):
             self.page = 0
         if self.page not in self.visible_pages():
             self.page = self.visible_pages()[0]
-        self.log("G19s-Treiber läuft. Beenden mit Strg+C.")
+        self.log(f"G19s-Treiber {VERSION} läuft. Beenden mit Strg+C.")
         self.log(f"Makrodatei: {MACRO_FILE}")
         import queue
         reports = queue.Queue()
@@ -10938,7 +10956,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.10.01-3"
+VERSION = "2026.10.01-4"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -12570,7 +12588,7 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
       <p class="hint"><b>Einfügen:</b> „Über die Zwischenablage“ fügt den Text auf einmal ein, wie Kopieren und Einfügen – schnell, mit allen Zeichen (auch Emojis) und Zeilenumbrüchen. In der Konsole „Strg+Umschalt+V“ wählen. „Zeichen für Zeichen tippen“ gibt den Text als Tastendrücke aus (für Programme, die kein Einfügen erlauben).</p>
       <div id="snippetList"></div>
       <div class="row" style="margin-top:10px"><button class="btn" id="addSnippet">+ Textbaustein hinzufügen</button></div>
-      <label class="check" style="margin-top:10px"><input type="checkbox" id="clipRestore"> Nach dem Einfügen den vorherigen Inhalt der Zwischenablage zurückholen (gilt auch für G-Tasten mit Text)</label>
+      <label class="check" style="margin-top:10px"><input type="checkbox" id="clipRestore"> Nach dem Einfügen den vorherigen Inhalt der Zwischenablage zurückholen (gilt auch für G-Tasten mit Text). Aus: Der Text bleibt in der Zwischenablage und lässt sich mit Strg+V beliebig oft selbst einfügen.</label>
     </div>
   </section>
 
@@ -13225,7 +13243,7 @@ function edText(box, d) {
   };
   const hint = el("p", {class: "hint"});
   const explain = () => hint.textContent = d.paste
-    ? "Der Text kommt in die Zwischenablage und wird mit einem Tastendruck eingefügt – schnell, mit allen Zeichen (auch Emojis) und Zeilenumbrüchen. Was vorher in der Zwischenablage war, wird danach zurückgeholt (abschaltbar im Reiter „Textbausteine“)."
+    ? "Der Text kommt in die Zwischenablage und wird mit einem Tastendruck eingefügt – schnell, mit allen Zeichen (auch Emojis) und Zeilenumbrüchen. Der Text bleibt danach in der Zwischenablage – mit Strg+V lässt er sich beliebig oft selbst einfügen."
     : "Der Text wird Zeichen für Zeichen getippt (Zeilenumbruch = Enter). Umlaute, ß, @, € und Sonderzeichen werden für das deutsche Tastaturlayout umgesetzt.";
   box.append(el("label", {class: "field"}, el("span", {text: "Text"}),
     el("textarea", {value: d.text, placeholder: "z. B. Mit freundlichen Grüßen\nMax Mustermann",
@@ -13727,9 +13745,9 @@ function renderSnippets() {
         oninput: e => { sn.text = e.target.value; touchSettings(); }}, sn.text || ""),
       el("div", {class: "row", style: {marginTop: "4px"}}, pasteSelect(sn.paste, v => { sn.paste = v; touchSettings(); }))));
   });
-  $("#clipRestore").checked = sd.clipboard_restore !== false;
+  $("#clipRestore").checked = !!sd.paste_restore;
 }
-$("#clipRestore").addEventListener("change", e => { UI.sdraft.clipboard_restore = e.target.checked; touchSettings(); });
+$("#clipRestore").addEventListener("change", e => { UI.sdraft.paste_restore = e.target.checked; touchSettings(); });
 $("#addSnippet").addEventListener("click", () => {
   UI.sdraft.snippets.push({name: "", group: "", text: "", paste: "ctrl+v"}); touchSettings(); renderSnippets();
   const ins = $("#snippetList").querySelectorAll(".snip input[type=text]"); ins[ins.length - 2].focus(); });
@@ -14849,7 +14867,7 @@ So passen beliebig viele Texte auf eine einzige G-Taste.
 |-
 | Zeichen für Zeichen tippen || Tastendrücke im deutschen Layout, für Programme, die kein Einfügen erlauben. Zeichen ohne Taste (z. B. Emojis) werden übersprungen.
 |}
-War vorher Text in der Zwischenablage, holt der Treiber ihn etwa eine Sekunde nach dem Einfügen zurück – außer, in der Zwischenzeit wurde etwas Neues kopiert (ein kopiertes Bild bleibt im Verlauf von Klipper). Abschaltbar im Reiter '''Textbausteine''' (<code>"clipboard_restore": false</code> in <code>settings.json</code>). Der eingefügte Text steht danach im Verlauf von Klipper. Ist weder Klipper noch <code>wl-copy</code> erreichbar, wird der Text getippt und das Protokoll meldet es.
+Der Text '''bleibt danach in der Zwischenablage''' – wie beim Kopieren lässt er sich mit Strg+V beliebig oft selbst an weiteren Stellen einfügen (auch im Remote-Desktop-Fenster). Wer lieber den vorherigen Inhalt zurück möchte, schaltet im Reiter '''Textbausteine''' „vorherigen Inhalt zurückholen“ ein (<code>"paste_restore": true</code> in <code>settings.json</code>): Dann kommt vorheriger Text etwa eine Sekunde nach dem letzten Einfügen zurück – außer, in der Zwischenzeit wurde etwas Neues kopiert. Jedes Einfügen steht im Protokoll (Taste, Weg, Zeichenzahl – nicht der Text). Der eingefügte Text steht danach im Verlauf von Klipper. Ist weder Klipper noch <code>wl-copy</code> erreichbar, wird der Text getippt und das Protokoll meldet es.
 
 === Timer, Stoppuhr, Pomodoro ===
 G-Taste mit der Aktion '''Timer''' belegen und Art wählen:

@@ -28,15 +28,15 @@ with sync_playwright() as p:
     # Einfügeart je Baustein, Zwischenablage zurückholen abschalten
     pg.locator(".snip").nth(1).locator("select.pasteMode").select_option("ctrl+shift+v")
     pg.locator(".snip").nth(2).locator("select.pasteMode").select_option("")
-    ok(pg.is_checked("#clipRestore"), "Zwischenablage zurückholen: standardmäßig an")
-    pg.uncheck("#clipRestore"); pg.click("#saveSettings"); pg.wait_for_timeout(400)
+    ok(not pg.is_checked("#clipRestore"), "Zwischenablage zurückholen: standardmäßig aus (Text bleibt)")
+    pg.check("#clipRestore"); pg.click("#saveSettings"); pg.wait_for_timeout(400)
     sn = cfg()["snippets"]
-    ok([x["paste"] for x in sn] == ["ctrl+v", "ctrl+shift+v", ""] and cfg()["clipboard_restore"] is False,
+    ok([x["paste"] for x in sn] == ["ctrl+v", "ctrl+shift+v", ""] and cfg()["paste_restore"] is True,
        "Einfügeart je Baustein und Schalter gespeichert: " + json.dumps([x["paste"] for x in sn]))
     pg.reload(); pg.wait_for_selector(".gkey"); pg.click("nav >> text=Textbausteine"); pg.wait_for_timeout(300)
-    ok(pg.locator(".snip").nth(1).locator("select.pasteMode").input_value() == "ctrl+shift+v" and not pg.is_checked("#clipRestore"),
+    ok(pg.locator(".snip").nth(1).locator("select.pasteMode").input_value() == "ctrl+shift+v" and pg.is_checked("#clipRestore"),
        "Nach Neuladen: Einfügeart und Schalter wieder da")
-    pg.check("#clipRestore"); pg.click("#saveSettings"); pg.wait_for_timeout(400)
+    pg.uncheck("#clipRestore"); pg.click("#saveSettings"); pg.wait_for_timeout(400)
     # Aktion Textbausteine
     pg.click("nav >> text=Tasten"); pg.wait_for_timeout(300)
     pg.click(".gkey >> text=G5"); pg.click(".types button >> text=Textbausteine")

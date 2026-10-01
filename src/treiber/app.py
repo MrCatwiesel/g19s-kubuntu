@@ -24,7 +24,7 @@ class App(AppCore, KeyHandling, TimedTasks):
             self.page = 0
         if self.page not in self.visible_pages():
             self.page = self.visible_pages()[0]
-        self.log("G19s-Treiber läuft. Beenden mit Strg+C.")
+        self.log(f"G19s-Treiber {VERSION} läuft. Beenden mit Strg+C.")
         self.log(f"Makrodatei: {MACRO_FILE}")
         import queue
         reports = queue.Queue()

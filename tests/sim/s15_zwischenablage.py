@@ -1,5 +1,5 @@
-"""Texte über die Zwischenablage einfügen: G-Taste „Text“ (Strg+V und Strg+Umschalt+V), Textbaustein,
-alte Zwischenablage zurückholen (nicht, wenn inzwischen etwas Neues kopiert wurde), Ersatzweg
+"""Texte über die Zwischenablage einfügen mit „vorherigen Inhalt zurückholen“: G-Taste „Text“ (Strg+V und
+Strg+Umschalt+V), Textbaustein, alte Zwischenablage zurückholen (nicht, wenn inzwischen etwas Neues kopiert wurde), Ersatzweg
 wl-copy und Tippen, wenn weder Klipper noch wl-copy da sind."""
 import os
 from harness import Sim, ROOT
@@ -12,7 +12,7 @@ TEXT = "Grüße „G19s“ – 😀\nZeile 2"
 s = Sim("s15_zwischenablage", macros={"profiles": [{"name": "P", "keys": {"M1": {
     "G1": {"text": TEXT, "paste": "ctrl+v"}, "G2": {"text": "ls -l", "paste": "ctrl+shift+v"},
     "G3": {"snippets": "*"}, "G4": {"text": "ab", "paste": "ctrl+v"}, "G5": {"text": "xy"}}}}]},
-    settings={"pages": ["clock"], "start_page": 0, "notifications": {"enabled": False},
+    settings={"pages": ["clock"], "start_page": 0, "notifications": {"enabled": False}, "paste_restore": True,
               "snippets": [{"name": "Gruß", "text": "Viele Grüße ✓", "paste": "ctrl+v"},
                            {"name": "Getippt", "text": "ok"}]})
 s.gkey(1.0, "G1")
@@ -28,6 +28,6 @@ s.gkey(18.0, "G4")                                                     # nichts 
 s.gkey(20.0, "G5")                                                     # ohne „paste“: tippen wie bisher
 s.run(21.5)
 s.save({"bausteine": 6.4})
-s.finish(typed=s.typed(), log=s.log_lines(r"^(Textbaustein|Text:|Es läuft)"),
+s.finish(typed=s.typed(), log=s.log_lines(r"^(Textbaustein|Text:|G\d+:|Es läuft|Klipper)"),
          zwischenablage=open(os.path.join(S, "zwischenablage.log")).read().splitlines(),
          am_ende=open(os.path.join(S, "zwischenablage")).read())

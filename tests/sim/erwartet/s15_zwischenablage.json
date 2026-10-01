@@ -1,9 +1,17 @@
 {
  "am_ende": "neu kopiert",
  "log": [
-  "Textbaustein: Gruß (Zwischenablage)",
+  "G1: eingefügt über Klipper (24 Zeichen)",
+  "G2: eingefügt über Klipper (5 Zeichen)",
+  "Textbaustein: Gruß",
+  "Textbaustein: eingefügt über Klipper (13 Zeichen)",
   "Textbaustein: Getippt",
-  "Text: Zwischenablage nicht erreichbar (Klipper/wl-copy fehlen) – Text wird getippt"
+  "G1: eingefügt über Klipper (24 Zeichen)",
+  "Klipper: Service 'org.kde.klipper' does not exist.",
+  "G4: eingefügt über wl-copy (2 Zeichen)",
+  "Klipper: Service 'org.kde.klipper' does not exist.",
+  "Klipper: Service 'org.kde.klipper' does not exist.",
+  "G4: Zwischenablage nicht erreichbar (Klipper/wl-copy fehlen) – Text wird getippt"
  ],
  "typed": [
   "KEY_LEFTCTRL",

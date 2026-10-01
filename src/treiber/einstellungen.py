@@ -286,7 +286,7 @@ SCHEMA = {
     "snippets": Items([], Entry({"name": Str(maxlen=40), "group": Str(maxlen=30), "text": Str(strip=False, maxlen=5000),
                                  "paste": Choice("", lambda: ("", *PASTE_KEYS))}),   # "" = tippen
                       required="text", limit=200),
-    "clipboard_restore": Bool(True, only_false=True),   # nach dem Einfügen alte Zwischenablage zurückholen
+    "paste_restore": Bool(False),     # nach dem Einfügen den vorherigen Inhalt der Zwischenablage zurückholen
     "timer_sound": Bool(True, only_false=True),                  # Signalton, wenn ein Timer abläuft
     "news": Section({
         "feeds": Items([{"name": "tagesschau", "url": "https://www.tagesschau.de/index~rss2.xml"}],
