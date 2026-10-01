@@ -44,7 +44,8 @@ python3 ~/.local/bin/g19s-gui.py --install-desktop     # Eintrag „G19s-Verwalt
 
 Für die Makroaufnahme zusätzlich `sudo usermod -aG input $USER`, danach den PC neu starten.
 Neue Versionen holt die Verwaltung unter **Dienst & Sicherung → Nach Updates suchen**
-direkt von GitHub.
+direkt aus den [GitHub-Releases](https://github.com/MrCatwiesel/g19s-kubuntu/releases),
+mit „Was ist neu“. Was sich je Version geändert hat, steht in [NEUIGKEITEN.md](NEUIGKEITEN.md).
 
 Entwickelt für Kubuntu 26.04 mit KDE Plasma (Wayland).
 
@@ -57,6 +58,9 @@ Zifferblätter oder G-Tasten-Aktionen ergänzt: [ENTWICKLUNG.md](ENTWICKLUNG.md)
 ```bash
 python3 build.py && python3 tests/run_tests.py
 ```
+
+GitHub Actions führt bei jedem Push alle Tests aus. Auf `main` entsteht danach automatisch
+ein Release, sobald die Version in `src/*/kopf.py` neu ist.
 
 ## Lizenz
 

@@ -91,10 +91,20 @@ class H(http.server.BaseHTTPRequestHandler):
             host = "localhost" if u.path.endswith("fremd") else "127.0.0.1"
             self.send_response(302); self.send_header("Location", f"http://{host}:8812/echo-auth")
             self.send_header("Content-Length", "0"); self.end_headers(); return
-        if u.path.startswith("/gh/"):          # „GitHub“ für den Update-Test
-            f = os.path.join(GH_DIR, os.path.basename(u.path))
-            if not os.path.isfile(f): return self.send("404: Not Found", "text/plain", 404)
-            return self.send(open(f, "rb").read(), "text/plain; charset=utf-8")
+        # „GitHub“ für den Update-Test: Release-Liste aus GH_DIR/releases.json, Downloads wie bei GitHub
+        # per Weiterleitung auf einen anderen Host (localhost statt 127.0.0.1)
+        if u.path == "/gh/api/releases":
+            f = os.path.join(GH_DIR, "releases.json")
+            if not os.path.isfile(f): return self.send('{"message": "Not Found"}', "application/json", 404)
+            return self.send(open(f, "rb").read())
+        if u.path.startswith("/gh/download/"):
+            self.send_response(302); self.send_header("Location", "http://localhost:8812/gh/objects/" + u.path[len("/gh/download/"):])
+            self.send_header("Content-Length", "0"); self.end_headers(); return
+        if u.path.startswith("/gh/objects/"):
+            tag, name = u.path[len("/gh/objects/"):].split("/", 1)
+            f = os.path.join(GH_DIR, os.path.basename(tag), os.path.basename(name))
+            if not os.path.isfile(f): return self.send("Not Found", "text/plain", 404)
+            return self.send(open(f, "rb").read(), "application/octet-stream")
         if u.path == "/echo-auth":
             return self.send(self.headers.get("Authorization") or "-", "text/plain")
         if u.path == "/v1/search":

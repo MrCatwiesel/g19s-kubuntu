@@ -15,21 +15,26 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
 1. Quellen in `src/` ändern (nie `dist/` direkt).
 2. Version in **beiden** Dateien erhöhen: `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`
    (Schema `JJJJ.MM.TT-N`, N ab 1 je Tag).
-3. Doku nachziehen: `doku/wiki_vorlage.txt`, ggf. `README.md`, `ENTWICKLUNG.md`.
+3. Doku nachziehen: `doku/wiki_vorlage.txt`, ggf. `README.md`, `ENTWICKLUNG.md`, und in
+   **`NEUIGKEITEN.md`** einen Abschnitt `## <Version>` mit Stichpunkten für Nutzer anlegen
+   (wird Release-Text und „Was ist neu“; ohne ihn schlägt der Release-Job fehl).
 4. `python3 build.py && python3 tests/run_tests.py` – alle Testgruppen müssen grün sein.
    Gewollte Anzeigeänderung: `run_tests.py bilder --referenz` (neue PNGs ansehen!),
    neue Simulation: `run_tests.py sim=s14 --referenz`.
 5. Commit mit `git -c user.name="G19s" commit`, Nachricht deutsch, mit den Attributionszeilen
-   der Sitzung; `git push origin main`.
+   der Sitzung; `git push origin main`. GitHub Actions testet und legt auf `main` das Release
+   `v<Version>` an – erst dann findet „Nach Updates suchen“ die Version.
 
 ## Stolperfallen
 - `pkill -f` mit einem Muster, das in der eigenen Befehlszeile steht, beendet die Shell –
   Muster mit `[.]` schreiben (z. B. `g19s-gui[.]py`).
 - `run_tests.py` räumt alte Fake-Server (Ports 8811/8812) und Verwaltungen (8799) selbst ab.
+- Tests brauchen `pip install -r tests/anforderungen.txt` und `fonts-dejavu-extra` (sonst weichen
+  12 Uhren-Bilder ab); in der Sandbox ggf. `apt-get install -y fonts-dejavu-extra`.
 - Aus der Sandbox ist `raw.githubusercontent.com` nicht erreichbar; die Update-Suche wird
   mit dem Fake-GitHub (`G19S_UPDATE_URL`, `tests/fakes/infodienste.py`) getestet.
 
-## Stand (2026.10.01-1)
+## Stand (2026.10.01-2)
 - Alle Punkte der Prüfung Sicherheit/Lesbarkeit/Performance umgesetzt; L7 (Umbenennung
   profile→layer) bewusst verworfen.
 - 2026.09.30-5: Update direkt von GitHub (Dienst & Sicherung → „Nach Updates suchen“),
@@ -38,11 +43,13 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
   `src/treiber/geraet.py`), Sim `s14_abziehen`. Am echten Gerät bestätigt: Abziehen bei
   laufendem Radio (Ton läuft weiter, Seite kommt wieder), Zifferblatt-Vorschau,
   „Nach Updates suchen“ gegen echtes GitHub, Ruhezustand.
+- 2026.10.01-2: Update-Suche über GitHub-Releases mit „Was ist neu“ (`NEUIGKEITEN.md`),
+  GitHub Actions (`.github/workflows/tests.yml`: Tests bei jedem Push, Release auf `main`).
 - Beobachtet: Benachrichtigungen erscheinen im Journal doppelt (vermutlich sendet Plasma zweimal) – harmlos.
 
 ## Offene Punkte
-1. GitHub-Releases statt Hauptzweig für die Update-Suche, mit „Was ist neu“ – zusammen mit
-2. GitHub Actions (Tests bei jedem Push).
-3. `install.sh` (mit `--deinstallieren`).
-4. Knopf „Vorherige Version wiederherstellen“ (Sicherungen in `~/.local/share/g19s/alte-versionen`).
-5. Optional: täglicher Update-Hinweis auf der Displayseite „Updates“ (abschaltbar).
+1. Rückmeldung zu 2026.10.01-2: erstes echtes Release, „Was ist neu“ am echten Gerät
+   (2026.10.01-1 holt 2026.10.01-2 noch von `main/dist/`, ab dann über Releases).
+2. `install.sh` (mit `--deinstallieren`).
+3. Knopf „Vorherige Version wiederherstellen“ (Sicherungen in `~/.local/share/g19s/alte-versionen`).
+4. Optional: täglicher Update-Hinweis auf der Displayseite „Updates“ (abschaltbar).

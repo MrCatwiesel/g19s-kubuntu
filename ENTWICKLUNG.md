@@ -95,9 +95,23 @@ Formular in `seite/js/` fehlt noch. Regeln über mehrere Felder: `Section(..., c
 Einzelne Teile: `run_tests.py bilder sim`, `run_tests.py sim=s05`.
 Nach einer gewollten Änderung der Anzeige: `run_tests.py --referenz` (danach die neuen
 PNGs ansehen!). Die Tests laufen ohne Tastatur: `tests/stubs` ersetzt evdev,
-`tests/fakes` spielt Piwigo, CalDAV/RSS/Bright Sky, GitHub (Update-Suche über
-`G19S_UPDATE_URL`, Dateien aus `$G19S_TEST_ROOT/upd/gh/`) und Programme wie `apt`, `ping`, `wpctl`.
+`tests/fakes` spielt Piwigo, CalDAV/RSS/Bright Sky, GitHub (Release-API für die Update-Suche über
+`G19S_UPDATE_URL`: Liste aus `$G19S_TEST_ROOT/upd/gh/releases.json`, Dateien aus `upd/gh/<tag>/`,
+Download per Weiterleitung auf einen anderen Host wie bei GitHub) und Programme wie `apt`, `ping`, `wpctl`.
 libfaketime wird beim ersten Lauf nach `tests/.werkzeuge/` gebaut.
+
+**Voraussetzungen:** Python-Pakete aus `tests/anforderungen.txt` (feste Versionen, damit die
+Referenzbilder pixelgleich bleiben), Chromium für Playwright und die Schriften `fonts-dejavu-core`
+und `fonts-dejavu-extra` – fehlt `fonts-dejavu-extra`, weichen die Uhren-Bilder ab.
+
+### GitHub Actions und Releases
+
+`.github/workflows/tests.yml` baut bei jedem Push, prüft, dass `dist/` zu `src/` passt, und führt
+alle Tests aus (bei Fehlern liegen Bilder und Protokolle als Artefakt „testergebnisse“ bereit).
+Auf `main` legt der Job `release` danach ein Release `v<VERSION>` mit `g19s.py`, `g19s-gui.py` und
+der Wiki-Datei an – nur wenn es das Tag noch nicht gibt. Der Text kommt aus dem Abschnitt
+`## <VERSION>` in `NEUIGKEITEN.md`; fehlt er, schlägt der Job fehl. Die Update-Suche der
+Verwaltung liest nur veröffentlichte Releases (keine Entwürfe, keine Vorabversionen).
 
 ## Konventionen
 

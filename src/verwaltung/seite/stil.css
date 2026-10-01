@@ -206,3 +206,9 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
 .clkcities { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; max-width: 360px; }
 .okbox { background: color-mix(in srgb, #3ecf7e 12%, transparent); border: 1px solid color-mix(in srgb, #3ecf7e 45%, transparent);
   border-radius: 9px; padding: 8px 12px; font-size: 13px; margin: 8px 0 12px; }
+.relnotes { max-height: 320px; overflow-y: auto; padding: 4px 10px; border: 1px solid var(--line); border-radius: 8px; margin-top: 6px; }
+.relnotes .relhead { margin: 8px 0 2px; }
+.relnotes .relsub { font-weight: 600; margin: 6px 0 2px; }
+.relnotes p { margin: 2px 0; }
+.relnotes a { color: var(--accent); }
+.relnotes ul { margin: 2px 0; padding-left: 20px; }

@@ -23,7 +23,7 @@ reset_and_start() {
   cd $T/home
   HOME=$T/home XDG_CONFIG_HOME=$T/home/.config XDG_RUNTIME_DIR=$ROOT/state TZ=Europe/Berlin \
     G19S_WEATHER_URL=http://127.0.0.1:8812/v1/forecast G19S_GEOCODE_URL=http://127.0.0.1:8812/v1/search \
-    G19S_ALERTS_URL=http://127.0.0.1:8812/alerts G19S_UPDATE_URL=http://127.0.0.1:8812/gh/ NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost \
+    G19S_ALERTS_URL=http://127.0.0.1:8812/alerts G19S_UPDATE_URL=http://127.0.0.1:8812/gh/api/releases NO_PROXY=127.0.0.1,localhost no_proxy=127.0.0.1,localhost \
     PATH=$ROOT/bin:/usr/bin:/bin PYTHONPATH="$HERE/../stubs" \
     nohup python3 .local/bin/g19s-gui.py --no-browser --port 8799 --token testtoken > $T/server.log 2>&1 &
   SERVER_PID=$!

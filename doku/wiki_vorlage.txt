@@ -223,7 +223,7 @@ Alle Änderungen übernimmt der laufende Treiber sofort, ein Neustart ist nicht 
 === Programm aktualisieren (Update-Knopf) ===
 Neue Versionen von <code>g19s.py</code> und <code>g19s-gui.py</code> müssen nicht mehr von Hand kopiert werden.
 
-'''Von GitHub (empfohlen):''' '''G19s-Verwaltung → Dienst & Sicherung → 🔍 Nach Updates suchen'''. Die Verwaltung vergleicht die installierten Versionen mit denen im Projekt auf [https://github.com/MrCatwiesel/g19s-kubuntu GitHub] und zeigt, was neuer ist. '''Jetzt installieren''' lädt die neueren Dateien, prüft sie wie unten beschrieben und spielt sie ein. Es wird nur beim Klick nachgesehen, nie im Hintergrund.
+'''Von GitHub (empfohlen):''' '''G19s-Verwaltung → Dienst & Sicherung → 🔍 Nach Updates suchen'''. Die Verwaltung vergleicht die installierten Versionen mit der neuesten veröffentlichten Version ([https://github.com/MrCatwiesel/g19s-kubuntu/releases Releases] auf GitHub) und zeigt unter '''Was ist neu''' die Änderungen aller neueren Versionen – auch wenn mehrere übersprungen wurden. '''Jetzt installieren''' lädt die Dateien, prüft sie wie unten beschrieben (zusätzlich, ob die Versionsnummer in der Datei zum Release passt) und spielt sie ein. Veröffentlicht wird eine Version erst, wenn alle automatischen Tests auf GitHub bestanden sind. Es wird nur beim Klick nachgesehen, nie im Hintergrund.
 
 '''Von Hand:'''
 # Die neuen Dateien herunterladen. Der Dateiname ist egal, auch <code>g19s(3).py</code> ist in Ordnung.
@@ -715,6 +715,8 @@ Danach mit Schritt 3 „udev-Regel“ weitermachen. Treiber und Dienst sind dann
 | Diashow: „Keine gültige Antwort“ || Adresse zeigt nicht auf die Galerie || Adresse so eintragen, wie sie im Browser vor <code>/index.php</code> steht
 |-
 | G-Taste mit <code>open</code> öffnet nichts || Desktop-Umgebung fehlt dem Dienst || <code>systemctl --user show-environment</code> muss <code>WAYLAND_DISPLAY</code> enthalten
+|-
+| „Nach Updates suchen“: „GitHub nicht abrufbar“ || keine Internetverbindung oder GitHub-Abfragegrenze (60 je Stunde) erreicht || später erneut versuchen; ersatzweise Dateien von der Release-Seite laden und '''Von Hand''' einspielen
 |-
 | Update: „Datei ist unvollständig“ || Download abgebrochen oder falsche Datei || Datei neu herunterladen; <code>tail -n 1 DATEI</code> muss <code># G19S-DATEIENDE …</code> zeigen
 |-

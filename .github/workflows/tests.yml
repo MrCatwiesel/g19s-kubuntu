@@ -1,0 +1,72 @@
+# Tests bei jedem Push; auf main danach automatisch ein GitHub-Release, wenn die Version neu ist.
+# Die Update-Suche der Verwaltung („Nach Updates suchen“) liest diese Releases.
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /opt/pw-browsers
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pakete installieren
+        # systemweit, weil die Tests Programme mit eigenem HOME und PATH=/usr/bin starten
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q fonts-dejavu-core fonts-dejavu-extra
+          sudo python3 -m pip install -q --break-system-packages -r tests/anforderungen.txt
+          sudo -E python3 -m playwright install --with-deps chromium
+
+      - name: dist/ passt zu src/
+        run: |
+          python3 build.py
+          git diff --exit-code --stat -- dist/ || { echo "::error::dist/ ist nicht aktuell – python3 build.py ausführen und mit einchecken"; exit 1; }
+
+      - name: Alle Tests
+        run: set -o pipefail; python3 tests/run_tests.py | tee testergebnis.txt
+
+      - name: Bilder und Protokolle bei Fehlern sichern
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testergebnisse
+          path: |
+            testergebnis.txt
+            /tmp/g19s-test/bilder
+            /tmp/g19s-test/shots
+            /tmp/g19s-test/gui/*.txt
+            /tmp/g19s-test/gui/*.log
+          if-no-files-found: ignore
+
+  release:
+    needs: tests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Release anlegen (nur wenn die Version neu ist)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$(sed -nE 's/^VERSION = "([^"]+)"/\1/p' src/treiber/kopf.py)
+          G=$(sed -nE 's/^VERSION = "([^"]+)"/\1/p' src/verwaltung/server/kopf.py)
+          [ "$V" = "$G" ] || { echo "::error::Treiber ($V) und Verwaltung ($G) haben verschiedene Versionen"; exit 1; }
+          if gh release view "v$V" >/dev/null 2>&1; then echo "Release v$V gibt es schon."; exit 0; fi
+          # Abschnitt „## <Version>“ aus NEUIGKEITEN.md bis zur nächsten Überschrift „## “
+          awk -v v="## $V" '$0 == v {on=1; next} on && /^## / {exit} on {print}' NEUIGKEITEN.md > notizen.md
+          grep -q '[^[:space:]]' notizen.md || { echo "::error::NEUIGKEITEN.md hat keinen Abschnitt „## $V“"; exit 1; }
+          gh release create "v$V" dist/g19s.py dist/g19s-gui.py dist/G19s_unter_Kubuntu.wiki \
+            --target "$GITHUB_SHA" --title "$V" --notes-file notizen.md

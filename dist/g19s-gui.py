@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.10.01-1"
+VERSION = "2026.10.01-2"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -378,12 +378,13 @@ def install_update(files):
 
 
 # --------------------------------------------------------------------------- #
-# Update direkt von GitHub
+# Update direkt von GitHub (veröffentlichte Releases)
 # --------------------------------------------------------------------------- #
 UPDATE_URL = os.environ.get("G19S_UPDATE_URL",
-                            "https://raw.githubusercontent.com/MrCatwiesel/g19s-kubuntu/main/dist/")
+                            "https://api.github.com/repos/MrCatwiesel/g19s-kubuntu/releases")
 UPDATE_FILES = {"driver": "g19s.py", "gui": "g19s-gui.py"}
 UPDATE_LIMIT = 8 * 1024 * 1024
+UPDATE_NOTES_LIMIT = 10                  # „Was ist neu“: höchstens so viele Versionen
 
 
 def version_key(v):
@@ -391,22 +392,65 @@ def version_key(v):
     return tuple(int(x) for x in re.findall(r"\d+", v or "")) if re.match(r"\d", v or "") else ()
 
 
+def github_releases():
+    """Veröffentlichte Releases (ohne Entwürfe und Vorabversionen), neueste zuerst."""
+    try:
+        raw = g.http_get(UPDATE_URL + "?per_page=30", timeout=20, limit=UPDATE_LIMIT)
+        data = json.loads(raw.decode("utf-8"))
+    except Exception as ex:
+        raise RuntimeError(f"GitHub nicht abrufbar: {g.err_text(ex)}")
+    if not isinstance(data, list):
+        raise RuntimeError("GitHub hat unerwartet geantwortet")
+    releases = []
+    for r in data:
+        if not isinstance(r, dict) or r.get("draft") or r.get("prerelease"):
+            continue
+        version = str(r.get("tag_name") or "").lstrip("vV")
+        if not version_key(version):
+            continue
+        assets = {a.get("name"): a.get("browser_download_url") for a in r.get("assets") or []
+                  if isinstance(a, dict)}
+        releases.append({"version": version, "date": str(r.get("published_at") or "")[:10],
+                         "notes": str(r.get("body") or "").strip(), "url": r.get("html_url") or "",
+                         "assets": assets})
+    releases.sort(key=lambda r: version_key(r["version"]), reverse=True)
+    return releases
+
+
+def download_asset(release, name):
+    url = release["assets"].get(name)
+    if not url:
+        raise RuntimeError(f"{name} fehlt in Version {release['version']} auf GitHub")
+    if urllib.parse.urlsplit(url).scheme not in ("https", urllib.parse.urlsplit(UPDATE_URL).scheme):
+        raise RuntimeError(f"{name}: unsichere Download-Adresse")
+    try:
+        raw = g.http_get(url, timeout=30, limit=UPDATE_LIMIT)
+    except Exception as ex:
+        raise RuntimeError(f"{name} nicht abrufbar: {g.err_text(ex)}")
+    found = version_of(raw.decode("utf-8", "replace"))
+    if found != release["version"]:
+        raise RuntimeError(f"{name} auf GitHub hat Version {found} statt {release['version']} – Update abgebrochen")
+    return raw
+
+
 def check_github():
-    """Lädt beide Programmdateien von GitHub und vergleicht die Versionen.
+    """Fragt die Releases auf GitHub ab und lädt die Dateien der neuesten Version, falls sie neuer ist.
     Rückgabe: (Info fürs Fenster, {Bauteil: (Dateiname, Bytes)} der neueren Dateien)."""
     installed = {"driver": file_version(os.path.join(HERE, "g19s.py")), "gui": VERSION}
-    info, newer = {"source": UPDATE_URL, "components": []}, {}
+    releases = github_releases()
+    if not releases:
+        raise RuntimeError("Auf GitHub ist noch keine Version veröffentlicht")
+    latest = releases[0]
+    info, newer = {"source": latest["url"], "latest": latest["version"], "components": []}, {}
     for comp, name in UPDATE_FILES.items():
-        try:
-            raw = g.http_get(UPDATE_URL + name, timeout=20, limit=UPDATE_LIMIT)
-        except Exception as ex:
-            raise RuntimeError(f"{name} nicht abrufbar: {g.err_text(ex)}")
-        remote = version_of(raw.decode("utf-8", "replace"))
-        is_newer = version_key(remote) > version_key(installed[comp])
+        is_newer = version_key(latest["version"]) > version_key(installed[comp])
         info["components"].append({"component": comp, "file": name, "installed": installed[comp],
-                                   "available": remote, "newer": is_newer})
+                                   "available": latest["version"], "newer": is_newer})
         if is_newer:
-            newer[comp] = (name, raw)
+            newer[comp] = (name, download_asset(latest, name))
+    oldest = min((version_key(v) for v in installed.values()), default=())
+    info["notes"] = [{k: r[k] for k in ("version", "date", "notes", "url")}
+                     for r in releases if version_key(r["version"]) > oldest][:UPDATE_NOTES_LIMIT]
     info["update"] = bool(newer)
     return info, newer
 
@@ -1511,6 +1555,12 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
 .clkcities { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; max-width: 360px; }
 .okbox { background: color-mix(in srgb, #3ecf7e 12%, transparent); border: 1px solid color-mix(in srgb, #3ecf7e 45%, transparent);
   border-radius: 9px; padding: 8px 12px; font-size: 13px; margin: 8px 0 12px; }
+.relnotes { max-height: 320px; overflow-y: auto; padding: 4px 10px; border: 1px solid var(--line); border-radius: 8px; margin-top: 6px; }
+.relnotes .relhead { margin: 8px 0 2px; }
+.relnotes .relsub { font-weight: 600; margin: 6px 0 2px; }
+.relnotes p { margin: 2px 0; }
+.relnotes a { color: var(--accent); }
+.relnotes ul { margin: 2px 0; padding-left: 20px; }
 
 </style>
 </head>
@@ -1869,7 +1919,7 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
     </div>
     <div class="card">
       <h2>Programm aktualisieren</h2>
-      <p class="hint"><b>Von GitHub:</b> „Nach Updates suchen“ vergleicht die installierten Versionen mit denen auf GitHub und spielt neuere auf Wunsch ein. <b>Von Hand:</b> neue Versionen von <code>g19s.py</code> und <code>g19s-gui.py</code> auswählen – einzeln oder beide zusammen, der Dateiname spielt keine Rolle (auch <code>g19s(3).py</code> ist in Ordnung). Die Dateien werden geprüft, die alten Versionen gesichert und alles neu gestartet.</p>
+      <p class="hint"><b>Von GitHub:</b> „Nach Updates suchen“ vergleicht die installierten Versionen mit der neuesten veröffentlichten Version auf GitHub, zeigt, was neu ist, und spielt sie auf Wunsch ein. <b>Von Hand:</b> neue Versionen von <code>g19s.py</code> und <code>g19s-gui.py</code> auswählen – einzeln oder beide zusammen, der Dateiname spielt keine Rolle (auch <code>g19s(3).py</code> ist in Ordnung). Die Dateien werden geprüft, die alten Versionen gesichert und alles neu gestartet.</p>
       <div class="kv" id="versions" style="margin-bottom:12px"></div>
       <div class="row" style="gap:8px;flex-wrap:wrap">
         <button class="btn primary" id="updateCheck">🔍 Nach Updates suchen</button>
@@ -3338,14 +3388,37 @@ $("#updateCheck").addEventListener("click", async () => {
     c.newer ? `: ${c.installed} → ${c.available}` : `: ${c.installed} ist aktuell` +
       (c.available !== c.installed ? ` (GitHub: ${c.available})` : "")));
   if (!r.update) { box.replaceChildren(...rows, el("div", {class: "hint", text: "Keine neuere Version verfügbar."})); return; }
+  const news = releaseNotes(r.notes || []);
   const go = el("button", {class: "btn primary", style: {marginTop: "6px"}, text: "Jetzt installieren"});
   go.addEventListener("click", () => {
     if (updateBlocked()) return;
     if (!confirm("Neue Version von GitHub einspielen? Treiber bzw. Verwaltung werden dabei neu gestartet.")) return;
     runUpdate("/api/update/github", {}, "Spiele Update von GitHub ein …");
   });
-  box.replaceChildren(...rows, go);
+  box.replaceChildren(...rows, news, go);
 });
+// „Was ist neu“: Release-Texte von GitHub (einfaches Markdown) als reiner Text, nie als HTML
+function noteText(line) { return line.replace(/\*\*|__|`/g, "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1"); }
+function releaseNotes(list) {
+  const box = el("div", {class: "relnotes"});
+  for (const n of list) {
+    const link = /^https?:\/\//.test(n.url || "") ? el("a", {href: n.url, target: "_blank", rel: "noopener", text: "auf GitHub"}) : null;
+    box.append(el("div", {class: "relhead"}, el("b", {text: n.version}), n.date ? ` – ${n.date}` : "", link ? " · " : "", link));
+    let ul = null;
+    for (const raw of (n.notes || "").split(/\r?\n/)) {
+      const line = raw.trim();
+      if (!line) { ul = null; continue; }
+      const item = line.match(/^[-*+]\s+(.*)/);
+      if (item) { if (!ul) box.append(ul = el("ul")); ul.append(el("li", {text: noteText(item[1])})); continue; }
+      ul = null;
+      const head = line.match(/^#+\s+(.*)/);
+      box.append(head ? el("div", {class: "relsub", text: noteText(head[1])}) : el("p", {text: noteText(line)}));
+    }
+    if (!(n.notes || "").trim()) box.append(el("p", {class: "muted", text: "(keine Beschreibung)"}));
+  }
+  if (!list.length) return box;
+  return el("details", {open: true, style: {margin: "8px 0"}}, el("summary", {text: "Was ist neu"}), box);
+}
 function renderPaths() {
 
   const p = S.paths || {};

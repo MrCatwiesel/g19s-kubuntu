@@ -103,14 +103,37 @@ $("#updateCheck").addEventListener("click", async () => {
     c.newer ? `: ${c.installed} → ${c.available}` : `: ${c.installed} ist aktuell` +
       (c.available !== c.installed ? ` (GitHub: ${c.available})` : "")));
   if (!r.update) { box.replaceChildren(...rows, el("div", {class: "hint", text: "Keine neuere Version verfügbar."})); return; }
+  const news = releaseNotes(r.notes || []);
   const go = el("button", {class: "btn primary", style: {marginTop: "6px"}, text: "Jetzt installieren"});
   go.addEventListener("click", () => {
     if (updateBlocked()) return;
     if (!confirm("Neue Version von GitHub einspielen? Treiber bzw. Verwaltung werden dabei neu gestartet.")) return;
     runUpdate("/api/update/github", {}, "Spiele Update von GitHub ein …");
   });
-  box.replaceChildren(...rows, go);
+  box.replaceChildren(...rows, news, go);
 });
+// „Was ist neu“: Release-Texte von GitHub (einfaches Markdown) als reiner Text, nie als HTML
+function noteText(line) { return line.replace(/\*\*|__|`/g, "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1"); }
+function releaseNotes(list) {
+  const box = el("div", {class: "relnotes"});
+  for (const n of list) {
+    const link = /^https?:\/\//.test(n.url || "") ? el("a", {href: n.url, target: "_blank", rel: "noopener", text: "auf GitHub"}) : null;
+    box.append(el("div", {class: "relhead"}, el("b", {text: n.version}), n.date ? ` – ${n.date}` : "", link ? " · " : "", link));
+    let ul = null;
+    for (const raw of (n.notes || "").split(/\r?\n/)) {
+      const line = raw.trim();
+      if (!line) { ul = null; continue; }
+      const item = line.match(/^[-*+]\s+(.*)/);
+      if (item) { if (!ul) box.append(ul = el("ul")); ul.append(el("li", {text: noteText(item[1])})); continue; }
+      ul = null;
+      const head = line.match(/^#+\s+(.*)/);
+      box.append(head ? el("div", {class: "relsub", text: noteText(head[1])}) : el("p", {text: noteText(line)}));
+    }
+    if (!(n.notes || "").trim()) box.append(el("p", {class: "muted", text: "(keine Beschreibung)"}));
+  }
+  if (!list.length) return box;
+  return el("details", {open: true, style: {margin: "8px 0"}}, el("summary", {text: "Was ist neu"}), box);
+}
 function renderPaths() {
 
   const p = S.paths || {};

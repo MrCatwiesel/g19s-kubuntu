@@ -82,12 +82,13 @@ def install_update(files):
 
 
 # --------------------------------------------------------------------------- #
-# Update direkt von GitHub
+# Update direkt von GitHub (veröffentlichte Releases)
 # --------------------------------------------------------------------------- #
 UPDATE_URL = os.environ.get("G19S_UPDATE_URL",
-                            "https://raw.githubusercontent.com/MrCatwiesel/g19s-kubuntu/main/dist/")
+                            "https://api.github.com/repos/MrCatwiesel/g19s-kubuntu/releases")
 UPDATE_FILES = {"driver": "g19s.py", "gui": "g19s-gui.py"}
 UPDATE_LIMIT = 8 * 1024 * 1024
+UPDATE_NOTES_LIMIT = 10                  # „Was ist neu“: höchstens so viele Versionen
 
 
 def version_key(v):
@@ -95,21 +96,64 @@ def version_key(v):
     return tuple(int(x) for x in re.findall(r"\d+", v or "")) if re.match(r"\d", v or "") else ()
 
 
+def github_releases():
+    """Veröffentlichte Releases (ohne Entwürfe und Vorabversionen), neueste zuerst."""
+    try:
+        raw = g.http_get(UPDATE_URL + "?per_page=30", timeout=20, limit=UPDATE_LIMIT)
+        data = json.loads(raw.decode("utf-8"))
+    except Exception as ex:
+        raise RuntimeError(f"GitHub nicht abrufbar: {g.err_text(ex)}")
+    if not isinstance(data, list):
+        raise RuntimeError("GitHub hat unerwartet geantwortet")
+    releases = []
+    for r in data:
+        if not isinstance(r, dict) or r.get("draft") or r.get("prerelease"):
+            continue
+        version = str(r.get("tag_name") or "").lstrip("vV")
+        if not version_key(version):
+            continue
+        assets = {a.get("name"): a.get("browser_download_url") for a in r.get("assets") or []
+                  if isinstance(a, dict)}
+        releases.append({"version": version, "date": str(r.get("published_at") or "")[:10],
+                         "notes": str(r.get("body") or "").strip(), "url": r.get("html_url") or "",
+                         "assets": assets})
+    releases.sort(key=lambda r: version_key(r["version"]), reverse=True)
+    return releases
+
+
+def download_asset(release, name):
+    url = release["assets"].get(name)
+    if not url:
+        raise RuntimeError(f"{name} fehlt in Version {release['version']} auf GitHub")
+    if urllib.parse.urlsplit(url).scheme not in ("https", urllib.parse.urlsplit(UPDATE_URL).scheme):
+        raise RuntimeError(f"{name}: unsichere Download-Adresse")
+    try:
+        raw = g.http_get(url, timeout=30, limit=UPDATE_LIMIT)
+    except Exception as ex:
+        raise RuntimeError(f"{name} nicht abrufbar: {g.err_text(ex)}")
+    found = version_of(raw.decode("utf-8", "replace"))
+    if found != release["version"]:
+        raise RuntimeError(f"{name} auf GitHub hat Version {found} statt {release['version']} – Update abgebrochen")
+    return raw
+
+
 def check_github():
-    """Lädt beide Programmdateien von GitHub und vergleicht die Versionen.
+    """Fragt die Releases auf GitHub ab und lädt die Dateien der neuesten Version, falls sie neuer ist.
     Rückgabe: (Info fürs Fenster, {Bauteil: (Dateiname, Bytes)} der neueren Dateien)."""
     installed = {"driver": file_version(os.path.join(HERE, "g19s.py")), "gui": VERSION}
-    info, newer = {"source": UPDATE_URL, "components": []}, {}
+    releases = github_releases()
+    if not releases:
+        raise RuntimeError("Auf GitHub ist noch keine Version veröffentlicht")
+    latest = releases[0]
+    info, newer = {"source": latest["url"], "latest": latest["version"], "components": []}, {}
     for comp, name in UPDATE_FILES.items():
-        try:
-            raw = g.http_get(UPDATE_URL + name, timeout=20, limit=UPDATE_LIMIT)
-        except Exception as ex:
-            raise RuntimeError(f"{name} nicht abrufbar: {g.err_text(ex)}")
-        remote = version_of(raw.decode("utf-8", "replace"))
-        is_newer = version_key(remote) > version_key(installed[comp])
+        is_newer = version_key(latest["version"]) > version_key(installed[comp])
         info["components"].append({"component": comp, "file": name, "installed": installed[comp],
-                                   "available": remote, "newer": is_newer})
+                                   "available": latest["version"], "newer": is_newer})
         if is_newer:
-            newer[comp] = (name, raw)
+            newer[comp] = (name, download_asset(latest, name))
+    oldest = min((version_key(v) for v in installed.values()), default=())
+    info["notes"] = [{k: r[k] for k in ("version", "date", "notes", "url")}
+                     for r in releases if version_key(r["version"]) > oldest][:UPDATE_NOTES_LIMIT]
     info["update"] = bool(newer)
     return info, newer
