@@ -78,6 +78,8 @@ class Sim:
         self.frames, self.backlight, self.leds, self.brightness = [], [], [], []
         self.log, self.opened, self.sounds, self.pages = [], [], [], []
         self.summary = {}
+        self.unplugged, self.t0, self.i = False, None, 0   # Tastatur abgezogen? / Zeitbasis / Skriptstand
+        self.plug_events = []
 
     # ---- Ablauf festlegen ----
     def key(self, t, name, hold=0.15):
@@ -89,35 +91,57 @@ class Sim:
     def call(self, t, fn):
         self.script.append((t, "call", fn))
 
+    def unplug(self, t, plugged=False):
+        """Tastatur zum Zeitpunkt t abziehen (plugged=True: wieder einstecken). t = 0 mit
+        plugged=False: fehlt schon beim Start. Läuft in einem eigenen Faden, weil ohne Tastatur
+        niemand das Skript liest."""
+        if t == 0:
+            self.unplugged = not plugged
+        else:
+            self.plug_events.append((t, not plugged))
+
     # ---- Ausführen ----
     def run(self, seconds, patch_launcher=True, patch_sound=True, spy_pages=True):
         g, sim = self.g, self
         self.script.sort(key=lambda x: x[0])
 
+        class Gone(Exception):
+            errno = 19                       # wie usb.core.USBError „No such device“
+
         class FakeG19:
+            """Eine nachgebaute Tastatur. sim.unplugged = True spielt „abgezogen“: Anlegen schlägt fehl,
+            Lesen/Schreiben werfen den USB-Fehler. Zeitbasis und Skriptstand gehören der Simulation,
+            damit sie nach einem Wiederverbinden (neues Objekt) weiterlaufen."""
             def __init__(self):
-                self.t0 = time.monotonic()
-                self.i = 0
-                sim.t0 = self.t0
+                if sim.t0 is None:
+                    sim.t0 = time.monotonic()
+                self.t0 = sim.t0
+                if sim.unplugged:
+                    raise g.DeviceMissing("G19s (046d:c229) nicht gefunden – ist die Tastatur eingesteckt?")
 
             lock = threading.Lock()
+
+            def _check(self):
+                if sim.unplugged:
+                    raise Gone("[Errno 19] No such device (it may have been disconnected)")
 
             def read(self, ep, size, timeout_ms):
                 """Wie das echte Gerät: blockiert bis ein Report für diesen Endpunkt fällig ist
                 oder das Zeitlimit abläuft (wird ggf. aus zwei Lese-Threads gleichzeitig benutzt)."""
                 end = time.monotonic() + timeout_ms / 1000
                 while True:
+                    self._check()
                     with self.lock:
                         now = time.monotonic() - self.t0
-                        while self.i < len(sim.script) and now >= sim.script[self.i][0]:
-                            t, kind, val = sim.script[self.i]
+                        while sim.i < len(sim.script) and now >= sim.script[sim.i][0]:
+                            t, kind, val = sim.script[sim.i]
                             if kind == "call":
-                                self.i += 1
+                                sim.i += 1
                                 val(sim)
                                 continue
                             if (kind == "g") != (ep == g.EP_GKEYS):
                                 break
-                            self.i += 1
+                            sim.i += 1
                             if kind == "g":
                                 return bytes([2, val & 0xFF, (val >> 8) & 0xFF, 0])
                             return bytes([val, 0x80])
@@ -126,15 +150,19 @@ class Sim:
                     time.sleep(0.005)
 
             def send_frame(self, img):
+                self._check()
                 sim.frames.append((time.monotonic() - self.t0, img))
 
             def set_backlight(self, r, gg, b):
+                self._check()
                 sim.backlight.append((time.monotonic() - self.t0, (r, gg, b)))
 
             def set_m_leds(self, m):
+                self._check()
                 sim.leds.append((time.monotonic() - self.t0, m))
 
             def set_brightness(self, v):
+                self._check()
                 sim.brightness.append((time.monotonic() - self.t0, v))
 
             def close(self):
@@ -153,6 +181,15 @@ class Sim:
                 return orig(r, page, profile, *a, **k)
             g.Renderer.render = spy
         threading.Thread(target=lambda: (time.sleep(seconds), os.kill(os.getpid(), 15)), daemon=True).start()
+
+        def plugging():
+            while sim.t0 is None:
+                time.sleep(0.01)
+            for t, state in sorted(sim.plug_events):
+                time.sleep(max(0.0, sim.t0 + t - time.monotonic()))
+                sim.unplugged = state
+        if self.plug_events:
+            threading.Thread(target=plugging, daemon=True).start()
         old = sys.stdout
         sys.stdout = Tee(self.log)
         try:

@@ -42,6 +42,8 @@ class App(AppCore, KeyHandling, TimedTasks):
                     pass
                 self.poll_recording()
                 now = time.monotonic()
+                if not self.g19.connected:
+                    self._keyboard_away(now)
                 self.tick(now)
                 if now >= self.next_draw:
                     self.draw(now)
@@ -50,9 +52,19 @@ class App(AppCore, KeyHandling, TimedTasks):
                 r.running = False
             self.shutdown()
 
+    def _keyboard_away(self, now):
+        """Tastatur abgezogen: gedrückte Tasten loslassen, auf Wiederverbindung warten."""
+        if self.prev_gm or self.held:
+            self.handle_gm_report(bytes([2, 0, 0, 0]))     # wie „alle Tasten losgelassen“
+        self.prev_l = 0
+        if self.g19.reconnect(now):         # wieder da: Helligkeit, Licht und Bild neu setzen
+            self.set_brightness(self.night_brightness() if self.night_dark() else self.day_brightness())
+            self.apply_leds()
+            self._last_frame, self.next_draw = None, 0
+
     def _handle_report(self, source, data):
         if source == "error":
-            raise data                      # USB-Fehler aus dem Lese-Thread: wie bisher beenden
+            raise data                      # unerwarteter Fehler aus dem Lese-Thread: beenden
         if source == EP_GKEYS:
             self.handle_gm_report(data)
         else:
@@ -80,6 +92,9 @@ class App(AppCore, KeyHandling, TimedTasks):
         if self.night_dark() and (self.settings().get("night") or {}).get("mode") == "off" and not rec and menu is None:
             self._send(Image.new("RGB", (WIDTH, HEIGHT), (0, 0, 0)), now)
             self.next_draw = now + 5
+            return
+        if not self.g19.connected:          # nichts zeichnen, solange die Tastatur fehlt
+            self.next_draw = now + 1.0
             return
         try:
             img = self._compose(now)

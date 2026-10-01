@@ -680,6 +680,8 @@ Danach mit Schritt 3 „udev-Regel“ weitermachen. Treiber und Dienst sind dann
 |-
 | <code>Kann Interface 0 nicht übernehmen: Access denied</code> || udev-Regel nicht aktiv || Regel prüfen (<code>cat /etc/udev/rules.d/70-g19s.rules</code>), Tastatur aus- und wieder einstecken
 |-
+| Protokoll: „Tastatur getrennt … warte auf Wiederverbindung“ || Tastatur abgezogen, USB-Hub oder Ruhezustand || nichts zu tun: der Treiber läuft weiter (Radio, Timer bleiben), meldet „Tastatur verbunden“ und setzt Licht und Display neu, sobald sie wieder da ist. Fehlt die Tastatur schon beim Start, wartet er ebenso.
+|-
 | <code>Resource busy</code> || Treiber läuft schon (Dienst) || <code>systemctl --user stop g19s.service</code> vor dem Testlauf
 |-
 | Display „Kein Lesezugriff auf Tastatur“ bei MR || Benutzer nicht in Gruppe <code>input</code> || Schritt 4, dann Neustart; prüfen mit <code>groups</code>

@@ -1,0 +1,31 @@
+{
+ "backlight": [
+  [
+   0,
+   110,
+   255
+  ]
+ ],
+ "brightness": [
+  70,
+  70
+ ],
+ "f13": [
+  1,
+  0
+ ],
+ "frames_after": true,
+ "frames_before_plug": 0,
+ "frames_gap_while_unplugged": true,
+ "log": [
+  "G19s (046d:c229) nicht gefunden – ist die Tastatur eingesteckt? Warte, bis sie eingesteckt wird …",
+  "Tastatur verbunden",
+  "Tastatur getrennt ([Errno 19] No such device (it may have been disconnected)) – warte auf Wiederverbindung",
+  "Tastatur verbunden"
+ ],
+ "typed": [
+  "KEY_F13",
+  "KEY_D",
+  "KEY_A"
+ ]
+}

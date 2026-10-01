@@ -60,7 +60,7 @@ class AppCore:
         self._settings, self.settings_mtime = load_settings(), None
 
         # --- Geräte und Dienste ---
-        self.g19 = G19()
+        self.g19 = Keyboard(G19, log=self.log)
         # alle üblichen Tastaturcodes freischalten, damit Makros jede Taste senden können
         self.ui = UInput({e.EV_KEY: list(range(1, 249))}, name="Logitech G19s G-Keys")
         self.ui_lock = threading.Lock()
