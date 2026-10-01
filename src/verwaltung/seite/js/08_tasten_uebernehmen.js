@@ -11,7 +11,10 @@ function draftToEntry(d) {
     case "radio": if (d.radio) e.radio = d.radio; break;
     case "media": if (d.media) e.media = d.media; break;
     case "volume": if (d.volume) e.volume = d.volume; break;
-    case "snippets": e.snippets = d.snippets || "*"; break;
+    case "snippets":
+      e.snippets = d.snippet ? "*" : d.snippets || "*";
+      if (d.snippet) e.snippet = d.snippet; else if (d.keepOpen) e.keep_open = true;
+      break;
     case "sleep": e.sleep = d.sleep || 30; break;
     case "mic": e.mic = "toggle"; break;
     case "timer": {

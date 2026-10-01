@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.10.01-4"
+VERSION = "2026.10.01-5"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -2149,6 +2149,12 @@ function snippetGroups() {
   const sd = UI.sdraft || S.settings;
   return [...new Set(sd.snippets.map(x => (x.group || "").trim()).filter(Boolean))].sort();
 }
+// Namen der Textbausteine wie im Treiber (snippet_list): Name oder erste Textzeile; G-Tasten verweisen darauf
+function snippetNames() {
+  const sd = UI.sdraft || S.settings;
+  return [...new Set((sd.snippets || []).filter(x => x.text).map(x =>
+    (x.name || "").trim() || [...x.text.split("\n")[0]].slice(0, 40).join("")))];
+}
 function comboList(c) { return (Array.isArray(c) ? c : String(c || "").split("+")).map(s => String(s).trim()).filter(Boolean); }
 function entryLabel(e) {
   if (!e) return "";
@@ -2158,7 +2164,7 @@ function entryLabel(e) {
   if (t === "radio") return e.radio === "stop" ? "Radio aus" : stationName(e.radio);
   if (t === "media") return S.media[e.media] || "Musik";
   if (t === "volume") return S.volume[e.volume] || "Lautstärke";
-  if (t === "snippets") return e.snippets === "*" ? "Textbausteine" : String(e.snippets);
+  if (t === "snippets") return e.snippet ? String(e.snippet) : e.snippets === "*" ? "Textbausteine" : String(e.snippets);
   if (t === "timer") return timerLabel(e.timer);
   if (t === "sleep") return `Einschlafen ${e.sleep} min`;
   if (t === "mic") return "Mikrofon";
@@ -2273,6 +2279,7 @@ function selectKey(k, reset) {
       combo: comboList(e && e.combo), steps: clone((e && e.steps) || []), open: (e && e.open) || "",
       run: (e && e.run) || "", radio: (e && e.radio) || "", media: (e && e.media) || "play-pause",
       volume: (e && e.volume) || "up", snippets: (e && e.snippets) || "*",
+      snippet: (e && e.snippet) || "", keepOpen: !!(e && e.keep_open),
       timer: Object.assign({mode: "timer", minutes: 5, work: 25, break: 5}, (e && e.timer) || {}),
       sleep: (e && e.sleep) || 30};
     UI.draftDirty = false; markTabs();
@@ -2465,13 +2472,29 @@ function edVolume(box, d) {
     el("p", {class: "hint", text: `Ändert die Systemlautstärke um ${(UI.sdraft || S.settings).volume_step || 5} % und zeigt sie kurz groß auf dem Display. Die Schrittweite stellst du unter „Beleuchtung & Display“ ein.`}));
 }
 function edSnippets(box, d) {
-  const groups = snippetGroups(), n = ((UI.sdraft || S.settings).snippets || []).length;
+  const groups = snippetGroups(), names = snippetNames(), n = ((UI.sdraft || S.settings).snippets || []).length;
+  const missing = d.snippet && !names.includes(d.snippet);
+  const value = d.snippet ? "s:" + d.snippet : d.snippets === "*" ? "*" : "g:" + d.snippets;
+  const extra = el("div");
+  const explain = () => extra.replaceChildren(d.snippet
+    ? el("p", {class: "hint", text: "Jeder Druck auf die G-Taste fügt diesen Textbaustein sofort ins aktive Fenster ein – ohne Liste. Wie eingefügt wird (Zwischenablage oder tippen), stellst du beim Baustein im Reiter „Textbausteine“ ein."})
+    : el("div", {},
+      el("label", {class: "check"}, el("input", {type: "checkbox", id: "snipKeepOpen", checked: d.keepOpen,
+        onchange: e => { d.keepOpen = e.target.checked; touchDraft(); }}), " Liste nach dem Einfügen offen lassen"),
+      el("p", {class: "hint", text: "Ein Druck auf die G-Taste zeigt die Liste auf dem Display: Hoch/Runter wählen, OK fügt den Text ins aktive Fenster ein. Bleibt die Liste offen, kannst du mehrmals OK drücken oder gleich den nächsten Baustein wählen. BACK oder die G-Taste schließen die Liste. Die Texte legst du im Reiter „Textbausteine“ an."})));
   box.append(el("label", {class: "field"}, el("span", {text: "Welche Textbausteine?"}),
-    el("select", {onchange: e => { d.snippets = e.target.value; touchDraft(); }},
-      el("option", {value: "*", text: `Alle (${n})`, selected: d.snippets === "*"}),
-      ...groups.map(g => el("option", {value: g, text: "Gruppe: " + g, selected: d.snippets === g})))),
-    el("p", {class: "hint", text: "Ein Druck auf die G-Taste zeigt die Liste auf dem Display: Hoch/Runter wählen, OK tippt den Text ins aktive Fenster, BACK oder die G-Taste schließen die Liste. Die Texte legst du im Reiter „Textbausteine“ an."}));
+    el("select", {id: "snipSel", onchange: e => {
+      const v = e.target.value;
+      d.snippet = v.startsWith("s:") ? v.slice(2) : ""; d.snippets = v.startsWith("g:") ? v.slice(2) : "*";
+      touchDraft(); explain(); }},
+      el("option", {value: "*", text: `Liste: alle (${n})`, selected: value === "*"}),
+      ...groups.map(g => el("option", {value: "g:" + g, text: "Liste: Gruppe " + g, selected: value === "g:" + g})),
+      ...[...names, ...(missing ? [d.snippet] : [])].map(nm => el("option", {value: "s:" + nm,
+        text: "Direkt einfügen: " + nm + (missing && nm === d.snippet ? " (fehlt)" : ""), selected: value === "s:" + nm})))),
+    extra);
+  explain();
   if (!n) box.append(el("div", {class: "warnbox"}, "Es gibt noch keine Textbausteine – im Reiter „Textbausteine“ anlegen."));
+  else if (missing) box.append(el("div", {class: "warnbox"}, `Den Textbaustein „${d.snippet}“ gibt es nicht mehr – bitte einen anderen wählen.`));
 }
 function edSleep(box, d) {
   box.append(el("label", {class: "field", style: {maxWidth: "220px"}}, el("span", {text: "Musik ausschalten nach … Minuten"}),
@@ -2574,7 +2597,10 @@ function draftToEntry(d) {
     case "radio": if (d.radio) e.radio = d.radio; break;
     case "media": if (d.media) e.media = d.media; break;
     case "volume": if (d.volume) e.volume = d.volume; break;
-    case "snippets": e.snippets = d.snippets || "*"; break;
+    case "snippets":
+      e.snippets = d.snippet ? "*" : d.snippets || "*";
+      if (d.snippet) e.snippet = d.snippet; else if (d.keepOpen) e.keep_open = true;
+      break;
     case "sleep": e.sleep = d.sleep || 30; break;
     case "mic": e.mic = "toggle"; break;
     case "timer": {

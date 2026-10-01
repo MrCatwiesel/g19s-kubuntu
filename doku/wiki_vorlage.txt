@@ -26,7 +26,7 @@ Für die G19s gibt es unter Linux keinen offiziellen Treiber. Die normalen Taste
 * '''G1–G12''' senden die Tasten '''F13–F24''' und lassen sich in KDE frei belegen.
 * '''Bis zu 10 Profile''' (z. B. „Büro“, „Spiele“) mit je drei Ebenen '''M1/M2/M3''' – also 36 Belegungen pro Profil. Umschalten über die Displaytaste '''SETTINGS'''. Jedes Profil hat eigene Beleuchtungsfarben.
 * '''MR''' nimmt Makros direkt an der Tastatur auf.
-* G-Tasten können Text einfügen (über die Zwischenablage oder Zeichen für Zeichen getippt), Tastenkombinationen senden, Webseiten öffnen, Programme starten, Radiosender abspielen, den Musikplayer steuern, die '''Lautstärke''' ändern (mit Balken auf dem Display), eine Liste von '''Textbausteinen''' auf dem Display öffnen und '''Timer, Stoppuhr oder Pomodoro''' starten.
+* G-Tasten können Text einfügen (über die Zwischenablage oder Zeichen für Zeichen getippt), Tastenkombinationen senden, Webseiten öffnen, Programme starten, Radiosender abspielen, den Musikplayer steuern, die '''Lautstärke''' ändern (mit Balken auf dem Display), einen '''Textbaustein''' direkt einfügen oder eine Liste von Textbausteinen auf dem Display öffnen und '''Timer, Stoppuhr oder Pomodoro''' starten.
 * Auswahl direkt am Display: Radiosender, Kalender, Termindetails, Piwigo-Alben.
 * '''Terminerinnerung''' vor Terminbeginn, '''Radiowecker''' und '''Einschlaftimer''', '''Song merken''' (Radiotitel in eine Liste), '''Lieblingsbilder''' in der Diashow, '''Mikrofon stumm''' per G-Taste (MR-Leuchte als Anzeige).
 * Displayseiten je Ebene '''und''' je Profil einstellbar, '''automatische Sicherung''' in einen Ordner.
@@ -254,7 +254,7 @@ Startet eine neue Oberfläche nicht, stellt die Verwaltung automatisch die vorhe
 |-
 | Lautstärke || Lauter, Leiser oder Stumm; das Display zeigt kurz einen Balken mit dem neuen Wert || <code>"volume": "up"</code> (bzw. <code>"down"</code>, <code>"mute"</code>)
 |-
-| Textbausteine || zeigt die Textbausteine (alle oder eine Gruppe) auf dem Display zum Auswählen und Einfügen || <code>"snippets": "*"</code> bzw. <code>"snippets": "Büro"</code>
+| Textbausteine || fügt einen bestimmten Textbaustein bei jedem Druck sofort ein, oder zeigt die Textbausteine (alle oder eine Gruppe) auf dem Display zum Auswählen und Einfügen || <code>"snippet": "Gruß"</code> bzw. <code>"snippets": "*"</code>, <code>"snippets": "Büro"</code>
 |-
 | Timer || Countdown, Stoppuhr oder Pomodoro mit großer Anzeige || <code>"timer": {"mode": "timer", "minutes": 10}</code>, <code>{"mode": "stopwatch"}</code>, <code>{"mode": "pomodoro", "work": 25, "break": 5}</code>
 |-
@@ -455,10 +455,10 @@ Die meisten Zifferblätter werden genau zum Sekundenwechsel neu gezeichnet. Bewe
 '''Eigene Zifferblätter''' (für Entwickler): siehe <code>ENTWICKLUNG.md</code> auf https://github.com/MrCatwiesel/g19s-kubuntu – ein Zifferblatt ist eine Methode mit <code>@clock_face("id")</code>, der Name steht in <code>CLOCK_FACES</code>, die Einstellungen in <code>CLOCK_OPTIONS</code>; <code>tests/uhren_vorschau.py</code> zeigt es als Bild.
 
 === Textbausteine ===
-Im Reiter '''Textbausteine''' der Verwaltung Texte anlegen (Name, optionale Gruppe, Text – auch mehrzeilig). Dann einer G-Taste die Aktion '''Textbausteine''' geben (alle oder nur eine Gruppe). Ein Druck auf die G-Taste zeigt die Liste auf dem Display:
-* '''Hoch/Runter''' wählen, '''OK''' fügt den Text in das gerade aktive Fenster ein.
-* '''BACK''' oder dieselbe G-Taste schließen die Liste.
-So passen beliebig viele Texte auf eine einzige G-Taste.
+Im Reiter '''Textbausteine''' der Verwaltung Texte anlegen (Name, optionale Gruppe, Text – auch mehrzeilig). Dann einer G-Taste die Aktion '''Textbausteine''' geben und im Feld „Welche Textbausteine?“ wählen:
+* '''Direkt einfügen: <Name>''' – jeder Druck auf die G-Taste fügt genau diesen Textbaustein sofort in das aktive Fenster ein, ohne Liste. Ideal für Texte, die man oft braucht. Die Taste merkt sich den Namen: Ändert man den Text im Reiter '''Textbausteine''', gilt sofort der neue Text. Wird der Baustein gelöscht oder umbenannt, zeigt das Display „… fehlt“.
+* '''Liste: alle''' bzw. '''Liste: Gruppe …''' – ein Druck zeigt die Liste auf dem Display: '''Hoch/Runter''' wählen, '''OK''' fügt den Text in das gerade aktive Fenster ein, '''BACK''' oder dieselbe G-Taste schließen die Liste. So passen beliebig viele Texte auf eine einzige G-Taste.
+* Mit '''Liste nach dem Einfügen offen lassen''' bleibt die Liste nach OK stehen: mehrmals OK drücken fügt den Text mehrmals ein, oder gleich den nächsten Baustein wählen. Nach 30 Sekunden ohne Tastendruck schließt sie sich von selbst.
 
 '''Einfügeart''' (je Textbaustein und bei G-Tasten mit Text wählbar; neue Texte: Zwischenablage):
 {| class="wikitable"
@@ -619,7 +619,9 @@ Bis zu 10 Einträge in <code>profiles</code>. Optional hat ein Profil eigene Dis
 |-
 | <code>"volume"</code> || <code>up</code>, <code>down</code>, <code>mute</code> (Schrittweite in der Verwaltung)
 |-
-| <code>"snippets"</code> || <code>"*"</code> = alle Textbausteine, sonst Name einer Gruppe
+| <code>"snippets"</code> || <code>"*"</code> = alle Textbausteine, sonst Name einer Gruppe; dazu <code>"keep_open": true</code> = Liste bleibt nach OK offen
+|-
+| <code>"snippet"</code> || Name eines Textbausteins: jeder Druck fügt ihn direkt ein (zusammen mit <code>"snippets": "*"</code>)
 |-
 | <code>"sleep"</code> || Einschlaftimer in Minuten
 |-

@@ -154,7 +154,9 @@ class AlbumMenu(Menu):
 
 
 class PickMenu(Menu):
-    """Liste, aus der OK einen Eintrag ausführt und schließt (Sender, Textbausteine)."""
+    """Liste, aus der OK einen Eintrag ausführt und schließt (Sender, Textbausteine).
+    keep_open: Liste bleibt nach OK offen (mehrfach ausführen, BACK schließt)."""
+    keep_open = False
 
     def items(self, app):
         raise NotImplementedError
@@ -166,7 +168,10 @@ class PickMenu(Menu):
         items = self.items(app)
         self.cursor = self.step(self.cursor, pressed, max(1, len(items)))
         if pressed & LKEY_BITS["OK"] and items:
-            app.menu = None
+            if self.keep_open:
+                self.touch()
+            else:
+                app.menu = None
             self.choose(app, items[min(self.cursor, len(items) - 1)])
         elif pressed & CLOSE_KEYS:
             app.menu = None
@@ -198,12 +203,12 @@ class StationMenu(PickMenu):
 
 
 class SnippetMenu(PickMenu):
-    """G-Taste „Textbausteine“: Text wählen und einfügen."""
+    """G-Taste „Textbausteine“: Text wählen und einfügen (mit keep_open bleibt die Liste offen)."""
     kind = "snippets"
 
-    def __init__(self, group, title):
+    def __init__(self, group, title, keep_open=False):
         super().__init__()
-        self.group, self.title = group, title
+        self.group, self.title, self.keep_open = group, title, keep_open
 
     def items(self, app):
         return app.snippet_list(self.group)
@@ -218,7 +223,8 @@ class SnippetMenu(PickMenu):
         items = self.items(app)
         self.cursor = min(self.cursor, max(0, len(items) - 1))
         return app.renderer.render_list_menu(self.title or "Textbausteine", items, self.cursor,
-                                             "▲▼ wählen · OK einfügen · BACK zurück", f"{len(items)}", PROFILE_COLOR[app.layer])
+                                             "▲▼ wählen · OK einfügen · BACK " + ("schließen" if self.keep_open else "zurück"),
+                                             f"{len(items)}", PROFILE_COLOR[app.layer])
 
 
 class DetailView(Menu):

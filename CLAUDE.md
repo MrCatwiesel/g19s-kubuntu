@@ -34,7 +34,7 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
 - Aus der Sandbox ist `raw.githubusercontent.com` nicht erreichbar; die Update-Suche wird
   mit dem Fake-GitHub (`G19S_UPDATE_URL`, `tests/fakes/infodienste.py`) getestet.
 
-## Stand (2026.10.01-4)
+## Stand (2026.10.01-5)
 - Alle Punkte der Prüfung Sicherheit/Lesbarkeit/Performance umgesetzt; L7 (Umbenennung
   profile→layer) bewusst verworfen.
 - 2026.09.30-5: Update direkt von GitHub (Dienst & Sicherung → „Nach Updates suchen“),
@@ -51,11 +51,14 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
 - 2026.10.01-4: Text bleibt nach dem Einfügen in der Zwischenablage (`paste_restore` Standard aus –
   Nutzer fügt mehrfach selbst mit Strg+V ein, auch per RDP), Mehrfachdruck ohne Sperre (Generationszähler),
   0,3 s vor Strg+V, Version beim Start und jedes Einfügen im Protokoll; Sim `s16_zwischenablage_bleibt`.
+- 2026.10.01-5: Einzelner Textbaustein direkt auf G-Taste (`{"snippets": "*", "snippet": "<Name>"}`, jeder Druck
+  fügt ein; Verweis über den Namen wie in `snippet_list`), Liste bleibt nach OK offen (`"keep_open": true`);
+  Sim `s17_textbaustein_direkt`. Anlass: Nutzer erwartete bei G-Taste „Textbausteine“ Einfügen bei jedem Druck.
 - Beobachtet: Benachrichtigungen erscheinen im Journal doppelt (vermutlich sendet Plasma zweimal) – harmlos.
 
 ## Offene Punkte
-1. Rückmeldung zu 2026.10.01-4: Einfügen über die Zwischenablage mehrfach (Editor, RDP-Fenster,
-   Konsole mit Strg+Umschalt+V); Update 10.01-3 → 10.01-4 über Releases mit „Was ist neu“.
+1. Rückmeldung zu 2026.10.01-5: G-Taste „Direkt einfügen: <Baustein>“ mehrfach drücken, Liste mit
+   „offen lassen“ (mehrmals OK); Update 10.01-4 → 10.01-5 über Releases mit „Was ist neu“.
 2. `install.sh` (mit `--deinstallieren`).
 3. Knopf „Vorherige Version wiederherstellen“ (Sicherungen in `~/.local/share/g19s/alte-versionen`).
 4. Optional: täglicher Update-Hinweis auf der Displayseite „Updates“ (abschaltbar).

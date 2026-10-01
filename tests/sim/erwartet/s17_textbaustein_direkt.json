@@ -1,0 +1,53 @@
+{
+ "gesetzt": [
+  "klipper:Viele Grüße|",
+  "klipper:Viele Grüße|",
+  "klipper:Viele Grüße|",
+  "klipper:Viele Grüße|",
+  "klipper:Viele Grüße|",
+  "klipper:K|"
+ ],
+ "log": [
+  "G1 (Gruß): eingefügt über Klipper (11 Zeichen)",
+  "G1 (Gruß): eingefügt über Klipper (11 Zeichen)",
+  "G1 (Gruß): eingefügt über Klipper (11 Zeichen)",
+  "G2: Textbaustein ok getippt",
+  "Textbaustein: Gruß",
+  "Textbaustein: eingefügt über Klipper (11 Zeichen)",
+  "Textbaustein: Gruß",
+  "Textbaustein: eingefügt über Klipper (11 Zeichen)",
+  "Textbaustein: Kurz",
+  "Textbaustein: eingefügt über Klipper (1 Zeichen)",
+  "G4: Textbaustein „Gelöscht“ nicht gefunden"
+ ],
+ "typed": [
+  "KEY_LEFTCTRL",
+  "KEY_V",
+  "KEY_LEFTCTRL",
+  "KEY_V",
+  "KEY_LEFTCTRL",
+  "KEY_V",
+  "KEY_O",
+  "KEY_K",
+  "KEY_ENTER",
+  "KEY_Y",
+  "KEY_W",
+  "KEY_E",
+  "KEY_I",
+  "KEY_T",
+  "KEY_E",
+  "KEY_SPACE",
+  "KEY_LEFTSHIFT",
+  "KEY_Y",
+  "KEY_E",
+  "KEY_I",
+  "KEY_L",
+  "KEY_E",
+  "KEY_LEFTCTRL",
+  "KEY_V",
+  "KEY_LEFTCTRL",
+  "KEY_V",
+  "KEY_LEFTCTRL",
+  "KEY_V"
+ ]
+}

@@ -40,7 +40,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.10.01-4"
+VERSION = "2026.10.01-5"
 
 # Weitere Importe der Module
 import http.client
@@ -910,6 +910,8 @@ def entry_label(entry, settings=None):
     if t == "volume":
         return VOLUME_ACTIONS.get(entry["volume"], "Lautstärke")
     if t == "snippets":
+        if entry.get("snippet"):
+            return str(entry["snippet"])
         grp = str(entry["snippets"])
         return "Textbausteine" if grp == "*" else grp
     if t == "timer":
@@ -9398,7 +9400,9 @@ class AlbumMenu(Menu):
 
 
 class PickMenu(Menu):
-    """Liste, aus der OK einen Eintrag ausführt und schließt (Sender, Textbausteine)."""
+    """Liste, aus der OK einen Eintrag ausführt und schließt (Sender, Textbausteine).
+    keep_open: Liste bleibt nach OK offen (mehrfach ausführen, BACK schließt)."""
+    keep_open = False
 
     def items(self, app):
         raise NotImplementedError
@@ -9410,7 +9414,10 @@ class PickMenu(Menu):
         items = self.items(app)
         self.cursor = self.step(self.cursor, pressed, max(1, len(items)))
         if pressed & LKEY_BITS["OK"] and items:
-            app.menu = None
+            if self.keep_open:
+                self.touch()
+            else:
+                app.menu = None
             self.choose(app, items[min(self.cursor, len(items) - 1)])
         elif pressed & CLOSE_KEYS:
             app.menu = None
@@ -9442,12 +9449,12 @@ class StationMenu(PickMenu):
 
 
 class SnippetMenu(PickMenu):
-    """G-Taste „Textbausteine“: Text wählen und einfügen."""
+    """G-Taste „Textbausteine“: Text wählen und einfügen (mit keep_open bleibt die Liste offen)."""
     kind = "snippets"
 
-    def __init__(self, group, title):
+    def __init__(self, group, title, keep_open=False):
         super().__init__()
-        self.group, self.title = group, title
+        self.group, self.title, self.keep_open = group, title, keep_open
 
     def items(self, app):
         return app.snippet_list(self.group)
@@ -9462,7 +9469,8 @@ class SnippetMenu(PickMenu):
         items = self.items(app)
         self.cursor = min(self.cursor, max(0, len(items) - 1))
         return app.renderer.render_list_menu(self.title or "Textbausteine", items, self.cursor,
-                                             "▲▼ wählen · OK einfügen · BACK zurück", f"{len(items)}", PROFILE_COLOR[app.layer])
+                                             "▲▼ wählen · OK einfügen · BACK " + ("schließen" if self.keep_open else "zurück"),
+                                             f"{len(items)}", PROFILE_COLOR[app.layer])
 
 
 class DetailView(Menu):
@@ -9564,10 +9572,20 @@ def act_timer(app, macro, name):
 
 @gkey_action("snippets")
 def act_snippets(app, macro, name):
-    if app.menu is not None and app.menu.kind == "snippets":
+    if macro.get("snippet"):                # einzelner Baustein: jeder Druck fügt ihn sofort ein
+        want = str(macro["snippet"])
+        item = next((it for it in app.snippet_list() if it["name"] == want), None)
+        if item is None:
+            app.show("Textbaustein", [f"„{want}“ fehlt", "in der Verwaltung prüfen"], PROFILE_COLOR[app.layer], 2.5)
+            app.log(f"{name}: Textbaustein „{want}“ nicht gefunden")
+        elif not insert_text(app, item["text"], item["paste"], f"{name} ({want})"):
+            app.log("Es läuft bereits ein Makro – ignoriert")
+        elif not item["paste"]:
+            app.log(f"{name}: Textbaustein {want} getippt")
+    elif app.menu is not None and app.menu.kind == "snippets":
         app.menu = None                     # zweiter Druck schließt die Liste
     elif app.snippet_list(macro["snippets"]):
-        app.menu = SnippetMenu(macro["snippets"], entry_label(macro, app.settings()))
+        app.menu = SnippetMenu(macro["snippets"], entry_label(macro, app.settings()), bool(macro.get("keep_open")))
         app.flash = None
     else:
         app.show("Textbausteine", ["keine Textbausteine", "in der Verwaltung anlegen"], PROFILE_COLOR[app.layer], 2.5)

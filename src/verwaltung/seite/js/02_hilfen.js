@@ -85,6 +85,12 @@ function snippetGroups() {
   const sd = UI.sdraft || S.settings;
   return [...new Set(sd.snippets.map(x => (x.group || "").trim()).filter(Boolean))].sort();
 }
+// Namen der Textbausteine wie im Treiber (snippet_list): Name oder erste Textzeile; G-Tasten verweisen darauf
+function snippetNames() {
+  const sd = UI.sdraft || S.settings;
+  return [...new Set((sd.snippets || []).filter(x => x.text).map(x =>
+    (x.name || "").trim() || [...x.text.split("\n")[0]].slice(0, 40).join("")))];
+}
 function comboList(c) { return (Array.isArray(c) ? c : String(c || "").split("+")).map(s => String(s).trim()).filter(Boolean); }
 function entryLabel(e) {
   if (!e) return "";
@@ -94,7 +100,7 @@ function entryLabel(e) {
   if (t === "radio") return e.radio === "stop" ? "Radio aus" : stationName(e.radio);
   if (t === "media") return S.media[e.media] || "Musik";
   if (t === "volume") return S.volume[e.volume] || "Lautstärke";
-  if (t === "snippets") return e.snippets === "*" ? "Textbausteine" : String(e.snippets);
+  if (t === "snippets") return e.snippet ? String(e.snippet) : e.snippets === "*" ? "Textbausteine" : String(e.snippets);
   if (t === "timer") return timerLabel(e.timer);
   if (t === "sleep") return `Einschlafen ${e.sleep} min`;
   if (t === "mic") return "Mikrofon";

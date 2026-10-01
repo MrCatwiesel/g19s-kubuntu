@@ -13,6 +13,7 @@ entries = [
     {"timer": {"mode": "pomodoro", "work": 50, "break": 10}}, {"timer": {"mode": "pomodoro", "work": "x"}},
     {"timer": {"mode": "stopwatch"}}, {"timer": "kaputt", "text": "t"}, {"sleep": 30}, {"mic": True},
     {"text": "a", "combo": "KEY_B", "steps": [[0, "KEY_C", "tap"]]}, {}, {"text": ""}, {"steps": []},
+    {"snippets": "*", "snippet": "Gruß"}, {"snippets": "Büro", "keep_open": True},
 ]
 settings = {"stations": stations}
 py = [[g.entry_type(e) or "default", g.entry_label(e, settings)] for e in entries]
@@ -25,6 +26,8 @@ eq(py[13][1], "unbekannt.de", "unbekannter Sender: Domain")
 eq(py[25][1], "Pomodoro 25/5", "ungültige Pomodoro-Zeit → Standard")
 eq(py[30][0], "text", "mehrere Arten: Text vor Kombination vor Makro (wie bei der Ausführung)")
 eq(py[9], ["run", ""], "Programm nur aus Leerzeichen stürzt nicht ab")
+eq(py[-2], ["snippets", "Gruß"], "einzelner Textbaustein: dessen Name")
+eq(py[-1], ["snippets", "Büro"], "Liste bleibt offen: Gruppe wie bisher")
 ok(set(g.GKEY_ACTIONS) == set(g.ENTRY_TYPES), "jede Art hat eine Ausführung")
 
 node = shutil.which("node")

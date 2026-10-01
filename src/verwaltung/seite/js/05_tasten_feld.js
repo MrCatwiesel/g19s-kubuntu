@@ -48,6 +48,7 @@ function selectKey(k, reset) {
       combo: comboList(e && e.combo), steps: clone((e && e.steps) || []), open: (e && e.open) || "",
       run: (e && e.run) || "", radio: (e && e.radio) || "", media: (e && e.media) || "play-pause",
       volume: (e && e.volume) || "up", snippets: (e && e.snippets) || "*",
+      snippet: (e && e.snippet) || "", keepOpen: !!(e && e.keep_open),
       timer: Object.assign({mode: "timer", minutes: 5, work: 25, break: 5}, (e && e.timer) || {}),
       sleep: (e && e.sleep) || 30};
     UI.draftDirty = false; markTabs();

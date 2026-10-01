@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.10.01-4)
+| 28.09.2026 (Version 2026.10.01-5)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -26,7 +26,7 @@ Für die G19s gibt es unter Linux keinen offiziellen Treiber. Die normalen Taste
 * '''G1–G12''' senden die Tasten '''F13–F24''' und lassen sich in KDE frei belegen.
 * '''Bis zu 10 Profile''' (z. B. „Büro“, „Spiele“) mit je drei Ebenen '''M1/M2/M3''' – also 36 Belegungen pro Profil. Umschalten über die Displaytaste '''SETTINGS'''. Jedes Profil hat eigene Beleuchtungsfarben.
 * '''MR''' nimmt Makros direkt an der Tastatur auf.
-* G-Tasten können Text einfügen (über die Zwischenablage oder Zeichen für Zeichen getippt), Tastenkombinationen senden, Webseiten öffnen, Programme starten, Radiosender abspielen, den Musikplayer steuern, die '''Lautstärke''' ändern (mit Balken auf dem Display), eine Liste von '''Textbausteinen''' auf dem Display öffnen und '''Timer, Stoppuhr oder Pomodoro''' starten.
+* G-Tasten können Text einfügen (über die Zwischenablage oder Zeichen für Zeichen getippt), Tastenkombinationen senden, Webseiten öffnen, Programme starten, Radiosender abspielen, den Musikplayer steuern, die '''Lautstärke''' ändern (mit Balken auf dem Display), einen '''Textbaustein''' direkt einfügen oder eine Liste von Textbausteinen auf dem Display öffnen und '''Timer, Stoppuhr oder Pomodoro''' starten.
 * Auswahl direkt am Display: Radiosender, Kalender, Termindetails, Piwigo-Alben.
 * '''Terminerinnerung''' vor Terminbeginn, '''Radiowecker''' und '''Einschlaftimer''', '''Song merken''' (Radiotitel in eine Liste), '''Lieblingsbilder''' in der Diashow, '''Mikrofon stumm''' per G-Taste (MR-Leuchte als Anzeige).
 * Displayseiten je Ebene '''und''' je Profil einstellbar, '''automatische Sicherung''' in einen Ordner.
@@ -164,7 +164,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.10.01-4"
+VERSION = "2026.10.01-5"
 
 # Weitere Importe der Module
 import http.client
@@ -1034,6 +1034,8 @@ def entry_label(entry, settings=None):
     if t == "volume":
         return VOLUME_ACTIONS.get(entry["volume"], "Lautstärke")
     if t == "snippets":
+        if entry.get("snippet"):
+            return str(entry["snippet"])
         grp = str(entry["snippets"])
         return "Textbausteine" if grp == "*" else grp
     if t == "timer":
@@ -9522,7 +9524,9 @@ class AlbumMenu(Menu):
 
 
 class PickMenu(Menu):
-    """Liste, aus der OK einen Eintrag ausführt und schließt (Sender, Textbausteine)."""
+    """Liste, aus der OK einen Eintrag ausführt und schließt (Sender, Textbausteine).
+    keep_open: Liste bleibt nach OK offen (mehrfach ausführen, BACK schließt)."""
+    keep_open = False
 
     def items(self, app):
         raise NotImplementedError
@@ -9534,7 +9538,10 @@ class PickMenu(Menu):
         items = self.items(app)
         self.cursor = self.step(self.cursor, pressed, max(1, len(items)))
         if pressed & LKEY_BITS["OK"] and items:
-            app.menu = None
+            if self.keep_open:
+                self.touch()
+            else:
+                app.menu = None
             self.choose(app, items[min(self.cursor, len(items) - 1)])
         elif pressed & CLOSE_KEYS:
             app.menu = None
@@ -9566,12 +9573,12 @@ class StationMenu(PickMenu):
 
 
 class SnippetMenu(PickMenu):
-    """G-Taste „Textbausteine“: Text wählen und einfügen."""
+    """G-Taste „Textbausteine“: Text wählen und einfügen (mit keep_open bleibt die Liste offen)."""
     kind = "snippets"
 
-    def __init__(self, group, title):
+    def __init__(self, group, title, keep_open=False):
         super().__init__()
-        self.group, self.title = group, title
+        self.group, self.title, self.keep_open = group, title, keep_open
 
     def items(self, app):
         return app.snippet_list(self.group)
@@ -9586,7 +9593,8 @@ class SnippetMenu(PickMenu):
         items = self.items(app)
         self.cursor = min(self.cursor, max(0, len(items) - 1))
         return app.renderer.render_list_menu(self.title or "Textbausteine", items, self.cursor,
-                                             "▲▼ wählen · OK einfügen · BACK zurück", f"{len(items)}", PROFILE_COLOR[app.layer])
+                                             "▲▼ wählen · OK einfügen · BACK " + ("schließen" if self.keep_open else "zurück"),
+                                             f"{len(items)}", PROFILE_COLOR[app.layer])
 
 
 class DetailView(Menu):
@@ -9688,10 +9696,20 @@ def act_timer(app, macro, name):
 
 @gkey_action("snippets")
 def act_snippets(app, macro, name):
-    if app.menu is not None and app.menu.kind == "snippets":
+    if macro.get("snippet"):                # einzelner Baustein: jeder Druck fügt ihn sofort ein
+        want = str(macro["snippet"])
+        item = next((it for it in app.snippet_list() if it["name"] == want), None)
+        if item is None:
+            app.show("Textbaustein", [f"„{want}“ fehlt", "in der Verwaltung prüfen"], PROFILE_COLOR[app.layer], 2.5)
+            app.log(f"{name}: Textbaustein „{want}“ nicht gefunden")
+        elif not insert_text(app, item["text"], item["paste"], f"{name} ({want})"):
+            app.log("Es läuft bereits ein Makro – ignoriert")
+        elif not item["paste"]:
+            app.log(f"{name}: Textbaustein {want} getippt")
+    elif app.menu is not None and app.menu.kind == "snippets":
         app.menu = None                     # zweiter Druck schließt die Liste
     elif app.snippet_list(macro["snippets"]):
-        app.menu = SnippetMenu(macro["snippets"], entry_label(macro, app.settings()))
+        app.menu = SnippetMenu(macro["snippets"], entry_label(macro, app.settings()), bool(macro.get("keep_open")))
         app.flash = None
     else:
         app.show("Textbausteine", ["keine Textbausteine", "in der Verwaltung anlegen"], PROFILE_COLOR[app.layer], 2.5)
@@ -10956,7 +10974,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.10.01-4"
+VERSION = "2026.10.01-5"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -13065,6 +13083,12 @@ function snippetGroups() {
   const sd = UI.sdraft || S.settings;
   return [...new Set(sd.snippets.map(x => (x.group || "").trim()).filter(Boolean))].sort();
 }
+// Namen der Textbausteine wie im Treiber (snippet_list): Name oder erste Textzeile; G-Tasten verweisen darauf
+function snippetNames() {
+  const sd = UI.sdraft || S.settings;
+  return [...new Set((sd.snippets || []).filter(x => x.text).map(x =>
+    (x.name || "").trim() || [...x.text.split("\n")[0]].slice(0, 40).join("")))];
+}
 function comboList(c) { return (Array.isArray(c) ? c : String(c || "").split("+")).map(s => String(s).trim()).filter(Boolean); }
 function entryLabel(e) {
   if (!e) return "";
@@ -13074,7 +13098,7 @@ function entryLabel(e) {
   if (t === "radio") return e.radio === "stop" ? "Radio aus" : stationName(e.radio);
   if (t === "media") return S.media[e.media] || "Musik";
   if (t === "volume") return S.volume[e.volume] || "Lautstärke";
-  if (t === "snippets") return e.snippets === "*" ? "Textbausteine" : String(e.snippets);
+  if (t === "snippets") return e.snippet ? String(e.snippet) : e.snippets === "*" ? "Textbausteine" : String(e.snippets);
   if (t === "timer") return timerLabel(e.timer);
   if (t === "sleep") return `Einschlafen ${e.sleep} min`;
   if (t === "mic") return "Mikrofon";
@@ -13189,6 +13213,7 @@ function selectKey(k, reset) {
       combo: comboList(e && e.combo), steps: clone((e && e.steps) || []), open: (e && e.open) || "",
       run: (e && e.run) || "", radio: (e && e.radio) || "", media: (e && e.media) || "play-pause",
       volume: (e && e.volume) || "up", snippets: (e && e.snippets) || "*",
+      snippet: (e && e.snippet) || "", keepOpen: !!(e && e.keep_open),
       timer: Object.assign({mode: "timer", minutes: 5, work: 25, break: 5}, (e && e.timer) || {}),
       sleep: (e && e.sleep) || 30};
     UI.draftDirty = false; markTabs();
@@ -13381,13 +13406,29 @@ function edVolume(box, d) {
     el("p", {class: "hint", text: `Ändert die Systemlautstärke um ${(UI.sdraft || S.settings).volume_step || 5} % und zeigt sie kurz groß auf dem Display. Die Schrittweite stellst du unter „Beleuchtung & Display“ ein.`}));
 }
 function edSnippets(box, d) {
-  const groups = snippetGroups(), n = ((UI.sdraft || S.settings).snippets || []).length;
+  const groups = snippetGroups(), names = snippetNames(), n = ((UI.sdraft || S.settings).snippets || []).length;
+  const missing = d.snippet && !names.includes(d.snippet);
+  const value = d.snippet ? "s:" + d.snippet : d.snippets === "*" ? "*" : "g:" + d.snippets;
+  const extra = el("div");
+  const explain = () => extra.replaceChildren(d.snippet
+    ? el("p", {class: "hint", text: "Jeder Druck auf die G-Taste fügt diesen Textbaustein sofort ins aktive Fenster ein – ohne Liste. Wie eingefügt wird (Zwischenablage oder tippen), stellst du beim Baustein im Reiter „Textbausteine“ ein."})
+    : el("div", {},
+      el("label", {class: "check"}, el("input", {type: "checkbox", id: "snipKeepOpen", checked: d.keepOpen,
+        onchange: e => { d.keepOpen = e.target.checked; touchDraft(); }}), " Liste nach dem Einfügen offen lassen"),
+      el("p", {class: "hint", text: "Ein Druck auf die G-Taste zeigt die Liste auf dem Display: Hoch/Runter wählen, OK fügt den Text ins aktive Fenster ein. Bleibt die Liste offen, kannst du mehrmals OK drücken oder gleich den nächsten Baustein wählen. BACK oder die G-Taste schließen die Liste. Die Texte legst du im Reiter „Textbausteine“ an."})));
   box.append(el("label", {class: "field"}, el("span", {text: "Welche Textbausteine?"}),
-    el("select", {onchange: e => { d.snippets = e.target.value; touchDraft(); }},
-      el("option", {value: "*", text: `Alle (${n})`, selected: d.snippets === "*"}),
-      ...groups.map(g => el("option", {value: g, text: "Gruppe: " + g, selected: d.snippets === g})))),
-    el("p", {class: "hint", text: "Ein Druck auf die G-Taste zeigt die Liste auf dem Display: Hoch/Runter wählen, OK tippt den Text ins aktive Fenster, BACK oder die G-Taste schließen die Liste. Die Texte legst du im Reiter „Textbausteine“ an."}));
+    el("select", {id: "snipSel", onchange: e => {
+      const v = e.target.value;
+      d.snippet = v.startsWith("s:") ? v.slice(2) : ""; d.snippets = v.startsWith("g:") ? v.slice(2) : "*";
+      touchDraft(); explain(); }},
+      el("option", {value: "*", text: `Liste: alle (${n})`, selected: value === "*"}),
+      ...groups.map(g => el("option", {value: "g:" + g, text: "Liste: Gruppe " + g, selected: value === "g:" + g})),
+      ...[...names, ...(missing ? [d.snippet] : [])].map(nm => el("option", {value: "s:" + nm,
+        text: "Direkt einfügen: " + nm + (missing && nm === d.snippet ? " (fehlt)" : ""), selected: value === "s:" + nm})))),
+    extra);
+  explain();
   if (!n) box.append(el("div", {class: "warnbox"}, "Es gibt noch keine Textbausteine – im Reiter „Textbausteine“ anlegen."));
+  else if (missing) box.append(el("div", {class: "warnbox"}, `Den Textbaustein „${d.snippet}“ gibt es nicht mehr – bitte einen anderen wählen.`));
 }
 function edSleep(box, d) {
   box.append(el("label", {class: "field", style: {maxWidth: "220px"}}, el("span", {text: "Musik ausschalten nach … Minuten"}),
@@ -13490,7 +13531,10 @@ function draftToEntry(d) {
     case "radio": if (d.radio) e.radio = d.radio; break;
     case "media": if (d.media) e.media = d.media; break;
     case "volume": if (d.volume) e.volume = d.volume; break;
-    case "snippets": e.snippets = d.snippets || "*"; break;
+    case "snippets":
+      e.snippets = d.snippet ? "*" : d.snippets || "*";
+      if (d.snippet) e.snippet = d.snippet; else if (d.keepOpen) e.keep_open = true;
+      break;
     case "sleep": e.sleep = d.sleep || 30; break;
     case "mic": e.mic = "toggle"; break;
     case "timer": {
@@ -14651,7 +14695,7 @@ Startet eine neue Oberfläche nicht, stellt die Verwaltung automatisch die vorhe
 |-
 | Lautstärke || Lauter, Leiser oder Stumm; das Display zeigt kurz einen Balken mit dem neuen Wert || <code>"volume": "up"</code> (bzw. <code>"down"</code>, <code>"mute"</code>)
 |-
-| Textbausteine || zeigt die Textbausteine (alle oder eine Gruppe) auf dem Display zum Auswählen und Einfügen || <code>"snippets": "*"</code> bzw. <code>"snippets": "Büro"</code>
+| Textbausteine || fügt einen bestimmten Textbaustein bei jedem Druck sofort ein, oder zeigt die Textbausteine (alle oder eine Gruppe) auf dem Display zum Auswählen und Einfügen || <code>"snippet": "Gruß"</code> bzw. <code>"snippets": "*"</code>, <code>"snippets": "Büro"</code>
 |-
 | Timer || Countdown, Stoppuhr oder Pomodoro mit großer Anzeige || <code>"timer": {"mode": "timer", "minutes": 10}</code>, <code>{"mode": "stopwatch"}</code>, <code>{"mode": "pomodoro", "work": 25, "break": 5}</code>
 |-
@@ -14852,10 +14896,10 @@ Die meisten Zifferblätter werden genau zum Sekundenwechsel neu gezeichnet. Bewe
 '''Eigene Zifferblätter''' (für Entwickler): siehe <code>ENTWICKLUNG.md</code> auf https://github.com/MrCatwiesel/g19s-kubuntu – ein Zifferblatt ist eine Methode mit <code>@clock_face("id")</code>, der Name steht in <code>CLOCK_FACES</code>, die Einstellungen in <code>CLOCK_OPTIONS</code>; <code>tests/uhren_vorschau.py</code> zeigt es als Bild.
 
 === Textbausteine ===
-Im Reiter '''Textbausteine''' der Verwaltung Texte anlegen (Name, optionale Gruppe, Text – auch mehrzeilig). Dann einer G-Taste die Aktion '''Textbausteine''' geben (alle oder nur eine Gruppe). Ein Druck auf die G-Taste zeigt die Liste auf dem Display:
-* '''Hoch/Runter''' wählen, '''OK''' fügt den Text in das gerade aktive Fenster ein.
-* '''BACK''' oder dieselbe G-Taste schließen die Liste.
-So passen beliebig viele Texte auf eine einzige G-Taste.
+Im Reiter '''Textbausteine''' der Verwaltung Texte anlegen (Name, optionale Gruppe, Text – auch mehrzeilig). Dann einer G-Taste die Aktion '''Textbausteine''' geben und im Feld „Welche Textbausteine?“ wählen:
+* '''Direkt einfügen: <Name>''' – jeder Druck auf die G-Taste fügt genau diesen Textbaustein sofort in das aktive Fenster ein, ohne Liste. Ideal für Texte, die man oft braucht. Die Taste merkt sich den Namen: Ändert man den Text im Reiter '''Textbausteine''', gilt sofort der neue Text. Wird der Baustein gelöscht oder umbenannt, zeigt das Display „… fehlt“.
+* '''Liste: alle''' bzw. '''Liste: Gruppe …''' – ein Druck zeigt die Liste auf dem Display: '''Hoch/Runter''' wählen, '''OK''' fügt den Text in das gerade aktive Fenster ein, '''BACK''' oder dieselbe G-Taste schließen die Liste. So passen beliebig viele Texte auf eine einzige G-Taste.
+* Mit '''Liste nach dem Einfügen offen lassen''' bleibt die Liste nach OK stehen: mehrmals OK drücken fügt den Text mehrmals ein, oder gleich den nächsten Baustein wählen. Nach 30 Sekunden ohne Tastendruck schließt sie sich von selbst.
 
 '''Einfügeart''' (je Textbaustein und bei G-Tasten mit Text wählbar; neue Texte: Zwischenablage):
 {| class="wikitable"
@@ -15016,7 +15060,9 @@ Bis zu 10 Einträge in <code>profiles</code>. Optional hat ein Profil eigene Dis
 |-
 | <code>"volume"</code> || <code>up</code>, <code>down</code>, <code>mute</code> (Schrittweite in der Verwaltung)
 |-
-| <code>"snippets"</code> || <code>"*"</code> = alle Textbausteine, sonst Name einer Gruppe
+| <code>"snippets"</code> || <code>"*"</code> = alle Textbausteine, sonst Name einer Gruppe; dazu <code>"keep_open": true</code> = Liste bleibt nach OK offen
+|-
+| <code>"snippet"</code> || Name eines Textbausteins: jeder Druck fügt ihn direkt ein (zusammen mit <code>"snippets": "*"</code>)
 |-
 | <code>"sleep"</code> || Einschlaftimer in Minuten
 |-

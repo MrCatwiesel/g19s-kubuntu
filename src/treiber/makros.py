@@ -49,6 +49,8 @@ def entry_label(entry, settings=None):
     if t == "volume":
         return VOLUME_ACTIONS.get(entry["volume"], "Lautstärke")
     if t == "snippets":
+        if entry.get("snippet"):
+            return str(entry["snippet"])
         grp = str(entry["snippets"])
         return "Textbausteine" if grp == "*" else grp
     if t == "timer":

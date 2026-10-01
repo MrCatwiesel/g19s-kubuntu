@@ -3,6 +3,11 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.10.01-5
+- Ein einzelner Textbaustein lässt sich jetzt direkt auf eine G-Taste legen: Jeder Druck fügt ihn sofort ein, ohne Liste und ohne OK. Im Tasten-Editor unter „Textbausteine“ den Eintrag „Direkt einfügen: <Name>“ wählen.
+- Neue Option „Liste nach dem Einfügen offen lassen“ für G-Tasten mit Textbaustein-Liste: Nach OK bleibt die Liste stehen, so lässt sich mehrmals einfügen oder gleich der nächste Baustein wählen. BACK oder die G-Taste schließen sie.
+- Wird ein direkt belegter Textbaustein gelöscht oder umbenannt, meldet das Display „… fehlt“, und die Verwaltung weist darauf hin.
+
 ## 2026.10.01-4
 - Fehler behoben: Nach dem Einfügen über die Zwischenablage bleibt der Text jetzt in der Zwischenablage – wie beim Kopieren lässt er sich mit Strg+V beliebig oft an weiteren Stellen einfügen, auch im Remote-Desktop-Fenster. Bisher wurde nach einer Sekunde der vorherige Inhalt zurückgeholt; das ist jetzt ausgeschaltet und im Reiter „Textbausteine“ wieder einschaltbar.
 - Mehrmals schnell hintereinander gedrückte G-Tasten fügen jeden Text ein, keiner wird mehr ignoriert.

@@ -38,10 +38,20 @@ def act_timer(app, macro, name):
 
 @gkey_action("snippets")
 def act_snippets(app, macro, name):
-    if app.menu is not None and app.menu.kind == "snippets":
+    if macro.get("snippet"):                # einzelner Baustein: jeder Druck fügt ihn sofort ein
+        want = str(macro["snippet"])
+        item = next((it for it in app.snippet_list() if it["name"] == want), None)
+        if item is None:
+            app.show("Textbaustein", [f"„{want}“ fehlt", "in der Verwaltung prüfen"], PROFILE_COLOR[app.layer], 2.5)
+            app.log(f"{name}: Textbaustein „{want}“ nicht gefunden")
+        elif not insert_text(app, item["text"], item["paste"], f"{name} ({want})"):
+            app.log("Es läuft bereits ein Makro – ignoriert")
+        elif not item["paste"]:
+            app.log(f"{name}: Textbaustein {want} getippt")
+    elif app.menu is not None and app.menu.kind == "snippets":
         app.menu = None                     # zweiter Druck schließt die Liste
     elif app.snippet_list(macro["snippets"]):
-        app.menu = SnippetMenu(macro["snippets"], entry_label(macro, app.settings()))
+        app.menu = SnippetMenu(macro["snippets"], entry_label(macro, app.settings()), bool(macro.get("keep_open")))
         app.flash = None
     else:
         app.show("Textbausteine", ["keine Textbausteine", "in der Verwaltung anlegen"], PROFILE_COLOR[app.layer], 2.5)

@@ -183,13 +183,29 @@ function edVolume(box, d) {
     el("p", {class: "hint", text: `Ändert die Systemlautstärke um ${(UI.sdraft || S.settings).volume_step || 5} % und zeigt sie kurz groß auf dem Display. Die Schrittweite stellst du unter „Beleuchtung & Display“ ein.`}));
 }
 function edSnippets(box, d) {
-  const groups = snippetGroups(), n = ((UI.sdraft || S.settings).snippets || []).length;
+  const groups = snippetGroups(), names = snippetNames(), n = ((UI.sdraft || S.settings).snippets || []).length;
+  const missing = d.snippet && !names.includes(d.snippet);
+  const value = d.snippet ? "s:" + d.snippet : d.snippets === "*" ? "*" : "g:" + d.snippets;
+  const extra = el("div");
+  const explain = () => extra.replaceChildren(d.snippet
+    ? el("p", {class: "hint", text: "Jeder Druck auf die G-Taste fügt diesen Textbaustein sofort ins aktive Fenster ein – ohne Liste. Wie eingefügt wird (Zwischenablage oder tippen), stellst du beim Baustein im Reiter „Textbausteine“ ein."})
+    : el("div", {},
+      el("label", {class: "check"}, el("input", {type: "checkbox", id: "snipKeepOpen", checked: d.keepOpen,
+        onchange: e => { d.keepOpen = e.target.checked; touchDraft(); }}), " Liste nach dem Einfügen offen lassen"),
+      el("p", {class: "hint", text: "Ein Druck auf die G-Taste zeigt die Liste auf dem Display: Hoch/Runter wählen, OK fügt den Text ins aktive Fenster ein. Bleibt die Liste offen, kannst du mehrmals OK drücken oder gleich den nächsten Baustein wählen. BACK oder die G-Taste schließen die Liste. Die Texte legst du im Reiter „Textbausteine“ an."})));
   box.append(el("label", {class: "field"}, el("span", {text: "Welche Textbausteine?"}),
-    el("select", {onchange: e => { d.snippets = e.target.value; touchDraft(); }},
-      el("option", {value: "*", text: `Alle (${n})`, selected: d.snippets === "*"}),
-      ...groups.map(g => el("option", {value: g, text: "Gruppe: " + g, selected: d.snippets === g})))),
-    el("p", {class: "hint", text: "Ein Druck auf die G-Taste zeigt die Liste auf dem Display: Hoch/Runter wählen, OK tippt den Text ins aktive Fenster, BACK oder die G-Taste schließen die Liste. Die Texte legst du im Reiter „Textbausteine“ an."}));
+    el("select", {id: "snipSel", onchange: e => {
+      const v = e.target.value;
+      d.snippet = v.startsWith("s:") ? v.slice(2) : ""; d.snippets = v.startsWith("g:") ? v.slice(2) : "*";
+      touchDraft(); explain(); }},
+      el("option", {value: "*", text: `Liste: alle (${n})`, selected: value === "*"}),
+      ...groups.map(g => el("option", {value: "g:" + g, text: "Liste: Gruppe " + g, selected: value === "g:" + g})),
+      ...[...names, ...(missing ? [d.snippet] : [])].map(nm => el("option", {value: "s:" + nm,
+        text: "Direkt einfügen: " + nm + (missing && nm === d.snippet ? " (fehlt)" : ""), selected: value === "s:" + nm})))),
+    extra);
+  explain();
   if (!n) box.append(el("div", {class: "warnbox"}, "Es gibt noch keine Textbausteine – im Reiter „Textbausteine“ anlegen."));
+  else if (missing) box.append(el("div", {class: "warnbox"}, `Den Textbaustein „${d.snippet}“ gibt es nicht mehr – bitte einen anderen wählen.`));
 }
 function edSleep(box, d) {
   box.append(el("label", {class: "field", style: {maxWidth: "220px"}}, el("span", {text: "Musik ausschalten nach … Minuten"}),
