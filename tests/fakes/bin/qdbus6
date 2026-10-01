@@ -1,0 +1,12 @@
+#!/bin/sh
+# Nachbau von qdbus6 für Klipper (Zwischenablage). $S/kein_klipper = Klipper läuft nicht.
+. "$(dirname "$0")/_root"
+[ -f $S/kein_klipper ] && { echo "Service 'org.kde.klipper' does not exist." >&2; exit 2; }
+F=$S/zwischenablage
+case "$1 $2 $3" in
+  "org.kde.klipper /klipper org.kde.klipper.klipper.setClipboardContents")
+    printf '%s' "$4" > $F; printf 'klipper:%s\n' "$4" | tr '\n' '|' >> $S/zwischenablage.log; echo >> $S/zwischenablage.log;;
+  "org.kde.klipper /klipper org.kde.klipper.klipper.getClipboardContents")
+    [ -f $F ] && cat $F; echo;;
+  *) echo "unbekannt: $*" >&2; exit 1;;
+esac

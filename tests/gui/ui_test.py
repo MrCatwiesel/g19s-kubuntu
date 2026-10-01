@@ -26,11 +26,14 @@ with sync_playwright() as p:
     # G1: vorhandenes Makro mit Schritt-Tabelle
     ok(pg.locator("table.steps tbody tr").count() == 20, "G1: 20 Makroschritte geladen")
 
-    # G4: Text tippen mit unbekanntem Zeichen
+    # G4: Text – neu über die Zwischenablage (alle Zeichen), umgestellt auf Tippen mit unbekanntem Zeichen
     pg.click(".gkey >> text=G4")
-    pg.click(".types button >> text=Text tippen")
+    pg.click(".types button >> text=Text einfügen")
     pg.fill("textarea", "Grüße an alle! @home ✓")
-    ok("✓" in pg.inner_text("#editor .warnbox"), "Warnung für nicht tippbares Zeichen")
+    ok(pg.input_value("#editor select.pasteMode") == "ctrl+v" and pg.locator("#editor .warnbox").count() == 0,
+       "Neuer Text: über Zwischenablage voreingestellt, keine Zeichenwarnung")
+    pg.select_option("#editor select.pasteMode", "")
+    ok("✓" in pg.inner_text("#editor .warnbox"), "Tippen: Warnung für nicht tippbares Zeichen")
     pg.fill("#editor input[type=text]", "Grußformel")
     pg.click("#applyBtn"); pg.wait_for_timeout(300)
     ok(macros()["M1"]["G4"] == {"name": "Grußformel", "text": "Grüße an alle! @home ✓"}, "G4 Text gespeichert")

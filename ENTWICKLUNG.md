@@ -26,6 +26,7 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
       kopf, konstanten        Version, Pfade, USB-Konstanten, Seitenliste
       einstellungen           SCHEMA: ein Schema für alle Einstellungen
       makros, tastatur, …     Makrodatei, Tastennamen, Makro-Abspieler
+      zwischenablage          Texte über die Zwischenablage einfügen (Klipper/wl-copy, Strg+V)
       piwigo … sicherung      Dienste (Radio, Diashow, Wetter, Kalender, RSS, Unwetter, …)
       anzeige_basis           Renderer-Grundlage, @page / @page_keys
       seite_*.py              je Displayseite: Zeichnen + Tasten
@@ -95,7 +96,8 @@ Formular in `seite/js/` fehlt noch. Regeln über mehrere Felder: `Section(..., c
 Einzelne Teile: `run_tests.py bilder sim`, `run_tests.py sim=s05`.
 Nach einer gewollten Änderung der Anzeige: `run_tests.py --referenz` (danach die neuen
 PNGs ansehen!). Die Tests laufen ohne Tastatur: `tests/stubs` ersetzt evdev,
-`tests/fakes` spielt Piwigo, CalDAV/RSS/Bright Sky, GitHub (Release-API für die Update-Suche über
+`tests/fakes` spielt Piwigo, CalDAV/RSS/Bright Sky, Klipper/`wl-copy` (`qdbus6`, `wl-copy`, `wl-paste`; Inhalt in `$G19S_TEST_ROOT/state/zwischenablage`),
+GitHub (Release-API für die Update-Suche über
 `G19S_UPDATE_URL`: Liste aus `$G19S_TEST_ROOT/upd/gh/releases.json`, Dateien aus `upd/gh/<tag>/`,
 Download per Weiterleitung auf einen anderen Host wie bei GitHub) und Programme wie `apt`, `ping`, `wpctl`.
 libfaketime wird beim ersten Lauf nach `tests/.werkzeuge/` gebaut.

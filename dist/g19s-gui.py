@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.10.01-2"
+VERSION = "2026.10.01-3"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -1561,6 +1561,7 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
 .relnotes p { margin: 2px 0; }
 .relnotes a { color: var(--accent); }
 .relnotes ul { margin: 2px 0; padding-left: 20px; }
+.snip select.pasteMode { max-width: 440px; }
 
 </style>
 </head>
@@ -1667,9 +1668,11 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
   <section class="tab" id="tab-snippets">
     <div class="card">
       <h2>Textbausteine</h2>
-      <p class="hint">Texte, die du am Display auswählst und einfügst: Lege im Reiter „Tasten“ eine G-Taste mit der Aktion <b>Textbausteine</b> an. Ein Druck darauf zeigt die Liste auf dem Display, <b>Hoch/Runter</b> wählt, <b>OK</b> tippt den Text in das gerade aktive Fenster. Mit <b>Gruppen</b> kannst du verschiedenen G-Tasten verschiedene Listen geben.</p>
+      <p class="hint">Texte, die du am Display auswählst und einfügst: Lege im Reiter „Tasten“ eine G-Taste mit der Aktion <b>Textbausteine</b> an. Ein Druck darauf zeigt die Liste auf dem Display, <b>Hoch/Runter</b> wählt, <b>OK</b> fügt den Text in das gerade aktive Fenster ein. Mit <b>Gruppen</b> kannst du verschiedenen G-Tasten verschiedene Listen geben.</p>
+      <p class="hint"><b>Einfügen:</b> „Über die Zwischenablage“ fügt den Text auf einmal ein, wie Kopieren und Einfügen – schnell, mit allen Zeichen (auch Emojis) und Zeilenumbrüchen. In der Konsole „Strg+Umschalt+V“ wählen. „Zeichen für Zeichen tippen“ gibt den Text als Tastendrücke aus (für Programme, die kein Einfügen erlauben).</p>
       <div id="snippetList"></div>
       <div class="row" style="margin-top:10px"><button class="btn" id="addSnippet">+ Textbaustein hinzufügen</button></div>
+      <label class="check" style="margin-top:10px"><input type="checkbox" id="clipRestore"> Nach dem Einfügen den vorherigen Inhalt der Zwischenablage zurückholen (gilt auch für G-Tasten mit Text)</label>
     </div>
   </section>
 
@@ -2017,7 +2020,7 @@ const GKEYS = Array.from({length: 12}, (_, i) => "G" + (i + 1));
 const PROFILES = ["M1", "M2", "M3"];
 const TYPES = [
   {id: "default", label: "KDE-Kurzbefehl", icon: "⌨"},
-  {id: "text", label: "Text tippen", icon: "✎"},
+  {id: "text", label: "Text einfügen", icon: "✎"},
   {id: "combo", label: "Tastenkombination", icon: "⌘"},
   {id: "steps", label: "Makro", icon: "⏺"},
   {id: "open", label: "Webseite", icon: "🌐"},
@@ -2165,6 +2168,13 @@ function entryLabel(e) {
   if (t === "steps") return "Makro";
   return "";
 }
+// Einfügeart eines Textes (G-Taste „Text“, Textbaustein): "" = tippen, sonst Tasten zum Einfügen
+const PASTE_MODES = [["ctrl+v", "Über die Zwischenablage einfügen (Strg+V)"],
+  ["ctrl+shift+v", "Über die Zwischenablage, Strg+Umschalt+V (Konsole)"], ["", "Zeichen für Zeichen tippen"]];
+function pasteSelect(value, onchange) {
+  return el("select", {class: "pasteMode", onchange: e => onchange(e.target.value)},
+    ...PASTE_MODES.map(([v, t]) => el("option", {value: v, text: t, selected: (value || "") === v})));
+}
 
 // ---------------------------------------------------------------- Laden
 async function loadState() {
@@ -2259,7 +2269,7 @@ function selectKey(k, reset) {
   UI.gkey = k;
   if (reset) {
     const e = layerKeys()[k];
-    UI.draft = {name: (e && e.name) || "", type: typeOf(e), text: (e && e.text) || "",
+    UI.draft = {name: (e && e.name) || "", type: typeOf(e), text: (e && e.text) || "", paste: e && e.text ? (e.paste || "") : "ctrl+v",
       combo: comboList(e && e.combo), steps: clone((e && e.steps) || []), open: (e && e.open) || "",
       run: (e && e.run) || "", radio: (e && e.radio) || "", media: (e && e.media) || "play-pause",
       volume: (e && e.volume) || "up", snippets: (e && e.snippets) || "*",
@@ -2311,15 +2321,20 @@ function edDefault(box) {
 function edText(box, d) {
   const warn = el("div");
   const check = () => {
-    const bad = [...new Set([...d.text].filter(c => !S.chars.has(c) && c !== "\r"))];
+    const bad = d.paste ? [] : [...new Set([...d.text].filter(c => !S.chars.has(c) && c !== "\r"))];
     warn.replaceChildren(bad.length ? el("div", {class: "warnbox"}, "Diese Zeichen können nicht getippt werden und werden übersprungen: ",
       el("b", {text: bad.join(" ")})) : "");
   };
-  box.append(el("label", {class: "field"}, el("span", {text: "Text, der getippt wird (Zeilenumbruch = Enter)"}),
+  const hint = el("p", {class: "hint"});
+  const explain = () => hint.textContent = d.paste
+    ? "Der Text kommt in die Zwischenablage und wird mit einem Tastendruck eingefügt – schnell, mit allen Zeichen (auch Emojis) und Zeilenumbrüchen. Was vorher in der Zwischenablage war, wird danach zurückgeholt (abschaltbar im Reiter „Textbausteine“)."
+    : "Der Text wird Zeichen für Zeichen getippt (Zeilenumbruch = Enter). Umlaute, ß, @, € und Sonderzeichen werden für das deutsche Tastaturlayout umgesetzt.";
+  box.append(el("label", {class: "field"}, el("span", {text: "Text"}),
     el("textarea", {value: d.text, placeholder: "z. B. Mit freundlichen Grüßen\nMax Mustermann",
-      oninput: e => { d.text = e.target.value; touchDraft(); check(); }})), warn,
-    el("p", {class: "hint", text: "Umlaute, ß, @, € und Sonderzeichen werden für das deutsche Tastaturlayout umgesetzt."}));
-  check();
+      oninput: e => { d.text = e.target.value; touchDraft(); check(); }})),
+    el("label", {class: "field"}, el("span", {text: "Einfügen"}),
+      pasteSelect(d.paste, v => { d.paste = v; touchDraft(); check(); explain(); })), warn, hint);
+  check(); explain();
 }
 function edCombo(box, d) {
   const chips = el("div", {class: "chips"});
@@ -2551,7 +2566,7 @@ function draftToEntry(d) {
   const e = {};
   if (d.name && d.name.trim()) e.name = d.name.trim();
   switch (d.type) {
-    case "text": if (d.text) e.text = d.text; break;
+    case "text": if (d.text) { e.text = d.text; if (d.paste) e.paste = d.paste; } break;
     case "combo": if (d.combo.length) e.combo = d.combo.join("+"); break;
     case "steps": if (d.steps.length) e.steps = d.steps; break;
     case "open": if (d.open) e.open = /^[a-z]+:\/\//i.test(d.open) ? d.open : "https://" + d.open; break;
@@ -2811,11 +2826,14 @@ function renderSnippets() {
         el("button", {class: "btn icon small danger", title: "löschen",
           onclick: () => { if (confirm(`Textbaustein „${sn.name || sn.text.slice(0, 30)}“ löschen?`)) { sd.snippets.splice(i, 1); touchSettings(); renderSnippets(); } }}, "✕")),
       el("textarea", {rows: 3, placeholder: "Text, der eingefügt wird (Umlaute, ß, @, € und Zeilenumbrüche sind möglich)",
-        oninput: e => { sn.text = e.target.value; touchSettings(); }}, sn.text || "")));
+        oninput: e => { sn.text = e.target.value; touchSettings(); }}, sn.text || ""),
+      el("div", {class: "row", style: {marginTop: "4px"}}, pasteSelect(sn.paste, v => { sn.paste = v; touchSettings(); }))));
   });
+  $("#clipRestore").checked = sd.clipboard_restore !== false;
 }
+$("#clipRestore").addEventListener("change", e => { UI.sdraft.clipboard_restore = e.target.checked; touchSettings(); });
 $("#addSnippet").addEventListener("click", () => {
-  UI.sdraft.snippets.push({name: "", group: "", text: ""}); touchSettings(); renderSnippets();
+  UI.sdraft.snippets.push({name: "", group: "", text: "", paste: "ctrl+v"}); touchSettings(); renderSnippets();
   const ins = $("#snippetList").querySelectorAll(".snip input[type=text]"); ins[ins.length - 2].focus(); });
 
 // ---------------------------------------------------------------- Beleuchtung & Display

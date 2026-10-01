@@ -1,0 +1,5 @@
+#!/bin/sh
+# Nachbau von wl-copy. $S/kein_wl = wl-clipboard nicht installiert.
+. "$(dirname "$0")/_root"
+[ -f $S/kein_wl ] && exit 127
+cat > $S/zwischenablage; { printf 'wl-copy:'; cat $S/zwischenablage; } | tr '\n' '|' >> $S/zwischenablage.log; echo >> $S/zwischenablage.log

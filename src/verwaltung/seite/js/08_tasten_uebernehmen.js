@@ -3,7 +3,7 @@ function draftToEntry(d) {
   const e = {};
   if (d.name && d.name.trim()) e.name = d.name.trim();
   switch (d.type) {
-    case "text": if (d.text) e.text = d.text; break;
+    case "text": if (d.text) { e.text = d.text; if (d.paste) e.paste = d.paste; } break;
     case "combo": if (d.combo.length) e.combo = d.combo.join("+"); break;
     case "steps": if (d.steps.length) e.steps = d.steps; break;
     case "open": if (d.open) e.open = /^[a-z]+:\/\//i.test(d.open) ? d.open : "https://" + d.open; break;

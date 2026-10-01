@@ -18,9 +18,12 @@ function renderSnippets() {
         el("button", {class: "btn icon small danger", title: "löschen",
           onclick: () => { if (confirm(`Textbaustein „${sn.name || sn.text.slice(0, 30)}“ löschen?`)) { sd.snippets.splice(i, 1); touchSettings(); renderSnippets(); } }}, "✕")),
       el("textarea", {rows: 3, placeholder: "Text, der eingefügt wird (Umlaute, ß, @, € und Zeilenumbrüche sind möglich)",
-        oninput: e => { sn.text = e.target.value; touchSettings(); }}, sn.text || "")));
+        oninput: e => { sn.text = e.target.value; touchSettings(); }}, sn.text || ""),
+      el("div", {class: "row", style: {marginTop: "4px"}}, pasteSelect(sn.paste, v => { sn.paste = v; touchSettings(); }))));
   });
+  $("#clipRestore").checked = sd.clipboard_restore !== false;
 }
+$("#clipRestore").addEventListener("change", e => { UI.sdraft.clipboard_restore = e.target.checked; touchSettings(); });
 $("#addSnippet").addEventListener("click", () => {
-  UI.sdraft.snippets.push({name: "", group: "", text: ""}); touchSettings(); renderSnippets();
+  UI.sdraft.snippets.push({name: "", group: "", text: "", paste: "ctrl+v"}); touchSettings(); renderSnippets();
   const ins = $("#snippetList").querySelectorAll(".snip input[type=text]"); ins[ins.length - 2].focus(); });

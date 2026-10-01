@@ -209,10 +209,10 @@ class SnippetMenu(PickMenu):
         return app.snippet_list(self.group)
 
     def choose(self, app, item):
-        if not app.player.play(compile_steps({"text": item["text"]}, app.log)):
+        if not insert_text(app, item["text"], item.get("paste"), "Textbaustein"):
             app.log("Es läuft bereits ein Makro – ignoriert")
         else:
-            app.log(f"Textbaustein: {item['name']}")
+            app.log(f"Textbaustein: {item['name']}" + (" (Zwischenablage)" if item.get("paste") else ""))
 
     def draw(self, app, now):
         items = self.items(app)

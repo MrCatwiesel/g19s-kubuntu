@@ -1,0 +1,5 @@
+#!/bin/sh
+. "$(dirname "$0")/_root"
+[ -f $S/kein_wl ] && exit 127
+[ -f $S/zwischenablage ] && cat $S/zwischenablage
+exit 0

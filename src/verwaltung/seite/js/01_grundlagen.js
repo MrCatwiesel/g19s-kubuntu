@@ -24,7 +24,7 @@ const GKEYS = Array.from({length: 12}, (_, i) => "G" + (i + 1));
 const PROFILES = ["M1", "M2", "M3"];
 const TYPES = [
   {id: "default", label: "KDE-Kurzbefehl", icon: "⌨"},
-  {id: "text", label: "Text tippen", icon: "✎"},
+  {id: "text", label: "Text einfügen", icon: "✎"},
   {id: "combo", label: "Tastenkombination", icon: "⌘"},
   {id: "steps", label: "Makro", icon: "⏺"},
   {id: "open", label: "Webseite", icon: "🌐"},

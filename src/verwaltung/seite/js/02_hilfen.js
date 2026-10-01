@@ -104,3 +104,10 @@ function entryLabel(e) {
   if (t === "steps") return "Makro";
   return "";
 }
+// Einfügeart eines Textes (G-Taste „Text“, Textbaustein): "" = tippen, sonst Tasten zum Einfügen
+const PASTE_MODES = [["ctrl+v", "Über die Zwischenablage einfügen (Strg+V)"],
+  ["ctrl+shift+v", "Über die Zwischenablage, Strg+Umschalt+V (Konsole)"], ["", "Zeichen für Zeichen tippen"]];
+function pasteSelect(value, onchange) {
+  return el("select", {class: "pasteMode", onchange: e => onchange(e.target.value)},
+    ...PASTE_MODES.map(([v, t]) => el("option", {value: v, text: t, selected: (value || "") === v})));
+}

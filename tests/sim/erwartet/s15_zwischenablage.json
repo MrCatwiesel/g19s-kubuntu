@@ -1,0 +1,38 @@
+{
+ "am_ende": "neu kopiert",
+ "log": [
+  "Textbaustein: Gruß (Zwischenablage)",
+  "Textbaustein: Getippt",
+  "Text: Zwischenablage nicht erreichbar (Klipper/wl-copy fehlen) – Text wird getippt"
+ ],
+ "typed": [
+  "KEY_LEFTCTRL",
+  "KEY_V",
+  "KEY_LEFTCTRL",
+  "KEY_LEFTSHIFT",
+  "KEY_V",
+  "KEY_LEFTCTRL",
+  "KEY_V",
+  "KEY_O",
+  "KEY_K",
+  "KEY_LEFTCTRL",
+  "KEY_V",
+  "KEY_LEFTCTRL",
+  "KEY_V",
+  "KEY_A",
+  "KEY_B",
+  "KEY_X",
+  "KEY_Z"
+ ],
+ "zwischenablage": [
+  "klipper:Grüße „G19s“ – 😀|Zeile 2|",
+  "klipper:alt|",
+  "klipper:ls -l|",
+  "klipper:alt|",
+  "klipper:Viele Grüße ✓|",
+  "klipper:alt|",
+  "klipper:Grüße „G19s“ – 😀|Zeile 2|",
+  "wl-copy:ab",
+  "wl-copy:neu kopiert"
+ ]
+}

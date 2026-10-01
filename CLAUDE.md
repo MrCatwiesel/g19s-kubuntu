@@ -34,7 +34,7 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
 - Aus der Sandbox ist `raw.githubusercontent.com` nicht erreichbar; die Update-Suche wird
   mit dem Fake-GitHub (`G19S_UPDATE_URL`, `tests/fakes/infodienste.py`) getestet.
 
-## Stand (2026.10.01-2)
+## Stand (2026.10.01-3)
 - Alle Punkte der Prüfung Sicherheit/Lesbarkeit/Performance umgesetzt; L7 (Umbenennung
   profile→layer) bewusst verworfen.
 - 2026.09.30-5: Update direkt von GitHub (Dienst & Sicherung → „Nach Updates suchen“),
@@ -45,11 +45,15 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
   „Nach Updates suchen“ gegen echtes GitHub, Ruhezustand.
 - 2026.10.01-2: Update-Suche über GitHub-Releases mit „Was ist neu“ (`NEUIGKEITEN.md`),
   GitHub Actions (`.github/workflows/tests.yml`: Tests bei jedem Push, Release auf `main`).
+- 2026.10.01-3: Texte über die Zwischenablage einfügen (`src/treiber/zwischenablage.py`, Klipper per
+  `qdbus6`, ersatzweise `wl-copy`; `"paste": "ctrl+v"|"ctrl+shift+v"` bei G-Taste „Text“ und Textbausteinen,
+  `clipboard_restore`), Sim `s15_zwischenablage`. Klipper-D-Bus am echten Gerät geprüft (qdbus6 + Strg+V ok).
 - Beobachtet: Benachrichtigungen erscheinen im Journal doppelt (vermutlich sendet Plasma zweimal) – harmlos.
 
 ## Offene Punkte
-1. Rückmeldung zu 2026.10.01-2: erstes echtes Release, „Was ist neu“ am echten Gerät
-   (2026.10.01-1 holt 2026.10.01-2 noch von `main/dist/`, ab dann über Releases).
+1. Rückmeldung zu 2026.10.01-3: erstes echtes Release, „Was ist neu“ am echten Gerät
+   (2026.10.01-1 holt 2026.10.01-3 noch von `main/dist/`, ab dann über Releases);
+   Einfügen über die Zwischenablage (Editor, Konsole mit Strg+Umschalt+V, Zurückholen).
 2. `install.sh` (mit `--deinstallieren`).
 3. Knopf „Vorherige Version wiederherstellen“ (Sicherungen in `~/.local/share/g19s/alte-versionen`).
 4. Optional: täglicher Update-Hinweis auf der Displayseite „Updates“ (abschaltbar).

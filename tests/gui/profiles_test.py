@@ -20,8 +20,8 @@ with sync_playwright() as p:
     d = json.load(open(MAC))
     ok([x["name"] for x in d["profiles"]] == ["Profil 1", "Spiele"], "Neues Profil „Spiele“ gespeichert (Datei im neuen Format)")
     ok(pg.locator(".gkey.has").count() == 0 and pg.input_value("#profSel") == "1", "Leeres neues Profil ausgewählt")
-    pg.click(".gkey >> text=G1"); pg.click(".types button >> text=Text tippen"); pg.fill("textarea", "gg"); pg.click("#applyBtn"); pg.wait_for_timeout(400)
-    ok(json.load(open(MAC))["profiles"][1]["keys"]["M1"]["G1"] == {"text": "gg"}, "G1 im Profil „Spiele“ belegt")
+    pg.click(".gkey >> text=G1"); pg.click(".types button >> text=Text einfügen"); pg.fill("textarea", "gg"); pg.click("#applyBtn"); pg.wait_for_timeout(400)
+    ok(json.load(open(MAC))["profiles"][1]["keys"]["M1"]["G1"] == {"text": "gg", "paste": "ctrl+v"}, "G1 im Profil „Spiele“ belegt (neu: über Zwischenablage)")
     ok(json.load(open(MAC))["profiles"][0]["keys"]["M1"]["G1"]["name"] == "Test-Satz", "Profil 1 unverändert")
     # Farbe
     pg.locator("#profColors input").nth(0).evaluate("(e) => { e.value = '#ff0000'; e.dispatchEvent(new Event('change', {bubbles: true})); }"); pg.wait_for_timeout(400)

@@ -26,7 +26,7 @@ Für die G19s gibt es unter Linux keinen offiziellen Treiber. Die normalen Taste
 * '''G1–G12''' senden die Tasten '''F13–F24''' und lassen sich in KDE frei belegen.
 * '''Bis zu 10 Profile''' (z. B. „Büro“, „Spiele“) mit je drei Ebenen '''M1/M2/M3''' – also 36 Belegungen pro Profil. Umschalten über die Displaytaste '''SETTINGS'''. Jedes Profil hat eigene Beleuchtungsfarben.
 * '''MR''' nimmt Makros direkt an der Tastatur auf.
-* G-Tasten können Text tippen, Tastenkombinationen senden, Webseiten öffnen, Programme starten, Radiosender abspielen, den Musikplayer steuern, die '''Lautstärke''' ändern (mit Balken auf dem Display), eine Liste von '''Textbausteinen''' auf dem Display öffnen und '''Timer, Stoppuhr oder Pomodoro''' starten.
+* G-Tasten können Text einfügen (über die Zwischenablage oder Zeichen für Zeichen getippt), Tastenkombinationen senden, Webseiten öffnen, Programme starten, Radiosender abspielen, den Musikplayer steuern, die '''Lautstärke''' ändern (mit Balken auf dem Display), eine Liste von '''Textbausteinen''' auf dem Display öffnen und '''Timer, Stoppuhr oder Pomodoro''' starten.
 * Auswahl direkt am Display: Radiosender, Kalender, Termindetails, Piwigo-Alben.
 * '''Terminerinnerung''' vor Terminbeginn, '''Radiowecker''' und '''Einschlaftimer''', '''Song merken''' (Radiotitel in eine Liste), '''Lieblingsbilder''' in der Diashow, '''Mikrofon stumm''' per G-Taste (MR-Leuchte als Anzeige).
 * Displayseiten je Ebene '''und''' je Profil einstellbar, '''automatische Sicherung''' in einen Ordner.
@@ -209,7 +209,7 @@ Alle Änderungen übernimmt der laufende Treiber sofort, ein Neustart ist nicht 
 |-
 | '''Radiosender''' || Senderliste anlegen, sortieren, probehören. '''Sender suchen''' durchsucht das freie Verzeichnis radio-browser.info. '''Radiowecker''' (Uhrzeit, Wochentage, Sender). '''Gemerkte Songs''' mit Links zur Suche bei YouTube und Spotify. Player-Befehl einstellbar.
 |-
-| '''Textbausteine''' || Texte für die Auswahl am Display anlegen, sortieren, in Gruppen ordnen.
+| '''Textbausteine''' || Texte für die Auswahl am Display anlegen, sortieren, in Gruppen ordnen; je Text die Einfügeart (Zwischenablage oder tippen); Schalter „vorherigen Inhalt der Zwischenablage zurückholen“.
 |-
 | '''Beleuchtung & Display''' || Beleuchtung beibehalten, Displayhelligkeit, Startseite, '''Displayseiten''' je Ebene M1/M2/M3 (ein-/ausschalten per Häkchen, Reihenfolge mit ↑↓), '''Nachtmodus''', '''Bildschirmschoner''', Schrittweite der Lautstärke, Signalton für Timer – mit Live-Vorschau jeder Displayseite (für das im Reiter „Tasten“ gewählte Profil).
 |-
@@ -238,7 +238,7 @@ Startet eine neue Oberfläche nicht, stellt die Verwaltung automatisch die vorhe
 |-
 | KDE-Kurzbefehl || Taste sendet F13–F24 (M2: Strg+, M3: Alt+), Belegung in den KDE-Kurzbefehlen || nur <code>"name"</code> oder kein Eintrag
 |-
-| Text tippen || tippt den Text im deutschen Layout (Umlaute, ß, @, € …) || <code>"text": "Hallo"</code>
+| Text einfügen || fügt den Text über die Zwischenablage ein (Strg+V bzw. für die Konsole Strg+Umschalt+V) – oder tippt ihn Zeichen für Zeichen im deutschen Layout (Umlaute, ß, @, € …) || <code>"text": "Hallo", "paste": "ctrl+v"</code> bzw. ohne <code>"paste"</code> = tippen
 |-
 | Tastenkombination || z. B. Strg+Umschalt+T || <code>"combo": "KEY_LEFTCTRL+KEY_LEFTSHIFT+KEY_T"</code>
 |-
@@ -456,9 +456,21 @@ Die meisten Zifferblätter werden genau zum Sekundenwechsel neu gezeichnet. Bewe
 
 === Textbausteine ===
 Im Reiter '''Textbausteine''' der Verwaltung Texte anlegen (Name, optionale Gruppe, Text – auch mehrzeilig). Dann einer G-Taste die Aktion '''Textbausteine''' geben (alle oder nur eine Gruppe). Ein Druck auf die G-Taste zeigt die Liste auf dem Display:
-* '''Hoch/Runter''' wählen, '''OK''' tippt den Text in das gerade aktive Fenster.
+* '''Hoch/Runter''' wählen, '''OK''' fügt den Text in das gerade aktive Fenster ein.
 * '''BACK''' oder dieselbe G-Taste schließen die Liste.
 So passen beliebig viele Texte auf eine einzige G-Taste.
+
+'''Einfügeart''' (je Textbaustein und bei G-Tasten mit Text wählbar; neue Texte: Zwischenablage):
+{| class="wikitable"
+! Einfügeart !! Verhalten
+|-
+| Über die Zwischenablage einfügen (Strg+V) || Der Text kommt in die Zwischenablage (KDE-Klipper, ersatzweise <code>wl-copy</code>), dann drückt der Treiber Strg+V. Der Text erscheint auf einmal – mit allen Zeichen (auch Emojis, „“, –) und Zeilenumbrüchen.
+|-
+| Über die Zwischenablage, Strg+Umschalt+V || wie oben, für die Konsole (dort fügt Strg+V nicht ein)
+|-
+| Zeichen für Zeichen tippen || Tastendrücke im deutschen Layout, für Programme, die kein Einfügen erlauben. Zeichen ohne Taste (z. B. Emojis) werden übersprungen.
+|}
+War vorher Text in der Zwischenablage, holt der Treiber ihn etwa eine Sekunde nach dem Einfügen zurück – außer, in der Zwischenzeit wurde etwas Neues kopiert (ein kopiertes Bild bleibt im Verlauf von Klipper). Abschaltbar im Reiter '''Textbausteine''' (<code>"clipboard_restore": false</code> in <code>settings.json</code>). Der eingefügte Text steht danach im Verlauf von Klipper. Ist weder Klipper noch <code>wl-copy</code> erreichbar, wird der Text getippt und das Protokoll meldet es.
 
 === Timer, Stoppuhr, Pomodoro ===
 G-Taste mit der Aktion '''Timer''' belegen und Art wählen:
@@ -597,7 +609,7 @@ Bis zu 10 Einträge in <code>profiles</code>. Optional hat ein Profil eigene Dis
 |-
 | <code>"run"</code> || Befehl ausführen
 |-
-| <code>"text"</code> || Text tippen
+| <code>"text"</code> || Text einfügen; dazu <code>"paste"</code>: <code>"ctrl+v"</code> oder <code>"ctrl+shift+v"</code> = über die Zwischenablage, fehlt = tippen
 |-
 | <code>"combo"</code> || Tastenkombination
 |-
@@ -719,6 +731,10 @@ Danach mit Schritt 3 „udev-Regel“ weitermachen. Treiber und Dienst sind dann
 | „Nach Updates suchen“: „GitHub nicht abrufbar“ || keine Internetverbindung oder GitHub-Abfragegrenze (60 je Stunde) erreicht || später erneut versuchen; ersatzweise Dateien von der Release-Seite laden und '''Von Hand''' einspielen
 |-
 | Update: „Datei ist unvollständig“ || Download abgebrochen oder falsche Datei || Datei neu herunterladen; <code>tail -n 1 DATEI</code> muss <code># G19S-DATEIENDE …</code> zeigen
+|-
+| Text über die Zwischenablage kommt nicht an / Protokoll: „Zwischenablage nicht erreichbar“ || Klipper läuft nicht (und <code>wl-copy</code> fehlt) || Test: <code>qdbus6 org.kde.klipper /klipper org.kde.klipper.klipper.setClipboardContents Hallo</code>, dann Strg+V; sonst <code>sudo apt install wl-clipboard</code> oder Einfügeart „tippen“
+|-
+| In der Konsole erscheint statt des Textes nichts || Konsole fügt mit Strg+Umschalt+V ein || Einfügeart „Strg+Umschalt+V (Konsole)“ wählen
 |-
 | Update: „weder Treiber noch Oberfläche“ || andere Datei gewählt || die Dateien <code>g19s.py</code> bzw. <code>g19s-gui.py</code> (ggf. mit Nummer im Namen) wählen
 |-

@@ -40,7 +40,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.10.01-2"
+VERSION = "2026.10.01-3"
 
 # Weitere Importe der Module
 import http.client
@@ -512,8 +512,10 @@ SCHEMA = {
     }),
     "pages": Field(list(DEFAULT_PAGE_ORDER)),   # alle Seiten, die in irgendeiner Ebene sichtbar sind
     "layer_pages": Field({}),                   # je Ebene eigene Seitenliste (siehe normalize_pages)
-    "snippets": Items([], Entry({"name": Str(maxlen=40), "group": Str(maxlen=30), "text": Str(strip=False, maxlen=5000)}),
+    "snippets": Items([], Entry({"name": Str(maxlen=40), "group": Str(maxlen=30), "text": Str(strip=False, maxlen=5000),
+                                 "paste": Choice("", lambda: ("", *PASTE_KEYS))}),   # "" = tippen
                       required="text", limit=200),
+    "clipboard_restore": Bool(True, only_false=True),   # nach dem Einfügen alte Zwischenablage zurückholen
     "timer_sound": Bool(True, only_false=True),                  # Signalton, wenn ein Timer abläuft
     "news": Section({
         "feeds": Items([{"name": "tagesschau", "url": "https://www.tagesschau.de/index~rss2.xml"}],
@@ -1908,6 +1910,108 @@ def find_mpris_plugin():
             if os.path.isfile(path):
                 return path
     return None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Modul zwischenablage
+#   Texte über die Zwischenablage einfügen statt sie Zeichen für Zeichen zu tippen: Text in die
+#   Zwischenablage (KDE-Klipper über D-Bus, sonst wl-copy), Strg+V drücken, danach den vorherigen
+#   Inhalt der Zwischenablage zurückholen.
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Einfügeart eines Textes ("paste" in macros.json und bei Textbausteinen); "" = tippen
+PASTE_KEYS = {"ctrl+v": ["KEY_LEFTCTRL", "KEY_V"],
+              "ctrl+shift+v": ["KEY_LEFTCTRL", "KEY_LEFTSHIFT", "KEY_V"]}   # Konsole
+PASTE_SETTLE_S = 0.15        # Pause zwischen Zwischenablage setzen und Strg+V
+PASTE_RESTORE_S = 1.0        # so lange nach Strg+V bleibt der Text in der Zwischenablage
+KLIPPER = ["org.kde.klipper", "/klipper"]
+KLIPPER_IF = "org.kde.klipper.klipper."
+
+
+class Clipboard:
+    """Zwischenablage der Desktop-Sitzung. Bevorzugt Klipper (qdbus6/qdbus), ersatzweise wl-copy/wl-paste."""
+
+    def __init__(self, env, log=print):
+        self.env, self.log = env, log          # env(): Umgebung der Desktop-Sitzung
+        self.lock = threading.Lock()           # immer nur ein Einfügen gleichzeitig
+
+    def _qdbus(self, env):
+        return next((q for q in ("qdbus6", "qdbus") if shutil.which(q, path=env.get("PATH"))), None)
+
+    def get(self):
+        """Text der Zwischenablage oder None (nicht lesbar)."""
+        env = self.env()
+        q = self._qdbus(env)
+        try:
+            if q:
+                r = subprocess.run([q, *KLIPPER, KLIPPER_IF + "getClipboardContents"], env=env,
+                                   capture_output=True, text=True, timeout=3)
+                if r.returncode == 0:
+                    return r.stdout[:-1] if r.stdout.endswith("\n") else r.stdout   # qdbus hängt \n an
+            if shutil.which("wl-paste", path=env.get("PATH")):
+                r = subprocess.run(["wl-paste", "--no-newline", "--type", "text"], env=env,
+                                   capture_output=True, text=True, timeout=3)
+                if r.returncode == 0:
+                    return r.stdout
+        except (OSError, subprocess.SubprocessError, UnicodeDecodeError):
+            pass
+        return None
+
+    def set(self, text):
+        """Text in die Zwischenablage legen. False = weder Klipper noch wl-copy erreichbar."""
+        env = self.env()
+        q = self._qdbus(env)
+        try:
+            if q and subprocess.run([q, *KLIPPER, KLIPPER_IF + "setClipboardContents", text], env=env,
+                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3).returncode == 0:
+                return True
+            if shutil.which("wl-copy", path=env.get("PATH")):
+                # wl-copy bleibt im Hintergrund und liefert den Text aus – seine Ausgaben nicht in eine
+                # Pipe leiten (capture_output), sonst wartet run() auf das Ende dieses Hintergrundprozesses
+                return subprocess.run(["wl-copy", "--type", "text/plain;charset=utf-8"], input=text.encode(), env=env,
+                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3).returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            pass
+        return False
+
+
+def paste_mode(entry):
+    """Einfügeart eines Eintrags (G-Taste „Text“ oder Textbaustein): Schlüssel aus PASTE_KEYS oder None = tippen."""
+    mode = entry.get("paste") if isinstance(entry, dict) else None
+    return mode if mode in PASTE_KEYS else None
+
+
+def insert_text(app, text, mode, what="Text"):
+    """Text ins aktive Fenster bringen: mode None = tippen, sonst über die Zwischenablage einfügen.
+    False = es läuft schon ein Makro bzw. Einfügen."""
+    if not mode:
+        return app.player.play(compile_steps({"text": text}, app.log))
+    clip = app.clipboard
+    if app.player.busy or not clip.lock.acquire(blocking=False):
+        return False
+
+    def work():
+        try:
+            restore = app.settings().get("clipboard_restore", True)
+            old = clip.get() if restore else None
+            if not clip.set(text):
+                app.log(f"{what}: Zwischenablage nicht erreichbar (Klipper/wl-copy fehlen) – Text wird getippt")
+                app.player.play(compile_steps({"text": text}, app.log))
+                return
+            time.sleep(PASTE_SETTLE_S)
+            if not app.player.play(compile_steps({"combo": PASTE_KEYS[mode]}, app.log)):
+                app.log("Es läuft bereits ein Makro – ignoriert")
+                return
+            app.player.thread.join(5)
+            if old:                                   # nur Text zurückholen (ein Bild liefert hier "")
+                time.sleep(PASTE_RESTORE_S)           # das Zielprogramm liest die Zwischenablage verzögert
+                if clip.get() == text:                # inzwischen nichts Neues kopiert?
+                    clip.set(old)
+        finally:
+            clip.lock.release()
+
+    threading.Thread(target=work, daemon=True).start()
+    return True
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -9331,10 +9435,10 @@ class SnippetMenu(PickMenu):
         return app.snippet_list(self.group)
 
     def choose(self, app, item):
-        if not app.player.play(compile_steps({"text": item["text"]}, app.log)):
+        if not insert_text(app, item["text"], item.get("paste"), "Textbaustein"):
             app.log("Es läuft bereits ein Makro – ignoriert")
         else:
-            app.log(f"Textbaustein: {item['name']}")
+            app.log(f"Textbaustein: {item['name']}" + (" (Zwischenablage)" if item.get("paste") else ""))
 
     def draw(self, app, now):
         items = self.items(app)
@@ -9555,7 +9659,9 @@ def act_volume(app, macro, name):
 def act_keys(app, macro, name):
     if app.args.debug:
         print(f"  {name} -> „{entry_label(macro, app.settings())}“")
-    if not app.player.play(compile_steps(macro, app.log)):
+    mode = paste_mode(macro) if entry_type(macro) == "text" else None
+    ok = insert_text(app, str(macro["text"]), mode) if mode else app.player.play(compile_steps(macro, app.log))
+    if not ok:
         app.log("Es läuft bereits ein Makro – ignoriert")
 
 
@@ -9637,6 +9743,7 @@ class AppCore:
         self.player = Player(self.ui, self.ui_lock)
         self.store = MacroStore(MACRO_FILE, log=self.log)
         self.launcher = Launcher(log=self.log)
+        self.clipboard = Clipboard(self.launcher._env, self.log)
         self.renderer = r = Renderer()
         self.radio = RadioManager(self.launcher._env, log=self.log)
         threading.Thread(target=self._mic_poll, daemon=True).start()
@@ -9940,7 +10047,7 @@ class AppCore:
             if not all_groups and str(sn.get("group") or "") != str(group):
                 continue
             name = str(sn.get("name") or "").strip() or str(sn["text"]).split("\n")[0][:40]
-            out.append({"label": name, "name": name, "text": str(sn["text"]),
+            out.append({"label": name, "name": name, "text": str(sn["text"]), "paste": paste_mode(sn),
                         "sub": str(sn.get("group") or "") if all_groups else ""})
         return out
 

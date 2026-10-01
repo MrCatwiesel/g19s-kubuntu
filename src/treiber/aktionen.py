@@ -151,7 +151,9 @@ def act_volume(app, macro, name):
 def act_keys(app, macro, name):
     if app.args.debug:
         print(f"  {name} -> „{entry_label(macro, app.settings())}“")
-    if not app.player.play(compile_steps(macro, app.log)):
+    mode = paste_mode(macro) if entry_type(macro) == "text" else None
+    ok = insert_text(app, str(macro["text"]), mode) if mode else app.player.play(compile_steps(macro, app.log))
+    if not ok:
         app.log("Es läuft bereits ein Makro – ignoriert")
 
 

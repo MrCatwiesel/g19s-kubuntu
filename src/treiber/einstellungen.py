@@ -283,8 +283,10 @@ SCHEMA = {
     }),
     "pages": Field(list(DEFAULT_PAGE_ORDER)),   # alle Seiten, die in irgendeiner Ebene sichtbar sind
     "layer_pages": Field({}),                   # je Ebene eigene Seitenliste (siehe normalize_pages)
-    "snippets": Items([], Entry({"name": Str(maxlen=40), "group": Str(maxlen=30), "text": Str(strip=False, maxlen=5000)}),
+    "snippets": Items([], Entry({"name": Str(maxlen=40), "group": Str(maxlen=30), "text": Str(strip=False, maxlen=5000),
+                                 "paste": Choice("", lambda: ("", *PASTE_KEYS))}),   # "" = tippen
                       required="text", limit=200),
+    "clipboard_restore": Bool(True, only_false=True),   # nach dem Einfügen alte Zwischenablage zurückholen
     "timer_sound": Bool(True, only_false=True),                  # Signalton, wenn ein Timer abläuft
     "news": Section({
         "feeds": Items([{"name": "tagesschau", "url": "https://www.tagesschau.de/index~rss2.xml"}],

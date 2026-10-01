@@ -44,7 +44,7 @@ function selectKey(k, reset) {
   UI.gkey = k;
   if (reset) {
     const e = layerKeys()[k];
-    UI.draft = {name: (e && e.name) || "", type: typeOf(e), text: (e && e.text) || "",
+    UI.draft = {name: (e && e.name) || "", type: typeOf(e), text: (e && e.text) || "", paste: e && e.text ? (e.paste || "") : "ctrl+v",
       combo: comboList(e && e.combo), steps: clone((e && e.steps) || []), open: (e && e.open) || "",
       run: (e && e.run) || "", radio: (e && e.radio) || "", media: (e && e.media) || "play-pause",
       volume: (e && e.volume) || "up", snippets: (e && e.snippets) || "*",

@@ -67,6 +67,7 @@ class AppCore:
         self.player = Player(self.ui, self.ui_lock)
         self.store = MacroStore(MACRO_FILE, log=self.log)
         self.launcher = Launcher(log=self.log)
+        self.clipboard = Clipboard(self.launcher._env, self.log)
         self.renderer = r = Renderer()
         self.radio = RadioManager(self.launcher._env, log=self.log)
         threading.Thread(target=self._mic_poll, daemon=True).start()
@@ -370,7 +371,7 @@ class AppCore:
             if not all_groups and str(sn.get("group") or "") != str(group):
                 continue
             name = str(sn.get("name") or "").strip() or str(sn["text"]).split("\n")[0][:40]
-            out.append({"label": name, "name": name, "text": str(sn["text"]),
+            out.append({"label": name, "name": name, "text": str(sn["text"]), "paste": paste_mode(sn),
                         "sub": str(sn.get("group") or "") if all_groups else ""})
         return out
 

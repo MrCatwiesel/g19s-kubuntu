@@ -39,15 +39,20 @@ function edDefault(box) {
 function edText(box, d) {
   const warn = el("div");
   const check = () => {
-    const bad = [...new Set([...d.text].filter(c => !S.chars.has(c) && c !== "\r"))];
+    const bad = d.paste ? [] : [...new Set([...d.text].filter(c => !S.chars.has(c) && c !== "\r"))];
     warn.replaceChildren(bad.length ? el("div", {class: "warnbox"}, "Diese Zeichen können nicht getippt werden und werden übersprungen: ",
       el("b", {text: bad.join(" ")})) : "");
   };
-  box.append(el("label", {class: "field"}, el("span", {text: "Text, der getippt wird (Zeilenumbruch = Enter)"}),
+  const hint = el("p", {class: "hint"});
+  const explain = () => hint.textContent = d.paste
+    ? "Der Text kommt in die Zwischenablage und wird mit einem Tastendruck eingefügt – schnell, mit allen Zeichen (auch Emojis) und Zeilenumbrüchen. Was vorher in der Zwischenablage war, wird danach zurückgeholt (abschaltbar im Reiter „Textbausteine“)."
+    : "Der Text wird Zeichen für Zeichen getippt (Zeilenumbruch = Enter). Umlaute, ß, @, € und Sonderzeichen werden für das deutsche Tastaturlayout umgesetzt.";
+  box.append(el("label", {class: "field"}, el("span", {text: "Text"}),
     el("textarea", {value: d.text, placeholder: "z. B. Mit freundlichen Grüßen\nMax Mustermann",
-      oninput: e => { d.text = e.target.value; touchDraft(); check(); }})), warn,
-    el("p", {class: "hint", text: "Umlaute, ß, @, € und Sonderzeichen werden für das deutsche Tastaturlayout umgesetzt."}));
-  check();
+      oninput: e => { d.text = e.target.value; touchDraft(); check(); }})),
+    el("label", {class: "field"}, el("span", {text: "Einfügen"}),
+      pasteSelect(d.paste, v => { d.paste = v; touchDraft(); check(); explain(); })), warn, hint);
+  check(); explain();
 }
 function edCombo(box, d) {
   const chips = el("div", {class: "chips"});

@@ -212,3 +212,4 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
 .relnotes p { margin: 2px 0; }
 .relnotes a { color: var(--accent); }
 .relnotes ul { margin: 2px 0; padding-left: 20px; }
+.snip select.pasteMode { max-width: 440px; }
