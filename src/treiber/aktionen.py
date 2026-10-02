@@ -143,18 +143,23 @@ def act_sleep(app, macro, name):
     app.next_draw = 0
 
 
+def volume_change(app, action, color, osd=False):
+    """Lautstärke ändern (up/down/mute) und groß auf dem Display zeigen. Blockiert kurz (wpctl/pactl).
+    osd=True: zusätzlich die KDE-Lautstärkeanzeige (für die Medientasten der Tastatur)."""
+    env = app.launcher._env()
+    res = change_volume(action, app.settings().get("volume_step", 5), env)
+    if res:
+        pct, muted = res
+        app.popup(lambda: app.renderer.render_volume(pct, muted, color), 1.6)
+        if osd:
+            plasma_volume_osd(0 if muted else pct, env)
+    else:
+        app.show("Lautstärke", ["wpctl/pactl nicht gefunden"], REC_COLOR, 3)
+
+
 @gkey_action("volume")
 def act_volume(app, macro, name):
-    action, color = macro["volume"], PROFILE_COLOR[app.layer]
-
-    def work():
-        res = change_volume(action, app.settings().get("volume_step", 5), app.launcher._env())
-        if res:
-            pct, muted = res
-            app.popup(lambda: app.renderer.render_volume(pct, muted, color), 1.6)
-        else:
-            app.show("Lautstärke", ["wpctl/pactl nicht gefunden"], REC_COLOR, 3)
-    threading.Thread(target=work, daemon=True).start()
+    threading.Thread(target=volume_change, args=(app, macro["volume"], PROFILE_COLOR[app.layer]), daemon=True).start()
 
 
 @gkey_action("text", "combo", "steps")

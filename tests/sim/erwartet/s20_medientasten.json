@@ -1,0 +1,30 @@
+{
+ "grabs": [
+  "grab",
+  "ungrab"
+ ],
+ "log": [
+  "Medientasten übernommen (G19s Gaming Keyboard Consumer Control) – wirken auch im Remote-Desktop",
+  "Medientasten an KDE zurückgegeben"
+ ],
+ "osd": [
+  "45 100",
+  "50 100",
+  "45 100",
+  "45 100"
+ ],
+ "played": [
+  "play-pause",
+  "next"
+ ],
+ "sent": [
+  "KEY_CALC↓",
+  "KEY_CALC↑"
+ ],
+ "volume": [
+  "set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+",
+  "set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+",
+  "set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%-",
+  "set-mute @DEFAULT_AUDIO_SINK@ toggle"
+ ]
+}

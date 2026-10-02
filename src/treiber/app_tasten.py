@@ -12,6 +12,34 @@ import time
 
 
 class KeyHandling:
+    # --- Medientasten der Tastatur (Faden von MediaKeys) ---------------------- #
+    def handle_media_key(self, code, value):
+        """Lautstärkerad, Stumm und Medientasten: wirken auf diesen Rechner, auch im Remote-Desktop.
+        Läuft im Faden von MediaKeys; Anzeige nur über popup()/show()."""
+        e = self.e
+        codes = getattr(self, "_media_codes", None)
+        if codes is None:
+            codes = self._media_codes = {getattr(e, n): a for n, a in MEDIA_KEYS.items() if hasattr(e, n)}
+        act = codes.get(code)
+        if act is None:                     # andere Taste des Geräts: unverändert weitergeben
+            if 0 < code < 249:
+                with self.ui_lock:
+                    self.ui.write(e.EV_KEY, code, value)
+                    self.ui.syn()
+            return
+        kind, action = act
+        if value == 0 or (value == 2 and kind != "volume"):    # Loslassen; Dauerdruck nur beim Rad
+            return
+        self.activity.touch()
+        if self.args.debug:
+            print(f"  Medientaste -> {kind} {action}")
+        if kind == "volume":
+            volume_change(self, action, PROFILE_COLOR[self.layer], osd=True)
+        elif self.media.snapshot()[0]:
+            self.media.control(action)      # angezeigter Player bzw. G19s-Radio
+        else:
+            playerctl_any(action, self.launcher._env())
+
     # --- G- und M-Tasten ----------------------------------------------------- #
     # Länge der Reports am G-/M-Endpunkt. Die G19s schickt oft zwei in einem Paket, z. B.
     # „03 3a 00 00 00 00 00 02 00 00 40“ = Tastatur-Report (G1 = F1) + G-Tasten losgelassen.

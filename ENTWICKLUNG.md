@@ -27,6 +27,7 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
       einstellungen           SCHEMA: ein Schema für alle Einstellungen
       makros, tastatur, …     Makrodatei, Tastennamen, Makro-Abspieler
       zwischenablage          Texte über die Zwischenablage einfügen (Klipper/wl-copy, Strg+V)
+      medientasten            Lautstärkerad/Medientasten exklusiv übernehmen (Consumer-Control-Gerät, grab)
       piwigo … sicherung      Dienste (Radio, Diashow, Wetter, Kalender, RSS, Unwetter, …)
       anzeige_basis           Renderer-Grundlage, @page / @page_keys
       seite_*.py              je Displayseite: Zeichnen + Tasten
@@ -91,6 +92,8 @@ Formular in `seite/js/` fehlt noch. Regeln über mehrere Felder: `Section(..., c
 | `einheit` | Kalender, Texte, Einstellungen/Schema, Dienste, Uhren (jedes Zifferblatt zu Grenzzeiten), Sicherung (Ordner/Nextcloud/WebDAV/SMB), Sicherheit | `einheit/test_*.py` |
 | `bilder` | jede Displayseite, jedes Zifferblatt, Einblendungen als PNG, pixelgenau gegen `golden/ref` (feste Zeit per libfaketime) | `golden/scenes.py` |
 | `sim` | Bediensimulationen (Tasten, Menüs, Timer, Profile, Aufnahme, Zifferblatt) gegen `sim/erwartet` | `sim/s*.py` |
+
+In den Simulationen läuft der Medientasten-Faden nur mit `Sim(..., media_keys=True)` (s20).
 | `gui` | Verwaltung im Browser (Playwright/Chromium) | `gui/*_test.py` |
 
 Einzelne Teile: `run_tests.py bilder sim`, `run_tests.py sim=s05`.

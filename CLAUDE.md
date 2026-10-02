@@ -34,7 +34,7 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
 - Aus der Sandbox ist `raw.githubusercontent.com` nicht erreichbar; die Update-Suche wird
   mit dem Fake-GitHub (`G19S_UPDATE_URL`, `tests/fakes/infodienste.py`) getestet.
 
-## Stand (2026.10.01-7)
+## Stand (2026.10.01-8)
 - Alle Punkte der Prüfung Sicherheit/Lesbarkeit/Performance umgesetzt; L7 (Umbenennung
   profile→layer) bewusst verworfen.
 - 2026.09.30-5: Update direkt von GitHub (Dienst & Sicherung → „Nach Updates suchen“),
@@ -65,6 +65,14 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
   `split_gm_reports` in `src/treiber/app_tasten.py` zerlegt nach `GM_REPORT_LEN`; Regeln aus -6 bleiben als Rückfall.
   --debug trennt Reports mit `|`. Sim `s19_reports_geklebt` (echte Pakete). Am Gerät bestätigt mit -6: G1 mehrfach
   (getippt und Klipper), Liste „offen lassen“ (mehrmals OK), Einfügen per G-Taste in RDP.
+- 2026.10.01-8: Medientasten (Rad, Stumm, Play/Pause, Next, Prev, Stop) übernimmt der Treiber exklusiv
+  (`src/treiber/medientasten.py`, `MediaKeys`: evdev-Gerät „G19s Gaming Keyboard Consumer Control“ 046d:c228 ohne
+  KEY_A, `grab()`), damit sie im RDP (xfreerdp schaltet KDE-Kürzel ab) lokal wirken. Ausführung in
+  `handle_media_key` (app_tasten): `volume_change` (aktionen, Display + KDE-OSD per qdbus6 osdService),
+  Medien über `media.control` bzw. `playerctl_any`; fremde Tasten des Geräts über uinput weiter. Einstellung
+  `media_keys` (Standard an, Verwaltung „Beleuchtung & Display → Lautstärke“). Nutzer wählte Variante A (immer)
+  statt B (nur bei aktivem RDP-Fenster, bräuchte KWin-Skript). Sim `s20_medientasten`; im Harness läuft der
+  Faden nur mit `media_keys=True`. Geräte am echten Rechner: event3 Tastatur, event4 Consumer Control.
 - Beobachtet: Benachrichtigungen erscheinen im Journal doppelt (vermutlich sendet Plasma zweimal) – harmlos.
 - Beobachtet (2026-10-02): RDP-Sitzung (xfreerdp/sdl-freerdp 3.32.0 → Windows-PC) brach beim Kopieren bzw.
   ~10 s nach dem Login ab: `cliprdr … Error was 1359 → Network disconnect`. Ursache ist ein FreeRDP-Fehler bei
@@ -74,8 +82,9 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
   das Einfügen. Bei Ärger mit Einfügen in RDP zuerst den xfreerdp-Aufruf prüfen.
 
 ## Offene Punkte
-1. Rückmeldung zu 2026.10.01-7: mit --debug G1 und eine unbelegte G-Taste (z. B. G8) je mehrmals schnell drücken –
-   jeder Druck muss genau einmal „gedrückt“ und „losgelassen“ zeigen.
+1. Rückmeldung zu 2026.10.01-8: Rad/Stumm/Medientasten im RDP und außerhalb; erscheint die KDE-Lautstärkeanzeige
+   (osdService-Signatur unter Plasma 6 ungeprüft)? Protokoll muss „Medientasten übernommen“ zeigen.
+   Dazu aus -7: G1 und unbelegte G-Taste mit --debug mehrmals schnell – je ein „gedrückt“/„losgelassen“.
 2. Hoher Verbrauch beobachtet (2026-10-02): 24 min CPU in 68 min, bis 599 MB Speicher (normal: ~100 MB, wenig CPU);
    lief u. a. Diashow (13 Bilder). Ursache noch unklar – Nutzer fragen, welche Seite lief, dann Code prüfen.
 3. `install.sh` (mit `--deinstallieren`).

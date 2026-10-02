@@ -40,4 +40,23 @@ p = g.auto_backup(home + "/bk", keep=2, home=home)
 names = tarfile.open(p).getnames()
 eq(names, [".config/g19s/macros.json"], "Sicherung enthält vorhandene Dateien")
 eq(len([f for f in os.listdir(home + "/bk") if f.endswith(".tar.gz")]), 2, "alte Sicherungen aufgeräumt")
+# Medientasten: nur das Consumer-Control-Gerät der G19s (046d:c228, ohne Buchstaben) wird übernommen
+import evdev, types
+_e = evdev.ecodes
+_devs = {"/dev/input/event3": ("G19s Gaming Keyboard", 0x046D, 0xC228, [_e.KEY_A, _e.KEY_VOLUMEUP]),
+         "/dev/input/event4": ("G19s Gaming Keyboard Consumer Control", 0x046D, 0xC228, [_e.KEY_VOLUMEUP, _e.KEY_PLAYPAUSE]),
+         "/dev/input/event5": ("Logitech G19s G-Keys", 0x0001, 0x0001, [_e.KEY_A, _e.KEY_VOLUMEUP])}
+class _Dev:
+    def __init__(self, path):
+        self.path = path
+        self.name, v, p, self._keys = _devs[path]
+        self.info = types.SimpleNamespace(vendor=v, product=p)
+    def capabilities(self): return {_e.EV_KEY: self._keys}
+    def close(self): pass
+_old = (evdev.list_devices, evdev.InputDevice)
+evdev.list_devices, evdev.InputDevice = lambda: sorted(_devs), _Dev
+eq(getattr(g.MediaKeys.find_device(), "path", None), "/dev/input/event4", "Medientasten: Consumer-Control-Gerät gewählt")
+del _devs["/dev/input/event4"]
+eq(g.MediaKeys.find_device(), None, "Medientasten: normale Tastatur nie übernommen")
+evdev.list_devices, evdev.InputDevice = _old
 done()

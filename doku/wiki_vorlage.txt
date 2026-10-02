@@ -27,6 +27,7 @@ Für die G19s gibt es unter Linux keinen offiziellen Treiber. Die normalen Taste
 * '''Bis zu 10 Profile''' (z. B. „Büro“, „Spiele“) mit je drei Ebenen '''M1/M2/M3''' – also 36 Belegungen pro Profil. Umschalten über die Displaytaste '''SETTINGS'''. Jedes Profil hat eigene Beleuchtungsfarben.
 * '''MR''' nimmt Makros direkt an der Tastatur auf.
 * G-Tasten können Text einfügen (über die Zwischenablage oder Zeichen für Zeichen getippt), Tastenkombinationen senden, Webseiten öffnen, Programme starten, Radiosender abspielen, den Musikplayer steuern, die '''Lautstärke''' ändern (mit Balken auf dem Display), einen '''Textbaustein''' direkt einfügen oder eine Liste von Textbausteinen auf dem Display öffnen und '''Timer, Stoppuhr oder Pomodoro''' starten.
+* '''Lautstärkerad, Stumm- und Medientasten''' der Tastatur steuert der Treiber selbst – sie wirken dadurch auch im '''Remote-Desktop''' (z. B. xfreerdp) auf diesen Rechner, und die Lautstärke erscheint groß auf dem Display. Abschaltbar unter '''Beleuchtung & Display → Lautstärke'''.
 * Auswahl direkt am Display: Radiosender, Kalender, Termindetails, Piwigo-Alben.
 * '''Terminerinnerung''' vor Terminbeginn, '''Radiowecker''' und '''Einschlaftimer''', '''Song merken''' (Radiotitel in eine Liste), '''Lieblingsbilder''' in der Diashow, '''Mikrofon stumm''' per G-Taste (MR-Leuchte als Anzeige).
 * Displayseiten je Ebene '''und''' je Profil einstellbar, '''automatische Sicherung''' in einen Ordner.
@@ -211,7 +212,7 @@ Alle Änderungen übernimmt der laufende Treiber sofort, ein Neustart ist nicht 
 |-
 | '''Textbausteine''' || Texte für die Auswahl am Display anlegen, sortieren, in Gruppen ordnen; je Text die Einfügeart (Zwischenablage oder tippen); Schalter „vorherigen Inhalt der Zwischenablage zurückholen“.
 |-
-| '''Beleuchtung & Display''' || Beleuchtung beibehalten, Displayhelligkeit, Startseite, '''Displayseiten''' je Ebene M1/M2/M3 (ein-/ausschalten per Häkchen, Reihenfolge mit ↑↓), '''Nachtmodus''', '''Bildschirmschoner''', Schrittweite der Lautstärke, Signalton für Timer – mit Live-Vorschau jeder Displayseite (für das im Reiter „Tasten“ gewählte Profil).
+| '''Beleuchtung & Display''' || Beleuchtung beibehalten, Displayhelligkeit, Startseite, '''Displayseiten''' je Ebene M1/M2/M3 (ein-/ausschalten per Häkchen, Reihenfolge mit ↑↓), '''Nachtmodus''', '''Bildschirmschoner''', Schrittweite der Lautstärke, Medientasten der Tastatur vom Treiber steuern, Signalton für Timer – mit Live-Vorschau jeder Displayseite (für das im Reiter „Tasten“ gewählte Profil).
 |-
 | '''Diashow''' || Bildquelle wählen: '''Piwigo-Galerie''' (Adresse, Zugangsdaten, '''Alben laden''', Alben per Häkchen) oder '''Ordner auf diesem Rechner''' (mit '''Durchsuchen …'''). Dazu Wechselzeit, Zufallsreihenfolge, Unteralben/Unterordner, Bildtitel, Darstellung („Ganzes Bild“ oder „Display füllen“). '''Testen''' zeigt ein Beispielbild und die Anzahl der gefundenen Bilder. '''Lieblingsbilder''': Liste, entfernen, „Diashow zeigt nur Lieblingsbilder“.
 |-
@@ -772,6 +773,10 @@ Danach mit Schritt 3 „udev-Regel“ weitermachen. Treiber und Dienst sind dann
 |-
 | Lautstärke: „wpctl/pactl nicht gefunden“ || kein PipeWire/PulseAudio-Werkzeug || <code>sudo apt install wireplumber</code> (oder <code>pulseaudio-utils</code>)
 |-
+| Lautstärkerad/Medientasten reagieren nicht, Protokoll: „Medientasten: Gerät nicht gefunden“ oder „nicht übernommen“ || Benutzer nicht in Gruppe <code>input</code> bzw. ein anderes Programm hat das Gerät schon || Schritt 4 (Gruppe <code>input</code>), dann Neustart; oder unter '''Beleuchtung & Display → Lautstärke''' abschalten, dann steuert KDE die Tasten
+|-
+| Lautstärkerad/Medientasten im Remote-Desktop ohne Wirkung || Version vor 2026.10.01-8 oder Schalter „Medientasten … vom Treiber steuern“ aus || Update bzw. Schalter einschalten (KDE schaltet seine Tastenkürzel ab, solange das RDP-Fenster die Tastatur hat)
+|-
 | Mikrofon-Taste schaltet das falsche Mikrofon || anderes Standard-Eingabegerät || in KDE unter '''Systemeinstellungen → Audio''' das gewünschte Mikrofon als Standard setzen
 |-
 | Radiowecker startet nicht || PC im Ruhezustand oder Treiber nicht gestartet || PC eingeschaltet lassen; Protokoll zeigt „Radiowecker: …“ zur Weckzeit
@@ -829,6 +834,7 @@ getfacl /dev/bus/usb/BUS/GERÄT                      # Rechte (Nummern aus lsusb
 * Hardware: <code>/sys/class/hwmon</code> (k10temp, coretemp, amdgpu, nvme …), <code>nvidia-smi</code>, <code>/proc/net/dev</code>.
 * Benachrichtigungen: <code>dbus-monitor --session</code> auf <code>org.freedesktop.Notifications.Notify</code> (nur mitlesen, KDE zeigt die Meldungen weiterhin selbst).
 * Lautstärke: <code>wpctl</code> (PipeWire), ersatzweise <code>pactl</code>.
+* Medientasten: Die G19s meldet Lautstärkerad, Stumm, Play/Pause, Weiter, Zurück und Stopp über ein eigenes Eingabegerät „G19s Gaming Keyboard Consumer Control“ (046d:c228, ohne Buchstabentasten). Der Treiber übernimmt es exklusiv (<code>grab</code>), deshalb wirken die Tasten auch, wenn ein Remote-Desktop-Fenster die Tastatur beansprucht. Andere Tasten dieses Geräts gibt er unverändert weiter; Tippen und Zwischenablage laufen über die normale Tastatur und sind nicht betroffen. Play/Pause usw. gehen an den angezeigten Player bzw. das G19s-Radio, sonst über <code>playerctl</code> an einen beliebigen Player. Beim Beenden des Treibers oder mit <code>"media_keys": false</code> übernimmt KDE wieder.
 * Nachrichten: RSS 2.0, RSS 1.0 und Atom, alle 15 Minuten.
 * Unwetter: <code>https://api.brightsky.dev/alerts?lat=…&lon=…</code> (DWD-Warnungen, ohne Schlüssel).
 * Netzwerk: <code>ping -c 1 -W 2</code> bzw. TCP-Verbindung bei <code>Name:Port</code>; Router aus <code>/proc/net/route</code>.

@@ -327,6 +327,7 @@ SCHEMA = {
     "screensaver": Section({"enabled": Bool(False), "minutes": Minutes(5, 1, 240, zero=False, via_float=True),
                             "page": Choice("slides", _page_ids)}),
     "volume_step": Int(5, 1, 25, zero=False),
+    "media_keys": Bool(True),          # Lautstärkerad/Stumm/Medientasten vom Treiber (auch im Remote-Desktop)
     "pages_rev": Int(PAGES_REV, PAGES_REV, PAGES_REV),  # Stand der Seitenliste (für Umstellungen)
     "clock": _clock_section(),                  # Zifferblätter der Uhr: Auswahl fürs Displaymenü, Optionen
 }

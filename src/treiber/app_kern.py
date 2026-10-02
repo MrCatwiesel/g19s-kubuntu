@@ -83,8 +83,9 @@ class AppCore:
         self.netpoll = r.net = NetworkPoller(self.settings, log=self.log)
         self.updates = r.updates = UpdatesPoller(self.settings, log=self.log)
         self.activity = ActivityWatcher(log=self.log)
+        self.mediakeys = MediaKeys(lambda: self.settings().get("media_keys", True), self.handle_media_key, log=self.log)
         self.services = [self.media, self.slideshow, self.weather, self.calendar, self.news, self.alerts,
-                         self.netpoll, self.updates, self.activity]
+                         self.netpoll, self.updates, self.activity, self.mediakeys]
         for s in self.services:
             s.start()
         self.notifier = NotificationWatcher(self.launcher._env, self._on_notify, log=self.log)

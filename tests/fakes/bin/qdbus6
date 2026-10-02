@@ -8,5 +8,7 @@ case "$1 $2 $3" in
     printf '%s' "$4" > $F; printf 'klipper:%s\n' "$4" | tr '\n' '|' >> $S/zwischenablage.log; echo >> $S/zwischenablage.log;;
   "org.kde.klipper /klipper org.kde.klipper.klipper.getClipboardContents")
     [ -f $F ] && cat $F; echo;;
+  "org.kde.plasmashell /org/kde/osdService org.kde.osdService.volumeChanged")
+    echo "$4 $5" >> $S/osd.log;;
   *) echo "unbekannt: $*" >&2; exit 1;;
 esac

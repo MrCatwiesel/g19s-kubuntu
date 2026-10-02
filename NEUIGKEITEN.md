@@ -3,6 +3,12 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.10.01-8
+- Neu: Lautstärkerad, Stumm- und Medientasten der Tastatur steuert jetzt der Treiber. Sie wirken dadurch auch im Remote-Desktop (z. B. xfreerdp) auf diesen Rechner – bisher gingen sie dort verloren. Die Lautstärke erscheint groß auf dem G19s-Display und, soweit möglich, auch in der KDE-Anzeige.
+- Play/Pause, Weiter, Zurück und Stopp steuern den angezeigten Player bzw. das G19s-Radio.
+- Tippen, Tastenkürzel und die Zwischenablage sind davon nicht betroffen.
+- Abschaltbar unter „Beleuchtung & Display → Lautstärke“: Dann steuert KDE die Tasten wie bisher.
+
 ## 2026.10.01-7
 - Fehler behoben: G-Tasten – besonders solche ohne Belegung (F13…F24) – lösten bei schnell wiederholtem Drücken manchmal nur einmal aus und galten danach als weiter gedrückt. Ursache: Die G19s schickt oft zwei Tasten-Meldungen in einem Paket, der Treiber las nur die erste. Jetzt wird jedes Paket vollständig ausgewertet, jeder Druck zählt.
 - `--debug` zeigt die Meldungen eines Pakets getrennt an (durch `|`).

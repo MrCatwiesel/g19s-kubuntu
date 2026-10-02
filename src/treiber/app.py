@@ -166,7 +166,8 @@ class App(AppCore, KeyHandling, TimedTasks):
             self.g19.send_frame(Image.new("RGB", (WIDTH, HEIGHT), (0, 0, 0)))
         except Exception:                   # Tastatur evtl. schon abgezogen
             pass
-        for s in (self.media, self.slideshow, self.weather, self.calendar, self.activity, self.notifier):
+        for s in (self.media, self.slideshow, self.weather, self.calendar, self.activity, self.notifier,
+                  self.mediakeys):
             s.stop()
         self.radio.stop()
         self.ui.close()

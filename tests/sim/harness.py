@@ -51,8 +51,9 @@ class Tee(io.TextIOBase):
 
 
 class Sim:
-    def __init__(self, name, macros=None, settings=None, files=None):
+    def __init__(self, name, macros=None, settings=None, files=None, media_keys=False):
         self.name = name
+        self.media_keys = media_keys   # Medientasten-Faden laufen lassen (sonst still, wie ohne Gerät)
         self.home = os.path.join(ROOT, "sim", name)
         shutil.rmtree(self.home, ignore_errors=True)
         for d in (".config/g19s", "run", "cache"):
@@ -175,6 +176,8 @@ class Sim:
                 pass
         g.G19 = FakeG19
         g.ActivityWatcher._open_devices = lambda self: []
+        if not self.media_keys:
+            g.MediaKeys.run = lambda self: None
         if patch_sound:
             g.play_alarm = lambda env, repeat=2: sim.sounds.append(repeat) or True
         if patch_launcher:

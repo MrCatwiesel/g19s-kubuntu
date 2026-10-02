@@ -25,6 +25,7 @@ function renderSettings() {
   $("#saverPage").replaceChildren(...S.pageIds.map((id, i) => el("option", {value: id, text: S.pages[i], selected: id === ss.page})));
   $("#volStep").value = sd.volume_step;
   $("#timerSound").checked = sd.timer_sound;
+  $("#mediaKeys").checked = sd.media_keys !== false;
   $("#pvProfiles").replaceChildren(...PROFILES.map(p => el("button", {class: p === UI.pvProfile ? "active" : "", text: p,
     onclick: () => { UI.pvProfile = p; renderSettings(); refreshPreview(); }})));
 }
@@ -100,6 +101,7 @@ $("#saverOn").addEventListener("change", e => { UI.sdraft.screensaver.enabled = 
 $("#saverMin").addEventListener("input", e => { UI.sdraft.screensaver.minutes = Math.max(1, parseInt(e.target.value) || 5); touchSettings(); });
 $("#saverPage").addEventListener("change", e => { UI.sdraft.screensaver.page = e.target.value; touchSettings(); });
 $("#volStep").addEventListener("input", e => { UI.sdraft.volume_step = Math.max(1, Math.min(25, parseInt(e.target.value) || 5)); touchSettings(); });
+$("#mediaKeys").addEventListener("change", e => { UI.sdraft.media_keys = e.target.checked; touchSettings(); });
 // Vorschau nach Änderungen an den Einstellungen verzögert neu laden (touchSettings ruft das auf)
 let pvTimer = null;
 function schedulePreview() { clearTimeout(pvTimer); pvTimer = setTimeout(refreshPreview, 250); }
