@@ -73,6 +73,7 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
   `media_keys` (Standard an, Verwaltung „Beleuchtung & Display → Lautstärke“). Nutzer wählte Variante A (immer)
   statt B (nur bei aktivem RDP-Fenster, bräuchte KWin-Skript). Sim `s20_medientasten`; im Harness läuft der
   Faden nur mit `media_keys=True`. Geräte am echten Rechner: event3 Tastatur, event4 Consumer Control.
+  Am echten Gerät bestätigt (2026-10-02): Medientasten im RDP, Zwischenablage weiter ok.
 - Beobachtet: Benachrichtigungen erscheinen im Journal doppelt (vermutlich sendet Plasma zweimal) – harmlos.
 - Beobachtet (2026-10-02): RDP-Sitzung (xfreerdp/sdl-freerdp 3.32.0 → Windows-PC) brach beim Kopieren bzw.
   ~10 s nach dem Login ab: `cliprdr … Error was 1359 → Network disconnect`. Ursache ist ein FreeRDP-Fehler bei
@@ -82,8 +83,7 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
   das Einfügen. Bei Ärger mit Einfügen in RDP zuerst den xfreerdp-Aufruf prüfen.
 
 ## Offene Punkte
-1. Rückmeldung zu 2026.10.01-8: Rad/Stumm/Medientasten im RDP und außerhalb; erscheint die KDE-Lautstärkeanzeige
-   (osdService-Signatur unter Plasma 6 ungeprüft)? Protokoll muss „Medientasten übernommen“ zeigen.
+1. Offen zu 2026.10.01-8: erscheint außerhalb von RDP auch die KDE-Lautstärkeanzeige (osdService unter Plasma 6)?
    Dazu aus -7: G1 und unbelegte G-Taste mit --debug mehrmals schnell – je ein „gedrückt“/„losgelassen“.
 2. Hoher Verbrauch beobachtet (2026-10-02): 24 min CPU in 68 min, bis 599 MB Speicher (normal: ~100 MB, wenig CPU);
    lief u. a. Diashow (13 Bilder). Ursache noch unklar – Nutzer fragen, welche Seite lief, dann Code prüfen.
