@@ -84,9 +84,14 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
 
 ## Offene Punkte
 1. Offen zu 2026.10.01-8: erscheint außerhalb von RDP auch die KDE-Lautstärkeanzeige (osdService unter Plasma 6)?
+   Nutzer bestätigte nur die Prozentanzeige auf dem G19s-Display.
    Dazu aus -7: G1 und unbelegte G-Taste mit --debug mehrmals schnell – je ein „gedrückt“/„losgelassen“.
-2. Hoher Verbrauch beobachtet (2026-10-02): 24 min CPU in 68 min, bis 599 MB Speicher (normal: ~100 MB, wenig CPU);
-   lief u. a. Diashow (13 Bilder). Ursache noch unklar – Nutzer fragen, welche Seite lief, dann Code prüfen.
+2. Verbrauch (2026-10-02): Messung 18:23–20:18 – g19s.py 150 MB und g19s-gui.py 92 MB stabil (kein Leck); mpv
+   158→311 MB = Demuxer-Cache (Standard 150 MiB) läuft beim Radio voll. Vorschlag (noch nicht bestätigt, Nutzer
+   machte Feierabend): in `RadioManager._build_cmd` bei mpv `--demuxer-max-bytes=4MiB --demuxer-max-back-bytes=1MiB`
+   anhängen, außer der eigene Befehl enthält schon Puffer-Angaben. systemd „Consumed“ zählt Treiber + mpv + Hilfs-
+   programme. Die 24 min CPU in 68 min am Vormittag sind damit nicht erklärt – bei Wiederholung `ps -o etime,time,
+   rss,pcpu,args -C python3,mpv` erbitten.
 3. `install.sh` (mit `--deinstallieren`).
 4. Knopf „Vorherige Version wiederherstellen“ (Sicherungen in `~/.local/share/g19s/alte-versionen`).
 5. Optional: täglicher Update-Hinweis auf der Displayseite „Updates“ (abschaltbar).
