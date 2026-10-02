@@ -34,7 +34,7 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
 - Aus der Sandbox ist `raw.githubusercontent.com` nicht erreichbar; die Update-Suche wird
   mit dem Fake-GitHub (`G19S_UPDATE_URL`, `tests/fakes/infodienste.py`) getestet.
 
-## Stand (2026.10.01-6)
+## Stand (2026.10.01-7)
 - Alle Punkte der Prüfung Sicherheit/Lesbarkeit/Performance umgesetzt; L7 (Umbenennung
   profile→layer) bewusst verworfen.
 - 2026.09.30-5: Update direkt von GitHub (Dienst & Sicherung → „Nach Updates suchen“),
@@ -59,6 +59,12 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
   M-Tasten melden das Loslassen normal. Treiber: gleicher Report 0x02 = erneuter Druck, Report 0x03 nur Nullen =
   G-Tasten los (`handle_gm_report`/`_apply_gm` in `src/treiber/app_tasten.py`); --debug zeigt jetzt auch 0x03.
   Sim `s18_g19s_loslassen`.
+- 2026.10.01-7: Eigentliche Ursache (Protokoll --debug 2026-10-02): Die G19s schickt oft **zwei Reports in einem Paket**,
+  0x03 (7 Bytes) + 0x02 (4 Bytes), z. B. `03 3a 00 00 00 00 00 02 00 00 40` (F1 + los) oder `03 00 … 02 80 00 40`
+  (leer + G8 gedrückt). Der alte Code las nur den ersten Report → G8 (unbelegt, F20) 4× gedrückt = 1× F20.
+  `split_gm_reports` in `src/treiber/app_tasten.py` zerlegt nach `GM_REPORT_LEN`; Regeln aus -6 bleiben als Rückfall.
+  --debug trennt Reports mit `|`. Sim `s19_reports_geklebt` (echte Pakete). Am Gerät bestätigt mit -6: G1 mehrfach
+  (getippt und Klipper), Liste „offen lassen“ (mehrmals OK), Einfügen per G-Taste in RDP.
 - Beobachtet: Benachrichtigungen erscheinen im Journal doppelt (vermutlich sendet Plasma zweimal) – harmlos.
 - Beobachtet (2026-10-02): RDP-Sitzung (xfreerdp/sdl-freerdp 3.32.0 → Windows-PC) brach beim Kopieren bzw.
   ~10 s nach dem Login ab: `cliprdr … Error was 1359 → Network disconnect`. Ursache ist ein FreeRDP-Fehler bei
@@ -68,9 +74,10 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
   das Einfügen. Bei Ärger mit Einfügen in RDP zuerst den xfreerdp-Aufruf prüfen.
 
 ## Offene Punkte
-1. Rückmeldung zu 2026.10.01-6: G-Taste mehrfach drücken ohne M-Wechsel (Textbaustein direkt, Text);
-   mit --debug prüfen, ob Report 0x03 beim Loslassen kommt und ob eine G-Taste ohne Belegung (F13…)
-   nicht doppelt auslöst. Liste „offen lassen“ (mehrmals OK) noch ungetestet.
-2. `install.sh` (mit `--deinstallieren`).
-3. Knopf „Vorherige Version wiederherstellen“ (Sicherungen in `~/.local/share/g19s/alte-versionen`).
-4. Optional: täglicher Update-Hinweis auf der Displayseite „Updates“ (abschaltbar).
+1. Rückmeldung zu 2026.10.01-7: mit --debug G1 und eine unbelegte G-Taste (z. B. G8) je mehrmals schnell drücken –
+   jeder Druck muss genau einmal „gedrückt“ und „losgelassen“ zeigen.
+2. Hoher Verbrauch beobachtet (2026-10-02): 24 min CPU in 68 min, bis 599 MB Speicher (normal: ~100 MB, wenig CPU);
+   lief u. a. Diashow (13 Bilder). Ursache noch unklar – Nutzer fragen, welche Seite lief, dann Code prüfen.
+3. `install.sh` (mit `--deinstallieren`).
+4. Knopf „Vorherige Version wiederherstellen“ (Sicherungen in `~/.local/share/g19s/alte-versionen`).
+5. Optional: täglicher Update-Hinweis auf der Displayseite „Updates“ (abschaltbar).

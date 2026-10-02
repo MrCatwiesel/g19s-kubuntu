@@ -40,7 +40,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.10.01-6"
+VERSION = "2026.10.01-7"
 
 # Weitere Importe der Module
 import http.client
@@ -10160,14 +10160,39 @@ class AppCore:
 
 class KeyHandling:
     # --- G- und M-Tasten ----------------------------------------------------- #
+    # Länge der Reports am G-/M-Endpunkt. Die G19s schickt oft zwei in einem Paket, z. B.
+    # „03 3a 00 00 00 00 00 02 00 00 40“ = Tastatur-Report (G1 = F1) + G-Tasten losgelassen.
+    GM_REPORT_LEN = {0x02: 4, 0x03: 7}
+
+    @classmethod
+    def split_gm_reports(cls, data):
+        """Paket in einzelne Reports zerlegen. Unbekanntes oder unvollständiges Ende bleibt ein Stück."""
+        parts, i = [], 0
+        while i < len(data):
+            n = cls.GM_REPORT_LEN.get(data[i])
+            if n is None or i + n > len(data):
+                if data[i] != 0 or not parts:   # Füllbytes (Nullen) hinter einem Report verwerfen
+                    parts.append(bytes(data[i:]))
+                break
+            parts.append(bytes(data[i:i + n]))
+            i += n
+        return parts
+
     def handle_gm_report(self, data):
-        # Report 0x02 enthält die G-/M-Bits. Die G19s meldet das Loslassen einer G-Taste dort aber
-        # nicht immer: Oft folgt nur Report 0x03 (Tastatur-Report, G1 = F1 usw.), und beim nächsten
-        # Druck kommt derselbe Report 0x02 noch einmal. Daher gilt:
+        """Paket vom G-/M-Endpunkt: jeden enthaltenen Report der Reihe nach auswerten."""
+        if not data:
+            return
+        parts = self.split_gm_reports(bytes(data))
+        if self.args.debug:
+            print("G/M-Report:", " | ".join(p.hex(" ") for p in parts))
+        for part in parts:
+            self._handle_one_gm_report(part)
+
+    def _handle_one_gm_report(self, data):
+        # Report 0x02 enthält die G-/M-Bits. Das Loslassen steckt bei der G19s oft hinter einem
+        # Report 0x03 im selben Paket (siehe GM_REPORT_LEN). Als Rückfallebene, falls es doch fehlt:
         #   – Report 0x03 ohne gedrückte Taste (nur Nullen) = alle G-Tasten losgelassen
         #   – derselbe Report 0x02 noch einmal = die G-Tasten darin wurden erneut gedrückt
-        if self.args.debug and data:
-            print("G/M-Report:", data.hex(" "))
         if data and len(data) >= 2 and data[0] == 0x03:
             if not any(data[1:]) and self.prev_gm & GKEY_MASK:
                 self._apply_gm(self.prev_gm & ~GKEY_MASK, again=0)

@@ -3,6 +3,11 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.10.01-7
+- Fehler behoben: G-Tasten – besonders solche ohne Belegung (F13…F24) – lösten bei schnell wiederholtem Drücken manchmal nur einmal aus und galten danach als weiter gedrückt. Ursache: Die G19s schickt oft zwei Tasten-Meldungen in einem Paket, der Treiber las nur die erste. Jetzt wird jedes Paket vollständig ausgewertet, jeder Druck zählt.
+- `--debug` zeigt die Meldungen eines Pakets getrennt an (durch `|`).
+- Wiki: Hilfe für Remote-Desktop-Abbrüche mit xfreerdp beim Kopieren (`/clipboard:files-to:off`).
+
 ## 2026.10.01-6
 - Fehler behoben: Eine G-Taste löste manchmal nur beim ersten Druck aus und erst nach einem Wechsel der Ebene (M1/M2/M3) wieder einmal. Ursache: Die G19s meldet das Loslassen einer G-Taste nicht immer; der Treiber hielt die Taste deshalb für weiter gedrückt. Jetzt zählt jeder Druck – für Textbausteine, Texte und alle anderen Belegungen.
 - Mit `--debug` erscheinen alle Tasten-Reports der Tastatur im Protokoll (auch Report 0x03).
