@@ -60,6 +60,12 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
   G-Tasten los (`handle_gm_report`/`_apply_gm` in `src/treiber/app_tasten.py`); --debug zeigt jetzt auch 0x03.
   Sim `s18_g19s_loslassen`.
 - Beobachtet: Benachrichtigungen erscheinen im Journal doppelt (vermutlich sendet Plasma zweimal) – harmlos.
+- Beobachtet (2026-10-02): RDP-Sitzung (xfreerdp/sdl-freerdp 3.32.0 → Windows-PC) brach beim Kopieren bzw.
+  ~10 s nach dem Login ab: `cliprdr … Error was 1359 → Network disconnect`. Ursache ist ein FreeRDP-Fehler bei
+  **Dateien** in der Zwischenablage (Windows meldet FileGroupDescriptorW/FileContents, KDE fragt text/uri-list an).
+  Nicht der G19s-Treiber. Lösung: `/clipboard:files-to:off` beim xfreerdp-Aufruf, Text geht weiter in beide
+  Richtungen (nötig für Einfügen per G-Taste in RDP). `direction-to:remote` hilft nicht, `-clipboard` verhindert
+  das Einfügen. Bei Ärger mit Einfügen in RDP zuerst den xfreerdp-Aufruf prüfen.
 
 ## Offene Punkte
 1. Rückmeldung zu 2026.10.01-6: G-Taste mehrfach drücken ohne M-Wechsel (Textbaustein direkt, Text);
