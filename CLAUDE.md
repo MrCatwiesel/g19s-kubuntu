@@ -29,12 +29,12 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
 - `pkill -f` mit einem Muster, das in der eigenen Befehlszeile steht, beendet die Shell –
   Muster mit `[.]` schreiben (z. B. `g19s-gui[.]py`).
 - `run_tests.py` räumt alte Fake-Server (Ports 8811/8812) und Verwaltungen (8799) selbst ab.
-- Tests brauchen `pip install -r tests/anforderungen.txt` und `fonts-dejavu-extra` (sonst weichen
+- Tests brauchen `pip install -r tests/anforderungen.txt` (sonst fallen alle GUI-Tests mit „No module named playwright“) und `fonts-dejavu-extra` (sonst weichen
   12 Uhren-Bilder ab); in der Sandbox ggf. `apt-get install -y fonts-dejavu-extra`.
 - Aus der Sandbox ist `raw.githubusercontent.com` nicht erreichbar; die Update-Suche wird
   mit dem Fake-GitHub (`G19S_UPDATE_URL`, `tests/fakes/infodienste.py`) getestet.
 
-## Stand (2026.10.01-8)
+## Stand (2026.10.14-1)
 - Alle Punkte der Prüfung Sicherheit/Lesbarkeit/Performance umgesetzt; L7 (Umbenennung
   profile→layer) bewusst verworfen.
 - 2026.09.30-5: Update direkt von GitHub (Dienst & Sicherung → „Nach Updates suchen“),
@@ -74,6 +74,11 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
   statt B (nur bei aktivem RDP-Fenster, bräuchte KWin-Skript). Sim `s20_medientasten`; im Harness läuft der
   Faden nur mit `media_keys=True`. Geräte am echten Rechner: event3 Tastatur, event4 Consumer Control.
   Am echten Gerät bestätigt (2026-10-02): Medientasten im RDP, Zwischenablage weiter ok.
+- 2026.10.14-1: Knopf „↩ Vorherige Version wiederherstellen …“ (Dienst & Sicherung → Programm aktualisieren):
+  `old_versions`/`restore_old_version` in `src/verwaltung/server/update.py` (Stände = gleicher Zeitstempel in
+  `alte-versionen`, letzte 10), Routen `GET /api/update/old`, `POST /api/update/restore {stamp}`; Einspielen über
+  `install_update` (jetziger Stand wird gesichert → rückgängig machbar). Treiber allein wird abgelehnt, wenn ihm Namen
+  aus `DRIVER_API` fehlen (`top_level_names`). Test in `tests/gui/update_test.py` (Teil 5). Am Gerät noch nicht geprüft.
 - Beobachtet: Benachrichtigungen erscheinen im Journal doppelt (vermutlich sendet Plasma zweimal) – harmlos.
 - Beobachtet (2026-10-02): RDP-Sitzung (xfreerdp/sdl-freerdp 3.32.0 → Windows-PC) brach beim Kopieren bzw.
   ~10 s nach dem Login ab: `cliprdr … Error was 1359 → Network disconnect`. Ursache ist ein FreeRDP-Fehler bei
@@ -93,5 +98,4 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
    programme. Die 24 min CPU in 68 min am Vormittag sind damit nicht erklärt – bei Wiederholung `ps -o etime,time,
    rss,pcpu,args -C python3,mpv` erbitten.
 3. `install.sh` (mit `--deinstallieren`).
-4. Knopf „Vorherige Version wiederherstellen“ (Sicherungen in `~/.local/share/g19s/alte-versionen`).
-5. Optional: täglicher Update-Hinweis auf der Displayseite „Updates“ (abschaltbar).
+4. Optional: täglicher Update-Hinweis auf der Displayseite „Updates“ (abschaltbar).

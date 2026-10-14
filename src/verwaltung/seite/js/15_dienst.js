@@ -68,9 +68,9 @@ async function runUpdate(path, body, busyText) {
   try { r = await api(path, {body}); }
   catch (err) { box.replaceChildren(el("div", {class: "warnbox", text: err.message})); return; }
   box.replaceChildren(...r.installed.map(x => el("div", {class: "hint", style: {margin: "2px 0"}},
-    "✓ ", el("b", {text: COMP_NAME[x.component]}), ` aktualisiert: ${x.old} → ${x.new}`,
+    "✓ ", el("b", {text: COMP_NAME[x.component]}), ` ${x.old} → ${x.new}`,
     x.warning ? el("span", {style: {color: "var(--danger)"}, text: " – " + x.warning}) : "")));
-  if (!r.restart_gui) { toast("Update eingespielt, der Treiber wurde neu gestartet."); refreshService(); return; }
+  if (!r.restart_gui) { toast("Eingespielt, der Treiber wurde neu gestartet."); refreshService(); return; }
   $("#ovTitle").textContent = "Verwaltung wird neu gestartet …";
   $("#ovText").textContent = "Einen Moment bitte, die Seite lädt gleich von selbst neu.";
   $("#overlay").classList.add("show");
@@ -111,6 +111,29 @@ $("#updateCheck").addEventListener("click", async () => {
     runUpdate("/api/update/github", {}, "Spiele Update von GitHub ein …");
   });
   box.replaceChildren(...rows, news, go);
+});
+$("#updateOld").addEventListener("click", async () => {
+  const box = $("#updateResult");
+  box.replaceChildren(el("span", {class: "muted", text: "Suche gesicherte Versionen …"}));
+  let r;
+  try { r = await api("/api/update/old"); }
+  catch (err) { box.replaceChildren(el("div", {class: "warnbox", text: err.message})); return; }
+  if (!r.versions.length) {
+    box.replaceChildren(el("div", {class: "hint", text: "Noch keine gesicherte Version – sie entsteht beim nächsten Update."})); return;
+  }
+  const rows = r.versions.map(v => {
+    const what = v.files.map(f => `${COMP_NAME[f.component]} ${f.version}`).join(" · ");
+    const go = el("button", {class: "btn small", text: "Wiederherstellen"});
+    go.addEventListener("click", () => {
+      if (updateBlocked()) return;
+      if (!confirm(`Version vom ${v.date} wiederherstellen (${what})? Der jetzige Stand wird vorher gesichert, ` +
+                   "Treiber bzw. Verwaltung werden neu gestartet.")) return;
+      runUpdate("/api/update/restore", {stamp: v.stamp}, "Stelle vorherige Version wieder her …");
+    });
+    return el("div", {class: "row", style: {gap: "8px", margin: "4px 0"}}, go,
+      el("span", {}, el("b", {text: v.date}), " – " + what));
+  });
+  box.replaceChildren(el("div", {class: "hint", text: "Gesicherte Versionen (neueste zuerst):"}), ...rows);
 });
 // „Was ist neu“: Release-Texte von GitHub (einfaches Markdown) als reiner Text, nie als HTML
 function noteText(line) { return line.replace(/\*\*|__|`/g, "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1"); }

@@ -233,6 +233,8 @@ Neue Versionen von <code>g19s.py</code> und <code>g19s-gui.py</code> müssen nic
 # Die bisherige Version wird nach <code>~/.local/share/g19s/alte-versionen/</code> gesichert, danach startet der Treiber bzw. die Oberfläche neu. Die angezeigten Versionsnummern zeigen, was installiert ist.
 Startet eine neue Oberfläche nicht, stellt die Verwaltung automatisch die vorherige Version wieder her und meldet das.
 
+'''Zurück zur vorherigen Version:''' '''G19s-Verwaltung → Dienst & Sicherung → ↩ Vorherige Version wiederherstellen …''' listet die gesicherten Versionen aus <code>~/.local/share/g19s/alte-versionen/</code> (die letzten zehn Updates, neueste zuerst, mit Datum und Versionsnummern). '''Wiederherstellen''' spielt den gewählten Stand wie ein Update ein: Die Dateien werden geprüft, der jetzige Stand wird vorher gesichert (das Zurückholen lässt sich also ebenso rückgängig machen) und Treiber bzw. Verwaltung starten neu. Ein Stand, der nur einen Treiber enthält, der für die jetzige Verwaltung zu alt ist, wird abgelehnt. „Nach Updates suchen“ bietet die neuere Version danach wieder an.
+
 === Aktionen für G-Tasten ===
 {| class="wikitable"
 ! Aktion !! Wirkung !! Eintrag in macros.json

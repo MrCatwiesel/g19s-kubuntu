@@ -82,6 +82,72 @@ def install_update(files):
 
 
 # --------------------------------------------------------------------------- #
+# Vorherige Version wiederherstellen (aus den Sicherungen beim Update)
+# --------------------------------------------------------------------------- #
+OLD_VERSIONS_LIMIT = 10                  # so viele Sicherungsstände werden angeboten
+_OLD_NAME = re.compile(r"^(g19s|g19s-gui)\.py\.(\d{8}-\d{6})$")
+
+
+def old_versions():
+    """Gesicherte Programmstände, neueste zuerst: [{stamp, date, files: [{component, file, version}]}].
+    Dateien eines Updates tragen denselben Zeitstempel und bilden einen Stand."""
+    try:
+        names = os.listdir(UPDATE_BACKUP_DIR)
+    except OSError:
+        return []
+    stamps = {}
+    for name in names:
+        m = _OLD_NAME.match(name)
+        if not m:
+            continue
+        comp = "driver" if m.group(1) == "g19s" else "gui"
+        stamps.setdefault(m.group(2), []).append(
+            {"component": comp, "file": name,
+             "version": file_version(os.path.join(UPDATE_BACKUP_DIR, name))})
+    result = []
+    for stamp in sorted(stamps, reverse=True)[:OLD_VERSIONS_LIMIT]:
+        when = datetime.datetime.strptime(stamp, "%Y%m%d-%H%M%S")
+        files = sorted(stamps[stamp], key=lambda f: f["component"] != "driver")
+        result.append({"stamp": stamp, "date": f"{when:%d.%m.%Y %H:%M}", "files": files})
+    return result
+
+
+def top_level_names(raw):
+    """Namen, die eine Treiberdatei auf oberster Ebene festlegt (wie driver_api in build.py)."""
+    try:
+        tree = ast.parse(raw.decode("utf-8"))
+    except (SyntaxError, UnicodeDecodeError):
+        return set()
+    names = set()
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+            names.add(node.name)
+        elif isinstance(node, ast.Assign):
+            names.update(t.id for t in node.targets if isinstance(t, ast.Name))
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            names.update((a.asname or a.name).split(".")[0] for a in node.names)
+    return names
+
+
+def restore_old_version(stamp):
+    """Spielt den gesicherten Stand `stamp` wie ein Update ein (der jetzige Stand wird dabei gesichert)."""
+    entry = next((e for e in old_versions() if e["stamp"] == stamp), None)
+    if not entry:
+        raise ValueError("Diese gesicherte Version gibt es nicht mehr")
+    files = []
+    for f in entry["files"]:
+        with open(os.path.join(UPDATE_BACKUP_DIR, f["file"]), "rb") as fh:
+            files.append((f["file"], fh.read()))
+    comps = {f["component"] for f in entry["files"]}
+    if comps == {"driver"}:
+        # älterer Treiber allein: die laufende Verwaltung muss mit ihm zurechtkommen
+        if not set(DRIVER_API) <= top_level_names(files[0][1]):
+            raise ValueError("Dieser Treiber ist zu alt für die jetzige Verwaltung – "
+                             "bitte einen Stand wählen, der auch die Verwaltung enthält")
+    return install_update(files)
+
+
+# --------------------------------------------------------------------------- #
 # Update direkt von GitHub (veröffentlichte Releases)
 # --------------------------------------------------------------------------- #
 UPDATE_URL = os.environ.get("G19S_UPDATE_URL",

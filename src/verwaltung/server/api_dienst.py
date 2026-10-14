@@ -89,6 +89,12 @@ class ApiService:
         self.app.github_update = None
         self._finish_update(install_update(list(newer.values())))
 
+    def api_get_update_old(self, q):
+        self._send(200, {"versions": old_versions()})
+
+    def api_post_update_restore(self, q):
+        self._finish_update(restore_old_version(str(self._json().get("stamp") or "")))
+
     def _finish_update(self, result):
         comps = {r["component"] for r in result}
         if "driver" in comps:

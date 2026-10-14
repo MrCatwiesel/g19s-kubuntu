@@ -98,5 +98,32 @@ with sync_playwright() as p:
     ok("2099.01.05-1" in pg.inner_text("#versions"), "GitHub-Update: neue Verwaltung läuft")
     t = check()
     ok("Keine neuere Version" in t, "Danach: aktuell")
+    # 5) Vorherige Version wiederherstellen (Sicherungen in alte-versionen)
+    OLD = H + "/.local/share/g19s/alte-versionen"
+    open(OLD + "/g19s.py.20000101-000000", "w").write(
+        'G19S_COMPONENT = "driver"\nVERSION = "2000.01.01-1"\n'
+        "# G19S-DATEIENDE (diese Zeile zeigt, dass die Datei vollständig ist)\n")
+    open(OLD + "/fremd.txt", "w").write("x")
+    def old_list():
+        pg.click("#updateOld"); pg.wait_for_timeout(800); return pg.inner_text("#updateResult")
+    t = old_list()
+    rows = pg.locator("#updateResult >> text=Wiederherstellen")
+    ok(rows.count() >= 3 and "fremd" not in t, "Gesicherte Versionen aufgelistet: " + t.replace("\n", " | ")[:140])
+    first = pg.locator("#updateResult .row").first.inner_text()
+    ok("2026.09.27-test" in first and "Treiber" in first and "Verwaltung" in first,
+       "Neueste Sicherung = Stand vor dem GitHub-Update: " + first[:100])
+    pg.locator("#updateResult button").last.click(); pg.wait_for_timeout(1000)
+    t = pg.inner_text("#updateResult")
+    ok("zu alt" in t and "2099.01.05-1" in ver(BIN + "/g19s.py"), "Zu alter Treiber allein: abgelehnt, nichts verändert: " + t[:80])
+    old_list(); pg.locator("#updateResult button").first.click(); pg.wait_for_timeout(1000)
+    ok(pg.is_visible("#overlay"), "Wiederherstellen: Neustart-Hinweis")
+    pg.wait_for_selector(".gkey", timeout=30000); pg.wait_for_timeout(800)
+    ok("2026.09.27-test" in ver(BIN + "/g19s.py") and "2026.09.27-test" in ver(BIN + "/g19s-gui.py"),
+       "Wiederherstellen: beide Dateien zurückgeholt")
+    pg.click("nav >> text=Dienst"); pg.wait_for_timeout(800)
+    ok("2026.09.27-test" in pg.inner_text("#versions"), "Wiederherstellen: alte Verwaltung läuft")
+    old_list(); first = pg.locator("#updateResult .row").first.inner_text()
+    ok("2099.01.05-1" in first, "Rückgängig möglich: neuer Stand jetzt gesichert: " + first[:100])
+    pg.screenshot(path=ROOT + "/shots/13c_update_zurueck.png", full_page=True)
     b.close()
 print("Seitenfehler:", errors or "keine")

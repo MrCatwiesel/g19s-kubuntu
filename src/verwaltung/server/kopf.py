@@ -19,6 +19,7 @@ Benötigt: g19s.py im selben Ordner (dieselben Pakete wie der Treiber)
 """
 
 import argparse
+import ast
 import base64
 import datetime
 import http.server
@@ -40,7 +41,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.10.01-8"
+VERSION = "2026.10.14-1"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"

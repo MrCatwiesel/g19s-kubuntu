@@ -45,7 +45,7 @@ python3 ~/.local/bin/g19s-gui.py --install-desktop     # Eintrag „G19s-Verwalt
 Für die Makroaufnahme zusätzlich `sudo usermod -aG input $USER`, danach den PC neu starten.
 Neue Versionen holt die Verwaltung unter **Dienst & Sicherung → Nach Updates suchen**
 direkt aus den [GitHub-Releases](https://github.com/MrCatwiesel/g19s-kubuntu/releases),
-mit „Was ist neu“. Was sich je Version geändert hat, steht in [NEUIGKEITEN.md](NEUIGKEITEN.md).
+mit „Was ist neu“; „Vorherige Version wiederherstellen“ holt bei Bedarf eine gesicherte ältere Version zurück. Was sich je Version geändert hat, steht in [NEUIGKEITEN.md](NEUIGKEITEN.md).
 
 Entwickelt für Kubuntu 26.04 mit KDE Plasma (Wayland).
 
