@@ -41,7 +41,7 @@ class Menu:
 
 
 class ProfileMenu(Menu):
-    """SETTINGS: Profil wählen."""
+    """SETTINGS (lang; kurz außerhalb der Uhrseite): Profil wählen."""
     kind = "profile"
 
     def on_key(self, app, pressed):
@@ -62,7 +62,7 @@ class ProfileMenu(Menu):
 
 
 class ClockMenu(Menu):
-    """Uhrseite, MENU: Zifferblatt für dieses Profil und diese Ebene wählen."""
+    """Uhrseite, MENU oder SETTINGS kurz: Zifferblatt für dieses Profil und diese Ebene wählen."""
     kind = "clocks"
 
     def __init__(self, app):

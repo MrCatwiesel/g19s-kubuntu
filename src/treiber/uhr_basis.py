@@ -229,7 +229,7 @@ class ClockBase:
 
 @page_keys("clock")
 def keys_clock(app, pressed):
-    """MENU öffnet die Auswahl des Zifferblatts; sonst blättern die Pfeiltasten."""
+    """MENU (wie SETTINGS kurz, siehe app_tasten) öffnet die Auswahl des Zifferblatts; sonst blättern die Pfeiltasten."""
     if pressed & LKEY_BITS["MENU"]:
         app.menu = ClockMenu(app)
         app.flash = None

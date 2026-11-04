@@ -1,0 +1,27 @@
+{
+ "faces": [
+  {
+   "M1": "chrono"
+  },
+  null
+ ],
+ "kurz_hardware": [
+  "profile"
+ ],
+ "kurz_uhr": [
+  "clocks"
+ ],
+ "kurz_uhr_zu": [
+  "clocks"
+ ],
+ "lang_gehalten": [
+  "profile"
+ ],
+ "lang_vor_schwelle": [],
+ "log": [
+  "Uhr: Chronometer (Büro, M1)",
+  "Profil 2: Spiele"
+ ],
+ "nach_ok": [],
+ "nach_zu": []
+}

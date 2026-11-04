@@ -21,6 +21,7 @@ class TimedTasks:
                 self.next_draw = 0
 
     def tick(self, now):
+        self.settings_key_tick(now)
         self._expire_selections(now)
         if self.mic.pop("changed", False):
             self.apply_leds()

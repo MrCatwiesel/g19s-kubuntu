@@ -57,6 +57,7 @@ class App(AppCore, KeyHandling, TimedTasks):
         if self.prev_gm or self.held:
             self.handle_gm_report(bytes([2, 0, 0, 0]))     # wie „alle Tasten losgelassen“
         self.prev_l = 0
+        self.settings_down = None
         if self.g19.reconnect(now):         # wieder da: Helligkeit, Licht und Bild neu setzen
             self.set_brightness(self.night_brightness() if self.night_dark() else self.day_brightness())
             self.apply_leds()
@@ -72,9 +73,11 @@ class App(AppCore, KeyHandling, TimedTasks):
 
     def _max_wait(self):
         """Wie lange die Hauptschleife höchstens schlafen darf: kurz während Makroaufnahme und
-        Blinken, sonst 0,25 s (Zeitaufgaben wie Erinnerungen, Nachtmodus, Menü-Zeitlimit)."""
+        Blinken bzw. solange SETTINGS gehalten wird, sonst 0,25 s (Zeitaufgaben wie Erinnerungen, Nachtmodus, Menü-Zeitlimit)."""
         if self.rec is not None and self.rec.get("stage") == "record":
             return 0.02
+        if self.settings_down is not None:
+            return 0.05                     # SETTINGS gehalten: lang gedrückt rechtzeitig erkennen
         if self.alarm["blink_until"]:
             return 0.05
         return 0.25

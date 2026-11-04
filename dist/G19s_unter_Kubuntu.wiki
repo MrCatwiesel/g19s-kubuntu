@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.10.01-8)
+| 28.09.2026 (Version 2026.11.04-1)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -24,14 +24,14 @@ Für die G19s gibt es unter Linux keinen offiziellen Treiber. Die normalen Taste
 
 == Funktionsumfang ==
 * '''G1–G12''' senden die Tasten '''F13–F24''' und lassen sich in KDE frei belegen.
-* '''Bis zu 10 Profile''' (z. B. „Büro“, „Spiele“) mit je drei Ebenen '''M1/M2/M3''' – also 36 Belegungen pro Profil. Umschalten über die Displaytaste '''SETTINGS'''. Jedes Profil hat eigene Beleuchtungsfarben.
+* '''Bis zu 10 Profile''' (z. B. „Büro“, „Spiele“) mit je drei Ebenen '''M1/M2/M3''' – also 36 Belegungen pro Profil. Umschalten über die Displaytaste '''SETTINGS''' (lang drücken). Jedes Profil hat eigene Beleuchtungsfarben.
 * '''MR''' nimmt Makros direkt an der Tastatur auf.
 * G-Tasten können Text einfügen (über die Zwischenablage oder Zeichen für Zeichen getippt), Tastenkombinationen senden, Webseiten öffnen, Programme starten, Radiosender abspielen, den Musikplayer steuern, die '''Lautstärke''' ändern (mit Balken auf dem Display), einen '''Textbaustein''' direkt einfügen oder eine Liste von Textbausteinen auf dem Display öffnen und '''Timer, Stoppuhr oder Pomodoro''' starten.
 * '''Lautstärkerad, Stumm- und Medientasten''' der Tastatur steuert der Treiber selbst – sie wirken dadurch auch im '''Remote-Desktop''' (z. B. xfreerdp) auf diesen Rechner, und die Lautstärke erscheint groß auf dem Display. Abschaltbar unter '''Beleuchtung & Display → Lautstärke'''.
 * Auswahl direkt am Display: Radiosender, Kalender, Termindetails, Piwigo-Alben.
 * '''Terminerinnerung''' vor Terminbeginn, '''Radiowecker''' und '''Einschlaftimer''', '''Song merken''' (Radiotitel in eine Liste), '''Lieblingsbilder''' in der Diashow, '''Mikrofon stumm''' per G-Taste (MR-Leuchte als Anzeige).
 * Displayseiten je Ebene '''und''' je Profil einstellbar, '''automatische Sicherung''' in einen Ordner.
-* '''25 Zifferblätter''' für die Uhr (u. a. Chronometer, Bahnhofsuhr, Pendel- und Kuckucksuhr, Astro- und Sonnenuhr, Weltzeituhr, Nixie-Röhren, Wortuhr) – Auswahl am Display mit MENU je Profil und Ebene, Aussehen in der Verwaltung einstellbar.
+* '''25 Zifferblätter''' für die Uhr (u. a. Chronometer, Bahnhofsuhr, Pendel- und Kuckucksuhr, Astro- und Sonnenuhr, Weltzeituhr, Nixie-Röhren, Wortuhr) – Auswahl am Display mit MENU oder SETTINGS (kurz) je Profil und Ebene, Aussehen in der Verwaltung einstellbar.
 * Weitere Seiten: '''Nachrichten''' (RSS/Atom), '''Unwetter''' (amtliche DWD-Warnungen), '''Netzwerk''' (Erreichbarkeit von Router, NAS …), '''Updates''' (Paket- und Flatpak-Updates, Neustart nötig).
 * '''Display''' mit sieben Standardseiten: Uhr, Musik (inkl. Internetradio), Wetter, Termine, Hardware (Auslastung, Temperaturen, Arbeitsspeicher, Lüfter, Netz, Datenträger), Makro-Übersicht, Bilder. Welche Seiten in welcher Reihenfolge erscheinen, ist frei wählbar.
 * '''Diashow''' mit Bildern aus Piwigo-Alben (auch private Alben) oder aus einem Ordner auf dem Rechner – auf Wunsch als '''Bildschirmschoner'''.
@@ -165,7 +165,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.10.01-8"
+VERSION = "2026.11.04-1"
 
 # Weitere Importe der Module
 import http.client
@@ -216,6 +216,7 @@ LKEY_BITS = {
     "SETTINGS": 0x01, "BACK": 0x02, "MENU": 0x04, "OK": 0x08,
     "RIGHT": 0x10, "LEFT": 0x20, "DOWN": 0x40, "UP": 0x80,
 }
+LONG_PRESS = 0.6            # Sekunden: SETTINGS so lange halten = Profilauswahl (kurz: Uhrseite → Zifferblätter)
 
 # LED-Bits der M-Tasten
 M_LED = {"M1": 0x80, "M2": 0x40, "M3": 0x20, "MR": 0x10}
@@ -5166,7 +5167,7 @@ class ClockBase:
 
 @page_keys("clock")
 def keys_clock(app, pressed):
-    """MENU öffnet die Auswahl des Zifferblatts; sonst blättern die Pfeiltasten."""
+    """MENU (wie SETTINGS kurz, siehe app_tasten) öffnet die Auswahl des Zifferblatts; sonst blättern die Pfeiltasten."""
     if pressed & LKEY_BITS["MENU"]:
         app.menu = ClockMenu(app)
         app.flash = None
@@ -9568,7 +9569,7 @@ class Menu:
 
 
 class ProfileMenu(Menu):
-    """SETTINGS: Profil wählen."""
+    """SETTINGS (lang; kurz außerhalb der Uhrseite): Profil wählen."""
     kind = "profile"
 
     def on_key(self, app, pressed):
@@ -9589,7 +9590,7 @@ class ProfileMenu(Menu):
 
 
 class ClockMenu(Menu):
-    """Uhrseite, MENU: Zifferblatt für dieses Profil und diese Ebene wählen."""
+    """Uhrseite, MENU oder SETTINGS kurz: Zifferblatt für dieses Profil und diese Ebene wählen."""
     kind = "clocks"
 
     def __init__(self, app):
@@ -10052,6 +10053,7 @@ class AppCore:
         self._last_draw_error = None                    # zuletzt protokollierter Anzeige-Fehler
         self.running = True
         self.prev_gm = self.prev_l = 0
+        self.settings_down = None           # Zeitpunkt, seit dem SETTINGS gehalten wird (kurz/lang offen)
         self.last_gm_raw = None             # letzter Report 0x02 (Bytes 1–3), erkennt einen erneuten Druck
         self.held = {}                      # G-Taste -> Modifier, mit dem sie gedrückt wurde
         self.next_reload = 0.0
@@ -10438,7 +10440,9 @@ class AppCore:
 #   Displaytasten gehen der Reihe nach an:
 #     1. Vorrang-Regeln: nachts weckt der erste Druck nur, der Bildschirmschoner
 #        endet nur, ein abgelaufener Timer bzw. eine Erinnerung wird nur bestätigt
-#     2. SETTINGS öffnet (ohne offenes Menü) das Profilmenü
+#     2. SETTINGS (ohne offenes Menü): lang gedrückt (LONG_PRESS) die Profilauswahl, kurz
+#        auf der Uhrseite die Zifferblätter, auf anderen Seiten ebenfalls die Profilauswahl.
+#        Entschieden wird beim Loslassen bzw. nach LONG_PRESS in settings_key_tick().
 #     3. das offene Menü (menue_logik)
 #     4. die Tasten der angezeigten Seite (@page_keys in den Seitenmodulen)
 #     5. sonst: Rechts/Runter = nächste Seite, Links/Hoch = vorige Seite
@@ -10618,13 +10622,17 @@ class KeyHandling:
             print("Display-Report:", data.hex(" "))
         value = data[0]
         pressed = value & ~self.prev_l
+        released = self.prev_l & ~value
         self.prev_l = value
         if pressed:
             pressed = self._key_precedence(pressed)
-        if self.menu is None and pressed & LKEY_BITS["SETTINGS"]:
-            self.menu = ProfileMenu(self.prof_idx)          # SETTINGS öffnet die Profilauswahl
-            self.flash = None
-            self.next_draw = 0
+        settings = LKEY_BITS["SETTINGS"]
+        if released & settings and self.settings_down is not None:
+            self.settings_down = None       # vor LONG_PRESS losgelassen: kurzer Druck
+            if self.menu is None:
+                self._settings_key(long=False)
+        if self.menu is None and pressed & settings:
+            self.settings_down = time.monotonic()           # kurz oder lang? → Loslassen / settings_key_tick
         elif self.menu is not None:
             self.menu.on_key(self, pressed)
         else:
@@ -10635,6 +10643,24 @@ class KeyHandling:
             for name, bit in LKEY_BITS.items():
                 if pressed & bit:
                     print(f"  Displaytaste {name}")
+
+    def settings_key_tick(self, now):
+        """SETTINGS wird seit LONG_PRESS gehalten: Profilauswahl öffnen (schon während des Haltens)."""
+        if self.settings_down is not None and now - self.settings_down >= LONG_PRESS:
+            self.settings_down = None
+            if self.menu is None:
+                self._settings_key(long=True)
+
+    def _settings_key(self, long):
+        """SETTINGS lang: Profilauswahl. Kurz: auf der Uhrseite die Zifferblätter, sonst die Profilauswahl."""
+        if not long and PAGE_IDS[self.page % len(PAGE_IDS)] == "clock":
+            self.menu = ClockMenu(self)
+        else:
+            self.menu = ProfileMenu(self.prof_idx)
+        if self.args.debug:
+            print(f"  SETTINGS {'lang' if long else 'kurz'} -> {self.menu.kind}")
+        self.flash = None
+        self.next_draw = 0
 
     def _key_precedence(self, pressed):
         """Tastendrücke, die nur wecken/beenden/bestätigen, werden hier verbraucht (→ 0)."""
@@ -10677,6 +10703,7 @@ class TimedTasks:
                 self.next_draw = 0
 
     def tick(self, now):
+        self.settings_key_tick(now)
         self._expire_selections(now)
         if self.mic.pop("changed", False):
             self.apply_leds()
@@ -10990,6 +11017,7 @@ class App(AppCore, KeyHandling, TimedTasks):
         if self.prev_gm or self.held:
             self.handle_gm_report(bytes([2, 0, 0, 0]))     # wie „alle Tasten losgelassen“
         self.prev_l = 0
+        self.settings_down = None
         if self.g19.reconnect(now):         # wieder da: Helligkeit, Licht und Bild neu setzen
             self.set_brightness(self.night_brightness() if self.night_dark() else self.day_brightness())
             self.apply_leds()
@@ -11005,9 +11033,11 @@ class App(AppCore, KeyHandling, TimedTasks):
 
     def _max_wait(self):
         """Wie lange die Hauptschleife höchstens schlafen darf: kurz während Makroaufnahme und
-        Blinken, sonst 0,25 s (Zeitaufgaben wie Erinnerungen, Nachtmodus, Menü-Zeitlimit)."""
+        Blinken bzw. solange SETTINGS gehalten wird, sonst 0,25 s (Zeitaufgaben wie Erinnerungen, Nachtmodus, Menü-Zeitlimit)."""
         if self.rec is not None and self.rec.get("stage") == "record":
             return 0.02
+        if self.settings_down is not None:
+            return 0.05                     # SETTINGS gehalten: lang gedrückt rechtzeitig erkennen
         if self.alarm["blink_until"]:
             return 0.05
         return 0.25
@@ -11208,7 +11238,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.10.01-8"
+VERSION = "2026.11.04-1"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -12762,7 +12792,7 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
     <div class="grid2">
       <div class="card">
         <h2>Profil</h2>
-        <p class="hint">Bis zu 10 Profile mit je 36 Belegungen. An der Tastatur wechselt die Displaytaste SETTINGS das Profil.</p>
+        <p class="hint">Bis zu 10 Profile mit je 36 Belegungen. An der Tastatur wechselt die Displaytaste SETTINGS (lang drücken) das Profil.</p>
         <div class="row" style="flex-wrap:nowrap; gap:6px">
           <select id="profSel" style="flex:1; min-width:0"></select>
           <button class="btn icon small" id="profUp" title="Profil nach oben">↑</button>
@@ -14946,7 +14976,7 @@ Startet eine neue Oberfläche nicht, stellt die Verwaltung automatisch die vorhe
 == Bedienung an der Tastatur ==
 
 === Profile (Displaytaste SETTINGS) ===
-Bis zu 10 Profile. '''SETTINGS''' öffnet die Profilliste auf dem Display.:
+Bis zu 10 Profile. '''SETTINGS lang drücken''' (gut eine halbe Sekunde) öffnet auf jeder Seite die Profilliste auf dem Display – sie erscheint schon, während die Taste noch gehalten wird. '''Kurz''' gedrückt öffnet SETTINGS auf der Seite '''Uhr''' die Liste der Zifferblätter (wie MENU), auf allen anderen Seiten ebenfalls die Profilliste.
 {| class="wikitable"
 ! Taste !! Funktion
 |-
@@ -14974,7 +15004,7 @@ Hat eine G-Taste eine eigene Aktion (Text, Makro, Webseite …), wird diese ausg
 <div style="border-left:4px solid #3366cc; background:#eaf3ff; padding:0.5em 1em; margin:1em 0;">'''Hinweis:''' KDE-Kurzbefehle (F13–F24) gelten in allen Profilen gleich, weil KDE die Profile nicht kennt. Für Belegungen, die sich je Profil unterscheiden sollen, die Aktionen der Verwaltung verwenden (Text, Programm, Webseite …).</div>
 
 === Makro aufnehmen (MR) ===
-# Profil (SETTINGS) und Ebene (M1, M2 oder M3) wählen.
+# Profil (SETTINGS lang drücken) und Ebene (M1, M2 oder M3) wählen.
 # '''MR''' drücken. Die Beleuchtung wird rot.
 # Die '''G-Taste''' drücken, auf die das Makro soll.
 # Tasten tippen. Das Display zählt mit.
@@ -14989,7 +15019,7 @@ Mit den Displaytasten '''Links/Rechts''' blättern. Standardreihenfolge: '''Uhr 
 {| class="wikitable"
 ! Seite !! Inhalt
 |-
-| Uhr || Uhrzeit und Datum; das '''Zifferblatt''' wird am Display mit '''MENU''' gewählt (siehe unten)
+| Uhr || Uhrzeit und Datum; das '''Zifferblatt''' wird am Display mit '''MENU''' oder kurz '''SETTINGS''' gewählt (siehe unten)
 |-
 | Musik || aktueller Titel mit Cover, Radiosender mit laufendem Song
 |-
@@ -15072,7 +15102,7 @@ Ein kleines gefülltes Quadrat bedeutet: Das Album ist über ein gewähltes Ober
 Die Bilder werden nur geladen, solange die Seite „Bilder“ angezeigt wird. Die Bildliste wird alle 30 Minuten neu abgerufen, neue Fotos in den Alben bzw. im Ordner erscheinen also automatisch.
 
 === Zifferblatt der Uhr ===
-Auf der Seite '''Uhr''' öffnet '''MENU''' die Liste '''Zifferblatt''' mit bis zu 25 Zifferblättern. Das markierte Zifferblatt wird dabei gleich groß und mit laufenden Zeigern gezeigt (oben Name und Position, z. B. 4/25). Mit Hoch/Runter blättern, '''OK''' übernimmt, '''BACK''' schließt ohne Änderung. Das Zifferblatt gilt für das aktive Profil und die aktive Ebene – z. B. im Profil „Büro“ unter M1 die Digitaluhr und unter M3 die Bahnhofsuhr. Es wird in <code>macros.json</code> beim Profil gespeichert (<code>"clock": {"M3": "station"}</code>) und gilt auch, wenn die Uhr als Bildschirmschoner erscheint. In der Seitenliste der Verwaltung gibt es nur die Seite „Uhr“.
+Auf der Seite '''Uhr''' öffnen '''MENU''' und ein kurzer Druck auf '''SETTINGS''' die Liste '''Zifferblatt''' mit bis zu 25 Zifferblättern. Das markierte Zifferblatt wird dabei gleich groß und mit laufenden Zeigern gezeigt (oben Name und Position, z. B. 4/25). Mit Hoch/Runter blättern, '''OK''' übernimmt, '''BACK''' schließt ohne Änderung. Das Zifferblatt gilt für das aktive Profil und die aktive Ebene – z. B. im Profil „Büro“ unter M1 die Digitaluhr und unter M3 die Bahnhofsuhr. Es wird in <code>macros.json</code> beim Profil gespeichert (<code>"clock": {"M3": "station"}</code>) und gilt auch, wenn die Uhr als Bildschirmschoner erscheint. In der Seitenliste der Verwaltung gibt es nur die Seite „Uhr“.
 
 '''Einstellungen in der Verwaltung''' (Beleuchtung & Display → '''Uhr'''): oben ein Zifferblatt wählen – daneben erscheint eine Vorschau –, darunter seine Einstellungen. Farben stehen auf „Farbe der Ebene“ bzw. „Standard“, bis eine eigene Farbe gewählt wird. Unter '''Im Displaymenü anbieten''' die Zifferblätter abhaken, die in der Liste am Display nicht erscheinen sollen. Gespeichert wird mit den übrigen Einstellungen in <code>settings.json</code> (<code>"clock"</code>).
 {| class="wikitable"
@@ -15498,7 +15528,7 @@ getfacl /dev/bus/usb/BUS/GERÄT                      # Rechte (Nummern aus lsusb
 |-
 | <code>0x83</code> (Interface 1) || Interrupt IN || G-/M-Tasten, nur Report-ID <code>0x02</code> auswerten
 |}
-* Displaytaste SETTINGS (<code>0x01</code>) öffnet das Profilmenü.
+* Displaytaste SETTINGS (<code>0x01</code>): ab 0,6 s gehalten (<code>LONG_PRESS</code>) Profilmenü, kurz auf der Uhrseite die Zifferblätter, sonst ebenfalls das Profilmenü. Entschieden wird beim Loslassen bzw. nach 0,6 s (<code>settings_key_tick</code>).
 * Report <code>0x02</code>: Byte 1 = G1–G8 (Bit 0–7), Byte 2 = G9–G12 (Bit 0–3), M1 0x10, M2 0x20, M3 0x40, MR 0x80.
 * Report <code>0x03</code> (7 Bytes) ist ein zusätzlicher Tastatur-Report (G1 = F1 usw.). Die G19s schickt oft zwei Reports in einem Paket: Report <code>0x03</code> und direkt dahinter Report <code>0x02</code> (4 Bytes), z. B. <code>03 3a 00 00 00 00 00 02 00 00 40</code> = G1 als F1 + G-Tasten losgelassen, oder <code>03 00 00 00 00 00 00 02 80 00 40</code> = leerer Tastatur-Report + G8 gedrückt. Der Treiber zerlegt jedes Paket und wertet alle Reports der Reihe nach aus. Als Rückfallebene gilt weiter: Report <code>0x03</code> nur mit Nullen = alle G-Tasten los, derselbe Report <code>0x02</code> noch einmal = erneuter Druck. <code>--debug</code> zeigt die Reports eines Pakets durch <code>|</code> getrennt.
 * Beleuchtung: Control-Transfer <code>0x21/0x09</code>, wValue <code>0x0307</code>, Daten <code>[7, R, G, B]</code>.

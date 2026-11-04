@@ -3,7 +3,9 @@
 Displaytasten gehen der Reihe nach an:
   1. Vorrang-Regeln: nachts weckt der erste Druck nur, der Bildschirmschoner
      endet nur, ein abgelaufener Timer bzw. eine Erinnerung wird nur bestätigt
-  2. SETTINGS öffnet (ohne offenes Menü) das Profilmenü
+  2. SETTINGS (ohne offenes Menü): lang gedrückt (LONG_PRESS) die Profilauswahl, kurz
+     auf der Uhrseite die Zifferblätter, auf anderen Seiten ebenfalls die Profilauswahl.
+     Entschieden wird beim Loslassen bzw. nach LONG_PRESS in settings_key_tick().
   3. das offene Menü (menue_logik)
   4. die Tasten der angezeigten Seite (@page_keys in den Seitenmodulen)
   5. sonst: Rechts/Runter = nächste Seite, Links/Hoch = vorige Seite
@@ -185,13 +187,17 @@ class KeyHandling:
             print("Display-Report:", data.hex(" "))
         value = data[0]
         pressed = value & ~self.prev_l
+        released = self.prev_l & ~value
         self.prev_l = value
         if pressed:
             pressed = self._key_precedence(pressed)
-        if self.menu is None and pressed & LKEY_BITS["SETTINGS"]:
-            self.menu = ProfileMenu(self.prof_idx)          # SETTINGS öffnet die Profilauswahl
-            self.flash = None
-            self.next_draw = 0
+        settings = LKEY_BITS["SETTINGS"]
+        if released & settings and self.settings_down is not None:
+            self.settings_down = None       # vor LONG_PRESS losgelassen: kurzer Druck
+            if self.menu is None:
+                self._settings_key(long=False)
+        if self.menu is None and pressed & settings:
+            self.settings_down = time.monotonic()           # kurz oder lang? → Loslassen / settings_key_tick
         elif self.menu is not None:
             self.menu.on_key(self, pressed)
         else:
@@ -202,6 +208,24 @@ class KeyHandling:
             for name, bit in LKEY_BITS.items():
                 if pressed & bit:
                     print(f"  Displaytaste {name}")
+
+    def settings_key_tick(self, now):
+        """SETTINGS wird seit LONG_PRESS gehalten: Profilauswahl öffnen (schon während des Haltens)."""
+        if self.settings_down is not None and now - self.settings_down >= LONG_PRESS:
+            self.settings_down = None
+            if self.menu is None:
+                self._settings_key(long=True)
+
+    def _settings_key(self, long):
+        """SETTINGS lang: Profilauswahl. Kurz: auf der Uhrseite die Zifferblätter, sonst die Profilauswahl."""
+        if not long and PAGE_IDS[self.page % len(PAGE_IDS)] == "clock":
+            self.menu = ClockMenu(self)
+        else:
+            self.menu = ProfileMenu(self.prof_idx)
+        if self.args.debug:
+            print(f"  SETTINGS {'lang' if long else 'kurz'} -> {self.menu.kind}")
+        self.flash = None
+        self.next_draw = 0
 
     def _key_precedence(self, pressed):
         """Tastendrücke, die nur wecken/beenden/bestätigen, werden hier verbraucht (→ 0)."""

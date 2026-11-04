@@ -3,6 +3,10 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.04-1
+- Neu: Die Displaytaste SETTINGS kennt jetzt kurz und lang. Lang drücken (gut eine halbe Sekunde) öffnet auf jeder Seite die Profilauswahl – sie erscheint schon, während die Taste noch gehalten wird.
+- Auf der Uhrseite öffnet ein kurzer Druck auf SETTINGS die Liste der Zifferblätter mit Live-Vorschau (wie MENU). Auf allen anderen Seiten bleibt es bei der Profilauswahl.
+
 ## 2026.10.01-8
 - Neu: Lautstärkerad, Stumm- und Medientasten der Tastatur steuert jetzt der Treiber. Sie wirken dadurch auch im Remote-Desktop (z. B. xfreerdp) auf diesen Rechner – bisher gingen sie dort verloren. Die Lautstärke erscheint groß auf dem G19s-Display und, soweit möglich, auch in der KDE-Anzeige.
 - Play/Pause, Weiter, Zurück und Stopp steuern den angezeigten Player bzw. das G19s-Radio.

@@ -40,7 +40,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.10.01-8"
+VERSION = "2026.11.04-1"
 
 # Weitere Importe der Module
 import http.client
@@ -91,6 +91,7 @@ LKEY_BITS = {
     "SETTINGS": 0x01, "BACK": 0x02, "MENU": 0x04, "OK": 0x08,
     "RIGHT": 0x10, "LEFT": 0x20, "DOWN": 0x40, "UP": 0x80,
 }
+LONG_PRESS = 0.6            # Sekunden: SETTINGS so lange halten = Profilauswahl (kurz: Uhrseite → Zifferblätter)
 
 # LED-Bits der M-Tasten
 M_LED = {"M1": 0x80, "M2": 0x40, "M3": 0x20, "MR": 0x10}
@@ -5041,7 +5042,7 @@ class ClockBase:
 
 @page_keys("clock")
 def keys_clock(app, pressed):
-    """MENU öffnet die Auswahl des Zifferblatts; sonst blättern die Pfeiltasten."""
+    """MENU (wie SETTINGS kurz, siehe app_tasten) öffnet die Auswahl des Zifferblatts; sonst blättern die Pfeiltasten."""
     if pressed & LKEY_BITS["MENU"]:
         app.menu = ClockMenu(app)
         app.flash = None
@@ -9443,7 +9444,7 @@ class Menu:
 
 
 class ProfileMenu(Menu):
-    """SETTINGS: Profil wählen."""
+    """SETTINGS (lang; kurz außerhalb der Uhrseite): Profil wählen."""
     kind = "profile"
 
     def on_key(self, app, pressed):
@@ -9464,7 +9465,7 @@ class ProfileMenu(Menu):
 
 
 class ClockMenu(Menu):
-    """Uhrseite, MENU: Zifferblatt für dieses Profil und diese Ebene wählen."""
+    """Uhrseite, MENU oder SETTINGS kurz: Zifferblatt für dieses Profil und diese Ebene wählen."""
     kind = "clocks"
 
     def __init__(self, app):
@@ -9927,6 +9928,7 @@ class AppCore:
         self._last_draw_error = None                    # zuletzt protokollierter Anzeige-Fehler
         self.running = True
         self.prev_gm = self.prev_l = 0
+        self.settings_down = None           # Zeitpunkt, seit dem SETTINGS gehalten wird (kurz/lang offen)
         self.last_gm_raw = None             # letzter Report 0x02 (Bytes 1–3), erkennt einen erneuten Druck
         self.held = {}                      # G-Taste -> Modifier, mit dem sie gedrückt wurde
         self.next_reload = 0.0
@@ -10313,7 +10315,9 @@ class AppCore:
 #   Displaytasten gehen der Reihe nach an:
 #     1. Vorrang-Regeln: nachts weckt der erste Druck nur, der Bildschirmschoner
 #        endet nur, ein abgelaufener Timer bzw. eine Erinnerung wird nur bestätigt
-#     2. SETTINGS öffnet (ohne offenes Menü) das Profilmenü
+#     2. SETTINGS (ohne offenes Menü): lang gedrückt (LONG_PRESS) die Profilauswahl, kurz
+#        auf der Uhrseite die Zifferblätter, auf anderen Seiten ebenfalls die Profilauswahl.
+#        Entschieden wird beim Loslassen bzw. nach LONG_PRESS in settings_key_tick().
 #     3. das offene Menü (menue_logik)
 #     4. die Tasten der angezeigten Seite (@page_keys in den Seitenmodulen)
 #     5. sonst: Rechts/Runter = nächste Seite, Links/Hoch = vorige Seite
@@ -10493,13 +10497,17 @@ class KeyHandling:
             print("Display-Report:", data.hex(" "))
         value = data[0]
         pressed = value & ~self.prev_l
+        released = self.prev_l & ~value
         self.prev_l = value
         if pressed:
             pressed = self._key_precedence(pressed)
-        if self.menu is None and pressed & LKEY_BITS["SETTINGS"]:
-            self.menu = ProfileMenu(self.prof_idx)          # SETTINGS öffnet die Profilauswahl
-            self.flash = None
-            self.next_draw = 0
+        settings = LKEY_BITS["SETTINGS"]
+        if released & settings and self.settings_down is not None:
+            self.settings_down = None       # vor LONG_PRESS losgelassen: kurzer Druck
+            if self.menu is None:
+                self._settings_key(long=False)
+        if self.menu is None and pressed & settings:
+            self.settings_down = time.monotonic()           # kurz oder lang? → Loslassen / settings_key_tick
         elif self.menu is not None:
             self.menu.on_key(self, pressed)
         else:
@@ -10510,6 +10518,24 @@ class KeyHandling:
             for name, bit in LKEY_BITS.items():
                 if pressed & bit:
                     print(f"  Displaytaste {name}")
+
+    def settings_key_tick(self, now):
+        """SETTINGS wird seit LONG_PRESS gehalten: Profilauswahl öffnen (schon während des Haltens)."""
+        if self.settings_down is not None and now - self.settings_down >= LONG_PRESS:
+            self.settings_down = None
+            if self.menu is None:
+                self._settings_key(long=True)
+
+    def _settings_key(self, long):
+        """SETTINGS lang: Profilauswahl. Kurz: auf der Uhrseite die Zifferblätter, sonst die Profilauswahl."""
+        if not long and PAGE_IDS[self.page % len(PAGE_IDS)] == "clock":
+            self.menu = ClockMenu(self)
+        else:
+            self.menu = ProfileMenu(self.prof_idx)
+        if self.args.debug:
+            print(f"  SETTINGS {'lang' if long else 'kurz'} -> {self.menu.kind}")
+        self.flash = None
+        self.next_draw = 0
 
     def _key_precedence(self, pressed):
         """Tastendrücke, die nur wecken/beenden/bestätigen, werden hier verbraucht (→ 0)."""
@@ -10552,6 +10578,7 @@ class TimedTasks:
                 self.next_draw = 0
 
     def tick(self, now):
+        self.settings_key_tick(now)
         self._expire_selections(now)
         if self.mic.pop("changed", False):
             self.apply_leds()
@@ -10865,6 +10892,7 @@ class App(AppCore, KeyHandling, TimedTasks):
         if self.prev_gm or self.held:
             self.handle_gm_report(bytes([2, 0, 0, 0]))     # wie „alle Tasten losgelassen“
         self.prev_l = 0
+        self.settings_down = None
         if self.g19.reconnect(now):         # wieder da: Helligkeit, Licht und Bild neu setzen
             self.set_brightness(self.night_brightness() if self.night_dark() else self.day_brightness())
             self.apply_leds()
@@ -10880,9 +10908,11 @@ class App(AppCore, KeyHandling, TimedTasks):
 
     def _max_wait(self):
         """Wie lange die Hauptschleife höchstens schlafen darf: kurz während Makroaufnahme und
-        Blinken, sonst 0,25 s (Zeitaufgaben wie Erinnerungen, Nachtmodus, Menü-Zeitlimit)."""
+        Blinken bzw. solange SETTINGS gehalten wird, sonst 0,25 s (Zeitaufgaben wie Erinnerungen, Nachtmodus, Menü-Zeitlimit)."""
         if self.rec is not None and self.rec.get("stage") == "record":
             return 0.02
+        if self.settings_down is not None:
+            return 0.05                     # SETTINGS gehalten: lang gedrückt rechtzeitig erkennen
         if self.alarm["blink_until"]:
             return 0.05
         return 0.25

@@ -28,6 +28,7 @@ LKEY_BITS = {
     "SETTINGS": 0x01, "BACK": 0x02, "MENU": 0x04, "OK": 0x08,
     "RIGHT": 0x10, "LEFT": 0x20, "DOWN": 0x40, "UP": 0x80,
 }
+LONG_PRESS = 0.6            # Sekunden: SETTINGS so lange halten = Profilauswahl (kurz: Uhrseite → Zifferblätter)
 
 # LED-Bits der M-Tasten
 M_LED = {"M1": 0x80, "M2": 0x40, "M3": 0x20, "MR": 0x10}

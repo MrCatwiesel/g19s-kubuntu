@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.10.01-8"
+VERSION = "2026.11.04-1"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -1594,7 +1594,7 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
     <div class="grid2">
       <div class="card">
         <h2>Profil</h2>
-        <p class="hint">Bis zu 10 Profile mit je 36 Belegungen. An der Tastatur wechselt die Displaytaste SETTINGS das Profil.</p>
+        <p class="hint">Bis zu 10 Profile mit je 36 Belegungen. An der Tastatur wechselt die Displaytaste SETTINGS (lang drücken) das Profil.</p>
         <div class="row" style="flex-wrap:nowrap; gap:6px">
           <select id="profSel" style="flex:1; min-width:0"></select>
           <button class="btn icon small" id="profUp" title="Profil nach oben">↑</button>

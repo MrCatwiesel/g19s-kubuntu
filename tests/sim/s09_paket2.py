@@ -32,8 +32,8 @@ def snap(self):
 g.MediaWatcher.snapshot = snap
 s.gkey(3, "G1"); s.gkey(6, "G2"); s.gkey(8, "G3")
 s.key(9.5, "OK"); s.key(10, "RIGHT"); s.key(10.5, "RIGHT"); s.key(13, "BACK"); s.key(15, "DOWN"); s.key(17, "BACK"); s.key(18, "BACK")
-s.key(26, "SETTINGS"); s.key(26.5, "DOWN"); s.key(27, "OK")
-s.key(30, "SETTINGS"); s.key(30.5, "UP"); s.key(31, "OK")
+s.key(26, "SETTINGS", hold=0.8); s.key(27, "DOWN"); s.key(27.5, "OK")
+s.key(30, "SETTINGS", hold=0.8); s.key(31, "UP"); s.key(31.5, "OK")
 s.gkey(33, "G1")
 s.run(74)
 s.save({"erinnerung": 0.9, "wecker": 2.0, "mikro": 3.8, "song": 6.8, "sleep": 8.8, "fussleiste": 9.8, "herz": 14.8,
