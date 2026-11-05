@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.05-11"
+VERSION = "2026.11.05-12"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -1828,6 +1828,9 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
         <div>
           <label class="field" style="max-width:300px"><span>Stil</span><select id="visStyle"></select></label>
           <div id="visOpts"></div>
+          <label class="field" style="max-width:300px"><span>Bildrate (mehr = flüssiger, braucht mehr Rechenzeit)</span><select id="visFps">
+            <option value="10">10 Bilder/s – sparsam</option><option value="15">15 Bilder/s – Standard</option>
+            <option value="20">20 Bilder/s</option><option value="25">25 Bilder/s – sehr flüssig</option></select></label>
           <label class="check"><input type="checkbox" id="visBacklight"> Tastaturbeleuchtung pulsiert im Takt</label>
           <label class="check"><input type="checkbox" id="visTitle"> Laufenden Titel oben anzeigen</label>
           <label class="check"><input type="checkbox" id="visXmas"> In der Weihnachtszeit (1. Advent bis 6. Januar) automatisch den Stil „Weihnachten“ zeigen – wer dann am Display einen anderen Stil wählt, behält diesen bis zum Ende der Weihnachtszeit</label>
@@ -3183,6 +3186,7 @@ function renderVisual() {
     el("option", {value: id, text: label, selected: id === v.style})));
   $("#visBacklight").checked = v.backlight !== false;
   $("#visTitle").checked = v.title !== false;
+  $("#visFps").value = v.fps || "15";
   $("#visXmas").checked = v.xmas_auto !== false;
   $("#visTalkWords").value = v.talk_words || "";
   renderVisualOptions();
@@ -3209,6 +3213,7 @@ $("#visBacklight").addEventListener("change", e => { UI.sdraft.visual.backlight 
 $("#visTitle").addEventListener("change", e => { UI.sdraft.visual.title = e.target.checked; touchSettings(); visualPreview(); });
 $("#visTalkWords").addEventListener("input", e => { UI.sdraft.visual.talk_words = e.target.value; touchSettings(); });
 $("#visXmas").addEventListener("change", e => { UI.sdraft.visual.xmas_auto = e.target.checked; UI.sdraft.visual.xmas_skip = 0; touchSettings(); });
+$("#visFps").addEventListener("change", e => { UI.sdraft.visual.fps = e.target.value; touchSettings(); });
 
 // ---------------------------------------------------------------- Diashow (Piwigo)
 UI.albums = null;

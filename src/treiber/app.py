@@ -121,7 +121,8 @@ class App(AppCore, KeyHandling, TimedTasks):
         if self._visual_shown():
             self.visual.want()              # Ausgang mithören, solange die Visualisierung zu sehen ist
             if not fast:
-                self.next_draw = now + (1.0 if self.night_dark() else 1.0 / VISUAL_FPS)
+                fps = int((self.settings().get("visual") or {}).get("fps") or VISUAL_FPS)
+                self.next_draw = now + (1.0 if self.night_dark() else 1.0 / fps)
             self._visual_backlight(now)
         else:
             self._visual_backlight_off()
@@ -148,7 +149,7 @@ class App(AppCore, KeyHandling, TimedTasks):
                 visual_options(s, "xmas")["keys"] == "redgreen":    # Weihnachten: rot und grün im Wechsel
             base = (255, 20, 10) if snap["beats"] % 2 else (20, 220, 40)
         color = tuple(int(c * k) for c in base)
-        if color != self._vis_light and now - self._vis_light_t >= 0.04:
+        if color != self._vis_light and now - self._vis_light_t >= 0.1:     # höchstens 10× je Sekunde
             self._vis_light, self._vis_light_t = color, now
             try:
                 self.g19.set_backlight(*color)

@@ -246,6 +246,7 @@ def _visual_section():
     """settings.json → "visual": {"style", "backlight", "title", "<stil>": {<optionen>}} aus VISUAL_OPTIONS."""
     return Section(dict(style=Choice("eq", lambda: list(VISUAL_STYLES)), backlight=Bool(True), title=Bool(True),
                         talk_words=Str(TALK_WORDS, maxlen=300),
+                        fps=Choice(str(VISUAL_FPS), lambda: ["10", "15", "20", "25"]),   # Bildrate (Rechenzeit!)
                         xmas_auto=Bool(True),          # vom 1. Advent bis 6. Januar Stil „Weihnachten“
                         xmas_skip=Int(0, 0, 9999),     # Jahr, in dem der Nutzer in der Weihnachtszeit einen anderen Stil wählte
                         **_option_sections(VISUAL_OPTIONS)))

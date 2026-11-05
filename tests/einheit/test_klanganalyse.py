@@ -91,6 +91,10 @@ brk = ks.music(30)
 brk[10 * RATE:int(11.5 * RATE)] = 0
 eq(set(talk_seq([brk])), {"m"}, "Musik mit 1,5 s Pause: kein Wortbeitrag")
 ok(talk_seq([ks.music(5), ks.speech(20, bed=0.3, seed=9)]).endswith("T" * 10), "Sprache mit Musikbett: Wortbeitrag")
+sp = ks.speech(20, seed=4)                   # wie am echten Radio: Moderation mit Bass (Bassanteil ≈ 0,25)
+tt = np.arange(len(sp)) / RATE
+ok(talk_seq([ks.music(5), sp + 0.12 * np.sin(2 * np.pi * 55 * tt) * (np.abs(sp) > 0.02)]).endswith("T" * 10),
+   "Sprache mit Bass (Moderation über Musikbett): Wortbeitrag")
 
 # Stichwörter im Sendertitel
 w = {"visual": {"talk_words": "Nachrichten, News, Werbung"}}

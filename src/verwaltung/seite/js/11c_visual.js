@@ -8,6 +8,7 @@ function renderVisual() {
     el("option", {value: id, text: label, selected: id === v.style})));
   $("#visBacklight").checked = v.backlight !== false;
   $("#visTitle").checked = v.title !== false;
+  $("#visFps").value = v.fps || "15";
   $("#visXmas").checked = v.xmas_auto !== false;
   $("#visTalkWords").value = v.talk_words || "";
   renderVisualOptions();
@@ -34,3 +35,4 @@ $("#visBacklight").addEventListener("change", e => { UI.sdraft.visual.backlight 
 $("#visTitle").addEventListener("change", e => { UI.sdraft.visual.title = e.target.checked; touchSettings(); visualPreview(); });
 $("#visTalkWords").addEventListener("input", e => { UI.sdraft.visual.talk_words = e.target.value; touchSettings(); });
 $("#visXmas").addEventListener("change", e => { UI.sdraft.visual.xmas_auto = e.target.checked; UI.sdraft.visual.xmas_skip = 0; touchSettings(); });
+$("#visFps").addEventListener("change", e => { UI.sdraft.visual.fps = e.target.value; touchSettings(); });

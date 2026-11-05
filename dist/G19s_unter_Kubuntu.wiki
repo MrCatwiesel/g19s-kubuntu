@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.11.05-11)
+| 28.09.2026 (Version 2026.11.05-12)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -179,10 +179,10 @@ import subprocess
 import threading
 import time
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.05-11"
+VERSION = "2026.11.05-12"
 
 # Weitere Importe der Module
 import select
@@ -366,7 +366,7 @@ VISUAL_STYLES = {
     "ring": "Kreis-Spektrum", "vu": "VU-Meter", "spectro": "Spektrogramm", "fireworks": "Feuerwerk",
     "xmas": "Weihnachten",
 }
-VISUAL_FPS = 20             # Bilder je Sekunde der Visualisierung
+VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 # Stichwörter im Titel des Senders, die einen Wortbeitrag anzeigen (Tänzerin langweilt sich); änderbar
 TALK_WORDS = "Nachrichten, News, Werbung, Werbepause, Verkehr, Wetter"
 # Einstellungen je Stil (Verwaltung → Beleuchtung & Display → Visualisierung, am Display ►), wie CLOCK_OPTIONS
@@ -689,6 +689,7 @@ def _visual_section():
     """settings.json → "visual": {"style", "backlight", "title", "<stil>": {<optionen>}} aus VISUAL_OPTIONS."""
     return Section(dict(style=Choice("eq", lambda: list(VISUAL_STYLES)), backlight=Bool(True), title=Bool(True),
                         talk_words=Str(TALK_WORDS, maxlen=300),
+                        fps=Choice(str(VISUAL_FPS), lambda: ["10", "15", "20", "25"]),   # Bildrate (Rechenzeit!)
                         xmas_auto=Bool(True),          # vom 1. Advent bis 6. Januar Stil „Weihnachten“
                         xmas_skip=Int(0, 0, 9999),     # Jahr, in dem der Nutzer in der Weihnachtszeit einen anderen Stil wählte
                         **_option_sections(VISUAL_OPTIONS)))
@@ -1774,6 +1775,8 @@ class SoundAnalyzer:
         self.proc = None
         self.running = True
         self.edges = _band_edges()
+        self.edge_lo = np.array([lo for lo, _ in self.edges])
+        self.edge_hi = np.array([hi for _, hi in self.edges])
         self.window = np.hanning(AUDIO_FFT)
         self._snap = _empty_snapshot()
         self._error_logged = None
@@ -1898,7 +1901,8 @@ class SoundAnalyzer:
         n = len(mono)
         self.ring = np.concatenate([self.ring[n:], mono])
         spec = np.abs(np.fft.rfft(self.ring * self.window))
-        raw = np.array([spec[lo:hi].mean() for lo, hi in self.edges])
+        csum = np.concatenate(([0.0], np.cumsum(spec)))   # Mittel je Band in einem Schritt
+        raw = (csum[self.edge_hi] - csum[self.edge_lo]) / (self.edge_hi - self.edge_lo)
         db = 20 * np.log10(raw + 1e-9)
         peak = float(db.max())
         self.ref_db = max(peak, self.ref_db - 0.04, -60.0)       # Verstärkung passt sich langsam an
@@ -1970,12 +1974,16 @@ class SoundAnalyzer:
             return                              # erst bei vollem Fenster, dann ≈ 10× je Sekunde
         env = np.array(self.env_rms)
         loud = float(np.percentile(env, 90)) + 1e-9
-        pause = float(np.mean(env < 0.2 * loud))
+        below = env < 0.2 * loud
+        pause = float(np.mean(below))
+        gaps = int(np.count_nonzero(below[1:] & ~below[:-1]))      # Anzahl einzelner Pausen (Sprache: viele kurze)
         cv = float(env.std() / (env.mean() + 1e-9))
         bass = float(np.mean(self.env_bass))
-        self.talk_feat = (pause, cv, bass)
-        speech = pause >= 0.15 and cv >= 0.5 and bass <= 0.12
-        music = pause <= 0.06 or bass >= 0.2
+        self.talk_feat = (pause, cv, bass, gaps)
+        # Am echten Radio (2026-11-05): Sprache Pausen 0,15–0,23 / Schwankung 0,52–0,68 / Bass 0,01–0,24 –
+        # Moderation über Musikbett hat Bass, aber weiter Pausen. Gerockte Musik hat praktisch keine Pausen.
+        speech = pause >= 0.15 and cv >= 0.5 and bass <= 0.3 and gaps >= 4
+        music = pause <= 0.08 or (bass >= 0.35 and pause < 0.12)
         need = int((self.TALK_OFF if self.talk else self.TALK_ON) * 10.75)    # Prüfungen ≈ 10,75 je Sekunde
         if (speech and not self.talk) or (music and self.talk):
             self.talk_votes += 1
@@ -1984,7 +1992,7 @@ class SoundAnalyzer:
                 if self.talk:
                     self.talk_t = now
                 self.log(f"Visualisierung: {'Wortbeitrag' if self.talk else 'Musik'} erkannt "
-                         f"(Pausen {pause:.2f}, Schwankung {cv:.2f}, Bass {bass:.2f})")
+                         f"(Pausen {pause:.2f} in {gaps} Lücken, Schwankung {cv:.2f}, Bass {bass:.2f})")
         else:
             self.talk_votes = 0
 
@@ -9880,8 +9888,10 @@ class VisualPage:
             dip = (1 + math.cos(2 * math.pi * phase)) / 2 * (4 + 12 * energy)   # in die Knie auf dem Schlag
             hip = (WIDTH / 2 * S + sway * 14 * energy * S, floor - 72 * S + dip * S)
         body = tuple(o["color"]) if o.get("color") else color
-        img = self._dance_stage(s, o, body, W, H, S, dim=bool(bored))
-        d = ImageDraw.Draw(img)
+        stage = self._dance_stage(s, o, dim=bool(bored))
+        fig = Image.new("RGBA", (W, H), body + (0,))       # nur die Figur doppelt groß, dann verkleinert
+        d = ImageDraw.Draw(fig)
+        body = body + (255,)
         lu, lf, ru, rf, lt, ls, rt, rs, lean, head = pose
 
         def at(p, ang, length):
@@ -9894,8 +9904,9 @@ class VisualPage:
             d.ellipse([b[0] - r, b[1] - r, b[0] + r, b[1] + r], fill=body)
 
         neck = at(hip, 180 - lean, 52)
-        if bored != "sit":
-            d.ellipse([hip[0] - 120 / 2 * S, floor - 5 * S, hip[0] + 120 / 2 * S, floor + 7 * S], fill=(12, 10, 18))
+        if bored != "sit":                                  # Schatten direkt auf die Bühne
+            hx, fy = hip[0] / S, floor / S
+            ImageDraw.Draw(stage).ellipse([hx - 60, fy - 5, hx + 60, fy + 7], fill=(12, 10, 18))
         for side, (t_ang, s_ang) in ((-1, (lt, ls)), (1, (rt, rs))):           # Beine
             hj = (hip[0] + side * 8 * S, hip[1])
             knee = at(hj, t_ang, thigh)
@@ -9928,7 +9939,9 @@ class VisualPage:
         d.polygon([at(base, tail + 90, 5), mid, tip, at(base, tail - 90, 5)], fill=body)
         if bored in ("yawn", "sit"):
             self._dance_bubble(d, hc, S, "Gähn …" if bored == "yawn" else None, t)
-        return img.reduce(S)
+        small = fig.reduce(S)
+        stage.paste(small, (0, 0), small)
+        return stage
 
     def _dance_bubble(self, d, head, S, text, t):
         """Sprechblase „Gähn …“ bzw. aufsteigende „Z“ neben dem Kopf."""
@@ -9936,51 +9949,47 @@ class VisualPage:
         x, y = head[0] + 22 * S, head[1] - 38 * S
         if text:
             w = d.textlength(text, font=font)
-            d.rounded_rectangle([x, y, x + w + 16 * S, y + 24 * S], radius=10 * S, fill=(235, 235, 245))
-            d.polygon([(x + 8 * S, y + 22 * S), (x + 18 * S, y + 22 * S), (x, y + 34 * S)], fill=(235, 235, 245))
-            d.text((x + 8 * S, y + 4 * S), text, font=font, fill=(40, 40, 60))
+            d.rounded_rectangle([x, y, x + w + 16 * S, y + 24 * S], radius=10 * S, fill=(235, 235, 245, 255))
+            d.polygon([(x + 8 * S, y + 22 * S), (x + 18 * S, y + 22 * S), (x, y + 34 * S)], fill=(235, 235, 245, 255))
+            d.text((x + 8 * S, y + 4 * S), text, font=font, fill=(40, 40, 60, 255))
             return
         for i in range(3):                                  # Zzz steigen auf und verblassen
             k = (t * 0.5 + i / 3) % 1.0
             v = int(220 * (1 - k))
             size = int((10 + 6 * i) * S)
             f = self.__dict__.setdefault(f"_z_font{size}", load_font(size, bold=True))
-            d.text((x + (k * 18 + i * 10) * S, y - k * 40 * S + 20 * S), "Z", font=f, fill=(v, v, min(255, v + 30)))
+            d.text((x + (k * 18 + i * 10) * S, y - k * 40 * S + 20 * S), "Z", font=f, fill=(v, v, min(255, v + 30), 255))
 
     def _dance_pose(self, st, t):
         k = _smooth((t - st["t0"]) / st.get("dur", 0.15))
         return tuple(a + (b - a) * k for a, b in zip(st["from"], st["to"]))
 
-    def _dance_stage(self, s, o, body, W, H, S, dim=False):
-        """Bühne: Verlauf, Boden, zwei Lichtkegel in wechselnden Farben (dim: Wortbeitrag, Licht gedimmt)."""
-        key = ("stage", bool(o["stage"]))
-        cache = self.__dict__.setdefault("_dance_bg", {})
-        if key not in cache:
-            ys = np.linspace(0, 1, H)[:, None, None]
+    def _dance_stage(self, s, o, dim=False):
+        """Bühne in Displaygröße: Verlauf, Boden, zwei Lichtkegel in wechselnden Farben (dim: Wortbeitrag,
+        Licht gedimmt). Nur Bildoperationen in C – kostet weniger als 1 ms."""
+        bg = self.__dict__.get("_dance_bg")
+        if bg is None:
+            ys = np.linspace(0, 1, HEIGHT)[:, None, None]
             top, bot = np.array([26, 10, 40], np.float32), np.array([4, 3, 8], np.float32)
-            arr = np.broadcast_to(top * (1 - ys) + bot * ys, (H, W, 3)).copy()
-            floor = (VIS_H - 26) * S
-            arr[floor:, :] = np.array([18, 14, 26], np.float32) * np.linspace(1, 0.4, H - floor)[:, None, None]
-            cache.clear()
-            cache[key] = arr
-        arr = cache[key].copy()
+            arr = np.broadcast_to(top * (1 - ys) + bot * ys, (HEIGHT, WIDTH, 3)).copy()
+            floor = VIS_H - 26
+            arr[floor:, :] = np.array([18, 14, 26], np.float32) * np.linspace(1, 0.4, HEIGHT - floor)[:, None, None]
+            bg = self._dance_bg = Image.fromarray(arr.astype(np.uint8), "RGB")
+        img = bg.copy()
         if o["stage"]:
             hue = (s["beats"] % 6) / 6
             bright = 0.08 if dim else 0.25 + 0.5 * s["bass"]
             for i, x in enumerate((0.18, 0.82)):
-                mask = Image.new("L", (W, H), 0)
-                md = ImageDraw.Draw(mask)
-                cx = W / 2 + math.sin(s["t"] * 0.8 + i * 2.1) * 30 * S
-                md.polygon([(x * W - 6 * S, 0), (x * W + 6 * S, 0), (cx + 70 * S, (VIS_H - 22) * S),
-                            (cx - 70 * S, (VIS_H - 22) * S)], fill=int(120 * bright))
-                m = np.asarray(mask, np.float32)[:, :, None] / 255
-                arr += m * np.array(_hue(hue + i * 0.33, 0.8, 1.0), np.float32)
-            floor = (VIS_H - 26) * S
-            spot = Image.new("L", (W, H), 0)
-            ImageDraw.Draw(spot).ellipse([W / 2 - 80 * S, floor - 6 * S, W / 2 + 80 * S, floor + 14 * S],
-                                         fill=int(90 * bright + 40))
-            arr += np.asarray(spot, np.float32)[:, :, None] / 255 * np.array(_hue(hue, 0.4, 1.0), np.float32)
-        return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGB")
+                mask = Image.new("L", (WIDTH, HEIGHT), 0)
+                cx = WIDTH / 2 + math.sin(s["t"] * 0.8 + i * 2.1) * 30
+                ImageDraw.Draw(mask).polygon([(x * WIDTH - 6, 0), (x * WIDTH + 6, 0), (cx + 70, VIS_H - 22),
+                                              (cx - 70, VIS_H - 22)], fill=int(120 * bright))
+                img.paste(_hue(hue + i * 0.33, 0.8, 1.0), (0, 0, WIDTH, HEIGHT), mask)
+            floor = VIS_H - 26
+            spot = Image.new("L", (WIDTH, HEIGHT), 0)
+            ImageDraw.Draw(spot).ellipse([WIDTH / 2 - 80, floor - 6, WIDTH / 2 + 80, floor + 14], fill=int(90 * bright + 40))
+            img.paste(_hue(hue, 0.4, 1.0), (0, 0, WIDTH, HEIGHT), spot)
+        return img
 
     # -- 3. Lichtshow -------------------------------------------------------- #
     @vis_style("lights")
@@ -9988,9 +9997,11 @@ class VisualPage:
         t, n = s["t"], int(o["beams"])
         st = self._vstate("lights", dict)
         self._vis_dt(st, t)
-        arr = np.zeros((VIS_H, WIDTH, 3), np.float32)
-        arr[:] = (5, 4, 10)
-        fall = np.linspace(1.0, 0.35, VIS_H)[:, None, None]
+        fall = self.__dict__.get("_lights_fall")
+        if fall is None:                                    # Kegel werden nach unten schwächer
+            fall = self._lights_fall = Image.fromarray(
+                np.broadcast_to(np.linspace(255, 89, VIS_H)[:, None], (VIS_H, WIDTH)).astype(np.uint8), "L")
+        beams = Image.new("RGB", (WIDTH, VIS_H), (5, 4, 10))
         bright = 0.35 + 0.65 * s["bass"]
         for i in range(n):
             ox = 30 + i * (WIDTH - 60) / max(1, n - 1)
@@ -9998,24 +10009,27 @@ class VisualPage:
             dx1, dy1 = _vec(ang - 8, 300)
             dx2, dy2 = _vec(ang + 8, 300)
             mask = Image.new("L", (WIDTH, VIS_H), 0)
-            ImageDraw.Draw(mask).polygon([(ox - 3, 0), (ox + 3, 0), (ox + dx2, dy2), (ox + dx1, dy1)], fill=150)
-            c = np.array(_hue(i / n + s["beats"] * 0.13, 0.85, 1.0), np.float32)
-            arr += np.asarray(mask, np.float32)[:, :, None] / 255 * c * bright * fall
+            ImageDraw.Draw(mask).polygon([(ox - 3, 0), (ox + 3, 0), (ox + dx2, dy2), (ox + dx1, dy1)],
+                                         fill=int(150 * bright))
+            mask = ImageChops.multiply(mask, fall)
+            c = _hue(i / n + s["beats"] * 0.13, 0.85, 1.0)
+            beams = ImageChops.add(beams, ImageChops.multiply(Image.new("RGB", beams.size, c), mask.convert("RGB")))
+        d = ImageDraw.Draw(beams)
         rng = random.Random(s["beats"])                     # Lichtpunkte, neu bei jedem Schlag
         for _ in range(40):
             x, y = rng.randrange(WIDTH), rng.randrange(30, VIS_H)
             tw = 0.5 + 0.5 * math.sin(t * rng.uniform(4, 9) + rng.uniform(0, 6))
-            c = np.array(_hue(rng.random(), 0.5, 1.0), np.float32) * tw * (0.4 + 0.6 * s["level"])
-            arr[y:y + 2, x:x + 2] = np.maximum(arr[y:y + 2, x:x + 2], c)
+            c = _hue(rng.random(), 0.5, tw * (0.4 + 0.6 * s["level"]))
+            d.rectangle([x, y, x + 1, y + 1], fill=c)
         since = t - s["beat_t"]
         if o["flash"] and 0 <= since < 0.15 and s["bass"] > 0.6 and t - st.get("flash", -9) > 0.5:
             st["flash"] = s["beat_t"]
         fl = t - st.get("flash", -9)
         if 0 <= fl < 0.15:
             f = 1 - fl / 0.15                               # sanft, kein hartes Stroboskop
-            arr = arr * (1 + 0.7 * f) + 22 * f
+            beams = beams.point(lambda v: min(255, int(v * (1 + 0.7 * f) + 22 * f)))
         img = Image.new("RGB", (WIDTH, HEIGHT), (5, 4, 10))
-        img.paste(Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGB"), (0, 0))
+        img.paste(beams, (0, 0))
         d = ImageDraw.Draw(img)
         cx, cy, r = WIDTH // 2, 12, 11                      # Spiegelkugel
         d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(70, 70, 80))
@@ -12974,7 +12988,8 @@ class App(AppCore, KeyHandling, TimedTasks):
         if self._visual_shown():
             self.visual.want()              # Ausgang mithören, solange die Visualisierung zu sehen ist
             if not fast:
-                self.next_draw = now + (1.0 if self.night_dark() else 1.0 / VISUAL_FPS)
+                fps = int((self.settings().get("visual") or {}).get("fps") or VISUAL_FPS)
+                self.next_draw = now + (1.0 if self.night_dark() else 1.0 / fps)
             self._visual_backlight(now)
         else:
             self._visual_backlight_off()
@@ -13001,7 +13016,7 @@ class App(AppCore, KeyHandling, TimedTasks):
                 visual_options(s, "xmas")["keys"] == "redgreen":    # Weihnachten: rot und grün im Wechsel
             base = (255, 20, 10) if snap["beats"] % 2 else (20, 220, 40)
         color = tuple(int(c * k) for c in base)
-        if color != self._vis_light and now - self._vis_light_t >= 0.04:
+        if color != self._vis_light and now - self._vis_light_t >= 0.1:     # höchstens 10× je Sekunde
             self._vis_light, self._vis_light_t = color, now
             try:
                 self.g19.set_backlight(*color)
@@ -13176,7 +13191,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.05-11"
+VERSION = "2026.11.05-12"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -14964,6 +14979,9 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
         <div>
           <label class="field" style="max-width:300px"><span>Stil</span><select id="visStyle"></select></label>
           <div id="visOpts"></div>
+          <label class="field" style="max-width:300px"><span>Bildrate (mehr = flüssiger, braucht mehr Rechenzeit)</span><select id="visFps">
+            <option value="10">10 Bilder/s – sparsam</option><option value="15">15 Bilder/s – Standard</option>
+            <option value="20">20 Bilder/s</option><option value="25">25 Bilder/s – sehr flüssig</option></select></label>
           <label class="check"><input type="checkbox" id="visBacklight"> Tastaturbeleuchtung pulsiert im Takt</label>
           <label class="check"><input type="checkbox" id="visTitle"> Laufenden Titel oben anzeigen</label>
           <label class="check"><input type="checkbox" id="visXmas"> In der Weihnachtszeit (1. Advent bis 6. Januar) automatisch den Stil „Weihnachten“ zeigen – wer dann am Display einen anderen Stil wählt, behält diesen bis zum Ende der Weihnachtszeit</label>
@@ -16319,6 +16337,7 @@ function renderVisual() {
     el("option", {value: id, text: label, selected: id === v.style})));
   $("#visBacklight").checked = v.backlight !== false;
   $("#visTitle").checked = v.title !== false;
+  $("#visFps").value = v.fps || "15";
   $("#visXmas").checked = v.xmas_auto !== false;
   $("#visTalkWords").value = v.talk_words || "";
   renderVisualOptions();
@@ -16345,6 +16364,7 @@ $("#visBacklight").addEventListener("change", e => { UI.sdraft.visual.backlight 
 $("#visTitle").addEventListener("change", e => { UI.sdraft.visual.title = e.target.checked; touchSettings(); visualPreview(); });
 $("#visTalkWords").addEventListener("input", e => { UI.sdraft.visual.talk_words = e.target.value; touchSettings(); });
 $("#visXmas").addEventListener("change", e => { UI.sdraft.visual.xmas_auto = e.target.checked; UI.sdraft.visual.xmas_skip = 0; touchSettings(); });
+$("#visFps").addEventListener("change", e => { UI.sdraft.visual.fps = e.target.value; touchSettings(); });
 
 // ---------------------------------------------------------------- Diashow (Piwigo)
 UI.albums = null;
@@ -17325,7 +17345,7 @@ Die Seite '''Visualisierung''' bewegt sich zu allem, was der Rechner gerade absp
 | Weihnachten || Weihnachtsmann und Weihnachtsfrau – räumlich gezeichnet mit Licht, Glanz und Schatten – tanzen neben einem Weihnachtsbaum im Schneefall: er wippt mit dem Bauch, winkt, kickt; sie dreht Pirouetten. Im Paartanz halten sie sich an den Händen, und alle acht Schritte dreht sie sich unter seinem Arm. Lichterkette blinkt im Takt, der Stern leuchtet mit dem Bass, kräftige Schläge wirbeln den Schnee auf. Bei Wortbeiträgen sitzen sie auf einer Bank – er liest die Wunschliste, sie trinkt Kakao || Tanz (abwechselnd jede Minute, Paartanz, nur Weihnachtsmann, nur Weihnachtsfrau), Schneefall (leicht, normal, dicht), Lichterkette im Takt, Tastaturbeleuchtung (rot und grün im Takt oder Farbe der Ebene)
 |}
 '''Weihnachtszeit:''' Vom 1. Advent bis zum 6. Januar zeigt die Visualisierung automatisch den Stil „Weihnachten“, egal welcher Stil gewählt ist (abschaltbar unter '''Beleuchtung & Display → Visualisierung'''). Wählt man in dieser Zeit am Display einen anderen Stil, bleibt dieser bis zum Ende der Weihnachtszeit; im nächsten Advent kommt „Weihnachten“ wieder.
-Oben steht der laufende Titel (abschaltbar). Ohne Ton bleibt das letzte Bild abgedunkelt stehen und zeigt „Keine Wiedergabe“; ist der Ausgang stumm geschaltet (oder auf 0 %), „Ton stumm“. Sobald wieder Musik kommt, geht es sofort weiter – der mitgehörte Ausgang selbst merkt vom Stummschalten nichts, deshalb fragt der Treiber jede Sekunde nach. Die '''Tastaturbeleuchtung pulsiert''' in der Farbe der Ebene mit dem Bass, solange die Seite zu sehen ist (nicht nachts, nicht bei „Beleuchtung nicht umfärben“). Alles einstellbar unter '''Beleuchtung & Display → Visualisierung''' mit Vorschau.
+Oben steht der laufende Titel (abschaltbar). Ohne Ton bleibt das letzte Bild abgedunkelt stehen und zeigt „Keine Wiedergabe“; ist der Ausgang stumm geschaltet (oder auf 0 %), „Ton stumm“. Sobald wieder Musik kommt, geht es sofort weiter – der mitgehörte Ausgang selbst merkt vom Stummschalten nichts, deshalb fragt der Treiber jede Sekunde nach. Die '''Tastaturbeleuchtung pulsiert''' in der Farbe der Ebene mit dem Bass, solange die Seite zu sehen ist (nicht nachts, nicht bei „Beleuchtung nicht umfärben“). Alles einstellbar unter '''Beleuchtung & Display → Visualisierung''' mit Vorschau – dort auch die '''Bildrate''' (10, 15, 20 oder 25 Bilder je Sekunde; Standard 15). Mehr Bilder wirken flüssiger, brauchen aber mehr Rechenzeit; die Visualisierung ist die rechenintensivste Seite.
 
 '''Wortbeiträge''' (Nachrichten, Moderation, Werbung): Die Visualisierung erkennt Sprache am Klang – viele kurze Pausen, stark schwankende Lautstärke, kaum Bass. Nach etwa 4–6 Sekunden Sprache gilt es als Wortbeitrag, nach etwa 3 Sekunden Musik wieder als Musik (beides steht im Protokoll, mit den Messwerten). Zusätzlich zählt der Titel des Senders: Enthält er eines der Stichwörter aus '''Beleuchtung & Display → Visualisierung''' (Standard: Nachrichten, News, Werbung, Werbepause, Verkehr, Wetter – ganze Wörter, Groß-/Kleinschreibung egal), ist es sofort ein Wortbeitrag. Werbung mit Musik darunter erkennt nur das Stichwort. Während eines Wortbeitrags pulsiert die Tastatur nicht, und das '''tanzende Mädchen''' langweilt sich: Es verschränkt die Arme, gähnt („Gähn …“), stemmt die Hände in die Hüften, schaut auf die Uhr und tippt mit dem Fuß; nach 30 Sekunden setzt es sich auf den Bühnenrand und döst („Zzz“), das Bühnenlicht ist gedimmt. Kommt wieder Musik, tanzt es sofort weiter.
 
@@ -17697,7 +17717,7 @@ getfacl /dev/bus/usb/BUS/GERÄT                      # Rechte (Nummern aus lsusb
 |-
 | <code>0x83</code> (Interface 1) || Interrupt IN || G-/M-Tasten, nur Report-ID <code>0x02</code> auswerten
 |}
-* Visualisierung: <code>SoundAnalyzer</code> (klanganalyse) liest <code>pw-record --rate 22050 --channels 2 --format s16 -P '{ stream.capture.sink = true }' -</code> (ersatzweise <code>parec -d @DEFAULT_MONITOR@</code>), FFT über 2048 Werte, 64 logarithmische Bänder 40 Hz–11 kHz mit automatischer Verstärkung, Schlag = Bassenergie (bis 160 Hz) steigt über das 1,3-Fache des Mittels der letzten Sekunde oder ungewöhnlich starker Anstieg (Fluss über Mittel + 1,5 σ); Tempo = Median der letzten 8 Abstände. Gezeichnet mit 20 Bildern/s; die Stile (<code>@vis_style</code> in <code>seite_visual</code>) brauchen je Bild 1–8 ms.
+* Visualisierung: <code>SoundAnalyzer</code> (klanganalyse) liest <code>pw-record --rate 22050 --channels 2 --format s16 -P '{ stream.capture.sink = true }' -</code> (ersatzweise <code>parec -d @DEFAULT_MONITOR@</code>), FFT über 2048 Werte, 64 logarithmische Bänder 40 Hz–11 kHz mit automatischer Verstärkung, Wortbeitrag = über ≈ 4 s mindestens 15 % fast leise Blöcke in mindestens 4 einzelnen Lücken, Schwankung der Lautstärke ≥ 0,5 und Bassanteil (< 80 Hz) ≤ 0,3; Musik = höchstens 8 % leise Blöcke (oder viel Bass ohne Pausen); Wechsel nach 2 s Bestätigung. Gezeichnet mit 15 Bildern/s (einstellbar 10–25). Schlag = Bassenergie (bis 160 Hz) steigt über das 1,3-Fache des Mittels der letzten Sekunde oder ungewöhnlich starker Anstieg (Fluss über Mittel + 1,5 σ); Tempo = Median der letzten 8 Abstände. Die Stile (<code>@vis_style</code> in <code>seite_visual</code>) brauchen je Bild 1–5 ms.
 * MENU auf Seiten ohne eigene Tastenfunktion für MENU öffnet <code>QuickMenu</code>; in der Zifferblatt-Liste öffnet Rechts <code>ClockOptionsMenu</code> (Optionen aus <code>CLOCK_OPTIONS</code>, Typen bool/choice/color, Farben aus <code>CLOCK_COLOR_CHOICES</code>, Speichern über <code>save_setting</code>).
 * Displaytaste SETTINGS (<code>0x01</code>): ab 1 s gehalten (<code>LONG_PRESS</code>) Profilmenü, kurz auf der Uhrseite die Zifferblätter, sonst ebenfalls das Profilmenü. Entschieden wird beim Loslassen bzw. nach 1 s (<code>settings_key_tick</code>).
 * Report <code>0x02</code>: Byte 1 = G1–G8 (Bit 0–7), Byte 2 = G9–G12 (Bit 0–3), M1 0x10, M2 0x20, M3 0x40, MR 0x80.

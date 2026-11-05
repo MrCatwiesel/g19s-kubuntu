@@ -82,6 +82,8 @@ class SoundAnalyzer:
         self.proc = None
         self.running = True
         self.edges = _band_edges()
+        self.edge_lo = np.array([lo for lo, _ in self.edges])
+        self.edge_hi = np.array([hi for _, hi in self.edges])
         self.window = np.hanning(AUDIO_FFT)
         self._snap = _empty_snapshot()
         self._error_logged = None
@@ -206,7 +208,8 @@ class SoundAnalyzer:
         n = len(mono)
         self.ring = np.concatenate([self.ring[n:], mono])
         spec = np.abs(np.fft.rfft(self.ring * self.window))
-        raw = np.array([spec[lo:hi].mean() for lo, hi in self.edges])
+        csum = np.concatenate(([0.0], np.cumsum(spec)))   # Mittel je Band in einem Schritt
+        raw = (csum[self.edge_hi] - csum[self.edge_lo]) / (self.edge_hi - self.edge_lo)
         db = 20 * np.log10(raw + 1e-9)
         peak = float(db.max())
         self.ref_db = max(peak, self.ref_db - 0.04, -60.0)       # Verstärkung passt sich langsam an
@@ -278,12 +281,16 @@ class SoundAnalyzer:
             return                              # erst bei vollem Fenster, dann ≈ 10× je Sekunde
         env = np.array(self.env_rms)
         loud = float(np.percentile(env, 90)) + 1e-9
-        pause = float(np.mean(env < 0.2 * loud))
+        below = env < 0.2 * loud
+        pause = float(np.mean(below))
+        gaps = int(np.count_nonzero(below[1:] & ~below[:-1]))      # Anzahl einzelner Pausen (Sprache: viele kurze)
         cv = float(env.std() / (env.mean() + 1e-9))
         bass = float(np.mean(self.env_bass))
-        self.talk_feat = (pause, cv, bass)
-        speech = pause >= 0.15 and cv >= 0.5 and bass <= 0.12
-        music = pause <= 0.06 or bass >= 0.2
+        self.talk_feat = (pause, cv, bass, gaps)
+        # Am echten Radio (2026-11-05): Sprache Pausen 0,15–0,23 / Schwankung 0,52–0,68 / Bass 0,01–0,24 –
+        # Moderation über Musikbett hat Bass, aber weiter Pausen. Gerockte Musik hat praktisch keine Pausen.
+        speech = pause >= 0.15 and cv >= 0.5 and bass <= 0.3 and gaps >= 4
+        music = pause <= 0.08 or (bass >= 0.35 and pause < 0.12)
         need = int((self.TALK_OFF if self.talk else self.TALK_ON) * 10.75)    # Prüfungen ≈ 10,75 je Sekunde
         if (speech and not self.talk) or (music and self.talk):
             self.talk_votes += 1
@@ -292,6 +299,6 @@ class SoundAnalyzer:
                 if self.talk:
                     self.talk_t = now
                 self.log(f"Visualisierung: {'Wortbeitrag' if self.talk else 'Musik'} erkannt "
-                         f"(Pausen {pause:.2f}, Schwankung {cv:.2f}, Bass {bass:.2f})")
+                         f"(Pausen {pause:.2f} in {gaps} Lücken, Schwankung {cv:.2f}, Bass {bass:.2f})")
         else:
             self.talk_votes = 0

@@ -39,8 +39,9 @@ def running(sim):
     """Läuft das (Fake-)Aufnahmeprogramm gerade?"""
     for pid in os.listdir("/proc"):
         try:
-            if pid.isdigit() and b"bin/pw-record" in open(f"/proc/{pid}/cmdline", "rb").read():
-                return True
+            if (pid.isdigit() and b"bin/pw-record" in open(f"/proc/{pid}/cmdline", "rb").read()
+                    and int(open(f"/proc/{pid}/stat").read().rsplit(")", 1)[1].split()[1]) == os.getpid()):
+                return True                  # nur eigene Kindprozesse (andere Simulationen laufen parallel)
         except OSError:
             pass
     return False

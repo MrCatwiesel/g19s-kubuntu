@@ -37,7 +37,7 @@ import subprocess
 import threading
 import time
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.05-11"
+VERSION = "2026.11.05-12"

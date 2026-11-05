@@ -30,7 +30,8 @@ while True:
     for i in range(n, n + block):
         t = i / rate
         ph = t % 0.5
-        v = 0.0 if still else speech(i) if talk else (0.8 * math.exp(-ph * 14) * math.sin(2 * math.pi * 55 * t) + 0.12 * math.sin(2 * math.pi * 880 * t))
+        v = 0.0 if still else speech(i) if talk else (0.8 * math.exp(-ph * 14) * math.sin(2 * math.pi * 55 * t) + 0.12 * math.sin(2 * math.pi * 880 * t)
+                                                              + 0.2 * math.sin(2 * math.pi * 82 * t))   # Bass klingt durch wie bei echter Musik
         s = int(max(-1, min(1, v)) * 32000)
         buf += struct.pack("<hh", s, int(s * 0.8))
     n += block

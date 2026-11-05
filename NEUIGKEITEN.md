@@ -3,6 +3,11 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.05-12
+- Visualisierung braucht deutlich weniger Rechenzeit: Bühne der Tänzerin und Lichtshow werden sparsamer gezeichnet (Tänzerin etwa halb so viel CPU), die Klanganalyse rechnet alle Frequenzbänder in einem Schritt.
+- Neue Einstellung „Bildrate“ (10, 15, 20 oder 25 Bilder je Sekunde). Standard ist jetzt 15 statt 20 – wer es flüssiger mag, stellt 20 oder 25 ein.
+- Erkennung von Wortbeiträgen nach Messwerten vom echten Radio verbessert: Moderation über Musik mit Bass gilt nicht mehr als Musik, ein kurzer Break im Song nicht als Sprache. Im Protokoll steht zusätzlich die Zahl der Lücken.
+
 ## 2026.11.05-11
 - Neu: „Vorherige Version wiederherstellen“ unter „Dienst & Sicherung“. Die Verwaltung zeigt die zuletzt gesicherten Versionen und spielt die gewählte geprüft wieder ein – die jetzige Version wird dabei gesichert, man kann also auch wieder zurück.
 - Aufgehoben werden die zehn neuesten Sicherungen je Programmteil; ältere werden automatisch gelöscht.
