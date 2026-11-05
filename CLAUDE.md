@@ -109,14 +109,14 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
 1. Neu zu 2026.11.05-3 am Gerät prüfen: Visualisierung – startet pw-record (Journal „höre den Ausgang mit“)?
    Reagiert sie auf Musik, Takt/Tastaturlicht, CPU-Last (ps), Plasma-Aufnahmesymbol?
    Zu 2026.11.05-2: Haltebalken, Zifferblatt-Optionen (►), Schnellmenü (Makros/Wetter/Hardware),
-   Einblendung bei M1/M2/M3, mpv-Speicher beim Radio (2026-11-05 12:20: 79 MB RSS kurz nach Start, vorher 158 MB beim Start;
-   Langzeitwert noch offen, Befehlszeile mit `ps -ww` noch nicht gesehen).
+   Einblendung bei M1/M2/M3, mpv-Speicher am Gerät BESTÄTIGT (2026-11-05: nach 1:18 h 84 MB RSS statt
+   ~311 MB, Befehlszeile endet mit den --demuxer-Optionen).
    Zu 2026.11.04-1: SETTINGS kurz/lang (Haltezeit seit -05-1 1 s).
    Offen zu 2026.10.01-8: erscheint außerhalb von RDP auch die KDE-Lautstärkeanzeige (osdService unter Plasma 6)?
    Nutzer bestätigte nur die Prozentanzeige auf dem G19s-Display.
    Dazu aus -7: G1 und unbelegte G-Taste mit --debug mehrmals schnell – je ein „gedrückt“/„losgelassen“.
 2. Verbrauch (2026-10-02): Messung 18:23–20:18 – g19s.py 150 MB und g19s-gui.py 92 MB stabil (kein Leck); mpv
-   158→311 MB = Demuxer-Cache (Standard 150 MiB) läuft beim Radio voll → in 2026.11.05-2 begrenzt. systemd „Consumed“ zählt Treiber + mpv + Hilfs-
+   158→311 MB = Demuxer-Cache (Standard 150 MiB) läuft beim Radio voll → in 2026.11.05-2 begrenzt (bestätigt: 84 MB nach 1:18 h). systemd „Consumed“ zählt Treiber + mpv + Hilfs-
    programme. Die 24 min CPU in 68 min am Vormittag sind damit nicht erklärt – bei Wiederholung `ps -o etime,time,
    rss,pcpu,args -C python3,mpv` erbitten.
 3. `install.sh` (mit `--deinstallieren`).
