@@ -61,6 +61,40 @@ class ProfileMenu(Menu):
                                                 self.cursor, app.prof_idx, app.profile_colors)
 
 
+def clock_option_list(face):
+    """Am Display änderbare Optionen eines Zifferblatts (die Städteliste der Weltuhr nur in der Verwaltung)."""
+    return [o for o in CLOCK_OPTIONS.get(face, []) if o["type"] in ("bool", "choice", "color")]
+
+
+def _cycle(values, current, step):
+    """Nächster (step=1) bzw. voriger (-1) Wert mit Umlauf; ein unbekannter Wert springt an den Anfang/das Ende."""
+    try:
+        i = values.index(current)
+    except ValueError:
+        i = -1 if step > 0 else 0
+    return values[(i + step) % len(values)]
+
+
+def option_next(opt, value, step):
+    """Neuer Wert einer Zifferblatt-Option nach ◄ (step=-1) bzw. ► / OK (step=1)."""
+    if opt["type"] == "bool":
+        return not value
+    if opt["type"] == "choice":
+        return _cycle([c[0] for c in opt["choices"]], value, step)
+    return _cycle([c for c, _ in CLOCK_COLOR_CHOICES], value, step)
+
+
+def option_text(opt, value):
+    """Wert einer Zifferblatt-Option als Text fürs Display und das Protokoll."""
+    if opt["type"] == "bool":
+        return "an" if value else "aus"
+    if opt["type"] == "choice":
+        return next((label for key, label in opt["choices"] if key == value), str(value))
+    if value is None:
+        return opt.get("none_label") or "Standard"
+    return next((name for c, name in CLOCK_COLOR_CHOICES if c == list(value)), "eigene Farbe")
+
+
 class ClockMenu(Menu):
     """Uhrseite, MENU oder SETTINGS kurz: Zifferblatt für dieses Profil und diese Ebene wählen."""
     kind = "clocks"
@@ -81,9 +115,14 @@ class ClockMenu(Menu):
     def on_key(self, app, pressed):
         items = self.items(app)
         self.cursor = self.step(self.cursor, pressed, len(items))
+        face = items[self.cursor]["face"]
         if pressed & LKEY_BITS["OK"]:
             app.menu = None
-            app.set_clock_face(items[self.cursor]["face"])
+            app.set_clock_face(face)
+        elif pressed & LKEY_BITS["RIGHT"] and clock_option_list(face):
+            app.menu = ClockOptionsMenu(face, self.cursor)      # ► Optionen des markierten Zifferblatts
+        elif pressed & LKEY_BITS["RIGHT"]:
+            self.touch()                    # Zifferblatt ohne Optionen: nichts zu tun
         elif pressed & CLOSE_KEYS:
             app.menu = None
         elif pressed:
@@ -97,8 +136,98 @@ class ClockMenu(Menu):
         it, r = items[self.cursor], app.renderer
         r.clock_face = it["face"]           # app.draw() setzt beim nächsten Bild wieder das eingestellte
         img = r.render(PAGE_IDS.index("clock"), app.layer, {})
+        hint = ("▲▼ blättern · OK übernehmen · ► Optionen" if clock_option_list(it["face"])
+                else "▲▼ blättern · OK übernehmen · BACK zurück")
         return r.render_face_preview(img, it["label"], self.cursor + 1, len(items), bool(it["mark"]),
-                                     PROFILE_COLOR[app.layer])
+                                     PROFILE_COLOR[app.layer], hint)
+
+
+class ClockOptionsMenu(Menu):
+    """Zifferblatt-Liste, ►: Optionen des Zifferblatts ändern (jede Änderung wird gleich gespeichert
+    und ist in der Vorschau zu sehen). BACK zurück zur Liste, MENU/SETTINGS schließen."""
+    kind = "clock_options"
+
+    def __init__(self, face, back_cursor):
+        super().__init__()
+        self.face, self.back = face, back_cursor
+
+    def on_key(self, app, pressed):
+        opts = clock_option_list(self.face)
+        self.cursor = self.step(self.cursor, pressed, len(opts))
+        step = -1 if pressed & LKEY_BITS["LEFT"] else 1 if pressed & (LKEY_BITS["RIGHT"] | LKEY_BITS["OK"]) else 0
+        if step:
+            opt = opts[self.cursor]
+            value = clock_options(app.settings(), self.face)[opt["key"]]
+            app.set_clock_option(self.face, opt, option_next(opt, value, step))
+        elif pressed & LKEY_BITS["BACK"]:
+            app.menu = ClockMenu(app)
+            app.menu.cursor = self.back
+        elif pressed & (LKEY_BITS["MENU"] | LKEY_BITS["SETTINGS"]):
+            app.menu = None
+        if pressed:
+            self.touch()
+        app.next_draw = 0
+
+    def draw(self, app, now):
+        opts = clock_option_list(self.face)
+        self.cursor = min(self.cursor, len(opts) - 1)
+        opt = opts[self.cursor]
+        value = clock_options(app.settings(), self.face)[opt["key"]]
+        r = app.renderer
+        r.clock_face = self.face            # app.draw() setzt beim nächsten Bild wieder das eingestellte
+        img = r.render(PAGE_IDS.index("clock"), app.layer, {})
+        swatch = tuple(value) if opt["type"] == "color" and value else None
+        return r.render_option_overlay(img, CLOCK_FACES[self.face], opt["label"], option_text(opt, value),
+                                       self.cursor + 1, len(opts), swatch, PROFILE_COLOR[app.layer])
+
+
+class QuickMenu(Menu):
+    """MENU auf Seiten ohne eigene MENU-Funktion (Makros, Wetter, Hardware): häufige Einstellungen."""
+    kind = "quick"
+
+    @staticmethod
+    def items(app):
+        night = bool((app.settings().get("night") or {}).get("enabled"))
+        return [{"id": "brightness", "label": "Helligkeit", "sub": f"◄ {app.day_brightness()} % ►"},
+                {"id": "night", "label": "Nachtmodus (Zeitplan)", "sub": "an" if night else "aus"},
+                {"id": "slides", "label": "Diashow", "sub": "pausiert" if app.slideshow.paused else "läuft"},
+                {"id": "saver", "label": "Bildschirmschoner jetzt"},
+                {"id": "profile", "label": "Profil wählen"}]
+
+    def on_key(self, app, pressed):
+        items = self.items(app)
+        self.cursor = self.step(self.cursor, pressed, len(items))
+        it = items[self.cursor]["id"]
+        step = -1 if pressed & LKEY_BITS["LEFT"] else 1 if pressed & (LKEY_BITS["RIGHT"] | LKEY_BITS["OK"]) else 0
+        if pressed & (LKEY_BITS["BACK"] | LKEY_BITS["MENU"] | LKEY_BITS["SETTINGS"]):
+            app.menu = None
+        elif step and it == "brightness":
+            value = max(10, min(100, (app.day_brightness() + 5) // 10 * 10 + 10 * step))
+            if app.save_setting(["brightness"], value):
+                app.log(f"Helligkeit: {value} %")
+        elif step and it == "night":
+            on = not (app.settings().get("night") or {}).get("enabled")
+            if app.save_setting(["night", "enabled"], on):
+                app.log(f"Nachtmodus (Zeitplan): {'an' if on else 'aus'}")
+                app.update_night(force=True)
+        elif step and it == "slides":
+            app.slideshow.command("toggle")
+            app.log(f"Diashow: {'pausiert' if app.slideshow.paused else 'läuft'}")
+        elif pressed & LKEY_BITS["OK"] and it == "saver":
+            app.menu = None
+            app.start_screensaver()
+        elif pressed & LKEY_BITS["OK"] and it == "profile":
+            app.menu = ProfileMenu(app.prof_idx)
+        if pressed:
+            self.touch()
+        app.next_draw = 0
+
+    def draw(self, app, now):
+        items = self.items(app)
+        self.cursor = min(self.cursor, len(items) - 1)
+        return app.renderer.render_list_menu("Schnellmenü", items, self.cursor,
+                                             "▲▼ wählen · ◄► / OK ändern · BACK zurück",
+                                             color=PROFILE_COLOR[app.layer])
 
 
 class CalendarMenu(Menu):

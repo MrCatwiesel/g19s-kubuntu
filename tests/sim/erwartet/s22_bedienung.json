@@ -1,0 +1,52 @@
+{
+ "ebene": [
+  "ebene"
+ ],
+ "halten": [
+  "halten",
+  "zifferblaetter"
+ ],
+ "helligkeit": 90,
+ "log": [
+  "Uhr-Option: Digitaluhr · Sekunden anzeigen = aus",
+  "Uhr-Option: Digitaluhr · Farbe der Uhrzeit = Weiß",
+  "Uhr-Option: Digitaluhr · Farbe der Uhrzeit = Rot",
+  "Helligkeit: 90 %",
+  "Nachtmodus (Zeitplan): an",
+  "Diashow: pausiert"
+ ],
+ "mpv": "mpv --no-video http://127.0.0.1:9/x --demuxer-max-bytes=4MiB --demuxer-max-back-bytes=1MiB",
+ "mpv_eigen": "mpv --cache=no http://127.0.0.1:9/x",
+ "nach_ebene": [],
+ "nacht": true,
+ "optionen": [
+  "optionen"
+ ],
+ "profil": [
+  "profil"
+ ],
+ "schnell": [
+  "Schnellmenü"
+ ],
+ "schoner": [
+  "clock",
+  "hardware",
+  "slides",
+  "hardware",
+  "clock"
+ ],
+ "uhr": {
+  "digital": {
+   "color": [
+    230,
+    40,
+    40
+   ],
+   "seconds": false
+  }
+ },
+ "vlc": "cvlc http://127.0.0.1:9/x",
+ "zurueck": [
+  "zifferblaetter"
+ ]
+}

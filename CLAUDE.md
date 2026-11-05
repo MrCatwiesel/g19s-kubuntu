@@ -34,7 +34,7 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
 - Aus der Sandbox ist `raw.githubusercontent.com` nicht erreichbar; die Update-Suche wird
   mit dem Fake-GitHub (`G19S_UPDATE_URL`, `tests/fakes/infodienste.py`) getestet.
 
-## Stand (2026.11.05-1)
+## Stand (2026.11.05-2)
 - Alle Punkte der Prüfung Sicherheit/Lesbarkeit/Performance umgesetzt; L7 (Umbenennung
   profile→layer) bewusst verworfen.
 - 2026.09.30-5: Update direkt von GitHub (Dienst & Sicherung → „Nach Updates suchen“),
@@ -79,6 +79,14 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
   `ClockMenu`, sonst Profilauswahl. Entscheidung beim Loslassen (`settings_down` in app_tasten). s03/s09/s12 nutzen
   jetzt langen Druck, Sim `s21_settings_kurz_lang`. Idee für später (vorgeschlagen, nicht beauftragt): Optionen des
   Zifferblatts (CLOCK_OPTIONS) am Gerät ändern, z. B. aus der Zifferblatt-Vorschau heraus.
+- 2026.11.05-2 (Nutzer wählte aus Vorschlägen 1+2+6+7+8): mpv-Puffer (`MPV_BUFFER` in `_build_cmd`, nicht bei eigenen
+  `--cache`/`--demuxer-*`); Zifferblatt-Optionen am Gerät (`ClockOptionsMenu`, ► in `ClockMenu`, `clock_option_list`/
+  `option_next`/`option_text`, Farben `CLOCK_COLOR_CHOICES`, Speichern über neues `save_setting(path, value)` in app_kern
+  inkl. sofortigem reload/apply); Haltebalken (`settings_hold`, `render_hold_bar`, ab `HOLD_BAR_AFTER` 0,25 s);
+  `QuickMenu` per MENU auf Seiten ohne eigenes MENU (macros, weather, hardware): Helligkeit ±10, Nachtmodus
+  `night.enabled`, Diashow toggle, `start_screensaver`, Profil; Ebenen-Einblendung `_layer_overlay` →
+  `render_layer_keys` (2 s, Einstellung `layer_overlay`, nicht auf Makros-Seite/nachts/bei Menü). s07 schaltet die
+  Einblendung ab; Sim `s22_bedienung`. Idee (nicht umgesetzt): SETTINGS kurz außerhalb der Uhr = Schnellmenü statt Profil.
 - Beobachtet: Benachrichtigungen erscheinen im Journal doppelt (vermutlich sendet Plasma zweimal) – harmlos.
 - Beobachtet (2026-10-02): RDP-Sitzung (xfreerdp/sdl-freerdp 3.32.0 → Windows-PC) brach beim Kopieren bzw.
   ~10 s nach dem Login ab: `cliprdr … Error was 1359 → Network disconnect`. Ursache ist ein FreeRDP-Fehler bei
@@ -88,14 +96,14 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
   das Einfügen. Bei Ärger mit Einfügen in RDP zuerst den xfreerdp-Aufruf prüfen.
 
 ## Offene Punkte
-1. Neu zu 2026.11.04-1: SETTINGS kurz/lang am echten Gerät prüfen (Haltezeit seit -05-1 1 s).
+1. Neu zu 2026.11.05-2 am Gerät prüfen: Haltebalken, Zifferblatt-Optionen (►), Schnellmenü (Makros/Wetter/Hardware),
+   Einblendung bei M1/M2/M3, mpv-Speicher beim Radio (sollte deutlich unter 150 MB bleiben).
+   Zu 2026.11.04-1: SETTINGS kurz/lang (Haltezeit seit -05-1 1 s).
    Offen zu 2026.10.01-8: erscheint außerhalb von RDP auch die KDE-Lautstärkeanzeige (osdService unter Plasma 6)?
    Nutzer bestätigte nur die Prozentanzeige auf dem G19s-Display.
    Dazu aus -7: G1 und unbelegte G-Taste mit --debug mehrmals schnell – je ein „gedrückt“/„losgelassen“.
 2. Verbrauch (2026-10-02): Messung 18:23–20:18 – g19s.py 150 MB und g19s-gui.py 92 MB stabil (kein Leck); mpv
-   158→311 MB = Demuxer-Cache (Standard 150 MiB) läuft beim Radio voll. Vorschlag (noch nicht bestätigt, Nutzer
-   machte Feierabend): in `RadioManager._build_cmd` bei mpv `--demuxer-max-bytes=4MiB --demuxer-max-back-bytes=1MiB`
-   anhängen, außer der eigene Befehl enthält schon Puffer-Angaben. systemd „Consumed“ zählt Treiber + mpv + Hilfs-
+   158→311 MB = Demuxer-Cache (Standard 150 MiB) läuft beim Radio voll → in 2026.11.05-2 begrenzt. systemd „Consumed“ zählt Treiber + mpv + Hilfs-
    programme. Die 24 min CPU in 68 min am Vormittag sind damit nicht erklärt – bei Wiederholung `ps -o etime,time,
    rss,pcpu,args -C python3,mpv` erbitten.
 3. `install.sh` (mit `--deinstallieren`).

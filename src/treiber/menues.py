@@ -85,7 +85,7 @@ class MenuViews:
         self._scroll_marks(d, first > 0, first + rows < len(items))
         return img
 
-    def render_face_preview(self, img, name, pos, total, active, color):
+    def render_face_preview(self, img, name, pos, total, active, color, hint="▲▼ blättern · OK übernehmen · BACK zurück"):
         """Zifferblatt-Auswahl: das gewählte Zifferblatt groß, oben Name und Position, unten die Tasten."""
         top = img.crop((0, 0, WIDTH, 30))
         img.paste(Image.blend(top, Image.new("RGB", top.size, (10, 12, 18)), 0.78), (0, 0))
@@ -98,7 +98,34 @@ class MenuViews:
         label = ("▶ " if active else "") + name
         self._center(d, 3, self._fit(d, label, self.f_mid, WIDTH - 2 * cw - 40), self.f_mid, self.FG)
         d.rectangle([0, HEIGHT - FOOTER_H, WIDTH, HEIGHT], fill=(20, 24, 34))
-        self._center(d, HEIGHT - 20, "▲▼ blättern · OK übernehmen · BACK zurück", self.f_tiny, self.DIM)
+        self._center(d, HEIGHT - 20, hint, self.f_tiny, self.DIM)
+        return img
+
+    def render_option_overlay(self, img, face_name, label, value, pos, total, swatch, color):
+        """Optionen eines Zifferblatts: Vorschau groß, oben Name, unten die markierte Option mit Wert."""
+        top = img.crop((0, 0, WIDTH, 30))
+        img.paste(Image.blend(top, Image.new("RGB", top.size, (10, 12, 18)), 0.78), (0, 0))
+        d = ImageDraw.Draw(img)
+        d.rectangle([0, 29, WIDTH, 30], fill=color)
+        d.text((10, 6), "Optionen", font=self.f_tiny, fill=self.DIM)
+        cnt = f"{pos}/{total}"
+        cw = d.textlength(cnt, font=self.f_small)
+        d.text((WIDTH - 10 - cw, 6), cnt, font=self.f_small, fill=self.DIM)
+        self._center(d, 3, self._fit(d, face_name, self.f_mid, WIDTH - 2 * cw - 40), self.f_mid, self.FG)
+        y0 = HEIGHT - FOOTER_H - 48
+        band = img.crop((0, y0, WIDTH, HEIGHT - FOOTER_H))
+        img.paste(Image.blend(band, Image.new("RGB", band.size, (10, 12, 18)), 0.85), (0, y0))
+        d.rectangle([0, y0, WIDTH, y0 + 1], fill=color)
+        self._center(d, y0 + 4, self._fit(d, label, self.f_tiny, WIDTH - 20), self.f_tiny, self.DIM)
+        text = f"◄  {value}  ►"
+        tw = d.textlength(text, font=self.f_mid)
+        sw = 22 if swatch else 0
+        x = (WIDTH - tw - sw) / 2
+        if swatch:
+            d.rounded_rectangle([x, y0 + 24, x + 16, y0 + 40], radius=3, fill=swatch, outline=self.DIM)
+        d.text((x + sw, y0 + 20), text, font=self.f_mid, fill=self.FG)
+        d.rectangle([0, HEIGHT - FOOTER_H, WIDTH, HEIGHT], fill=(20, 24, 34))
+        self._center(d, HEIGHT - 20, "▲▼ Option · ◄► ändern · BACK zurück", self.f_tiny, self.DIM)
         return img
 
     def render_calendar_menu(self, cals, hidden, cursor):

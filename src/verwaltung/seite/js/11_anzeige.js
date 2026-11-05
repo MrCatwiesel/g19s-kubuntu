@@ -26,6 +26,7 @@ function renderSettings() {
   $("#volStep").value = sd.volume_step;
   $("#timerSound").checked = sd.timer_sound;
   $("#mediaKeys").checked = sd.media_keys !== false;
+  $("#layerOverlay").checked = sd.layer_overlay !== false;
   $("#pvProfiles").replaceChildren(...PROFILES.map(p => el("button", {class: p === UI.pvProfile ? "active" : "", text: p,
     onclick: () => { UI.pvProfile = p; renderSettings(); refreshPreview(); }})));
 }
@@ -102,6 +103,7 @@ $("#saverMin").addEventListener("input", e => { UI.sdraft.screensaver.minutes = 
 $("#saverPage").addEventListener("change", e => { UI.sdraft.screensaver.page = e.target.value; touchSettings(); });
 $("#volStep").addEventListener("input", e => { UI.sdraft.volume_step = Math.max(1, Math.min(25, parseInt(e.target.value) || 5)); touchSettings(); });
 $("#mediaKeys").addEventListener("change", e => { UI.sdraft.media_keys = e.target.checked; touchSettings(); });
+$("#layerOverlay").addEventListener("change", e => { UI.sdraft.layer_overlay = e.target.checked; touchSettings(); });
 // Vorschau nach Änderungen an den Einstellungen verzögert neu laden (touchSettings ruft das auf)
 let pvTimer = null;
 function schedulePreview() { clearTimeout(pvTimer); pvTimer = setTimeout(refreshPreview, 250); }

@@ -173,6 +173,30 @@ class OverlayViews:
             d.rounded_rectangle([20, 170, 20 + w, 186], radius=8, fill=(110, 118, 135) if muted else color)
         return img
 
+    def render_hold_bar(self, img, frac, color):
+        """SETTINGS wird gehalten: Balken, der sich bis zur Profilauswahl füllt (frac 0…1)."""
+        img = img.copy()
+        d = ImageDraw.Draw(img)
+        x0, y0, x1, y1 = 60, HEIGHT - FOOTER_H - 46, WIDTH - 60, HEIGHT - FOOTER_H - 8
+        d.rounded_rectangle([x0, y0, x1, y1], radius=8, fill=(20, 24, 34), outline=color, width=2)
+        self._center(d, y0 + 4, "Halten: Profil wählen", self.f_tiny, self.FG)
+        bx0, bx1 = x0 + 12, x1 - 12
+        d.rounded_rectangle([bx0, y1 - 13, bx1, y1 - 7], radius=3, fill=(45, 50, 65))
+        w = int((bx1 - bx0) * max(0.0, min(1.0, frac)))
+        if w > 4:
+            d.rounded_rectangle([bx0, y1 - 13, bx0 + w, y1 - 7], radius=3, fill=color)
+        return img
+
+    def render_layer_keys(self, layer, macros):
+        """M1/M2/M3 gewechselt: Belegung der G-Tasten der neuen Ebene, farbig umrahmt."""
+        img = self.page_macros(layer, macros)
+        d = ImageDraw.Draw(img)
+        color = PROFILE_COLOR.get(layer, self.FG)
+        d.rectangle([0, 0, WIDTH - 1, HEIGHT - 1], outline=color, width=3)
+        d.rectangle([0, HEIGHT - FOOTER_H, WIDTH, HEIGHT], fill=color)
+        self._center(d, HEIGHT - FOOTER_H + 4, f"Ebene {layer}", self.f_small_b, self.BG)
+        return img
+
     def render_message(self, title, lines, color):
         img = Image.new("RGB", (WIDTH, HEIGHT), self.BG)
         d = ImageDraw.Draw(img)

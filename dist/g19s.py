@@ -40,7 +40,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.05-1"
+VERSION = "2026.11.05-2"
 
 # Weitere Importe der Module
 import http.client
@@ -91,6 +91,9 @@ LKEY_BITS = {
     "SETTINGS": 0x01, "BACK": 0x02, "MENU": 0x04, "OK": 0x08,
     "RIGHT": 0x10, "LEFT": 0x20, "DOWN": 0x40, "UP": 0x80,
 }
+MPV_BUFFER = "--demuxer-max-bytes=4MiB --demuxer-max-back-bytes=1MiB"   # an mpv angehängt (außer eigene Puffer-Angaben)
+LAYER_OVERLAY_SECONDS = 2.0  # M1/M2/M3: so lange die Belegung der G-Tasten einblenden ("layer_overlay")
+HOLD_BAR_AFTER = 0.25       # SETTINGS so lange gehalten: Balken bis zur Profilauswahl zeigen
 LONG_PRESS = 1.0            # Sekunden: SETTINGS so lange halten = Profilauswahl (kurz: Uhrseite → Zifferblätter)
 
 # LED-Bits der M-Tasten
@@ -208,6 +211,12 @@ CLOCK_OPTIONS = {
         {"key": "color", "label": "Farbe der leuchtenden Wörter", "type": "color", "default": None, "none_label": _LAYER},
     ],
 }
+# Farben, die am Display für Farb-Optionen der Zifferblätter durchgeschaltet werden (None = Standard)
+CLOCK_COLOR_CHOICES = [
+    (None, "Standard"), ([255, 255, 255], "Weiß"), ([230, 40, 40], "Rot"), ([255, 140, 0], "Orange"),
+    ([255, 215, 0], "Gelb"), ([40, 200, 80], "Grün"), ([0, 200, 200], "Türkis"), ([30, 120, 255], "Blau"),
+    ([150, 80, 255], "Violett"), ([255, 80, 180], "Pink"),
+]
 OLD_CLOCK_PAGES = {"clock_chrono": "chrono", "clock_steampunk": "steampunk",      # Version 2026.09.28-8/-9
                    "clock_station": "station", "clock_binary": "binary"}
 DEFAULT_PAGE_ORDER = ["clock", "music", "weather", "calendar", "hardware", "macros", "slides"]
@@ -558,6 +567,7 @@ SCHEMA = {
     "screensaver": Section({"enabled": Bool(False), "minutes": Minutes(5, 1, 240, zero=False, via_float=True),
                             "page": Choice("slides", _page_ids)}),
     "volume_step": Int(5, 1, 25, zero=False),
+    "layer_overlay": Bool(True),       # M1/M2/M3: Belegung der G-Tasten kurz einblenden
     "media_keys": Bool(True),          # Lautstärkerad/Stumm/Medientasten vom Treiber (auch im Remote-Desktop)
     "pages_rev": Int(PAGES_REV, PAGES_REV, PAGES_REV),  # Stand der Seitenliste (für Umstellungen)
     "clock": _clock_section(),                  # Zifferblätter der Uhr: Auswahl fürs Displaymenü, Optionen
@@ -2409,12 +2419,15 @@ class RadioManager:
                     return
 
     def _build_cmd(self, cmd, url, stations):
+        """Befehl des Radioplayers. Bei mpv: Senderliste als Wiedergabeliste und kleiner Puffer."""
         import shlex
         try:
             is_mpv = os.path.basename(shlex.split(cmd)[0]) == "mpv"
         except (ValueError, IndexError):
             is_mpv = False
         urls = [s["url"] for s in stations]
+        if is_mpv and not any(o in cmd for o in ("--cache", "--demuxer-max", "--demuxer-readahead")):
+            cmd += f" {MPV_BUFFER}"        # Radio braucht keinen großen Puffer (mpv-Standard: 150 MiB)
         if is_mpv and url in urls:
             playlist = os.path.join(os.environ.get("XDG_RUNTIME_DIR") or CACHE_DIR, "g19s-radio.m3u")
             os.makedirs(os.path.dirname(playlist), exist_ok=True)
@@ -9107,7 +9120,7 @@ class MenuViews:
         self._scroll_marks(d, first > 0, first + rows < len(items))
         return img
 
-    def render_face_preview(self, img, name, pos, total, active, color):
+    def render_face_preview(self, img, name, pos, total, active, color, hint="▲▼ blättern · OK übernehmen · BACK zurück"):
         """Zifferblatt-Auswahl: das gewählte Zifferblatt groß, oben Name und Position, unten die Tasten."""
         top = img.crop((0, 0, WIDTH, 30))
         img.paste(Image.blend(top, Image.new("RGB", top.size, (10, 12, 18)), 0.78), (0, 0))
@@ -9120,7 +9133,34 @@ class MenuViews:
         label = ("▶ " if active else "") + name
         self._center(d, 3, self._fit(d, label, self.f_mid, WIDTH - 2 * cw - 40), self.f_mid, self.FG)
         d.rectangle([0, HEIGHT - FOOTER_H, WIDTH, HEIGHT], fill=(20, 24, 34))
-        self._center(d, HEIGHT - 20, "▲▼ blättern · OK übernehmen · BACK zurück", self.f_tiny, self.DIM)
+        self._center(d, HEIGHT - 20, hint, self.f_tiny, self.DIM)
+        return img
+
+    def render_option_overlay(self, img, face_name, label, value, pos, total, swatch, color):
+        """Optionen eines Zifferblatts: Vorschau groß, oben Name, unten die markierte Option mit Wert."""
+        top = img.crop((0, 0, WIDTH, 30))
+        img.paste(Image.blend(top, Image.new("RGB", top.size, (10, 12, 18)), 0.78), (0, 0))
+        d = ImageDraw.Draw(img)
+        d.rectangle([0, 29, WIDTH, 30], fill=color)
+        d.text((10, 6), "Optionen", font=self.f_tiny, fill=self.DIM)
+        cnt = f"{pos}/{total}"
+        cw = d.textlength(cnt, font=self.f_small)
+        d.text((WIDTH - 10 - cw, 6), cnt, font=self.f_small, fill=self.DIM)
+        self._center(d, 3, self._fit(d, face_name, self.f_mid, WIDTH - 2 * cw - 40), self.f_mid, self.FG)
+        y0 = HEIGHT - FOOTER_H - 48
+        band = img.crop((0, y0, WIDTH, HEIGHT - FOOTER_H))
+        img.paste(Image.blend(band, Image.new("RGB", band.size, (10, 12, 18)), 0.85), (0, y0))
+        d.rectangle([0, y0, WIDTH, y0 + 1], fill=color)
+        self._center(d, y0 + 4, self._fit(d, label, self.f_tiny, WIDTH - 20), self.f_tiny, self.DIM)
+        text = f"◄  {value}  ►"
+        tw = d.textlength(text, font=self.f_mid)
+        sw = 22 if swatch else 0
+        x = (WIDTH - tw - sw) / 2
+        if swatch:
+            d.rounded_rectangle([x, y0 + 24, x + 16, y0 + 40], radius=3, fill=swatch, outline=self.DIM)
+        d.text((x + sw, y0 + 20), text, font=self.f_mid, fill=self.FG)
+        d.rectangle([0, HEIGHT - FOOTER_H, WIDTH, HEIGHT], fill=(20, 24, 34))
+        self._center(d, HEIGHT - 20, "▲▼ Option · ◄► ändern · BACK zurück", self.f_tiny, self.DIM)
         return img
 
     def render_calendar_menu(self, cals, hidden, cursor):
@@ -9356,6 +9396,30 @@ class OverlayViews:
             d.rounded_rectangle([20, 170, 20 + w, 186], radius=8, fill=(110, 118, 135) if muted else color)
         return img
 
+    def render_hold_bar(self, img, frac, color):
+        """SETTINGS wird gehalten: Balken, der sich bis zur Profilauswahl füllt (frac 0…1)."""
+        img = img.copy()
+        d = ImageDraw.Draw(img)
+        x0, y0, x1, y1 = 60, HEIGHT - FOOTER_H - 46, WIDTH - 60, HEIGHT - FOOTER_H - 8
+        d.rounded_rectangle([x0, y0, x1, y1], radius=8, fill=(20, 24, 34), outline=color, width=2)
+        self._center(d, y0 + 4, "Halten: Profil wählen", self.f_tiny, self.FG)
+        bx0, bx1 = x0 + 12, x1 - 12
+        d.rounded_rectangle([bx0, y1 - 13, bx1, y1 - 7], radius=3, fill=(45, 50, 65))
+        w = int((bx1 - bx0) * max(0.0, min(1.0, frac)))
+        if w > 4:
+            d.rounded_rectangle([bx0, y1 - 13, bx0 + w, y1 - 7], radius=3, fill=color)
+        return img
+
+    def render_layer_keys(self, layer, macros):
+        """M1/M2/M3 gewechselt: Belegung der G-Tasten der neuen Ebene, farbig umrahmt."""
+        img = self.page_macros(layer, macros)
+        d = ImageDraw.Draw(img)
+        color = PROFILE_COLOR.get(layer, self.FG)
+        d.rectangle([0, 0, WIDTH - 1, HEIGHT - 1], outline=color, width=3)
+        d.rectangle([0, HEIGHT - FOOTER_H, WIDTH, HEIGHT], fill=color)
+        self._center(d, HEIGHT - FOOTER_H + 4, f"Ebene {layer}", self.f_small_b, self.BG)
+        return img
+
     def render_message(self, title, lines, color):
         img = Image.new("RGB", (WIDTH, HEIGHT), self.BG)
         d = ImageDraw.Draw(img)
@@ -9464,6 +9528,40 @@ class ProfileMenu(Menu):
                                                 self.cursor, app.prof_idx, app.profile_colors)
 
 
+def clock_option_list(face):
+    """Am Display änderbare Optionen eines Zifferblatts (die Städteliste der Weltuhr nur in der Verwaltung)."""
+    return [o for o in CLOCK_OPTIONS.get(face, []) if o["type"] in ("bool", "choice", "color")]
+
+
+def _cycle(values, current, step):
+    """Nächster (step=1) bzw. voriger (-1) Wert mit Umlauf; ein unbekannter Wert springt an den Anfang/das Ende."""
+    try:
+        i = values.index(current)
+    except ValueError:
+        i = -1 if step > 0 else 0
+    return values[(i + step) % len(values)]
+
+
+def option_next(opt, value, step):
+    """Neuer Wert einer Zifferblatt-Option nach ◄ (step=-1) bzw. ► / OK (step=1)."""
+    if opt["type"] == "bool":
+        return not value
+    if opt["type"] == "choice":
+        return _cycle([c[0] for c in opt["choices"]], value, step)
+    return _cycle([c for c, _ in CLOCK_COLOR_CHOICES], value, step)
+
+
+def option_text(opt, value):
+    """Wert einer Zifferblatt-Option als Text fürs Display und das Protokoll."""
+    if opt["type"] == "bool":
+        return "an" if value else "aus"
+    if opt["type"] == "choice":
+        return next((label for key, label in opt["choices"] if key == value), str(value))
+    if value is None:
+        return opt.get("none_label") or "Standard"
+    return next((name for c, name in CLOCK_COLOR_CHOICES if c == list(value)), "eigene Farbe")
+
+
 class ClockMenu(Menu):
     """Uhrseite, MENU oder SETTINGS kurz: Zifferblatt für dieses Profil und diese Ebene wählen."""
     kind = "clocks"
@@ -9484,9 +9582,14 @@ class ClockMenu(Menu):
     def on_key(self, app, pressed):
         items = self.items(app)
         self.cursor = self.step(self.cursor, pressed, len(items))
+        face = items[self.cursor]["face"]
         if pressed & LKEY_BITS["OK"]:
             app.menu = None
-            app.set_clock_face(items[self.cursor]["face"])
+            app.set_clock_face(face)
+        elif pressed & LKEY_BITS["RIGHT"] and clock_option_list(face):
+            app.menu = ClockOptionsMenu(face, self.cursor)      # ► Optionen des markierten Zifferblatts
+        elif pressed & LKEY_BITS["RIGHT"]:
+            self.touch()                    # Zifferblatt ohne Optionen: nichts zu tun
         elif pressed & CLOSE_KEYS:
             app.menu = None
         elif pressed:
@@ -9500,8 +9603,98 @@ class ClockMenu(Menu):
         it, r = items[self.cursor], app.renderer
         r.clock_face = it["face"]           # app.draw() setzt beim nächsten Bild wieder das eingestellte
         img = r.render(PAGE_IDS.index("clock"), app.layer, {})
+        hint = ("▲▼ blättern · OK übernehmen · ► Optionen" if clock_option_list(it["face"])
+                else "▲▼ blättern · OK übernehmen · BACK zurück")
         return r.render_face_preview(img, it["label"], self.cursor + 1, len(items), bool(it["mark"]),
-                                     PROFILE_COLOR[app.layer])
+                                     PROFILE_COLOR[app.layer], hint)
+
+
+class ClockOptionsMenu(Menu):
+    """Zifferblatt-Liste, ►: Optionen des Zifferblatts ändern (jede Änderung wird gleich gespeichert
+    und ist in der Vorschau zu sehen). BACK zurück zur Liste, MENU/SETTINGS schließen."""
+    kind = "clock_options"
+
+    def __init__(self, face, back_cursor):
+        super().__init__()
+        self.face, self.back = face, back_cursor
+
+    def on_key(self, app, pressed):
+        opts = clock_option_list(self.face)
+        self.cursor = self.step(self.cursor, pressed, len(opts))
+        step = -1 if pressed & LKEY_BITS["LEFT"] else 1 if pressed & (LKEY_BITS["RIGHT"] | LKEY_BITS["OK"]) else 0
+        if step:
+            opt = opts[self.cursor]
+            value = clock_options(app.settings(), self.face)[opt["key"]]
+            app.set_clock_option(self.face, opt, option_next(opt, value, step))
+        elif pressed & LKEY_BITS["BACK"]:
+            app.menu = ClockMenu(app)
+            app.menu.cursor = self.back
+        elif pressed & (LKEY_BITS["MENU"] | LKEY_BITS["SETTINGS"]):
+            app.menu = None
+        if pressed:
+            self.touch()
+        app.next_draw = 0
+
+    def draw(self, app, now):
+        opts = clock_option_list(self.face)
+        self.cursor = min(self.cursor, len(opts) - 1)
+        opt = opts[self.cursor]
+        value = clock_options(app.settings(), self.face)[opt["key"]]
+        r = app.renderer
+        r.clock_face = self.face            # app.draw() setzt beim nächsten Bild wieder das eingestellte
+        img = r.render(PAGE_IDS.index("clock"), app.layer, {})
+        swatch = tuple(value) if opt["type"] == "color" and value else None
+        return r.render_option_overlay(img, CLOCK_FACES[self.face], opt["label"], option_text(opt, value),
+                                       self.cursor + 1, len(opts), swatch, PROFILE_COLOR[app.layer])
+
+
+class QuickMenu(Menu):
+    """MENU auf Seiten ohne eigene MENU-Funktion (Makros, Wetter, Hardware): häufige Einstellungen."""
+    kind = "quick"
+
+    @staticmethod
+    def items(app):
+        night = bool((app.settings().get("night") or {}).get("enabled"))
+        return [{"id": "brightness", "label": "Helligkeit", "sub": f"◄ {app.day_brightness()} % ►"},
+                {"id": "night", "label": "Nachtmodus (Zeitplan)", "sub": "an" if night else "aus"},
+                {"id": "slides", "label": "Diashow", "sub": "pausiert" if app.slideshow.paused else "läuft"},
+                {"id": "saver", "label": "Bildschirmschoner jetzt"},
+                {"id": "profile", "label": "Profil wählen"}]
+
+    def on_key(self, app, pressed):
+        items = self.items(app)
+        self.cursor = self.step(self.cursor, pressed, len(items))
+        it = items[self.cursor]["id"]
+        step = -1 if pressed & LKEY_BITS["LEFT"] else 1 if pressed & (LKEY_BITS["RIGHT"] | LKEY_BITS["OK"]) else 0
+        if pressed & (LKEY_BITS["BACK"] | LKEY_BITS["MENU"] | LKEY_BITS["SETTINGS"]):
+            app.menu = None
+        elif step and it == "brightness":
+            value = max(10, min(100, (app.day_brightness() + 5) // 10 * 10 + 10 * step))
+            if app.save_setting(["brightness"], value):
+                app.log(f"Helligkeit: {value} %")
+        elif step and it == "night":
+            on = not (app.settings().get("night") or {}).get("enabled")
+            if app.save_setting(["night", "enabled"], on):
+                app.log(f"Nachtmodus (Zeitplan): {'an' if on else 'aus'}")
+                app.update_night(force=True)
+        elif step and it == "slides":
+            app.slideshow.command("toggle")
+            app.log(f"Diashow: {'pausiert' if app.slideshow.paused else 'läuft'}")
+        elif pressed & LKEY_BITS["OK"] and it == "saver":
+            app.menu = None
+            app.start_screensaver()
+        elif pressed & LKEY_BITS["OK"] and it == "profile":
+            app.menu = ProfileMenu(app.prof_idx)
+        if pressed:
+            self.touch()
+        app.next_draw = 0
+
+    def draw(self, app, now):
+        items = self.items(app)
+        self.cursor = min(self.cursor, len(items) - 1)
+        return app.renderer.render_list_menu("Schnellmenü", items, self.cursor,
+                                             "▲▼ wählen · ◄► / OK ändern · BACK zurück",
+                                             color=PROFILE_COLOR[app.layer])
 
 
 class CalendarMenu(Menu):
@@ -10252,6 +10445,37 @@ class AppCore:
                         "sub": str(sn.get("group") or "") if all_groups else ""})
         return out
 
+    def save_setting(self, path, value):
+        """Einen Wert in settings.json setzen (path = Schlüssel-Folge, z. B. ["night", "enabled"]) und
+        gleich übernehmen; die Verwaltung liest ihn beim nächsten Abgleich. True = gespeichert."""
+        try:
+            try:
+                with open(SETTINGS_FILE, encoding="utf-8") as f:
+                    raw = json.load(f)
+            except FileNotFoundError:
+                raw = {}
+            if not isinstance(raw, dict):
+                raise ValueError("settings.json ist kein JSON-Objekt")
+            node = raw
+            for k in path[:-1]:
+                if not isinstance(node.get(k), dict):
+                    node[k] = {}
+                node = node[k]
+            node[path[-1]] = value
+            save_json(SETTINGS_FILE, raw, private=True)
+        except (OSError, ValueError) as ex:
+            self.log(f"Einstellung konnte nicht gespeichert werden: {ex}")
+            return False
+        if self.reload_settings():
+            self.apply_settings()
+        self.next_draw = 0
+        return True
+
+    def set_clock_option(self, face, opt, value):
+        """Option eines Zifferblatts am Display geändert (ClockOptionsMenu)."""
+        if self.save_setting(["clock", face, opt["key"]], value):
+            self.log(f"Uhr-Option: {CLOCK_FACES[face]} · {opt['label']} = {option_text(opt, value)}")
+
     def save_albums(self, selected, albums):
         """Albenauswahl in settings.json schreiben (die Verwaltung liest sie von dort)."""
         try:
@@ -10320,7 +10544,8 @@ class AppCore:
 #        Entschieden wird beim Loslassen bzw. nach LONG_PRESS in settings_key_tick().
 #     3. das offene Menü (menue_logik)
 #     4. die Tasten der angezeigten Seite (@page_keys in den Seitenmodulen)
-#     5. sonst: Rechts/Runter = nächste Seite, Links/Hoch = vorige Seite
+#     5. MENU ohne eigene Funktion der Seite: Schnellmenü (QuickMenu)
+#     6. sonst: Rechts/Runter = nächste Seite, Links/Hoch = vorige Seite
 # ═══════════════════════════════════════════════════════════════════════════
 
 class KeyHandling:
@@ -10422,7 +10647,16 @@ class KeyHandling:
                 if self.rec is None:
                     self.switch_layer(name)
                     self.apply_leds()
+                    self._layer_overlay(name)
                     self.next_draw = 0
+
+    def _layer_overlay(self, layer):
+        """Nach M1/M2/M3 kurz die Belegung der G-Tasten zeigen (abschaltbar: "layer_overlay")."""
+        if (not self.settings().get("layer_overlay", True) or self.night_dark() or self.menu is not None
+                or self.saver["active"] or PAGE_IDS[self.page % len(PAGE_IDS)] == "macros"):
+            return
+        keys = self.store.keys(self.prof_idx)
+        self.popup(lambda: self.renderer.render_layer_keys(layer, keys), LAYER_OVERLAY_SECONDS)
 
     def _record_key(self):
         """MR: Aufnahme starten / beenden / abbrechen."""
@@ -10508,16 +10742,29 @@ class KeyHandling:
                 self._settings_key(long=False)
         if self.menu is None and pressed & settings:
             self.settings_down = time.monotonic()           # kurz oder lang? → Loslassen / settings_key_tick
+            self.next_draw = min(self.next_draw, self.settings_down + HOLD_BAR_AFTER)   # Haltebalken
         elif self.menu is not None:
             self.menu.on_key(self, pressed)
         else:
             handler = PAGE_KEYS.get(PAGE_IDS[self.page % len(PAGE_IDS)])
-            if not (handler and handler(self, pressed)):
+            if handler and handler(self, pressed):
+                pass
+            elif pressed & LKEY_BITS["MENU"]:
+                self.menu = QuickMenu()             # Seite ohne eigenes MENU: Schnellmenü
+                self.flash = None
+                self.next_draw = 0
+            else:
                 self.nav_keys(pressed, LKEY_BITS["RIGHT"] | LKEY_BITS["DOWN"], LKEY_BITS["LEFT"] | LKEY_BITS["UP"])
         if self.args.debug:
             for name, bit in LKEY_BITS.items():
                 if pressed & bit:
                     print(f"  Displaytaste {name}")
+
+    def settings_hold(self, now):
+        """Anteil 0…1 bis zur Profilauswahl, solange SETTINGS gehalten wird (sonst None)."""
+        if self.settings_down is None or self.menu is not None or now - self.settings_down < HOLD_BAR_AFTER:
+            return None
+        return (now - self.settings_down) / LONG_PRESS
 
     def settings_key_tick(self, now):
         """SETTINGS wird seit LONG_PRESS gehalten: Profilauswahl öffnen (schon während des Haltens)."""
@@ -10818,11 +11065,23 @@ class TimedTasks:
             self.next_draw = 0
         elif (ss.get("enabled") and not saver["active"] and not self.rec and self.menu is None
               and self.activity.idle() >= max(0.02, float(ss.get("minutes") or 5)) * 60):
-            target = PAGE_IDS.index(ss.get("page")) if ss.get("page") in PAGE_IDS else Renderer.SLIDES_PAGE
+            target = self._saver_target()
             if self.page != target:
                 saver.update(active=True, page=self.page, since=time.monotonic())
                 self.page = target
                 self.next_draw = 0
+
+    def _saver_target(self):
+        ss = self.settings().get("screensaver") or {}
+        return PAGE_IDS.index(ss.get("page")) if ss.get("page") in PAGE_IDS else Renderer.SLIDES_PAGE
+
+    def start_screensaver(self):
+        """Schnellmenü: Bildschirmschoner sofort (endet wie sonst beim nächsten Tastendruck)."""
+        self.saver.update(active=True, page=self.page, since=time.monotonic())
+        self.page = self._saver_target()
+        self.flash = None
+        self.next_draw = 0
+        self.log("Bildschirmschoner: sofort")
 
     def _notifications(self):
         if self.popups and not self.rec and self.menu is None:
@@ -10936,11 +11195,14 @@ class App(AppCore, KeyHandling, TimedTasks):
             return
         try:
             img = self._compose(now)
+            hold = self.settings_hold(now)
+            if hold is not None:
+                img = r.render_hold_bar(img, hold, PROFILE_COLOR[self.layer])
         except Exception as ex:             # eine fehlerhafte Seite darf Treiber und G-Tasten nie stoppen
             img = self._draw_error(ex)
         self._send(img, now)
         fast = rec or self.flash or (self.menu and self.menu.kind == "timer")
-        preview = self.menu is not None and self.menu.kind == "clocks"   # Zifferblatt-Vorschau läuft live
+        preview = self.menu is not None and self.menu.kind in ("clocks", "clock_options")   # Vorschau läuft live
         if not fast and (preview or self.menu is None and PAGE_IDS[self.page % len(PAGE_IDS)] == "clock"):
             fps = clock_fps(r.clock_face, self.settings())
             if fps > 1 and not self.night_dark():   # bewegte Zifferblätter; nachts (gedimmt) 1 Bild/s
@@ -10949,6 +11211,8 @@ class App(AppCore, KeyHandling, TimedTasks):
                 self.next_draw = now + (1.0 - time.time() % 1.0) + 0.02
         else:
             self.next_draw = now + (0.5 if fast else 1.0)
+        if self.settings_down is not None:
+            self.next_draw = min(self.next_draw, now + 0.05)    # Haltebalken von SETTINGS füllt sich
 
     def _compose(self, now):
         """Menü, Aufnahme, Einblendung oder Seite zeichnen."""

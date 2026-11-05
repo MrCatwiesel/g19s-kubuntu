@@ -378,6 +378,37 @@ class AppCore:
                         "sub": str(sn.get("group") or "") if all_groups else ""})
         return out
 
+    def save_setting(self, path, value):
+        """Einen Wert in settings.json setzen (path = Schlüssel-Folge, z. B. ["night", "enabled"]) und
+        gleich übernehmen; die Verwaltung liest ihn beim nächsten Abgleich. True = gespeichert."""
+        try:
+            try:
+                with open(SETTINGS_FILE, encoding="utf-8") as f:
+                    raw = json.load(f)
+            except FileNotFoundError:
+                raw = {}
+            if not isinstance(raw, dict):
+                raise ValueError("settings.json ist kein JSON-Objekt")
+            node = raw
+            for k in path[:-1]:
+                if not isinstance(node.get(k), dict):
+                    node[k] = {}
+                node = node[k]
+            node[path[-1]] = value
+            save_json(SETTINGS_FILE, raw, private=True)
+        except (OSError, ValueError) as ex:
+            self.log(f"Einstellung konnte nicht gespeichert werden: {ex}")
+            return False
+        if self.reload_settings():
+            self.apply_settings()
+        self.next_draw = 0
+        return True
+
+    def set_clock_option(self, face, opt, value):
+        """Option eines Zifferblatts am Display geändert (ClockOptionsMenu)."""
+        if self.save_setting(["clock", face, opt["key"]], value):
+            self.log(f"Uhr-Option: {CLOCK_FACES[face]} · {opt['label']} = {option_text(opt, value)}")
+
     def save_albums(self, selected, albums):
         """Albenauswahl in settings.json schreiben (die Verwaltung liest sie von dort)."""
         try:

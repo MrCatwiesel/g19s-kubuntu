@@ -41,12 +41,15 @@ class RadioManager:
                     return
 
     def _build_cmd(self, cmd, url, stations):
+        """Befehl des Radioplayers. Bei mpv: Senderliste als Wiedergabeliste und kleiner Puffer."""
         import shlex
         try:
             is_mpv = os.path.basename(shlex.split(cmd)[0]) == "mpv"
         except (ValueError, IndexError):
             is_mpv = False
         urls = [s["url"] for s in stations]
+        if is_mpv and not any(o in cmd for o in ("--cache", "--demuxer-max", "--demuxer-readahead")):
+            cmd += f" {MPV_BUFFER}"        # Radio braucht keinen großen Puffer (mpv-Standard: 150 MiB)
         if is_mpv and url in urls:
             playlist = os.path.join(os.environ.get("XDG_RUNTIME_DIR") or CACHE_DIR, "g19s-radio.m3u")
             os.makedirs(os.path.dirname(playlist), exist_ok=True)

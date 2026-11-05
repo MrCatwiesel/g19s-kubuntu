@@ -101,11 +101,14 @@ class App(AppCore, KeyHandling, TimedTasks):
             return
         try:
             img = self._compose(now)
+            hold = self.settings_hold(now)
+            if hold is not None:
+                img = r.render_hold_bar(img, hold, PROFILE_COLOR[self.layer])
         except Exception as ex:             # eine fehlerhafte Seite darf Treiber und G-Tasten nie stoppen
             img = self._draw_error(ex)
         self._send(img, now)
         fast = rec or self.flash or (self.menu and self.menu.kind == "timer")
-        preview = self.menu is not None and self.menu.kind == "clocks"   # Zifferblatt-Vorschau läuft live
+        preview = self.menu is not None and self.menu.kind in ("clocks", "clock_options")   # Vorschau läuft live
         if not fast and (preview or self.menu is None and PAGE_IDS[self.page % len(PAGE_IDS)] == "clock"):
             fps = clock_fps(r.clock_face, self.settings())
             if fps > 1 and not self.night_dark():   # bewegte Zifferblätter; nachts (gedimmt) 1 Bild/s
@@ -114,6 +117,8 @@ class App(AppCore, KeyHandling, TimedTasks):
                 self.next_draw = now + (1.0 - time.time() % 1.0) + 0.02
         else:
             self.next_draw = now + (0.5 if fast else 1.0)
+        if self.settings_down is not None:
+            self.next_draw = min(self.next_draw, now + 0.05)    # Haltebalken von SETTINGS füllt sich
 
     def _compose(self, now):
         """Menü, Aufnahme, Einblendung oder Seite zeichnen."""

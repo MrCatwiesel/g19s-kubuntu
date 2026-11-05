@@ -8,7 +8,8 @@ Displaytasten gehen der Reihe nach an:
      Entschieden wird beim Loslassen bzw. nach LONG_PRESS in settings_key_tick().
   3. das offene Menü (menue_logik)
   4. die Tasten der angezeigten Seite (@page_keys in den Seitenmodulen)
-  5. sonst: Rechts/Runter = nächste Seite, Links/Hoch = vorige Seite
+  5. MENU ohne eigene Funktion der Seite: Schnellmenü (QuickMenu)
+  6. sonst: Rechts/Runter = nächste Seite, Links/Hoch = vorige Seite
 """
 import time
 
@@ -112,7 +113,16 @@ class KeyHandling:
                 if self.rec is None:
                     self.switch_layer(name)
                     self.apply_leds()
+                    self._layer_overlay(name)
                     self.next_draw = 0
+
+    def _layer_overlay(self, layer):
+        """Nach M1/M2/M3 kurz die Belegung der G-Tasten zeigen (abschaltbar: "layer_overlay")."""
+        if (not self.settings().get("layer_overlay", True) or self.night_dark() or self.menu is not None
+                or self.saver["active"] or PAGE_IDS[self.page % len(PAGE_IDS)] == "macros"):
+            return
+        keys = self.store.keys(self.prof_idx)
+        self.popup(lambda: self.renderer.render_layer_keys(layer, keys), LAYER_OVERLAY_SECONDS)
 
     def _record_key(self):
         """MR: Aufnahme starten / beenden / abbrechen."""
@@ -198,16 +208,29 @@ class KeyHandling:
                 self._settings_key(long=False)
         if self.menu is None and pressed & settings:
             self.settings_down = time.monotonic()           # kurz oder lang? → Loslassen / settings_key_tick
+            self.next_draw = min(self.next_draw, self.settings_down + HOLD_BAR_AFTER)   # Haltebalken
         elif self.menu is not None:
             self.menu.on_key(self, pressed)
         else:
             handler = PAGE_KEYS.get(PAGE_IDS[self.page % len(PAGE_IDS)])
-            if not (handler and handler(self, pressed)):
+            if handler and handler(self, pressed):
+                pass
+            elif pressed & LKEY_BITS["MENU"]:
+                self.menu = QuickMenu()             # Seite ohne eigenes MENU: Schnellmenü
+                self.flash = None
+                self.next_draw = 0
+            else:
                 self.nav_keys(pressed, LKEY_BITS["RIGHT"] | LKEY_BITS["DOWN"], LKEY_BITS["LEFT"] | LKEY_BITS["UP"])
         if self.args.debug:
             for name, bit in LKEY_BITS.items():
                 if pressed & bit:
                     print(f"  Displaytaste {name}")
+
+    def settings_hold(self, now):
+        """Anteil 0…1 bis zur Profilauswahl, solange SETTINGS gehalten wird (sonst None)."""
+        if self.settings_down is None or self.menu is not None or now - self.settings_down < HOLD_BAR_AFTER:
+            return None
+        return (now - self.settings_down) / LONG_PRESS
 
     def settings_key_tick(self, now):
         """SETTINGS wird seit LONG_PRESS gehalten: Profilauswahl öffnen (schon während des Haltens)."""

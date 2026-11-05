@@ -28,6 +28,9 @@ LKEY_BITS = {
     "SETTINGS": 0x01, "BACK": 0x02, "MENU": 0x04, "OK": 0x08,
     "RIGHT": 0x10, "LEFT": 0x20, "DOWN": 0x40, "UP": 0x80,
 }
+MPV_BUFFER = "--demuxer-max-bytes=4MiB --demuxer-max-back-bytes=1MiB"   # an mpv angehängt (außer eigene Puffer-Angaben)
+LAYER_OVERLAY_SECONDS = 2.0  # M1/M2/M3: so lange die Belegung der G-Tasten einblenden ("layer_overlay")
+HOLD_BAR_AFTER = 0.25       # SETTINGS so lange gehalten: Balken bis zur Profilauswahl zeigen
 LONG_PRESS = 1.0            # Sekunden: SETTINGS so lange halten = Profilauswahl (kurz: Uhrseite → Zifferblätter)
 
 # LED-Bits der M-Tasten
@@ -145,6 +148,12 @@ CLOCK_OPTIONS = {
         {"key": "color", "label": "Farbe der leuchtenden Wörter", "type": "color", "default": None, "none_label": _LAYER},
     ],
 }
+# Farben, die am Display für Farb-Optionen der Zifferblätter durchgeschaltet werden (None = Standard)
+CLOCK_COLOR_CHOICES = [
+    (None, "Standard"), ([255, 255, 255], "Weiß"), ([230, 40, 40], "Rot"), ([255, 140, 0], "Orange"),
+    ([255, 215, 0], "Gelb"), ([40, 200, 80], "Grün"), ([0, 200, 200], "Türkis"), ([30, 120, 255], "Blau"),
+    ([150, 80, 255], "Violett"), ([255, 80, 180], "Pink"),
+]
 OLD_CLOCK_PAGES = {"clock_chrono": "chrono", "clock_steampunk": "steampunk",      # Version 2026.09.28-8/-9
                    "clock_station": "station", "clock_binary": "binary"}
 DEFAULT_PAGE_ORDER = ["clock", "music", "weather", "calendar", "hardware", "macros", "slides"]

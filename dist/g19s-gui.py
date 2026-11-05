@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.05-1"
+VERSION = "2026.11.05-2"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -1690,7 +1690,8 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
           <label class="check"><input type="checkbox" id="brightOn"> Helligkeit festlegen</label>
           <div class="row" style="margin-bottom:14px"><input type="range" id="bright" min="0" max="100" step="5"> <span id="brightVal" class="muted"></span></div>
           <label class="field" style="max-width:260px"><span>Startseite nach dem Start (Ebene M1)</span><select id="startPage"></select></label>
-          <p class="hint" style="max-width:300px">Displaytasten: Links/Rechts blättern. Musikseite: OK = Play/Pause, Hoch/Runter = Titel, MENU = Senderliste, BACK = Radio aus. Terminseite: Hoch/Runter = Termin markieren, OK = Details, MENU = Kalender wählen.</p>
+          <label class="check" style="max-width:300px"><input type="checkbox" id="layerOverlay"> Beim Wechsel der Ebene (M1/M2/M3) die Belegung der G-Tasten kurz einblenden</label>
+          <p class="hint" style="max-width:300px">Displaytasten: Links/Rechts blättern. SETTINGS lang = Profil wählen. Uhr: MENU oder SETTINGS kurz = Zifferblatt, dort ► = Optionen. Makros, Wetter, Hardware: MENU = Schnellmenü (Helligkeit, Nachtmodus, Diashow, Bildschirmschoner). Musikseite: OK = Play/Pause, Hoch/Runter = Titel, MENU = Senderliste, BACK = Radio aus. Terminseite: Hoch/Runter = Termin markieren, OK = Details, MENU = Kalender wählen.</p>
         </div>
         <div>
           <div class="row" style="margin-bottom:10px">
@@ -2891,6 +2892,7 @@ function renderSettings() {
   $("#volStep").value = sd.volume_step;
   $("#timerSound").checked = sd.timer_sound;
   $("#mediaKeys").checked = sd.media_keys !== false;
+  $("#layerOverlay").checked = sd.layer_overlay !== false;
   $("#pvProfiles").replaceChildren(...PROFILES.map(p => el("button", {class: p === UI.pvProfile ? "active" : "", text: p,
     onclick: () => { UI.pvProfile = p; renderSettings(); refreshPreview(); }})));
 }
@@ -2967,6 +2969,7 @@ $("#saverMin").addEventListener("input", e => { UI.sdraft.screensaver.minutes = 
 $("#saverPage").addEventListener("change", e => { UI.sdraft.screensaver.page = e.target.value; touchSettings(); });
 $("#volStep").addEventListener("input", e => { UI.sdraft.volume_step = Math.max(1, Math.min(25, parseInt(e.target.value) || 5)); touchSettings(); });
 $("#mediaKeys").addEventListener("change", e => { UI.sdraft.media_keys = e.target.checked; touchSettings(); });
+$("#layerOverlay").addEventListener("change", e => { UI.sdraft.layer_overlay = e.target.checked; touchSettings(); });
 // Vorschau nach Änderungen an den Einstellungen verzögert neu laden (touchSettings ruft das auf)
 let pvTimer = null;
 function schedulePreview() { clearTimeout(pvTimer); pvTimer = setTimeout(refreshPreview, 250); }

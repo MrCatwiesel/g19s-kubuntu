@@ -261,11 +261,23 @@ class TimedTasks:
             self.next_draw = 0
         elif (ss.get("enabled") and not saver["active"] and not self.rec and self.menu is None
               and self.activity.idle() >= max(0.02, float(ss.get("minutes") or 5)) * 60):
-            target = PAGE_IDS.index(ss.get("page")) if ss.get("page") in PAGE_IDS else Renderer.SLIDES_PAGE
+            target = self._saver_target()
             if self.page != target:
                 saver.update(active=True, page=self.page, since=time.monotonic())
                 self.page = target
                 self.next_draw = 0
+
+    def _saver_target(self):
+        ss = self.settings().get("screensaver") or {}
+        return PAGE_IDS.index(ss.get("page")) if ss.get("page") in PAGE_IDS else Renderer.SLIDES_PAGE
+
+    def start_screensaver(self):
+        """Schnellmenü: Bildschirmschoner sofort (endet wie sonst beim nächsten Tastendruck)."""
+        self.saver.update(active=True, page=self.page, since=time.monotonic())
+        self.page = self._saver_target()
+        self.flash = None
+        self.next_draw = 0
+        self.log("Bildschirmschoner: sofort")
 
     def _notifications(self):
         if self.popups and not self.rec and self.menu is None:

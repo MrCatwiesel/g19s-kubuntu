@@ -208,7 +208,7 @@ Alle Änderungen übernimmt der laufende Treiber sofort, ein Neustart ist nicht 
 |-
 | '''Tasten''' || Profil wählen (anlegen, kopieren, umbenennen, sortieren, löschen, Farben je Ebene, '''An der Tastatur aktivieren'''), dann Ebene M1/M2/M3 und G-Taste anklicken, Aktion wählen, '''Übernehmen'''. Makros können direkt im Fenster aufgenommen und Schritt für Schritt bearbeitet werden (Pausen, Tasten, Reihenfolge).
 |-
-| '''Radiosender''' || Senderliste anlegen, sortieren, probehören. '''Sender suchen''' durchsucht das freie Verzeichnis radio-browser.info. '''Radiowecker''' (Uhrzeit, Wochentage, Sender). '''Gemerkte Songs''' mit Links zur Suche bei YouTube und Spotify. Player-Befehl einstellbar.
+| '''Radiosender''' || Senderliste anlegen, sortieren, probehören. '''Sender suchen''' durchsucht das freie Verzeichnis radio-browser.info. '''Radiowecker''' (Uhrzeit, Wochentage, Sender). '''Gemerkte Songs''' mit Links zur Suche bei YouTube und Spotify. Player-Befehl einstellbar. Bei mpv hängt der Treiber einen kleinen Puffer an (<code>--demuxer-max-bytes=4MiB --demuxer-max-back-bytes=1MiB</code>, sonst belegt mpv bis zu 150 MiB) – außer der eigene Befehl enthält schon Angaben wie <code>--cache</code> oder <code>--demuxer-max-…</code>.
 |-
 | '''Textbausteine''' || Texte für die Auswahl am Display anlegen, sortieren, in Gruppen ordnen; je Text die Einfügeart (Zwischenablage oder tippen); Schalter „vorherigen Inhalt der Zwischenablage zurückholen“.
 |-
@@ -279,6 +279,8 @@ Bis zu 10 Profile. '''SETTINGS lang drücken''' (1 Sekunde) öffnet auf jeder Se
 |-
 | BACK oder SETTINGS || ohne Wechsel schließen
 |}
+Hält man SETTINGS, erscheint nach einer Viertelsekunde unten ein Balken „Halten: Profil wählen“, der sich bis zur Profilliste füllt – wer früher loslässt, bekommt den kurzen Druck.
+
 Das aktive Profil steht in der Fußzeile des Displays und bleibt nach einem Neustart erhalten. In der Verwaltung lässt sich ein Profil auch mit '''An der Tastatur aktivieren''' einschalten.
 
 === Ebenen (M-Tasten) ===
@@ -294,6 +296,8 @@ Innerhalb eines Profils schalten '''M1/M2/M3''' zwischen drei Ebenen um (je 12 G
 |}
 Hat eine G-Taste eine eigene Aktion (Text, Makro, Webseite …), wird diese ausgeführt statt der F-Taste.
 
+Nach dem Druck auf eine M-Taste zeigt das Display '''2 Sekunden lang die Belegung der G-Tasten''' der Ebene (farbig umrahmt, unten „Ebene M2“). Ein Druck auf die M-Taste der gerade aktiven Ebene zeigt sie ebenso – praktisch zum Nachsehen. Nicht auf der Seite „Makros“ (die zeigt die Belegung ohnehin) und nicht nachts. Abschaltbar unter '''Beleuchtung & Display → Display → Beim Wechsel der Ebene die Belegung der G-Tasten kurz einblenden'''.
+
 <div style="border-left:4px solid #3366cc; background:#eaf3ff; padding:0.5em 1em; margin:1em 0;">'''Hinweis:''' KDE-Kurzbefehle (F13–F24) gelten in allen Profilen gleich, weil KDE die Profile nicht kennt. Für Belegungen, die sich je Profil unterscheiden sollen, die Aktionen der Verwaltung verwenden (Text, Programm, Webseite …).</div>
 
 === Makro aufnehmen (MR) ===
@@ -308,6 +312,23 @@ Hat eine G-Taste eine eigene Aktion (Text, Makro, Webseite …), wird diese ausg
 
 === Displayseiten ===
 Mit den Displaytasten '''Links/Rechts''' blättern. Standardreihenfolge: '''Uhr → Musik → Wetter → Termine → Hardware → Makros → Bilder'''. Welche Seiten erscheinen und in welcher Reihenfolge, wird in der Verwaltung unter '''Beleuchtung & Display → Displayseiten''' festgelegt – '''für jede Ebene M1/M2/M3 getrennt'''. Beispiel: Die Uhr nur in M3, in M1 und M2 dafür Musik und Termine. Zusätzlich kann jedes Profil '''eigene Seiten''' bekommen: oben bei '''Gilt für''' das Profil wählen und '''Eigene Seiten für dieses Profil festlegen'''. Diese Änderungen werden sofort gespeichert; '''Wieder Standard verwenden''' löscht sie. Beim Umschalten mit einer M-Taste oder des Profils wechselt das Display auf die Seiten dieser Ebene und merkt sich je Ebene die zuletzt gezeigte Seite. '''Auf alle Ebenen übertragen''' kopiert die Auswahl der gerade gewählten Ebene auf die beiden anderen. Die Punkte in der Fußzeile zeigen, auf welcher Seite man sich befindet.
+
+=== Schnellmenü (MENU) ===
+Auf den Seiten '''Makros''', '''Wetter''' und '''Hardware''' (sie haben keine eigene MENU-Funktion) öffnet '''MENU''' das Schnellmenü:
+{| class="wikitable"
+! Eintrag !! Bedienung
+|-
+| Helligkeit || Links/Rechts (oder OK) in 10-%-Schritten, 10–100 %; wird gespeichert wie in der Verwaltung
+|-
+| Nachtmodus (Zeitplan) || Links/Rechts oder OK schaltet den Nachtmodus mit den Zeiten aus der Verwaltung ein oder aus
+|-
+| Diashow || pausieren / fortsetzen
+|-
+| Bildschirmschoner jetzt || OK zeigt sofort die Seite des Bildschirmschoners; der nächste Tastendruck beendet ihn
+|-
+| Profil wählen || OK öffnet die Profilliste
+|}
+Hoch/Runter wählen, '''BACK''', '''MENU''' oder '''SETTINGS''' schließen. Nach 30 Sekunden ohne Tastendruck schließt es sich von selbst.
 
 {| class="wikitable"
 ! Seite !! Inhalt
@@ -395,7 +416,7 @@ Ein kleines gefülltes Quadrat bedeutet: Das Album ist über ein gewähltes Ober
 Die Bilder werden nur geladen, solange die Seite „Bilder“ angezeigt wird. Die Bildliste wird alle 30 Minuten neu abgerufen, neue Fotos in den Alben bzw. im Ordner erscheinen also automatisch.
 
 === Zifferblatt der Uhr ===
-Auf der Seite '''Uhr''' öffnen '''MENU''' und ein kurzer Druck auf '''SETTINGS''' die Liste '''Zifferblatt''' mit bis zu 25 Zifferblättern. Das markierte Zifferblatt wird dabei gleich groß und mit laufenden Zeigern gezeigt (oben Name und Position, z. B. 4/25). Mit Hoch/Runter blättern, '''OK''' übernimmt, '''BACK''' schließt ohne Änderung. Das Zifferblatt gilt für das aktive Profil und die aktive Ebene – z. B. im Profil „Büro“ unter M1 die Digitaluhr und unter M3 die Bahnhofsuhr. Es wird in <code>macros.json</code> beim Profil gespeichert (<code>"clock": {"M3": "station"}</code>) und gilt auch, wenn die Uhr als Bildschirmschoner erscheint. In der Seitenliste der Verwaltung gibt es nur die Seite „Uhr“.
+Auf der Seite '''Uhr''' öffnen '''MENU''' und ein kurzer Druck auf '''SETTINGS''' die Liste '''Zifferblatt''' mit bis zu 25 Zifferblättern. Das markierte Zifferblatt wird dabei gleich groß und mit laufenden Zeigern gezeigt (oben Name und Position, z. B. 4/25). Mit Hoch/Runter blättern, '''OK''' übernimmt, '''BACK''' schließt ohne Änderung. '''Rechts (►)''' öffnet die '''Optionen''' des markierten Zifferblatts (z. B. Sekunden, Datum, Farbe, Darstellung): Das Zifferblatt läuft weiter groß als Vorschau, unten steht die gewählte Option mit ihrem Wert. Hoch/Runter wählt die Option, Links/Rechts (oder OK) ändert den Wert – Farben werden aus Standard, Weiß, Rot, Orange, Gelb, Grün, Türkis, Blau, Violett und Pink gewählt. Jede Änderung gilt sofort und steht in <code>settings.json</code> (dieselben Einstellungen wie in der Verwaltung). '''BACK''' führt zurück zur Liste. Die Städte der Weltzeituhr lassen sich nur in der Verwaltung ändern; Zifferblätter ohne Optionen zeigen kein ►. Das Zifferblatt gilt für das aktive Profil und die aktive Ebene – z. B. im Profil „Büro“ unter M1 die Digitaluhr und unter M3 die Bahnhofsuhr. Es wird in <code>macros.json</code> beim Profil gespeichert (<code>"clock": {"M3": "station"}</code>) und gilt auch, wenn die Uhr als Bildschirmschoner erscheint. In der Seitenliste der Verwaltung gibt es nur die Seite „Uhr“.
 
 '''Einstellungen in der Verwaltung''' (Beleuchtung & Display → '''Uhr'''): oben ein Zifferblatt wählen – daneben erscheint eine Vorschau –, darunter seine Einstellungen. Farben stehen auf „Farbe der Ebene“ bzw. „Standard“, bis eine eigene Farbe gewählt wird. Unter '''Im Displaymenü anbieten''' die Zifferblätter abhaken, die in der Liste am Display nicht erscheinen sollen. Gespeichert wird mit den übrigen Einstellungen in <code>settings.json</code> (<code>"clock"</code>).
 {| class="wikitable"
@@ -821,6 +842,7 @@ getfacl /dev/bus/usb/BUS/GERÄT                      # Rechte (Nummern aus lsusb
 |-
 | <code>0x83</code> (Interface 1) || Interrupt IN || G-/M-Tasten, nur Report-ID <code>0x02</code> auswerten
 |}
+* MENU auf Seiten ohne eigene Tastenfunktion für MENU öffnet <code>QuickMenu</code>; in der Zifferblatt-Liste öffnet Rechts <code>ClockOptionsMenu</code> (Optionen aus <code>CLOCK_OPTIONS</code>, Typen bool/choice/color, Farben aus <code>CLOCK_COLOR_CHOICES</code>, Speichern über <code>save_setting</code>).
 * Displaytaste SETTINGS (<code>0x01</code>): ab 1 s gehalten (<code>LONG_PRESS</code>) Profilmenü, kurz auf der Uhrseite die Zifferblätter, sonst ebenfalls das Profilmenü. Entschieden wird beim Loslassen bzw. nach 1 s (<code>settings_key_tick</code>).
 * Report <code>0x02</code>: Byte 1 = G1–G8 (Bit 0–7), Byte 2 = G9–G12 (Bit 0–3), M1 0x10, M2 0x20, M3 0x40, MR 0x80.
 * Report <code>0x03</code> (7 Bytes) ist ein zusätzlicher Tastatur-Report (G1 = F1 usw.). Die G19s schickt oft zwei Reports in einem Paket: Report <code>0x03</code> und direkt dahinter Report <code>0x02</code> (4 Bytes), z. B. <code>03 3a 00 00 00 00 00 02 00 00 40</code> = G1 als F1 + G-Tasten losgelassen, oder <code>03 00 00 00 00 00 00 02 80 00 40</code> = leerer Tastatur-Report + G8 gedrückt. Der Treiber zerlegt jedes Paket und wertet alle Reports der Reihe nach aus. Als Rückfallebene gilt weiter: Report <code>0x03</code> nur mit Nullen = alle G-Tasten los, derselbe Report <code>0x02</code> noch einmal = erneuter Druck. <code>--debug</code> zeigt die Reports eines Pakets durch <code>|</code> getrennt.

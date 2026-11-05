@@ -3,6 +3,13 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.05-2
+- Neu: Optionen der Zifferblätter direkt am Display ändern – in der Zifferblatt-Liste (Uhr: MENU oder SETTINGS kurz) öffnet Rechts die Optionen des markierten Zifferblatts, z. B. Sekunden, Datum, Farbe oder Darstellung. Das Zifferblatt läuft dabei als Vorschau mit, jede Änderung gilt sofort.
+- Neu: Schnellmenü per MENU auf den Seiten Makros, Wetter und Hardware – Helligkeit, Nachtmodus ein/aus, Diashow pausieren, Bildschirmschoner sofort, Profil wählen.
+- Neu: Nach dem Druck auf M1/M2/M3 zeigt das Display 2 Sekunden lang die Belegung der G-Tasten dieser Ebene. Abschaltbar unter „Beleuchtung & Display → Display“.
+- Neu: Hält man SETTINGS, füllt sich ein Balken bis zur Profilauswahl.
+- Radio mit mpv braucht deutlich weniger Arbeitsspeicher (kleiner Puffer statt bis zu 150 MiB). Eigene Puffer-Angaben im Player-Befehl haben Vorrang.
+
 ## 2026.11.05-1
 - SETTINGS muss jetzt 1 Sekunde gehalten werden, um die Profilauswahl zu öffnen (bisher 0,6 s) – so öffnet ein etwas längerer kurzer Druck auf der Uhrseite nicht versehentlich die Profile.
 
