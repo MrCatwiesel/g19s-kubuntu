@@ -97,7 +97,8 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
 
 ## Offene Punkte
 1. Neu zu 2026.11.05-2 am Gerät prüfen: Haltebalken, Zifferblatt-Optionen (►), Schnellmenü (Makros/Wetter/Hardware),
-   Einblendung bei M1/M2/M3, mpv-Speicher beim Radio (sollte deutlich unter 150 MB bleiben).
+   Einblendung bei M1/M2/M3, mpv-Speicher beim Radio (2026-11-05 12:20: 79 MB RSS kurz nach Start, vorher 158 MB beim Start;
+   Langzeitwert noch offen, Befehlszeile mit `ps -ww` noch nicht gesehen).
    Zu 2026.11.04-1: SETTINGS kurz/lang (Haltezeit seit -05-1 1 s).
    Offen zu 2026.10.01-8: erscheint außerhalb von RDP auch die KDE-Lautstärkeanzeige (osdService unter Plasma 6)?
    Nutzer bestätigte nur die Prozentanzeige auf dem G19s-Display.
