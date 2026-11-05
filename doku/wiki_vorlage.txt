@@ -902,6 +902,9 @@ getfacl /dev/bus/usb/BUS/GERÄT                      # Rechte (Nummern aus lsusb
 ** Die Anwendung besteht aus <code>AppCore</code> (Zustand, Profile, Licht), <code>KeyHandling</code> (Tasten) und <code>TimedTasks</code> (Zeitaufgaben).
 ** Das Projektarchiv mit allen Modulen, dem Bauskript <code>build.py</code> und den automatischen Tests (Einheitentests, Bildvergleiche aller Displayseiten, Bediensimulationen, Oberflächentests) liegt auf GitHub: https://github.com/MrCatwiesel/g19s-kubuntu
 
+== Unterstützen ==
+Der G19s-Treiber ist kostenlos und quelloffen (MIT-Lizenz) und bleibt es auch. Wenn er dir gefällt, freut sich der Entwickler über einen Kaffee – zum Beispiel 3 €, ganz freiwillig: [https://www.paypal.me/MrCatwiesel paypal.me/MrCatwiesel]. Der Link steht auch in der Verwaltung unter '''Dienst & Sicherung'''.
+
 [[Kategorie:Linux]]
 [[Kategorie:Hardware]]
 [[Kategorie:Kubuntu]]

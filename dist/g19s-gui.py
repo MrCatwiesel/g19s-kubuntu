@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.05-8"
+VERSION = "2026.11.05-9"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -2001,6 +2001,11 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
     <div class="card">
       <h2>Dateien</h2>
       <div class="kv" id="paths"></div>
+    </div>
+    <div class="card">
+      <h2>☕ Projekt unterstützen</h2>
+      <p class="hint" style="max-width:640px">Der G19s-Treiber ist kostenlos und quelloffen (MIT-Lizenz) und bleibt es auch. Wenn er dir gefällt, freut sich der Entwickler über einen Kaffee – zum Beispiel 3 €, ganz freiwillig.</p>
+      <a class="btn" id="donate" href="https://www.paypal.me/MrCatwiesel" target="_blank" rel="noopener">Über PayPal unterstützen</a>
     </div>
   </section>
 </main>

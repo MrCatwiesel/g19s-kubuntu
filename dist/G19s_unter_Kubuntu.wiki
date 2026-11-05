@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.11.05-8)
+| 28.09.2026 (Version 2026.11.05-9)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -166,7 +166,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.05-8"
+VERSION = "2026.11.05-9"
 
 # Weitere Importe der Module
 import select
@@ -13160,7 +13160,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.05-8"
+VERSION = "2026.11.05-9"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -15121,6 +15121,11 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
     <div class="card">
       <h2>Dateien</h2>
       <div class="kv" id="paths"></div>
+    </div>
+    <div class="card">
+      <h2>☕ Projekt unterstützen</h2>
+      <p class="hint" style="max-width:640px">Der G19s-Treiber ist kostenlos und quelloffen (MIT-Lizenz) und bleibt es auch. Wenn er dir gefällt, freut sich der Entwickler über einen Kaffee – zum Beispiel 3 €, ganz freiwillig.</p>
+      <a class="btn" id="donate" href="https://www.paypal.me/MrCatwiesel" target="_blank" rel="noopener">Über PayPal unterstützen</a>
     </div>
   </section>
 </main>
@@ -17596,6 +17601,9 @@ getfacl /dev/bus/usb/BUS/GERÄT                      # Rechte (Nummern aus lsusb
 ** Displayseiten melden sich mit <code>@page("id")</code> an, ihre Tasten mit <code>@page_keys("id")</code>; Menüs am Display sind Klassen (<code>ProfileMenu</code>, <code>CalendarMenu</code>, <code>AlbumMenu</code>, …); G-Tasten-Aktionen stehen in einer Tabelle (<code>@gkey_action</code>).
 ** Die Anwendung besteht aus <code>AppCore</code> (Zustand, Profile, Licht), <code>KeyHandling</code> (Tasten) und <code>TimedTasks</code> (Zeitaufgaben).
 ** Das Projektarchiv mit allen Modulen, dem Bauskript <code>build.py</code> und den automatischen Tests (Einheitentests, Bildvergleiche aller Displayseiten, Bediensimulationen, Oberflächentests) liegt auf GitHub: https://github.com/MrCatwiesel/g19s-kubuntu
+
+== Unterstützen ==
+Der G19s-Treiber ist kostenlos und quelloffen (MIT-Lizenz) und bleibt es auch. Wenn er dir gefällt, freut sich der Entwickler über einen Kaffee – zum Beispiel 3 €, ganz freiwillig: [https://www.paypal.me/MrCatwiesel paypal.me/MrCatwiesel]. Der Link steht auch in der Verwaltung unter '''Dienst & Sicherung'''.
 
 [[Kategorie:Linux]]
 [[Kategorie:Hardware]]

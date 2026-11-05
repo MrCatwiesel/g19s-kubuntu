@@ -62,6 +62,11 @@ python3 build.py && python3 tests/run_tests.py
 GitHub Actions führt bei jedem Push alle Tests aus. Auf `main` entsteht danach automatisch
 ein Release, sobald die Version in `src/*/kopf.py` neu ist.
 
+## Unterstützen
+
+Der Treiber ist kostenlos und bleibt es. Wenn er dir gefällt, freue ich mich über einen Kaffee –
+zum Beispiel 3 €, ganz freiwillig: [paypal.me/MrCatwiesel](https://www.paypal.me/MrCatwiesel)
+
 ## Lizenz
 
 [MIT](LICENSE). Nicht mit Logitech verbunden; „Logitech“ und „G19s“ sind Marken ihrer Inhaber.
