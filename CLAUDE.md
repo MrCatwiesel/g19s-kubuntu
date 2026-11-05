@@ -106,8 +106,13 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
   das Einfügen. Bei Ärger mit Einfügen in RDP zuerst den xfreerdp-Aufruf prüfen.
 
 ## Offene Punkte
-1. Neu zu 2026.11.05-3 am Gerät prüfen: Visualisierung – startet pw-record (Journal „höre den Ausgang mit“)?
-   Reagiert sie auf Musik, Takt/Tastaturlicht, CPU-Last (ps), Plasma-Aufnahmesymbol?
+1. Zu 2026.11.05-3 (Journal 2026-11-05 13:41): pw-record startet und läuft (kein „hat sich beendet“) – „-“ als stdout
+   wird also angenommen. NOCH OFFEN: hört es wirklich den Ausgang (Monitor) und nicht das Mikrofon? Test erbeten:
+   Radio aus + ins Mikrofon sprechen → muss „Keine Wiedergabe“ bleiben; `pactl list source-outputs | grep -iE
+   'source|G19s'` bzw. `wpctl status` (Streams). Außerdem Takt/Tastaturlicht, CPU (`ps -o pcpu,rss,args -C python3,pw-record`).
+   Beobachtet im selben Journal (Lauf 12:17–13:39, Version -2): 6:51 min CPU in 82 min, memory peak 945 MB (cgroup,
+   inkl. mpv und Seitencache – Diashow lädt 1217 Piwigo-Bilder); viele Timeouts von Piwigo/Radio-Titel und einmal
+   DNS-Fehler → Netzproblem, nicht Treiber. Nutzer hat im Schnellmenü „Nachtmodus (Zeitplan)“ auf an gelassen.
    Zu 2026.11.05-2: Haltebalken, Zifferblatt-Optionen (►), Schnellmenü (Makros/Wetter/Hardware),
    Einblendung bei M1/M2/M3, mpv-Speicher am Gerät BESTÄTIGT (2026-11-05: nach 1:18 h 84 MB RSS statt
    ~311 MB, Befehlszeile endet mit den --demuxer-Optionen).
