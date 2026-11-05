@@ -4,6 +4,7 @@ async function loadState() {
   S.macros = d.macros; S.settings = d.settings; S.keys = d.keys; S.media = d.media; S.pages = d.pages; S.pageIds = d.page_ids; S.volume = d.volume;
   S.entryTypes = d.entry_types;
   S.clockFaces = d.clock_faces; S.clockOptions = d.clock_options; S.worldCities = d.world_cities;
+  S.visualStyles = d.visual_styles; S.visualOptions = d.visual_options;
   S.active = d.active; S.maxProfiles = d.max_profiles;
   if (UI.pidx === undefined) UI.pidx = d.active;
   UI.pidx = Math.min(UI.pidx, S.macros.profiles.length - 1);

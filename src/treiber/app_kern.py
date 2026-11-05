@@ -84,6 +84,8 @@ class AppCore:
         self.netpoll = r.net = NetworkPoller(self.settings, log=self.log)
         self.updates = r.updates = UpdatesPoller(self.settings, log=self.log)
         self.activity = ActivityWatcher(log=self.log)
+        self.visual = r.visual = SoundAnalyzer(self.launcher._env, log=self.log)
+        self._vis_light, self._vis_light_t = None, 0.0     # Tastaturlicht im Takt (zuletzt gesetzte Farbe)
         self.mediakeys = MediaKeys(lambda: self.settings().get("media_keys", True), self.handle_media_key, log=self.log)
         self.services = [self.media, self.slideshow, self.weather, self.calendar, self.news, self.alerts,
                          self.netpoll, self.updates, self.activity, self.mediakeys]
@@ -404,10 +406,21 @@ class AppCore:
         self.next_draw = 0
         return True
 
-    def set_clock_option(self, face, opt, value):
-        """Option eines Zifferblatts am Display geändert (ClockOptionsMenu)."""
-        if self.save_setting(["clock", face, opt["key"]], value):
-            self.log(f"Uhr-Option: {CLOCK_FACES[face]} · {opt['label']} = {option_text(opt, value)}")
+    def set_item_option(self, section, item, opt, value):
+        """Option eines Zifferblatts ("clock") bzw. Stils der Visualisierung ("visual") am Display geändert."""
+        if self.save_setting([section, item, opt["key"]], value):
+            if section == "clock":
+                self.log(f"Uhr-Option: {CLOCK_FACES[item]} · {opt['label']} = {option_text(opt, value)}")
+            else:
+                self.log(f"Visualisierung-Option: {VISUAL_STYLES[item]} · {opt['label']} = {option_text(opt, value)}")
+
+    def visual_style(self):
+        style = (self.settings().get("visual") or {}).get("style")
+        return style if style in VISUAL_STYLES else "eq"
+
+    def set_visual_style(self, style):
+        if self.save_setting(["visual", "style"], style):
+            self.log(f"Visualisierung: {VISUAL_STYLES[style]}")
 
     def save_albums(self, selected, albums):
         """Albenauswahl in settings.json schreiben (die Verwaltung liest sie von dort)."""

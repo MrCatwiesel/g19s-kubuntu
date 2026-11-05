@@ -6,6 +6,7 @@ tastatur
 makros
 timer
 audio
+klanganalyse
 geraet
 eingabe
 medientasten
@@ -44,6 +45,7 @@ seite_nachrichten
 seite_unwetter
 seite_netzwerk
 seite_updates
+seite_visual
 menues
 einblendungen
 anzeige

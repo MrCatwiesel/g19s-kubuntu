@@ -3,8 +3,8 @@
 Displaytasten gehen der Reihe nach an:
   1. Vorrang-Regeln: nachts weckt der erste Druck nur, der Bildschirmschoner
      endet nur, ein abgelaufener Timer bzw. eine Erinnerung wird nur bestätigt
-  2. SETTINGS (ohne offenes Menü): lang gedrückt (LONG_PRESS) die Profilauswahl, kurz
-     auf der Uhrseite die Zifferblätter, auf anderen Seiten ebenfalls die Profilauswahl.
+  2. SETTINGS (ohne offenes Menü): lang gedrückt (LONG_PRESS) die Profilauswahl, kurz auf der
+     Uhrseite die Zifferblätter, auf der Visualisierung die Stile, sonst ebenfalls die Profilauswahl.
      Entschieden wird beim Loslassen bzw. nach LONG_PRESS in settings_key_tick().
   3. das offene Menü (menue_logik)
   4. die Tasten der angezeigten Seite (@page_keys in den Seitenmodulen)
@@ -241,8 +241,11 @@ class KeyHandling:
 
     def _settings_key(self, long):
         """SETTINGS lang: Profilauswahl. Kurz: auf der Uhrseite die Zifferblätter, sonst die Profilauswahl."""
-        if not long and PAGE_IDS[self.page % len(PAGE_IDS)] == "clock":
+        page = PAGE_IDS[self.page % len(PAGE_IDS)]
+        if not long and page == "clock":
             self.menu = ClockMenu(self)
+        elif not long and page == "visual":
+            self.menu = VisualMenu(self)
         else:
             self.menu = ProfileMenu(self.prof_idx)
         if self.args.debug:

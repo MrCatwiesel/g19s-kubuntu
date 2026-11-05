@@ -178,6 +178,22 @@
       <div class="row" style="margin-top:8px"><button class="btn small" id="clkAll">Alle anhaken</button></div>
     </div>
     <div class="card">
+      <h2>Visualisierung</h2>
+      <p class="hint">Die Seite „Visualisierung“ bewegt sich zu allem, was der Rechner gerade abspielt (Radio, Spotify, Browser …). Der Treiber hört dafür den Ausgang mit (<code>pw-record</code>), nur solange die Seite zu sehen ist – es wird nichts gespeichert, das Mikrofon wird nicht benutzt. Seite unter „Displayseiten“ einschalten oder als Bildschirmschoner wählen. Am Display: MENU oder SETTINGS kurz = Stil wählen, dort ► = Optionen.</p>
+      <div class="preview">
+        <div>
+          <label class="field" style="max-width:300px"><span>Stil</span><select id="visStyle"></select></label>
+          <div id="visOpts"></div>
+          <label class="check"><input type="checkbox" id="visBacklight"> Tastaturbeleuchtung pulsiert im Takt</label>
+          <label class="check"><input type="checkbox" id="visTitle"> Laufenden Titel oben anzeigen</label>
+        </div>
+        <div>
+          <img class="lcd" id="visLcd" alt="Vorschau der Visualisierung">
+          <div class="hint" style="margin-top:6px">Vorschau mit künstlicher Musik.</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
       <h2>Nachtmodus</h2>
       <p class="hint">Zu festen Zeiten Display und Beleuchtung abdunkeln. Ein Tastendruck weckt beides für eine Minute.</p>
       <label class="check"><input type="checkbox" id="nightOn"> Nachtmodus verwenden</label>

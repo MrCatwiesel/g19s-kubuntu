@@ -127,6 +127,25 @@ for face in g.CLOCK_FACES:
         scenes[f"uhr_{face}"] = lambda r, face=face: _face(r, face)
 
 
+def _visual(r, style, opts=None):
+    """Seite „Visualisierung“ im Stil style (ohne Klanganalyse: künstliche Musik, eingefrorene Zeit)."""
+    if opts:
+        r.settings = json.loads(json.dumps(settings))
+        r.settings.setdefault("visual", json.loads(json.dumps(g.DEFAULT_SETTINGS["visual"])))
+        r.settings["visual"][style] = dict(g.DEFAULT_SETTINGS["visual"][style], **opts)
+    r.visual_style = style
+    return r.render(g.PAGE_IDS.index("visual"), "M3", macros)
+
+
+for style in g.VISUAL_STYLES:
+    scenes[f"vis_{style}"] = lambda r, style=style: _visual(r, style)
+for name, style, opts in (("eq_gespiegelt", "eq", {"mirror": True, "colors": "rainbow", "bars": "48"}),
+                          ("taenzerin_ohne_buehne", "dancer", {"stage": False, "color": [255, 80, 180]}),
+                          ("oszi_stereo", "scope", {"mode": "xy", "color": [255, 200, 0]}),
+                          ("vu_dunkel", "vu", {"dial": "dark"}), ("spektrogramm_eis", "spectro", {"palette": "ice"})):
+    scenes[f"vis_opt_{name}"] = lambda r, style=style, opts=opts: _visual(r, style, opts)
+
+
 def _face_opt(r, face, opts):
     r.settings = json.loads(json.dumps(settings))
     r.settings.setdefault("clock", json.loads(json.dumps(g.DEFAULT_SETTINGS["clock"])))

@@ -29,9 +29,11 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
       zwischenablage          Texte über die Zwischenablage einfügen (Klipper/wl-copy, Strg+V)
       medientasten            Lautstärkerad/Medientasten exklusiv übernehmen (Consumer-Control-Gerät, grab)
       piwigo … sicherung      Dienste (Radio, Diashow, Wetter, Kalender, RSS, Unwetter, …)
+      klanganalyse            Ausgang mithören (pw-record), FFT/Bänder/Takt für die Visualisierung
       anzeige_basis           Renderer-Grundlage, @page / @page_keys
       seite_*.py              je Displayseite: Zeichnen + Tasten
       uhr_basis, uhr_*.py     Zifferblätter der Seite „Uhr“ (@clock_face), 25 Stück
+      seite_visual            Seite „Visualisierung“, 8 Stile (@vis_style), Optionen VISUAL_OPTIONS
       menues, einblendungen   Zeichnen von Menüs und Einblendungen
       menue_logik             Menü-Klassen (Tasten + draw)
       aktionen                G-Tasten-Aktionen (@gkey_action)

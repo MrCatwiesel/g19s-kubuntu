@@ -34,7 +34,7 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
 - Aus der Sandbox ist `raw.githubusercontent.com` nicht erreichbar; die Update-Suche wird
   mit dem Fake-GitHub (`G19S_UPDATE_URL`, `tests/fakes/infodienste.py`) getestet.
 
-## Stand (2026.11.05-2)
+## Stand (2026.11.05-3)
 - Alle Punkte der Prüfung Sicherheit/Lesbarkeit/Performance umgesetzt; L7 (Umbenennung
   profile→layer) bewusst verworfen.
 - 2026.09.30-5: Update direkt von GitHub (Dienst & Sicherung → „Nach Updates suchen“),
@@ -87,6 +87,16 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
   `night.enabled`, Diashow toggle, `start_screensaver`, Profil; Ebenen-Einblendung `_layer_overlay` →
   `render_layer_keys` (2 s, Einstellung `layer_overlay`, nicht auf Makros-Seite/nachts/bei Menü). s07 schaltet die
   Einblendung ab; Sim `s22_bedienung`. Idee (nicht umgesetzt): SETTINGS kurz außerhalb der Uhr = Schnellmenü statt Profil.
+- 2026.11.05-3: Seite „Visualisierung“ (`visual`, letzte in PAGE_IDS, anfangs nicht in den Seitenlisten). `SoundAnalyzer`
+  (`klanganalyse.py`): pw-record mit `-P '{ stream.capture.sink = true … }' -` (Monitor des Ausgangs; am echten Gerät
+  noch NICHT geprüft, ob pw-record „-“ als stdout und die Eigenschaft so annimmt – sonst parec @DEFAULT_MONITOR@),
+  nur solange `want()` (IDLE_STOP 2 s). 8 Stile in `seite_visual.py` (@vis_style), Stil global in settings.json
+  `visual.style` (bewusst nicht je Profil/Ebene, um macros.json/Verwaltung nicht anzufassen), Optionen VISUAL_OPTIONS.
+  `OptionsMenu(section, item, back)` ersetzt ClockOptionsMenu (für "clock" und "visual"), `VisualMenu`, SETTINGS kurz
+  auf visual = Stile. Tastaturlicht im Takt `_visual_backlight` (visual.backlight, Standard an, Nutzerwunsch).
+  Verwaltung: Karte „Visualisierung“ (`11c_visual.js`, `optionFields` aus 11b_uhr.js gemeinsam). Tests:
+  Fake `tests/fakes/bin/pw-record` (Python, Kick alle 0,5 s), Sim `s23_visualisierung`, `test_klanganalyse.py`,
+  Bilder `vis_*`. Footer-Punkte aller Referenzbilder geändert (12 Seiten).
 - Beobachtet: Benachrichtigungen erscheinen im Journal doppelt (vermutlich sendet Plasma zweimal) – harmlos.
 - Beobachtet (2026-10-02): RDP-Sitzung (xfreerdp/sdl-freerdp 3.32.0 → Windows-PC) brach beim Kopieren bzw.
   ~10 s nach dem Login ab: `cliprdr … Error was 1359 → Network disconnect`. Ursache ist ein FreeRDP-Fehler bei
@@ -96,7 +106,9 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
   das Einfügen. Bei Ärger mit Einfügen in RDP zuerst den xfreerdp-Aufruf prüfen.
 
 ## Offene Punkte
-1. Neu zu 2026.11.05-2 am Gerät prüfen: Haltebalken, Zifferblatt-Optionen (►), Schnellmenü (Makros/Wetter/Hardware),
+1. Neu zu 2026.11.05-3 am Gerät prüfen: Visualisierung – startet pw-record (Journal „höre den Ausgang mit“)?
+   Reagiert sie auf Musik, Takt/Tastaturlicht, CPU-Last (ps), Plasma-Aufnahmesymbol?
+   Zu 2026.11.05-2: Haltebalken, Zifferblatt-Optionen (►), Schnellmenü (Makros/Wetter/Hardware),
    Einblendung bei M1/M2/M3, mpv-Speicher beim Radio (2026-11-05 12:20: 79 MB RSS kurz nach Start, vorher 158 MB beim Start;
    Langzeitwert noch offen, Befehlszeile mit `ps -ww` noch nicht gesehen).
    Zu 2026.11.04-1: SETTINGS kurz/lang (Haltezeit seit -05-1 1 s).

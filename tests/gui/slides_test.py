@@ -37,6 +37,6 @@ with sync_playwright() as p:
     pg.reload(); pg.wait_for_selector(".gkey"); pg.click("nav >> text=Diashow"); pg.wait_for_timeout(1200)
     ok(pg.locator(".album input:checked").count() == 2, "Nach Neustart: Alben automatisch geladen, Auswahl erhalten")
     pg.click("nav >> text=Beleuchtung"); pg.wait_for_timeout(300)
-    ok(pg.locator("#pvPages option").count() == 11 and "Bilder" in pg.inner_text("#startPage"), "Seite Bilder als Startseite/Vorschau wählbar")
+    ok(pg.locator("#pvPages option").count() == 12 and "Bilder" in pg.inner_text("#startPage"), "Seite Bilder als Startseite/Vorschau wählbar")
     b.close()
 print("Seitenfehler:", errors or "keine")

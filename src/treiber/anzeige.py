@@ -6,7 +6,7 @@ render(page, profile, macros) zeichnet eine Seite samt Fußzeile; render_*() zei
 class Renderer(RendererBase,
                ClockPage, ClockBase, StandardFaces, MechanicalFaces, SkyFaces, DisplayFaces, InfoFaces,
                MacrosPage, MusicPage, SlidesPage, WeatherPage, CalendarPage, HardwarePage,
-               NewsPage, WarningsPage, NetworkPage, UpdatesPage,
+               NewsPage, WarningsPage, NetworkPage, UpdatesPage, VisualPage,
                MenuViews, OverlayViews):
     PAGES = len(PAGE_IDS)
     MUSIC_PAGE = PAGE_IDS.index("music")

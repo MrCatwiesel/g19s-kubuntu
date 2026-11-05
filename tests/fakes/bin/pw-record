@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+"""Fake pw-record: 22050 Hz Stereo s16 auf stdout – Bass-Schlag alle 0,5 s plus Ton, in Echtzeit.
+Mit $S/pw-record.still wird Stille geliefert. Aufrufe landen in $S/pw-record.log."""
+import math, os, struct, sys, time
+S = os.path.join(os.environ.get("G19S_TEST_ROOT", "/tmp/g19s-test"), "state")
+os.makedirs(S, exist_ok=True)
+with open(os.path.join(S, "pw-record.log"), "a") as f:
+    f.write(" ".join(sys.argv[1:]) + "\n")
+rate, block, n = 22050, 1024, 0
+start = time.monotonic()
+out = sys.stdout.buffer
+while True:
+    still = os.path.exists(os.path.join(S, "pw-record.still"))
+    buf = bytearray()
+    for i in range(n, n + block):
+        t = i / rate
+        ph = t % 0.5
+        v = 0.0 if still else (0.8 * math.exp(-ph * 14) * math.sin(2 * math.pi * 55 * t) + 0.12 * math.sin(2 * math.pi * 880 * t))
+        s = int(max(-1, min(1, v)) * 32000)
+        buf += struct.pack("<hh", s, int(s * 0.8))
+    n += block
+    try:
+        out.write(buf); out.flush()
+    except BrokenPipeError:
+        break
+    time.sleep(max(0.0, start + n / rate - time.monotonic()))

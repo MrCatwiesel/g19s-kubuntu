@@ -99,7 +99,7 @@ _preview_extra = {"news": PreviewData(g.NewsPoller), "warnings": PreviewData(g.W
 _PREVIEW_ATTR = {"news": "news", "warnings": "alerts", "network": "net", "updates": "updates"}
 
 
-def render_preview(page, layer, settings, pidx=0, colors=None, name=None, face=None):
+def render_preview(page, layer, settings, pidx=0, colors=None, name=None, face=None, style=None):
     global _renderer
     with _preview_lock:
         if _renderer is None:
@@ -129,6 +129,7 @@ def render_preview(page, layer, settings, pidx=0, colors=None, name=None, face=N
         _renderer.settings = s
         _renderer.clock_face = (face if face in g.CLOCK_FACES else      # Karte „Uhr“: gezeigtes Zifferblatt
                                 (prof.get("clock") or {}).get(lay, "digital"))  # sonst: am Display gewähltes
+        _renderer.visual_style = style if style in g.VISUAL_STYLES else s["visual"]["style"]
         _renderer.profile_name = (name if name is not None else prof["name"]) if len(profiles) > 1 else ""
         img = _renderer.render(int(page) % len(g.PAGE_NAMES), layer if layer in g.LAYERS else "M1",
                                prof["keys"])

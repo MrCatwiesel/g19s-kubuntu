@@ -26,8 +26,11 @@ function renderClockOptions() {
   const face = UI.clkFace, opts = S.clockOptions[face] || [], d = clockDraft(face);
   const box = $("#clkOpts");
   if (!opts.length) { box.replaceChildren(el("p", {class: "hint", text: "Für dieses Zifferblatt gibt es keine Einstellungen."})); return; }
-  const changed = () => { touchSettings(); clockPreview(); };
-  box.replaceChildren(...opts.map(o => {
+  box.replaceChildren(...optionFields(opts, d, () => { touchSettings(); clockPreview(); }));
+}
+// Formularfelder für Optionen (CLOCK_OPTIONS/VISUAL_OPTIONS): d = Entwurf des Zifferblatts bzw. Stils
+function optionFields(opts, d, changed) {
+  return opts.map(o => {
     const val = o.key in d ? d[o.key] : o.default;
     if (o.type === "bool")
       return el("label", {class: "check clkopt"}, el("input", {type: "checkbox", checked: !!val,
@@ -58,7 +61,7 @@ function renderClockOptions() {
           S.worldCities.map(([n, tz]) => el("option", {value: tz, text: n}))))));
     }
     return null;
-  }));
+  });
 }
 let clkTimer = null;
 function clockPreview() {

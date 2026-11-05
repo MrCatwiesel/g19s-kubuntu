@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.05-2"
+VERSION = "2026.11.05-3"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -69,7 +69,7 @@ def load_driver():
 
 
 # Alle Namen des Treibers, die die Verwaltung benutzt (g.<name>) – build.py trägt sie beim Bauen ein
-DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD ENTRY_TYPES FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller auto_backup backup_members clean_macros clean_settings err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed save_json save_state test_backup_target valid_colors".split()
+DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD ENTRY_TYPES FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VISUAL_OPTIONS VISUAL_STYLES VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller auto_backup backup_members clean_macros clean_settings err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed save_json save_state test_backup_target valid_colors".split()
 
 
 g = load_driver()
@@ -609,7 +609,7 @@ _preview_extra = {"news": PreviewData(g.NewsPoller), "warnings": PreviewData(g.W
 _PREVIEW_ATTR = {"news": "news", "warnings": "alerts", "network": "net", "updates": "updates"}
 
 
-def render_preview(page, layer, settings, pidx=0, colors=None, name=None, face=None):
+def render_preview(page, layer, settings, pidx=0, colors=None, name=None, face=None, style=None):
     global _renderer
     with _preview_lock:
         if _renderer is None:
@@ -639,6 +639,7 @@ def render_preview(page, layer, settings, pidx=0, colors=None, name=None, face=N
         _renderer.settings = s
         _renderer.clock_face = (face if face in g.CLOCK_FACES else      # Karte „Uhr“: gezeigtes Zifferblatt
                                 (prof.get("clock") or {}).get(lay, "digital"))  # sonst: am Display gewähltes
+        _renderer.visual_style = style if style in g.VISUAL_STYLES else s["visual"]["style"]
         _renderer.profile_name = (name if name is not None else prof["name"]) if len(profiles) > 1 else ""
         img = _renderer.render(int(page) % len(g.PAGE_NAMES), layer if layer in g.LAYERS else "M1",
                                prof["keys"])
@@ -667,6 +668,7 @@ class ApiKeys:
             "volume": g.VOLUME_ACTIONS,
             "entry_types": g.ENTRY_TYPES,
             "clock_faces": list(g.CLOCK_FACES.items()), "clock_options": g.CLOCK_OPTIONS,
+            "visual_styles": list(g.VISUAL_STYLES.items()), "visual_options": g.VISUAL_OPTIONS,
             "world_cities": g.WORLD_CITIES,
             "mtimes": {"macros": mtime(g.MACRO_FILE), "settings": mtime(g.SETTINGS_FILE)},
             "paths": {"macros": g.MACRO_FILE, "settings": g.SETTINGS_FILE,
@@ -707,7 +709,8 @@ class ApiKeys:
     def api_post_preview(self, q):
         body = self._json()
         png = render_preview(body.get("page", 0), body.get("profile", "M1"), body.get("settings"),
-                             body.get("pidx", 0), body.get("colors"), body.get("name"), body.get("face"))
+                             body.get("pidx", 0), body.get("colors"), body.get("name"), body.get("face"),
+                             body.get("style"))
         self._send(200, {"image": "data:image/png;base64," + base64.b64encode(png).decode()})
 
 
@@ -1735,6 +1738,22 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
       <div class="row" style="margin-top:8px"><button class="btn small" id="clkAll">Alle anhaken</button></div>
     </div>
     <div class="card">
+      <h2>Visualisierung</h2>
+      <p class="hint">Die Seite „Visualisierung“ bewegt sich zu allem, was der Rechner gerade abspielt (Radio, Spotify, Browser …). Der Treiber hört dafür den Ausgang mit (<code>pw-record</code>), nur solange die Seite zu sehen ist – es wird nichts gespeichert, das Mikrofon wird nicht benutzt. Seite unter „Displayseiten“ einschalten oder als Bildschirmschoner wählen. Am Display: MENU oder SETTINGS kurz = Stil wählen, dort ► = Optionen.</p>
+      <div class="preview">
+        <div>
+          <label class="field" style="max-width:300px"><span>Stil</span><select id="visStyle"></select></label>
+          <div id="visOpts"></div>
+          <label class="check"><input type="checkbox" id="visBacklight"> Tastaturbeleuchtung pulsiert im Takt</label>
+          <label class="check"><input type="checkbox" id="visTitle"> Laufenden Titel oben anzeigen</label>
+        </div>
+        <div>
+          <img class="lcd" id="visLcd" alt="Vorschau der Visualisierung">
+          <div class="hint" style="margin-top:6px">Vorschau mit künstlicher Musik.</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
       <h2>Nachtmodus</h2>
       <p class="hint">Zu festen Zeiten Display und Beleuchtung abdunkeln. Ein Tastendruck weckt beides für eine Minute.</p>
       <label class="check"><input type="checkbox" id="nightOn"> Nachtmodus verwenden</label>
@@ -2190,6 +2209,7 @@ async function loadState() {
   S.macros = d.macros; S.settings = d.settings; S.keys = d.keys; S.media = d.media; S.pages = d.pages; S.pageIds = d.page_ids; S.volume = d.volume;
   S.entryTypes = d.entry_types;
   S.clockFaces = d.clock_faces; S.clockOptions = d.clock_options; S.worldCities = d.world_cities;
+  S.visualStyles = d.visual_styles; S.visualOptions = d.visual_options;
   S.active = d.active; S.maxProfiles = d.max_profiles;
   if (UI.pidx === undefined) UI.pidx = d.active;
   UI.pidx = Math.min(UI.pidx, S.macros.profiles.length - 1);
@@ -2880,6 +2900,7 @@ function renderSettings() {
   $("#pvPages").replaceChildren(...S.pages.map((n, i) => el("option", {value: i, text: "Vorschau: " + n, selected: i === UI.pvPage})));
   renderPageList();
   renderClock();
+  renderVisual();
   const n = sd.night;
   $("#nightOn").checked = !!n.enabled; $("#nightStart").value = n.start; $("#nightEnd").value = n.end;
   document.querySelectorAll("#nightMode button").forEach(b => b.classList.toggle("active", b.dataset.mode === n.mode));
@@ -3009,8 +3030,11 @@ function renderClockOptions() {
   const face = UI.clkFace, opts = S.clockOptions[face] || [], d = clockDraft(face);
   const box = $("#clkOpts");
   if (!opts.length) { box.replaceChildren(el("p", {class: "hint", text: "Für dieses Zifferblatt gibt es keine Einstellungen."})); return; }
-  const changed = () => { touchSettings(); clockPreview(); };
-  box.replaceChildren(...opts.map(o => {
+  box.replaceChildren(...optionFields(opts, d, () => { touchSettings(); clockPreview(); }));
+}
+// Formularfelder für Optionen (CLOCK_OPTIONS/VISUAL_OPTIONS): d = Entwurf des Zifferblatts bzw. Stils
+function optionFields(opts, d, changed) {
+  return opts.map(o => {
     const val = o.key in d ? d[o.key] : o.default;
     if (o.type === "bool")
       return el("label", {class: "check clkopt"}, el("input", {type: "checkbox", checked: !!val,
@@ -3041,7 +3065,7 @@ function renderClockOptions() {
           S.worldCities.map(([n, tz]) => el("option", {value: tz, text: n}))))));
     }
     return null;
-  }));
+  });
 }
 let clkTimer = null;
 function clockPreview() {
@@ -3055,6 +3079,39 @@ function clockPreview() {
 }
 $("#clkFace").addEventListener("change", e => { UI.clkFace = e.target.value; renderClockOptions(); clockPreview(); });
 $("#clkAll").addEventListener("click", () => { UI.sdraft.clock.menu = []; touchSettings(); renderClock(); });
+
+// ---------------------------------------------------------------- Visualisierung: Stile
+// Der gewählte Stil (UI.sdraft.visual.style) gilt auch am Display; Optionen je Stil aus VISUAL_OPTIONS
+// (S.visualOptions) in UI.sdraft.visual[<stil>], gespeichert mit den übrigen Einstellungen.
+function renderVisual() {
+  const sd = UI.sdraft; if (!sd || !S.visualStyles) return;
+  const v = sd.visual;
+  $("#visStyle").replaceChildren(...S.visualStyles.map(([id, label]) =>
+    el("option", {value: id, text: label, selected: id === v.style})));
+  $("#visBacklight").checked = v.backlight !== false;
+  $("#visTitle").checked = v.title !== false;
+  renderVisualOptions();
+  visualPreview();
+}
+function renderVisualOptions() {
+  const v = UI.sdraft.visual, style = v.style;
+  if (!v[style]) v[style] = {};
+  $("#visOpts").replaceChildren(...optionFields(S.visualOptions[style] || [], v[style],
+    () => { touchSettings(); visualPreview(); }));
+}
+let visTimer = null;
+function visualPreview() {
+  clearTimeout(visTimer);
+  visTimer = setTimeout(async () => {
+    if (UI.tab !== "settings") return;
+    try { $("#visLcd").src = (await api("/api/preview", {body: {page: S.pageIds.indexOf("visual"), profile: UI.pvProfile || "M1",
+      settings: UI.sdraft, pidx: UI.pidx, style: UI.sdraft.visual.style}})).image; }
+    catch (e) { /* Vorschau ist nicht kritisch */ }
+  }, 200);
+}
+$("#visStyle").addEventListener("change", e => { UI.sdraft.visual.style = e.target.value; touchSettings(); renderVisualOptions(); visualPreview(); });
+$("#visBacklight").addEventListener("change", e => { UI.sdraft.visual.backlight = e.target.checked; touchSettings(); });
+$("#visTitle").addEventListener("change", e => { UI.sdraft.visual.title = e.target.checked; touchSettings(); visualPreview(); });
 
 // ---------------------------------------------------------------- Diashow (Piwigo)
 UI.albums = null;

@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.11.05-2)
+| 28.09.2026 (Version 2026.11.05-3)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -32,6 +32,7 @@ Für die G19s gibt es unter Linux keinen offiziellen Treiber. Die normalen Taste
 * '''Terminerinnerung''' vor Terminbeginn, '''Radiowecker''' und '''Einschlaftimer''', '''Song merken''' (Radiotitel in eine Liste), '''Lieblingsbilder''' in der Diashow, '''Mikrofon stumm''' per G-Taste (MR-Leuchte als Anzeige).
 * Displayseiten je Ebene '''und''' je Profil einstellbar, '''automatische Sicherung''' in einen Ordner.
 * '''25 Zifferblätter''' für die Uhr (u. a. Chronometer, Bahnhofsuhr, Pendel- und Kuckucksuhr, Astro- und Sonnenuhr, Weltzeituhr, Nixie-Röhren, Wortuhr) – Auswahl am Display mit MENU oder SETTINGS (kurz) je Profil und Ebene, Aussehen in der Verwaltung einstellbar.
+* '''Visualisierung''' zur laufenden Musik in acht Stilen: Grafik-Equalizer, Tanzendes Mädchen, Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm, Feuerwerk – die Tastaturbeleuchtung pulsiert auf Wunsch im Takt.
 * Weitere Seiten: '''Nachrichten''' (RSS/Atom), '''Unwetter''' (amtliche DWD-Warnungen), '''Netzwerk''' (Erreichbarkeit von Router, NAS …), '''Updates''' (Paket- und Flatpak-Updates, Neustart nötig).
 * '''Display''' mit sieben Standardseiten: Uhr, Musik (inkl. Internetradio), Wetter, Termine, Hardware (Auslastung, Temperaturen, Arbeitsspeicher, Lüfter, Netz, Datenträger), Makro-Übersicht, Bilder. Welche Seiten in welcher Reihenfolge erscheinen, ist frei wählbar.
 * '''Diashow''' mit Bildern aus Piwigo-Alben (auch private Alben) oder aus einem Ordner auf dem Rechner – auf Wunsch als '''Bildschirmschoner'''.
@@ -109,7 +110,7 @@ sudo apt install python3-usb python3-evdev python3-pil python3-numpy playerctl m
 |-
 | <code>libnotify-bin</code> || nur für den Knopf „Testbenachrichtigung senden“ in der Verwaltung
 |}
-Bei Kubuntu bereits vorhanden und ebenfalls genutzt: <code>dbus-monitor</code> (Paket <code>dbus-bin</code>, Benachrichtigungen) und <code>wpctl</code> (Paket <code>wireplumber</code>, Lautstärke). Für Grafikkarten von NVIDIA liest die Hardware-Seite Temperatur und Auslastung über <code>nvidia-smi</code>, falls der NVIDIA-Treiber installiert ist.
+Bei Kubuntu bereits vorhanden und ebenfalls genutzt: <code>pw-record</code> (Paket <code>pipewire-bin</code>, Visualisierung; ersatzweise <code>parec</code>), <code>dbus-monitor</code> (Paket <code>dbus-bin</code>, Benachrichtigungen) und <code>wpctl</code> (Paket <code>wireplumber</code>, Lautstärke). Für Grafikkarten von NVIDIA liest die Hardware-Seite Temperatur und Auslastung über <code>nvidia-smi</code>, falls der NVIDIA-Treiber installiert ist.
 
 Kontrolle:
 <pre>
@@ -165,9 +166,10 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.05-2"
+VERSION = "2026.11.05-3"
 
 # Weitere Importe der Module
+import select
 import http.client
 import xml.etree.ElementTree as ET
 import base64
@@ -245,9 +247,9 @@ TAP_MS = 20          # Haltezeit bei Schritten vom Typ "tap"
 TEXT_DELAY_MS = 12   # Pause zwischen zwei Zeichen bei "text"
 
 PAGE_IDS = ["clock", "music", "macros", "slides", "weather", "calendar", "hardware",
-            "news", "warnings", "network", "updates"]
+            "news", "warnings", "network", "updates", "visual"]
 PAGE_NAMES = ["Uhr", "Musik", "Makros", "Bilder", "Wetter", "Termine", "Hardware",
-              "Nachrichten", "Unwetter", "Netzwerk", "Updates"]
+              "Nachrichten", "Unwetter", "Netzwerk", "Updates", "Visualisierung"]
 # Zifferblätter der Seite „Uhr“ (Auswahl am Display mit MENU, gespeichert je Profil und Ebene).
 # Reihenfolge = Reihenfolge im Displaymenü und in der Verwaltung.
 CLOCK_FACES = {
@@ -342,6 +344,53 @@ CLOCK_COLOR_CHOICES = [
     ([255, 215, 0], "Gelb"), ([40, 200, 80], "Grün"), ([0, 200, 200], "Türkis"), ([30, 120, 255], "Blau"),
     ([150, 80, 255], "Violett"), ([255, 80, 180], "Pink"),
 ]
+# Stile der Seite „Visualisierung“ (Auswahl am Display mit MENU, gespeichert in settings.json → "visual")
+VISUAL_STYLES = {
+    "eq": "Grafik-Equalizer", "dancer": "Tanzendes Mädchen", "lights": "Lichtshow", "scope": "Oszilloskop",
+    "ring": "Kreis-Spektrum", "vu": "VU-Meter", "spectro": "Spektrogramm", "fireworks": "Feuerwerk",
+}
+VISUAL_FPS = 20             # Bilder je Sekunde der Visualisierung
+# Einstellungen je Stil (Verwaltung → Beleuchtung & Display → Visualisierung, am Display ►), wie CLOCK_OPTIONS
+VISUAL_OPTIONS = {
+    "eq": [
+        {"key": "bars", "label": "Anzahl der Balken", "type": "choice", "default": "32",
+         "choices": [["16", "16"], ["24", "24"], ["32", "32"], ["48", "48"]]},
+        {"key": "colors", "label": "Farben", "type": "choice", "default": "led",
+         "choices": [["led", "Grün-Gelb-Rot (LED)"], ["rainbow", "Regenbogen"], ["layer", "Farbe der Ebene"]]},
+        {"key": "mirror", "label": "Gespiegelt (von der Mitte aus)", "type": "bool", "default": False},
+        {"key": "peaks", "label": "Spitzenmarken", "type": "bool", "default": True},
+    ],
+    "dancer": [
+        {"key": "color", "label": "Farbe der Tänzerin", "type": "color", "default": None, "none_label": _LAYER},
+        {"key": "stage", "label": "Bühnenlicht", "type": "bool", "default": True},
+    ],
+    "lights": [
+        {"key": "beams", "label": "Scheinwerfer", "type": "choice", "default": "5",
+         "choices": [["3", "3"], ["5", "5"], ["7", "7"]]},
+        {"key": "flash", "label": "Sanfter Blitz bei kräftigen Schlägen", "type": "bool", "default": True},
+    ],
+    "scope": [
+        {"key": "mode", "label": "Darstellung", "type": "choice", "default": "line",
+         "choices": [["line", "Schwingung"], ["xy", "Stereo-Figur (links/rechts)"]]},
+        {"key": "color", "label": "Farbe", "type": "color", "default": None, "none_label": "Grün (Standard)"},
+        {"key": "glow", "label": "Nachleuchten", "type": "bool", "default": True},
+    ],
+    "ring": [
+        {"key": "colors", "label": "Farben", "type": "choice", "default": "rainbow",
+         "choices": [["rainbow", "Regenbogen"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "vu": [
+        {"key": "dial", "label": "Skala", "type": "choice", "default": "cream",
+         "choices": [["cream", "Hell (klassisch)"], ["dark", "Dunkel mit bernsteinfarbenem Licht"]]},
+    ],
+    "spectro": [
+        {"key": "palette", "label": "Farben", "type": "choice", "default": "fire",
+         "choices": [["fire", "Glut"], ["ice", "Eis"], ["rainbow", "Regenbogen"]]},
+    ],
+    "fireworks": [
+        {"key": "trails", "label": "Leuchtspuren", "type": "bool", "default": True},
+    ],
+}
 OLD_CLOCK_PAGES = {"clock_chrono": "chrono", "clock_steampunk": "steampunk",      # Version 2026.09.28-8/-9
                    "clock_station": "station", "clock_binary": "binary"}
 DEFAULT_PAGE_ORDER = ["clock", "music", "weather", "calendar", "hardware", "macros", "slides"]
@@ -604,8 +653,19 @@ def _page_ids():
 
 def _clock_section():
     """settings.json → "clock": {"menu": [...], "<zifferblatt>": {<optionen>}} aus CLOCK_OPTIONS."""
+    return Section(dict(menu=FaceList([]), **_option_sections(CLOCK_OPTIONS)))
+
+
+def _visual_section():
+    """settings.json → "visual": {"style", "backlight", "title", "<stil>": {<optionen>}} aus VISUAL_OPTIONS."""
+    return Section(dict(style=Choice("eq", lambda: list(VISUAL_STYLES)), backlight=Bool(True), title=Bool(True),
+                        **_option_sections(VISUAL_OPTIONS)))
+
+
+def _option_sections(options):
+    """Je Eintrag (Zifferblatt/Stil) ein Abschnitt mit den Feldern seiner Optionen."""
     faces = {}
-    for face, opts in CLOCK_OPTIONS.items():
+    for face, opts in options.items():
         fields = {}
         for o in opts:
             if o["type"] == "bool":
@@ -617,7 +677,7 @@ def _clock_section():
             elif o["type"] == "cities":
                 fields[o["key"]] = Items(o["default"], Entry({"name": Str(maxlen=24), "tz": Str()}), required="tz", limit=6)
         faces[face] = Section(fields)
-    return Section(dict(menu=FaceList([]), **faces))
+    return faces
 
 
 # --- Das Schema ------------------------------------------------------------- #
@@ -695,6 +755,7 @@ SCHEMA = {
     "layer_overlay": Bool(True),       # M1/M2/M3: Belegung der G-Tasten kurz einblenden
     "media_keys": Bool(True),          # Lautstärkerad/Stumm/Medientasten vom Treiber (auch im Remote-Desktop)
     "pages_rev": Int(PAGES_REV, PAGES_REV, PAGES_REV),  # Stand der Seitenliste (für Umstellungen)
+    "visual": _visual_section(),               # Seite „Visualisierung“: Stil, Tastaturlicht im Takt, Optionen
     "clock": _clock_section(),                  # Zifferblätter der Uhr: Auswahl fürs Displaymenü, Optionen
 }
 
@@ -1583,6 +1644,235 @@ def mic_state(env=None, toggle=False):
     except (OSError, subprocess.SubprocessError):
         return None
     return None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Modul klanganalyse
+#   Klanganalyse für die Seite „Visualisierung“: hört den Ausgang (Monitor) von PipeWire mit.
+#
+#   Aufnahme mit pw-record (stream.capture.sink = Monitor des Standard-Ausgangs), ersatzweise parec.
+#   Nur solange want() regelmäßig aufgerufen wird (Seite sichtbar); danach endet die Aufnahme.
+#   Es wird nichts gespeichert, das Mikrofon wird nicht benutzt. snapshot() liefert Bänder (0…1),
+#   Pegel links/rechts, Bass/Mitten/Höhen, Wellenform und einen Taktzähler für die Zeichenfunktionen.
+#   demo_snapshot() erzeugt dieselben Werte künstlich (Vorschau der Verwaltung, Leerlauf, Tests).
+# ═══════════════════════════════════════════════════════════════════════════
+
+AUDIO_RATE = 22050
+AUDIO_FFT = 2048
+AUDIO_BANDS = 64
+AUDIO_CMDS = [
+    ["pw-record", "--rate", str(AUDIO_RATE), "--channels", "2", "--format", "s16",
+     "-P", '{ stream.capture.sink = true node.name = "g19s-visualisierung" media.name = "G19s Visualisierung" }', "-"],
+    ["parec", "-d", "@DEFAULT_MONITOR@", "--format=s16le", f"--rate={AUDIO_RATE}", "--channels=2", "--raw",
+     "--client-name=G19s Visualisierung"],
+]
+
+
+def _band_edges():
+    """FFT-Bins je Band, logarithmisch von 40 Hz bis 11 kHz (jedes Band mindestens ein Bin)."""
+    freqs = np.geomspace(40, min(11000, AUDIO_RATE / 2 - 1), AUDIO_BANDS + 1)
+    bins = np.round(freqs * AUDIO_FFT / AUDIO_RATE).astype(int)
+    edges = []
+    for i in range(AUDIO_BANDS):
+        lo = int(bins[i])
+        hi = max(int(bins[i + 1]), lo + 1)
+        edges.append((lo, hi))
+    return edges
+
+
+def _empty_snapshot(t=0.0):
+    return {"t": t, "bands": np.zeros(AUDIO_BANDS), "left": 0.0, "right": 0.0, "level": 0.0, "bass": 0.0,
+            "mid": 0.0, "treble": 0.0, "wave": np.zeros(640), "wave_l": np.zeros(256), "wave_r": np.zeros(256),
+            "beats": 0, "beat_t": -10.0, "active": False, "error": None, "demo": False}
+
+
+def demo_snapshot(t, amp=1.0):
+    """Künstliche Musik (120 Schläge/min) für Vorschau, Leerlauf und Referenzbilder; nur abhängig von t."""
+    beat_phase = (t * 2.0) % 1.0
+    kick = math.exp(-beat_phase * 7.0)
+    x = np.linspace(0, 1, AUDIO_BANDS)
+    bands = (0.75 - 0.45 * x + 0.18 * np.sin(x * 19 + t * 3.1) + 0.12 * np.sin(x * 41 - t * 5.3))
+    bands[:8] += 0.35 * kick
+    bands[20:34] += 0.15 * (0.5 + 0.5 * math.sin(t * 2.7))
+    bands = np.clip(bands * (0.55 + 0.45 * kick) * amp, 0, 1)
+    n = np.arange(640)
+    wave = amp * (0.55 * (0.4 + 0.6 * kick) * np.sin(n * 0.03 + t * 40) + 0.22 * np.sin(n * 0.11 + t * 13)
+                  + 0.08 * np.sin(n * 0.47 - t * 7))
+    k = np.arange(256)
+    wl = amp * (0.6 * np.sin(k * 0.11 + t * 3) + 0.2 * np.sin(k * 0.53))
+    wr = amp * (0.6 * np.sin(k * 0.11 + t * 3 + 1.1) + 0.2 * np.cos(k * 0.47))
+    level = float(np.clip((0.55 + 0.4 * kick) * amp, 0, 1))
+    snap = _empty_snapshot(t)
+    snap.update(bands=bands, wave=wave, wave_l=wl, wave_r=wr, level=level,
+                left=float(np.clip(level * (0.95 + 0.05 * math.sin(t * 1.3)), 0, 1)),
+                right=float(np.clip(level * (0.9 + 0.08 * math.cos(t * 1.1)), 0, 1)),
+                bass=float(np.clip((0.35 + 0.65 * kick) * amp, 0, 1)), mid=float(np.mean(bands[16:40])),
+                treble=float(np.mean(bands[40:])), beats=int(t * 2.0), beat_t=math.floor(t * 2.0) / 2.0,
+                active=amp > 0.5, demo=True)
+    return snap
+
+
+class SoundAnalyzer:
+    """Liest den Monitor des Standard-Ausgangs und wertet ihn aus (eigener Faden, nur bei Bedarf)."""
+    BLOCK = 512                         # Frames je Auswertung (≈ 43 je Sekunde)
+    IDLE_STOP = 2.0                     # so lange nach dem letzten want() läuft die Aufnahme weiter
+
+    def __init__(self, env_func, log=print):
+        self.env_func, self.log = env_func, log
+        self.lock = threading.Lock()
+        self.thread = None
+        self.wanted_until = 0.0
+        self.proc = None
+        self.running = True
+        self.edges = _band_edges()
+        self.window = np.hanning(AUDIO_FFT)
+        self._snap = _empty_snapshot()
+        self._error_logged = None
+        self.reset()
+
+    def reset(self):
+        self.ring = np.zeros(AUDIO_FFT)
+        self.bands = np.zeros(AUDIO_BANDS)
+        self.ref_db = -30.0             # gleitender Höchstwert der Bänder (automatische Verstärkung)
+        self.bass_hist = []
+        self.beats, self.beat_t = 0, -10.0
+        self.vu = [0.0, 0.0]
+
+    # -- öffentlich -------------------------------------------------------- #
+    def want(self):
+        """Seite (oder Vorschau im Menü) ist sichtbar: Aufnahme starten bzw. weiterlaufen lassen."""
+        self.wanted_until = time.monotonic() + self.IDLE_STOP
+        if self.thread is None or not self.thread.is_alive():
+            self.thread = threading.Thread(target=self._run, daemon=True, name="Klanganalyse")
+            self.thread.start()
+
+    def snapshot(self):
+        with self.lock:
+            return dict(self._snap)
+
+    def start(self):
+        pass                            # startet erst mit want()
+
+    def stop(self):
+        self.running = False
+        self.wanted_until = 0.0
+        self._kill()
+
+    # -- Faden ------------------------------------------------------------- #
+    def _command(self):
+        for cmd in AUDIO_CMDS:
+            if shutil.which(cmd[0]):
+                return cmd
+        return None
+
+    def _set_error(self, msg):
+        with self.lock:
+            self._snap = dict(_empty_snapshot(time.monotonic()), error=msg)
+        if msg != self._error_logged:
+            self._error_logged = msg
+            self.log(f"Visualisierung: {msg}")
+
+    def _kill(self):
+        proc, self.proc = self.proc, None
+        if proc and proc.poll() is None:
+            try:
+                proc.terminate()
+                proc.wait(timeout=2)
+            except (OSError, subprocess.TimeoutExpired):
+                try:
+                    proc.kill()
+                except OSError:
+                    pass
+
+    def _run(self):
+        frame_bytes = self.BLOCK * 4    # Stereo, 16 Bit
+        buf = b""
+        while self.running and time.monotonic() < self.wanted_until:
+            if self.proc is None or self.proc.poll() is not None:
+                if self.proc is not None:
+                    self._set_error("Aufnahmeprogramm hat sich beendet – neuer Versuch in 5 s")
+                    self.proc = None
+                    time.sleep(5)
+                    continue
+                cmd = self._command()
+                if not cmd:
+                    self._set_error("pw-record fehlt (Paket pipewire-bin)")
+                    time.sleep(5)
+                    continue
+                try:
+                    self.proc = subprocess.Popen(cmd, env=self.env_func(), stdin=subprocess.DEVNULL,
+                                                 stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                                 start_new_session=True)
+                except OSError as ex:
+                    self._set_error(f"Aufnahme nicht möglich: {ex}")
+                    time.sleep(5)
+                    continue
+                self.reset()
+                buf = b""
+                if self._error_logged != "ok":
+                    self._error_logged = "ok"
+                    self.log(f"Visualisierung: höre den Ausgang mit ({cmd[0]})")
+            fd = self.proc.stdout.fileno()
+            ready, _, _ = select.select([fd], [], [], 0.3)
+            if not ready:
+                continue
+            try:
+                chunk = os.read(fd, 65536)
+            except OSError:
+                chunk = b""
+            if not chunk:
+                continue
+            buf += chunk
+            while len(buf) >= frame_bytes:
+                block, buf = buf[:frame_bytes], buf[frame_bytes:]
+                self.feed(np.frombuffer(block, dtype="<i2").astype(np.float32) / 32768.0, time.monotonic())
+            if len(buf) > frame_bytes * 8:
+                buf = buf[-frame_bytes:]        # hinkt hinterher: nur das Neueste auswerten
+        self._kill()
+        with self.lock:
+            self._snap = _empty_snapshot(time.monotonic())
+
+    # -- Auswertung -------------------------------------------------------- #
+    def feed(self, samples, now):
+        """Ein Block Stereo-Samples (L, R abwechselnd, −1…1) auswerten."""
+        left, right = samples[0::2], samples[1::2]
+        mono = (left + right) * 0.5
+        n = len(mono)
+        self.ring = np.concatenate([self.ring[n:], mono])
+        spec = np.abs(np.fft.rfft(self.ring * self.window))
+        raw = np.array([spec[lo:hi].mean() for lo, hi in self.edges])
+        db = 20 * np.log10(raw + 1e-9)
+        peak = float(db.max())
+        self.ref_db = max(peak, self.ref_db - 0.04, -60.0)       # Verstärkung passt sich langsam an
+        val = np.clip((db - (self.ref_db - 48.0)) / 48.0, 0, 1)
+        rms = float(np.sqrt(np.mean(mono ** 2)))
+        active = rms > 2e-4
+        if not active:
+            val = val * 0.0
+        self.bands = np.maximum(val, self.bands * 0.82)         # schnell hoch, langsam runter
+        levels = []
+        for i, ch in enumerate((left, right)):
+            r = float(np.sqrt(np.mean(ch ** 2)))
+            target = float(np.clip((20 * math.log10(r + 1e-9) + 45.0) / 45.0, 0, 1))
+            self.vu[i] += (target - self.vu[i]) * (0.5 if target > self.vu[i] else 0.15)
+            levels.append(self.vu[i])
+        energy = float(np.mean(raw[:7] ** 2))                    # Bass bis ≈ 120 Hz
+        hist = self.bass_hist
+        avg = sum(hist) / len(hist) if hist else energy
+        if active and len(hist) > 20 and energy > avg * 1.5 and now - self.beat_t > 0.28:
+            self.beats += 1
+            self.beat_t = now
+        hist.append(energy)
+        if len(hist) > 43:
+            hist.pop(0)
+        b = self.bands
+        snap = {"t": now, "bands": b.copy(), "left": levels[0], "right": levels[1],
+                "level": (levels[0] + levels[1]) / 2, "bass": float(b[:8].mean()), "mid": float(b[16:40].mean()),
+                "treble": float(b[40:].mean()), "wave": self.ring[-640:].copy() * 3.0,
+                "wave_l": left[-256:].copy() * 3.0, "wave_r": right[-256:].copy() * 3.0,
+                "beats": self.beats, "beat_t": self.beat_t, "active": active, "error": None, "demo": False}
+        with self.lock:
+            self._snap = snap
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -9157,6 +9447,620 @@ def keys_updates(app, pressed):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Modul seite_visual
+#   Displayseite „Visualisierung“: acht Stile, die auf die laufende Musik reagieren.
+#
+#   Die Werte kommen von SoundAnalyzer (klanganalyse) über self.visual.snapshot(); ohne Analyse
+#   (Vorschau der Verwaltung, Referenzbilder) bzw. ohne Ton zeichnen die Stile mit demo_snapshot()
+#   (ohne Ton gedämpft, mit Hinweis „Keine Wiedergabe“). Ein Stil wird mit @vis_style("id")
+#   angemeldet (@vis_style) und bekommt (snapshot, optionen, farbe der ebene); er liefert ein Bild WIDTH×HEIGHT,
+#   die Fußzeile zeichnet render(). Zustand zwischen zwei Bildern (Spitzen, Teilchen …) liegt in
+#   self._vstate(stil) und wird beim Stilwechsel verworfen.
+# ═══════════════════════════════════════════════════════════════════════════
+
+VISUAL_RENDERERS = {}
+VIS_H = HEIGHT - FOOTER_H          # nutzbare Höhe über der Fußzeile
+
+
+def vis_style(style_id):
+    """Methode als Zeichenfunktion des Stils style_id anmelden."""
+    def deco(fn):
+        VISUAL_RENDERERS[style_id] = fn
+        return fn
+    return deco
+
+
+def visual_options(settings, style):
+    """Optionen eines Stils: Standardwerte aus VISUAL_OPTIONS, ergänzt um settings.json → "visual"."""
+    out = {o["key"]: o["default"] for o in VISUAL_OPTIONS.get(style, [])}
+    user = ((settings or {}).get("visual") or {}).get(style)
+    if isinstance(user, dict):
+        out.update({k: v for k, v in user.items() if k in out})
+    return out
+
+
+def _hue(h, s=1.0, v=1.0):
+    r, g, b = colorsys.hsv_to_rgb(h % 1.0, max(0.0, min(1.0, s)), max(0.0, min(1.0, v)))
+    return int(r * 255), int(g * 255), int(b * 255)
+
+
+def _vec(angle_deg, length):
+    """Richtung: 0° = nach unten, 90° = nach rechts, 180° = nach oben."""
+    a = math.radians(angle_deg)
+    return math.sin(a) * length, math.cos(a) * length
+
+
+def _smooth(k):
+    k = max(0.0, min(1.0, k))
+    return k * k * (3 - 2 * k)
+
+
+# Tanzposen: Oberarm/Unterarm links und rechts, Oberschenkel/Unterschenkel links und rechts,
+# Neigung des Oberkörpers, Neigung des Kopfes (Winkel wie _vec, absolut)
+DANCE_POSES = [
+    (-130, -145, 130, 145, -14, -6, 14, 6, 0, 0),         # Arme hoch (V)
+    (-40, 40, 145, 150, -20, 0, 15, 25, 6, -8),           # Disco: rechts nach oben zeigen, links Hand an der Hüfte
+    (-95, -70, 95, 70, -8, -8, 25, -10, -4, 6),           # Arme zur Seite, Knie angewinkelt
+    (-35, 35, 35, -35, -5, -5, 30, -10, 0, 10),           # Hände an den Hüften
+    (-120, -150, 60, 100, -6, -6, 80, 95, -8, -6),        # Kick nach rechts
+    (-155, 160, 155, -160, -15, -15, 15, 15, 0, 0),       # Klatschen über dem Kopf
+    (-100, -130, 80, 50, -10, 5, 10, -5, 4, 8),           # Welle
+    (-60, -120, 60, 120, -25, -5, 10, 30, -6, -10),       # Twist
+]
+
+
+class VisualPage:
+    visual = None                      # SoundAnalyzer (setzt die App) oder None = künstliche Werte
+    visual_style = "eq"
+
+    # -- Grundlagen ---------------------------------------------------------- #
+    def _vstate(self, style, make):
+        st = self.__dict__.setdefault("_vis_states", {})
+        if st.get("_style") != style:
+            st.clear()
+            st["_style"] = style
+        if style not in st:
+            st[style] = make()
+        return st[style]
+
+    def _vis_snapshot(self):
+        snap = self.visual.snapshot() if self.visual is not None else None
+        now = time.time()
+        if snap is None:
+            return demo_snapshot(now)                       # Vorschau: als liefe Musik
+        if snap.get("active"):
+            return snap
+        idle = demo_snapshot(now, amp=0.22)                 # Stille: ruhige Bewegung
+        idle.update(idle=True, error=snap.get("error"))
+        return idle
+
+    def _vis_dt(self, st, t):
+        dt = max(0.0, min(0.2, t - st.get("t", t)))
+        st["t"] = t
+        return dt
+
+    @page("visual")
+    def page_visual(self, profile, macros):
+        snap = self._vis_snapshot()
+        style = self.visual_style if self.visual_style in VISUAL_RENDERERS else "eq"
+        color = PROFILE_COLOR.get(profile, self.FG)
+        img = VISUAL_RENDERERS[style](self, snap, visual_options(self.settings, style), color)
+        d = ImageDraw.Draw(img)
+        vis = (self.settings or {}).get("visual") or {}
+        info = self.media.snapshot()[0] if (self.media is not None and vis.get("title", True)) else None
+        if info and info.get("title") and not snap.get("idle"):
+            text = " – ".join(x for x in (info.get("artist"), info.get("title")) if x)
+            text = self._fit(d, text, self.f_tiny, WIDTH - 16)
+            d.text((9, 4), text, font=self.f_tiny, fill=(0, 0, 0))
+            d.text((8, 3), text, font=self.f_tiny, fill=(225, 230, 240))
+        if snap.get("error"):
+            self._center(d, VIS_H - 22, self._fit(d, snap["error"], self.f_tiny, WIDTH - 16), self.f_tiny, (235, 120, 90))
+        elif snap.get("idle"):
+            self._center(d, VIS_H - 22, "Keine Wiedergabe", self.f_tiny, self.DIM)
+        return img
+
+    # -- 1. Grafik-Equalizer ------------------------------------------------- #
+    def _eq_layers(self, n, colors, mirror, color):
+        """Bild aller leuchtenden LED-Segmente und dasselbe gedimmt (zwischengespeichert)."""
+        key = (n, colors, mirror, tuple(color))
+        cache = self.__dict__.setdefault("_eq_cache", {})
+        if key in cache:
+            return cache[key]
+        top, bottom = 24, VIS_H - 6
+        lit = np.zeros((HEIGHT, WIDTH, 3), np.float32)
+        gap = 2
+        bw = (WIDTH - 12 - gap * (n - 1)) / n
+        ys = np.arange(HEIGHT)
+        if mirror:
+            mid = (top + bottom) / 2
+            frac = np.clip(np.abs(ys - mid) / ((bottom - top) / 2), 0, 1)
+            seg = (np.abs(ys - mid).astype(int) % 6) < 4
+        else:
+            frac = np.clip((bottom - ys) / (bottom - top), 0, 1)
+            seg = ((bottom - ys) % 6) < 4
+        seg &= (ys >= top) & (ys < bottom)
+        cols = []
+        for i in range(n):
+            x0 = int(round(6 + i * (bw + gap)))
+            x1 = int(round(6 + i * (bw + gap) + bw))
+            cols.append((x0, max(x0 + 1, x1)))
+            for y in np.nonzero(seg)[0]:
+                f = frac[y]
+                if colors == "led":
+                    c = (255, 40, 30) if f > 0.86 else (255, 200, 0) if f > 0.62 else (40, 220, 70)
+                elif colors == "rainbow":
+                    c = _hue(0.75 * i / max(1, n - 1), 0.85, 0.65 + 0.35 * f)
+                else:
+                    c = mix(tuple(int(x * 0.45) for x in color), color, f)
+                lit[y, cols[-1][0]:cols[-1][1]] = c
+        dim = lit * 0.11 + np.array([6, 8, 12], np.float32)
+        dim[~seg] = (6, 8, 12)
+        cache.clear()
+        cache[key] = (lit, dim, cols, top, bottom)
+        return cache[key]
+
+    @vis_style("eq")
+    def vis_eq(self, s, o, color):
+        n = int(o["bars"])
+        lit, dim, cols, top, bottom = self._eq_layers(n, o["colors"], bool(o["mirror"]), color)
+        b = np.interp(np.linspace(0, AUDIO_BANDS - 1, n), np.arange(AUDIO_BANDS), s["bands"])
+        st = self._vstate("eq", dict)
+        dt = self._vis_dt(st, s["t"])
+        if len(st.get("peak", [])) != n:
+            st["peak"], st["hold"] = b.copy(), np.zeros(n)
+        peak, hold = st["peak"], st["hold"]
+        up = b >= peak
+        peak[up], hold[up] = b[up], 0.35
+        hold[~up] -= dt
+        fall = ~up & (hold <= 0)
+        peak[fall] = np.maximum(b[fall], peak[fall] - dt * 0.6)
+        arr = dim.copy()
+        avail = bottom - top
+        for i, (x0, x1) in enumerate(cols):
+            h = int(b[i] * avail)
+            if h <= 0:
+                continue
+            if o["mirror"]:
+                mid = (top + bottom) // 2
+                arr[mid - h // 2:mid + h // 2 + 1, x0:x1] = lit[mid - h // 2:mid + h // 2 + 1, x0:x1]
+            else:
+                arr[bottom - h:bottom, x0:x1] = lit[bottom - h:bottom, x0:x1]
+        img = Image.fromarray(arr.astype(np.uint8), "RGB")
+        if o["peaks"]:
+            d = ImageDraw.Draw(img)
+            for i, (x0, x1) in enumerate(cols):
+                ph = int(peak[i] * avail)
+                if ph < 3:
+                    continue
+                if o["mirror"]:
+                    mid = (top + bottom) // 2
+                    for y in (mid - ph // 2 - 3, mid + ph // 2 + 2):
+                        d.rectangle([x0, y, x1 - 1, y + 1], fill=(235, 238, 245))
+                else:
+                    y = bottom - ph - 3
+                    d.rectangle([x0, y, x1 - 1, y + 1], fill=(235, 238, 245))
+        return img
+
+    # -- 2. Tanzendes Mädchen ------------------------------------------------- #
+    @vis_style("dancer")
+    def vis_dancer(self, s, o, color):
+        S = 2                                               # doppelt zeichnen, dann verkleinern (glatte Kanten)
+        W, H = WIDTH * S, HEIGHT * S
+        t = s["t"]
+        st = self._vstate("dancer", lambda: {"from": DANCE_POSES[0], "to": DANCE_POSES[0], "t0": t, "beats": s["beats"]})
+        if s["beats"] != st["beats"]:
+            cur = self._dance_pose(st, t)
+            st.update({"from": cur, "to": DANCE_POSES[(s["beats"] * 3 + s["beats"] // 4) % len(DANCE_POSES)],
+                       "t0": t, "beats": s["beats"]})
+        pose = list(self._dance_pose(st, t))
+        wig = math.sin(t * 9.0) * s["treble"] * 30
+        pose[1] += wig
+        pose[3] -= wig
+        body = tuple(o["color"]) if o.get("color") else color
+        img = self._dance_stage(s, o, body, W, H, S)
+        d = ImageDraw.Draw(img)
+        floor = (VIS_H - 26) * S
+        since = t - s["beat_t"]
+        dip = 7 * math.exp(-max(0.0, since) * 9) if since >= 0 else 0
+        hip = (WIDTH / 2 * S + math.sin(t * 1.7) * 10 * S, floor - 72 * S + (dip - s["bass"] * 6) * S)
+        lu, lf, ru, rf, lt, ls, rt, rs, lean, head = pose
+
+        def at(p, ang, length):
+            dx, dy = _vec(ang, length * S)
+            return p[0] + dx, p[1] + dy
+
+        def limb(a, b, w):
+            d.line([a, b], fill=body, width=int(w * S))
+            r = w * S / 2
+            d.ellipse([b[0] - r, b[1] - r, b[0] + r, b[1] + r], fill=body)
+
+        neck = at(hip, 180 - lean, 52)
+        d.ellipse([hip[0] - 120 / 2 * S, floor - 5 * S, hip[0] + 120 / 2 * S, floor + 7 * S], fill=(12, 10, 18))
+        for side, (t_ang, s_ang) in ((-1, (lt, ls)), (1, (rt, rs))):           # Beine
+            hj = (hip[0] + side * 8 * S, hip[1])
+            knee = at(hj, t_ang, 34)
+            foot = at(knee, s_ang, 34)
+            limb(hj, knee, 9)
+            limb(knee, foot, 8)
+            d.line([foot, (foot[0] + side * 7 * S, foot[1] + 1 * S)], fill=body, width=5 * S)
+        flare = 1 + s["level"] * 0.45                       # Rock schwingt mit der Lautstärke
+        waist = at(hip, 180 - lean, 16)
+        hem_y = hip[1] + 14 * S
+        d.polygon([(waist[0] - 8 * S, waist[1]), (waist[0] + 8 * S, waist[1]),
+                   (hip[0] + 24 * S * flare, hem_y), (hip[0] - 24 * S * flare, hem_y)], fill=body)
+        sl = at(neck, 180 - lean - 90, 13)
+        sr = at(neck, 180 - lean + 90, 13)
+        d.polygon([sl, sr, (waist[0] + 8 * S, waist[1]), (waist[0] - 8 * S, waist[1])], fill=body)
+        for sh, (u, f) in ((sl, (lu, lf)), (sr, (ru, rf))):                     # Arme
+            elbow = at(sh, u, 27)
+            hand = at(elbow, f, 25)
+            limb(sh, elbow, 7)
+            limb(elbow, hand, 6)
+        hc = at(neck, 180 - lean - head, 17)
+        d.line([neck, hc], fill=body, width=7 * S)
+        r = 13 * S
+        d.ellipse([hc[0] - r, hc[1] - r, hc[0] + r, hc[1] + r], fill=body)
+        tail = 150 + math.sin(t * 5.5) * 18 + s["bass"] * 25 - lean            # Pferdeschwanz schwingt
+        base = at(hc, -125 - head, 11)
+        tip = at(base, tail + 180, 26)
+        mid = at(base, tail + 165, 14)
+        d.polygon([at(base, tail + 90, 5), mid, tip, at(base, tail - 90, 5)], fill=body)
+        return img.reduce(S)
+
+    def _dance_pose(self, st, t):
+        k = _smooth((t - st["t0"]) / 0.2)
+        return tuple(a + (b - a) * k for a, b in zip(st["from"], st["to"]))
+
+    def _dance_stage(self, s, o, body, W, H, S):
+        """Bühne: Verlauf, Boden, zwei Lichtkegel in wechselnden Farben."""
+        key = ("stage", bool(o["stage"]))
+        cache = self.__dict__.setdefault("_dance_bg", {})
+        if key not in cache:
+            ys = np.linspace(0, 1, H)[:, None, None]
+            top, bot = np.array([26, 10, 40], np.float32), np.array([4, 3, 8], np.float32)
+            arr = np.broadcast_to(top * (1 - ys) + bot * ys, (H, W, 3)).copy()
+            floor = (VIS_H - 26) * S
+            arr[floor:, :] = np.array([18, 14, 26], np.float32) * np.linspace(1, 0.4, H - floor)[:, None, None]
+            cache.clear()
+            cache[key] = arr
+        arr = cache[key].copy()
+        if o["stage"]:
+            hue = (s["beats"] % 6) / 6
+            bright = 0.25 + 0.5 * s["bass"]
+            for i, x in enumerate((0.18, 0.82)):
+                mask = Image.new("L", (W, H), 0)
+                md = ImageDraw.Draw(mask)
+                cx = W / 2 + math.sin(s["t"] * 0.8 + i * 2.1) * 30 * S
+                md.polygon([(x * W - 6 * S, 0), (x * W + 6 * S, 0), (cx + 70 * S, (VIS_H - 22) * S),
+                            (cx - 70 * S, (VIS_H - 22) * S)], fill=int(120 * bright))
+                m = np.asarray(mask, np.float32)[:, :, None] / 255
+                arr += m * np.array(_hue(hue + i * 0.33, 0.8, 1.0), np.float32)
+            floor = (VIS_H - 26) * S
+            spot = Image.new("L", (W, H), 0)
+            ImageDraw.Draw(spot).ellipse([W / 2 - 80 * S, floor - 6 * S, W / 2 + 80 * S, floor + 14 * S],
+                                         fill=int(90 * bright + 40))
+            arr += np.asarray(spot, np.float32)[:, :, None] / 255 * np.array(_hue(hue, 0.4, 1.0), np.float32)
+        return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGB")
+
+    # -- 3. Lichtshow -------------------------------------------------------- #
+    @vis_style("lights")
+    def vis_lights(self, s, o, color):
+        t, n = s["t"], int(o["beams"])
+        st = self._vstate("lights", dict)
+        self._vis_dt(st, t)
+        arr = np.zeros((VIS_H, WIDTH, 3), np.float32)
+        arr[:] = (5, 4, 10)
+        fall = np.linspace(1.0, 0.35, VIS_H)[:, None, None]
+        bright = 0.35 + 0.65 * s["bass"]
+        for i in range(n):
+            ox = 30 + i * (WIDTH - 60) / max(1, n - 1)
+            ang = math.sin(t * (0.8 + 0.13 * i) + i * 1.7) * 38
+            dx1, dy1 = _vec(ang - 8, 300)
+            dx2, dy2 = _vec(ang + 8, 300)
+            mask = Image.new("L", (WIDTH, VIS_H), 0)
+            ImageDraw.Draw(mask).polygon([(ox - 3, 0), (ox + 3, 0), (ox + dx2, dy2), (ox + dx1, dy1)], fill=150)
+            c = np.array(_hue(i / n + s["beats"] * 0.13, 0.85, 1.0), np.float32)
+            arr += np.asarray(mask, np.float32)[:, :, None] / 255 * c * bright * fall
+        rng = random.Random(s["beats"])                     # Lichtpunkte, neu bei jedem Schlag
+        for _ in range(40):
+            x, y = rng.randrange(WIDTH), rng.randrange(30, VIS_H)
+            tw = 0.5 + 0.5 * math.sin(t * rng.uniform(4, 9) + rng.uniform(0, 6))
+            c = np.array(_hue(rng.random(), 0.5, 1.0), np.float32) * tw * (0.4 + 0.6 * s["level"])
+            arr[y:y + 2, x:x + 2] = np.maximum(arr[y:y + 2, x:x + 2], c)
+        since = t - s["beat_t"]
+        if o["flash"] and 0 <= since < 0.15 and s["bass"] > 0.6 and t - st.get("flash", -9) > 0.5:
+            st["flash"] = s["beat_t"]
+        fl = t - st.get("flash", -9)
+        if 0 <= fl < 0.15:
+            f = 1 - fl / 0.15                               # sanft, kein hartes Stroboskop
+            arr = arr * (1 + 0.7 * f) + 22 * f
+        img = Image.new("RGB", (WIDTH, HEIGHT), (5, 4, 10))
+        img.paste(Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGB"), (0, 0))
+        d = ImageDraw.Draw(img)
+        cx, cy, r = WIDTH // 2, 12, 11                      # Spiegelkugel
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(70, 70, 80))
+        for gx in range(-r, r, 4):
+            for gy in range(-r, r, 4):
+                if gx * gx + gy * gy < r * r:
+                    v = 110 + int(120 * (0.5 + 0.5 * math.sin(t * 6 + gx * 0.7 + gy * 1.3)))
+                    d.rectangle([cx + gx, cy + gy, cx + gx + 2, cy + gy + 2], fill=(v, v, min(255, v + 20)))
+        return img
+
+    # -- 4. Oszilloskop ------------------------------------------------------ #
+    def _scope_bg(self):
+        if "_scope_bg_img" not in self.__dict__:
+            img = Image.new("RGB", (WIDTH, VIS_H), (4, 12, 8))
+            d = ImageDraw.Draw(img)
+            for x in range(0, WIDTH, 32):
+                d.line([(x, 0), (x, VIS_H)], fill=(12, 34, 22))
+            for y in range(VIS_H // 2 % 30, VIS_H, 30):
+                d.line([(0, y), (WIDTH, y)], fill=(12, 34, 22))
+            d.line([(0, VIS_H // 2), (WIDTH, VIS_H // 2)], fill=(20, 52, 34))
+            self._scope_bg_img = np.asarray(img, np.float32)
+        return self._scope_bg_img
+
+    @vis_style("scope")
+    def vis_scope(self, s, o, color):
+        c = tuple(o["color"]) if o.get("color") else (60, 255, 120)
+        bg = self._scope_bg()
+        st = self._vstate("scope", dict)
+        prev = st.get("glow")
+        layer = Image.new("RGB", (WIDTH, VIS_H), (0, 0, 0))
+        d = ImageDraw.Draw(layer)
+        if o["mode"] == "xy":
+            cx, cy, k = WIDTH / 2, VIS_H / 2, 70
+            pts = [(cx + float(l) * k, cy - float(r) * k) for l, r in zip(s["wave_l"], s["wave_r"])]
+        else:
+            w = s["wave"][::2]
+            xs = np.linspace(4, WIDTH - 4, len(w))
+            ys = np.clip(VIS_H / 2 - w * (VIS_H * 0.42), 2, VIS_H - 3)
+            pts = list(zip(xs.tolist(), ys.tolist()))
+        d.line(pts, fill=tuple(int(x * 0.35) for x in c), width=5)
+        d.line(pts, fill=c, width=2)
+        cur = np.asarray(layer, np.float32)
+        glow = np.maximum(cur, prev * 0.55) if (o["glow"] and prev is not None) else cur
+        st["glow"] = glow
+        arr = np.maximum(bg, glow)
+        img = Image.new("RGB", (WIDTH, HEIGHT), (4, 12, 8))
+        img.paste(Image.fromarray(arr.astype(np.uint8), "RGB"), (0, 0))
+        return img
+
+    # -- 5. Kreis-Spektrum --------------------------------------------------- #
+    @vis_style("ring")
+    def vis_ring(self, s, o, color):
+        S = 2
+        img = Image.new("RGB", (WIDTH * S, HEIGHT * S), (6, 6, 12))
+        d = ImageDraw.Draw(img)
+        cx, cy = WIDTH / 2 * S, (VIS_H / 2 + 6) * S
+        t = s["t"]
+        r0 = (34 + s["bass"] * 12) * S
+        since = t - s["beat_t"]
+        if 0 <= since < 0.6:                                # Welle bei jedem Schlag
+            rr = r0 + since / 0.6 * 120 * S
+            fade = 1 - since / 0.6
+            c = color if o["colors"] == "layer" else _hue(s["beats"] * 0.11, 0.6, 1)
+            d.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], outline=tuple(int(x * fade * 0.6) for x in c), width=2 * S)
+        b = s["bands"]
+        vals = np.concatenate([b, b[::-1]])
+        n = len(vals)
+        rot = t * 0.15
+        for i, v in enumerate(vals):
+            a = 2 * math.pi * i / n - math.pi / 2 + rot
+            ln = (4 + v * 64) * S
+            x1, y1 = cx + math.cos(a) * r0, cy + math.sin(a) * r0
+            x2, y2 = cx + math.cos(a) * (r0 + ln), cy + math.sin(a) * (r0 + ln)
+            c = _hue(i / n + t * 0.03, 0.85, 0.45 + 0.55 * v) if o["colors"] == "rainbow" else \
+                tuple(int(x * (0.35 + 0.65 * v)) for x in color)
+            d.line([(x1, y1), (x2, y2)], fill=c, width=3 * S)
+        ri = r0 - 6 * S
+        inner = _hue(t * 0.03, 0.7, 0.25 + 0.4 * s["bass"]) if o["colors"] == "rainbow" else \
+            tuple(int(x * (0.2 + 0.4 * s["bass"])) for x in color)
+        d.ellipse([cx - ri, cy - ri, cx + ri, cy + ri], fill=inner)
+        return img.reduce(S)
+
+    # -- 6. VU-Meter --------------------------------------------------------- #
+    def _vu_face(self, dark):
+        key = ("vu", dark)
+        cache = self.__dict__.setdefault("_vu_cache", {})
+        if key in cache:
+            return cache[key]
+        S = 2
+        img = Image.new("RGB", (WIDTH * S, HEIGHT * S), (10, 10, 14))
+        d = ImageDraw.Draw(img)
+        face = (32, 24, 12) if dark else (238, 226, 192)
+        ink = (255, 176, 60) if dark else (40, 34, 28)
+        red = (255, 80, 40) if dark else (200, 30, 25)
+        font = load_font(10 * S, bold=True)
+        big = load_font(14 * S, bold=True)
+        for k, label in enumerate(("L", "R")):
+            x0, y0, x1, y1 = (8 + k * 156) * S, 24 * S, (156 + k * 156) * S, (VIS_H - 8) * S
+            d.rounded_rectangle([x0, y0, x1, y1], radius=8 * S, fill=face, outline=(90, 80, 60), width=2 * S)
+            px, py = (x0 + x1) / 2, y1 - 22 * S
+            rad = 74 * S
+            for db, lab in ((-20, "20"), (-10, "10"), (-7, "7"), (-5, "5"), (-3, "3"), (-2, ""), (-1, ""), (0, "0"),
+                            (1, ""), (2, ""), (3, "+3")):
+                a = math.radians(self._vu_angle(10 ** (db / 20) / 10 ** (3 / 20)))
+                col = red if db >= 0 else ink
+                ox, oy = px + math.sin(a) * rad, py - math.cos(a) * rad
+                ix, iy = px + math.sin(a) * (rad - 9 * S), py - math.cos(a) * (rad - 9 * S)
+                d.line([(ix, iy), (ox, oy)], fill=col, width=2 * S)
+                if lab:
+                    tx, ty = px + math.sin(a) * (rad + 9 * S), py - math.cos(a) * (rad + 9 * S)
+                    w = d.textlength(lab, font=font)
+                    d.text((tx - w / 2, ty - 7 * S), lab, font=font, fill=col)
+            a0 = self._vu_angle(1 / 10 ** (3 / 20))
+            d.arc([px - rad, py - rad, px + rad, py + rad], -90 - 50, -90 + 50, fill=ink, width=S)
+            d.arc([px - rad + 2 * S, py - rad + 2 * S, px + rad - 2 * S, py + rad - 2 * S], -90 + a0, -90 + 50,
+                  fill=red, width=4 * S)
+            w = d.textlength("VU", font=big)
+            d.text((px - w / 2, py - 40 * S), "VU", font=big, fill=ink)
+            d.text((x0 + 10 * S, y1 - 22 * S), label, font=big, fill=ink)
+        cache.clear()
+        cache[key] = (img, ink, red)
+        return cache[key]
+
+    @staticmethod
+    def _vu_angle(v):
+        """Zeigerwinkel (−50° … +50°) für einen Pegel 0…1 (oben gestaucht wie bei echten VU-Metern)."""
+        return -50 + 100 * max(0.0, min(1.05, v)) ** 0.7
+
+    @vis_style("vu")
+    def vis_vu(self, s, o, color):
+        S = 2
+        face, ink, red = self._vu_face(o["dial"] == "dark")
+        img = face.copy()
+        d = ImageDraw.Draw(img)
+        st = self._vstate("vu", lambda: {"n": [s["left"], s["right"]]})
+        dt = self._vis_dt(st, s["t"])
+        for k, lvl in enumerate((s["left"], s["right"])):
+            st["n"][k] += (lvl - st["n"][k]) * min(1.0, dt * 9 if dt else 1.0)   # träger Zeiger
+            x0, x1, y1 = (8 + k * 156) * S, (156 + k * 156) * S, (VIS_H - 8) * S
+            px, py = (x0 + x1) / 2, y1 - 22 * S
+            a = math.radians(self._vu_angle(st["n"][k]))
+            tip = (px + math.sin(a) * 80 * S, py - math.cos(a) * 80 * S)
+            d.line([(px, py), tip], fill=(20, 20, 20) if o["dial"] != "dark" else (255, 220, 160), width=2 * S)
+            d.ellipse([px - 7 * S, py - 7 * S, px + 7 * S, py + 7 * S], fill=(30, 30, 30))
+            led = red if lvl > 0.92 else (70, 30, 25)
+            d.ellipse([x1 - 22 * S, (24 + 10) * S, x1 - 12 * S, (24 + 20) * S], fill=led)
+        return img.reduce(S)
+
+    # -- 7. Spektrogramm ----------------------------------------------------- #
+    @staticmethod
+    def _spectro_lut(name):
+        x = np.linspace(0, 1, 256)[:, None]
+        if name == "ice":
+            stops = [(0, (0, 0, 0)), (0.35, (10, 30, 110)), (0.7, (40, 190, 230)), (1, (240, 255, 255))]
+        elif name == "rainbow":
+            return np.array([_hue(0.72 - 0.72 * v, 0.9, min(1.0, v * 1.6)) for v in x[:, 0]], np.uint8)
+        else:
+            stops = [(0, (0, 0, 0)), (0.3, (120, 0, 20)), (0.6, (240, 90, 0)), (0.85, (255, 210, 40)), (1, (255, 255, 230))]
+        pos = [p for p, _ in stops]
+        return np.stack([np.interp(x[:, 0], pos, [c[i] for _, c in stops]) for i in range(3)], 1).astype(np.uint8)
+
+    @vis_style("spectro")
+    def vis_spectro(self, s, o, color):
+        top = 20
+        rows = VIS_H - top
+        st = self._vstate("spectro", dict)
+        if st.get("palette") != o["palette"]:
+            st["palette"], st["lut"] = o["palette"], self._spectro_lut(o["palette"])
+        lut = st["lut"]
+        yy = np.linspace(AUDIO_BANDS - 1, 0, rows)
+
+        def column(bands):
+            return lut[(np.clip(np.interp(yy, np.arange(AUDIO_BANDS), bands), 0, 1) * 255).astype(int)]
+
+        if "hist" not in st:
+            st["hist"] = np.zeros((rows, WIDTH, 3), np.uint8)
+            if s.get("demo"):                               # Vorschau: Verlauf gleich gefüllt
+                for k in range(WIDTH // 2):
+                    col = column(demo_snapshot(s["t"] - (WIDTH // 2 - k) * 0.05, 0.22 if s.get("idle") else 1)["bands"])
+                    st["hist"][:, 2 * k:2 * k + 2] = col[:, None]
+        h = st["hist"]
+        h[:, :-2] = h[:, 2:]
+        h[:, -2:] = column(s["bands"])[:, None]
+        img = Image.new("RGB", (WIDTH, HEIGHT), (0, 0, 0))
+        img.paste(Image.fromarray(h, "RGB"), (0, top))
+        d = ImageDraw.Draw(img)
+        for f, lab in ((100, "100"), (1000, "1k"), (10000, "10k")):
+            band = math.log(f / 40) / math.log(11000 / 40) * AUDIO_BANDS
+            y = top + rows - 1 - band / (AUDIO_BANDS - 1) * (rows - 1)
+            d.line([(0, y), (4, y)], fill=(160, 160, 170))
+            d.text((6, y - 7), lab, font=self.f_tiny, fill=(160, 160, 170))
+        return img
+
+    # -- 8. Feuerwerk -------------------------------------------------------- #
+    def _fw_bg(self):
+        if "_fw_bg_img" not in self.__dict__:
+            ys = np.linspace(0, 1, VIS_H)[:, None, None]
+            arr = np.broadcast_to(np.array([2, 3, 14], np.float32) * (1 - ys) + np.array([16, 14, 40], np.float32) * ys,
+                                  (VIS_H, WIDTH, 3)).copy()
+            sky = Image.new("L", (WIDTH, VIS_H), 0)
+            d = ImageDraw.Draw(sky)
+            rng = random.Random(7)
+            x = 0
+            while x < WIDTH:                               # Häuser am unteren Rand
+                w, h = rng.randint(14, 34), rng.randint(12, 44)
+                d.rectangle([x, VIS_H - h, x + w, VIS_H], fill=255)
+                x += w + rng.randint(0, 3)
+            self._fw_bg_img = (arr, np.asarray(sky) > 0)
+        return self._fw_bg_img
+
+    def _fw_burst(self, st, t, seed, level):
+        rng = random.Random(seed)
+        n = 36 + int(level * 30)
+        x, y = rng.uniform(50, WIDTH - 50), rng.uniform(30, 105)
+        ang = np.array([rng.uniform(0, 2 * math.pi) for _ in range(n)])
+        spd = np.array([rng.uniform(45, 95 + level * 50) for _ in range(n)])
+        hue = rng.random()
+        cols = np.array([_hue(hue + rng.uniform(-0.05, 0.05), rng.uniform(0.5, 1.0), 1.0) for _ in range(n)], np.float32)
+        new = {"x": np.full(n, x), "y": np.full(n, y), "vx": np.cos(ang) * spd, "vy": np.sin(ang) * spd,
+               "age": np.zeros(n), "life": np.array([rng.uniform(0.9, 1.6) for _ in range(n)]), "c": cols}
+        p = st["p"]
+        for k in p:
+            p[k] = np.concatenate([p[k], new[k]]) if len(p[k]) else new[k]
+
+    def _fw_step(self, st, dt):
+        p = st["p"]
+        if not len(p["x"]):
+            return
+        p["vy"] = p["vy"] + 55 * dt
+        p["vx"] = p["vx"] * (1 - 0.9 * dt)
+        p["x"] = p["x"] + p["vx"] * dt
+        p["y"] = p["y"] + p["vy"] * dt
+        p["age"] = p["age"] + dt
+        keep = p["age"] < p["life"]
+        for k in p:
+            p[k] = p[k][keep]
+
+    @vis_style("fireworks")
+    def vis_fireworks(self, s, o, color):
+        t = s["t"]
+        bg, sky = self._fw_bg()
+        empty = {k: np.zeros(0) for k in ("x", "y", "vx", "vy", "age", "life")}
+        st = self._vstate("fireworks", lambda: {"p": dict(empty, c=np.zeros((0, 3), np.float32)), "beats": s["beats"],
+                                                 "last": t, "n": 0, "glow": None})
+        if "t" not in st:                                   # erstes Bild: zwei Raketen sind schon explodiert
+            st["t"] = t
+            for k, age in enumerate((0.55, 0.2)):
+                self._fw_burst(st, t, s["beats"] * 31 + k, s["level"])
+                for _ in range(int(age / 0.05)):
+                    self._fw_step(st, 0.05)
+        dt = self._vis_dt(st, t)
+        if s["beats"] != st["beats"] or t - st["last"] > 1.4:
+            st["beats"], st["last"], st["n"] = s["beats"], t, st["n"] + 1
+            self._fw_burst(st, t, s["beats"] * 31 + st["n"], s["level"])
+        self._fw_step(st, dt)
+        glow = st["glow"]
+        glow = glow * 0.72 if (o["trails"] and glow is not None) else np.zeros((VIS_H, WIDTH, 3), np.float32)
+        p = st["p"]
+        if len(p["x"]):
+            fade = np.sqrt(np.clip(1 - p["age"] / p["life"], 0, 1))[:, None]
+            c = np.minimum(255, p["c"] * fade + 90 * np.clip(1 - p["age"] / 0.35, 0, 1)[:, None])  # jung: heller Kern
+            xi, yi = p["x"].astype(int), p["y"].astype(int)
+            for dx, dy in ((0, 0), (1, 0), (0, 1), (1, 1), (-1, 0), (0, -1)):
+                ok = (xi + dx >= 0) & (xi + dx < WIDTH) & (yi + dy >= 0) & (yi + dy < VIS_H)
+                glow[yi[ok] + dy, xi[ok] + dx] = np.maximum(glow[yi[ok] + dy, xi[ok] + dx], c[ok])
+        st["glow"] = glow
+        arr = np.maximum(bg, glow)
+        arr[sky] = (3, 3, 8)
+        img = Image.new("RGB", (WIDTH, HEIGHT), (3, 3, 8))
+        img.paste(Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGB"), (0, 0))
+        return img
+
+
+@page_keys("visual")
+def keys_visual(app, pressed):
+    """MENU (wie SETTINGS kurz) öffnet die Auswahl des Stils; sonst blättern die Pfeiltasten."""
+    if pressed & LKEY_BITS["MENU"]:
+        app.menu = VisualMenu(app)
+        app.flash = None
+        app.next_draw = 0
+        return True
+    return False
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Modul menues
 #   Auswahllisten auf dem Display: Profile, Kalender, Alben und allgemeine Listen (Sender, Textbausteine).
 # ═══════════════════════════════════════════════════════════════════════════
@@ -9245,13 +10149,14 @@ class MenuViews:
         self._scroll_marks(d, first > 0, first + rows < len(items))
         return img
 
-    def render_face_preview(self, img, name, pos, total, active, color, hint="▲▼ blättern · OK übernehmen · BACK zurück"):
+    def render_face_preview(self, img, name, pos, total, active, color, hint="▲▼ blättern · OK übernehmen · BACK zurück",
+                            title="Zifferblatt"):
         """Zifferblatt-Auswahl: das gewählte Zifferblatt groß, oben Name und Position, unten die Tasten."""
         top = img.crop((0, 0, WIDTH, 30))
         img.paste(Image.blend(top, Image.new("RGB", top.size, (10, 12, 18)), 0.78), (0, 0))
         d = ImageDraw.Draw(img)
         d.rectangle([0, 29, WIDTH, 30], fill=color)
-        d.text((10, 6), "Zifferblatt", font=self.f_tiny, fill=self.DIM)
+        d.text((10, 6), title, font=self.f_tiny, fill=self.DIM)
         cnt = f"{pos}/{total}"
         cw = d.textlength(cnt, font=self.f_small)
         d.text((WIDTH - 10 - cw, 6), cnt, font=self.f_small, fill=self.DIM)
@@ -9567,7 +10472,7 @@ class OverlayViews:
 class Renderer(RendererBase,
                ClockPage, ClockBase, StandardFaces, MechanicalFaces, SkyFaces, DisplayFaces, InfoFaces,
                MacrosPage, MusicPage, SlidesPage, WeatherPage, CalendarPage, HardwarePage,
-               NewsPage, WarningsPage, NetworkPage, UpdatesPage,
+               NewsPage, WarningsPage, NetworkPage, UpdatesPage, VisualPage,
                MenuViews, OverlayViews):
     PAGES = len(PAGE_IDS)
     MUSIC_PAGE = PAGE_IDS.index("music")
@@ -9653,9 +10558,20 @@ class ProfileMenu(Menu):
                                                 self.cursor, app.prof_idx, app.profile_colors)
 
 
+def option_list(section, item):
+    """Am Display änderbare Optionen eines Zifferblatts ("clock") bzw. Stils ("visual");
+    die Städteliste der Weltuhr nur in der Verwaltung."""
+    src = CLOCK_OPTIONS if section == "clock" else VISUAL_OPTIONS
+    return [o for o in src.get(item, []) if o["type"] in ("bool", "choice", "color")]
+
+
 def clock_option_list(face):
-    """Am Display änderbare Optionen eines Zifferblatts (die Städteliste der Weltuhr nur in der Verwaltung)."""
-    return [o for o in CLOCK_OPTIONS.get(face, []) if o["type"] in ("bool", "choice", "color")]
+    return option_list("clock", face)
+
+
+def item_options(settings, section, item):
+    """Aktuelle Werte der Optionen eines Zifferblatts bzw. Stils."""
+    return clock_options(settings, item) if section == "clock" else visual_options(settings, item)
 
 
 def _cycle(values, current, step):
@@ -9712,7 +10628,7 @@ class ClockMenu(Menu):
             app.menu = None
             app.set_clock_face(face)
         elif pressed & LKEY_BITS["RIGHT"] and clock_option_list(face):
-            app.menu = ClockOptionsMenu(face, self.cursor)      # ► Optionen des markierten Zifferblatts
+            app.menu = OptionsMenu("clock", face, self.cursor)  # ► Optionen des markierten Zifferblatts
         elif pressed & LKEY_BITS["RIGHT"]:
             self.touch()                    # Zifferblatt ohne Optionen: nichts zu tun
         elif pressed & CLOSE_KEYS:
@@ -9734,25 +10650,26 @@ class ClockMenu(Menu):
                                      PROFILE_COLOR[app.layer], hint)
 
 
-class ClockOptionsMenu(Menu):
-    """Zifferblatt-Liste, ►: Optionen des Zifferblatts ändern (jede Änderung wird gleich gespeichert
-    und ist in der Vorschau zu sehen). BACK zurück zur Liste, MENU/SETTINGS schließen."""
-    kind = "clock_options"
+class OptionsMenu(Menu):
+    """Zifferblatt- bzw. Stil-Liste, ►: Optionen ändern (jede Änderung wird gleich gespeichert und ist
+    in der Vorschau zu sehen). BACK zurück zur Liste, MENU/SETTINGS schließen.
+    section = "clock" (Zifferblatt der Uhr) oder "visual" (Stil der Visualisierung)."""
 
-    def __init__(self, face, back_cursor):
+    def __init__(self, section, item, back_cursor):
         super().__init__()
-        self.face, self.back = face, back_cursor
+        self.section, self.item, self.back = section, item, back_cursor
+        self.kind = "clock_options" if section == "clock" else "visual_options"
 
     def on_key(self, app, pressed):
-        opts = clock_option_list(self.face)
+        opts = option_list(self.section, self.item)
         self.cursor = self.step(self.cursor, pressed, len(opts))
         step = -1 if pressed & LKEY_BITS["LEFT"] else 1 if pressed & (LKEY_BITS["RIGHT"] | LKEY_BITS["OK"]) else 0
         if step:
             opt = opts[self.cursor]
-            value = clock_options(app.settings(), self.face)[opt["key"]]
-            app.set_clock_option(self.face, opt, option_next(opt, value, step))
+            value = item_options(app.settings(), self.section, self.item)[opt["key"]]
+            app.set_item_option(self.section, self.item, opt, option_next(opt, value, step))
         elif pressed & LKEY_BITS["BACK"]:
-            app.menu = ClockMenu(app)
+            app.menu = (ClockMenu if self.section == "clock" else VisualMenu)(app)
             app.menu.cursor = self.back
         elif pressed & (LKEY_BITS["MENU"] | LKEY_BITS["SETTINGS"]):
             app.menu = None
@@ -9761,16 +10678,62 @@ class ClockOptionsMenu(Menu):
         app.next_draw = 0
 
     def draw(self, app, now):
-        opts = clock_option_list(self.face)
+        opts = option_list(self.section, self.item)
         self.cursor = min(self.cursor, len(opts) - 1)
         opt = opts[self.cursor]
-        value = clock_options(app.settings(), self.face)[opt["key"]]
+        value = item_options(app.settings(), self.section, self.item)[opt["key"]]
         r = app.renderer
-        r.clock_face = self.face            # app.draw() setzt beim nächsten Bild wieder das eingestellte
-        img = r.render(PAGE_IDS.index("clock"), app.layer, {})
+        if self.section == "clock":
+            r.clock_face = self.item        # app.draw() setzt beim nächsten Bild wieder das eingestellte
+            name, page_id = CLOCK_FACES[self.item], "clock"
+        else:
+            r.visual_style = self.item
+            name, page_id = VISUAL_STYLES[self.item], "visual"
+        img = r.render(PAGE_IDS.index(page_id), app.layer, {})
         swatch = tuple(value) if opt["type"] == "color" and value else None
-        return r.render_option_overlay(img, CLOCK_FACES[self.face], opt["label"], option_text(opt, value),
+        return r.render_option_overlay(img, name, opt["label"], option_text(opt, value),
                                        self.cursor + 1, len(opts), swatch, PROFILE_COLOR[app.layer])
+
+
+class VisualMenu(Menu):
+    """Visualisierung, MENU oder SETTINGS kurz: Stil wählen (Vorschau läuft live), ► Optionen."""
+    kind = "visuals"
+
+    def __init__(self, app):
+        super().__init__()
+        styles = list(VISUAL_STYLES)
+        cur = app.visual_style()
+        self.cursor = styles.index(cur) if cur in styles else 0
+
+    @staticmethod
+    def items(app):
+        cur = app.visual_style()
+        return [{"label": label, "style": st, "mark": "▶" if st == cur else ""} for st, label in VISUAL_STYLES.items()]
+
+    def on_key(self, app, pressed):
+        items = self.items(app)
+        self.cursor = self.step(self.cursor, pressed, len(items))
+        style = items[self.cursor]["style"]
+        if pressed & LKEY_BITS["OK"]:
+            app.menu = None
+            app.set_visual_style(style)
+        elif pressed & LKEY_BITS["RIGHT"] and option_list("visual", style):
+            app.menu = OptionsMenu("visual", style, self.cursor)
+        elif pressed & CLOSE_KEYS:
+            app.menu = None
+        elif pressed:
+            self.touch()
+        app.next_draw = 0
+
+    def draw(self, app, now):
+        items = self.items(app)
+        self.cursor = min(self.cursor, len(items) - 1)
+        it, r = items[self.cursor], app.renderer
+        r.visual_style = it["style"]        # app.draw() setzt beim nächsten Bild wieder den eingestellten
+        img = r.render(PAGE_IDS.index("visual"), app.layer, {})
+        return r.render_face_preview(img, it["label"], self.cursor + 1, len(items), bool(it["mark"]),
+                                     PROFILE_COLOR[app.layer], "▲▼ blättern · OK übernehmen · ► Optionen",
+                                     title="Stil")
 
 
 class QuickMenu(Menu):
@@ -10276,6 +11239,8 @@ class AppCore:
         self.netpoll = r.net = NetworkPoller(self.settings, log=self.log)
         self.updates = r.updates = UpdatesPoller(self.settings, log=self.log)
         self.activity = ActivityWatcher(log=self.log)
+        self.visual = r.visual = SoundAnalyzer(self.launcher._env, log=self.log)
+        self._vis_light, self._vis_light_t = None, 0.0     # Tastaturlicht im Takt (zuletzt gesetzte Farbe)
         self.mediakeys = MediaKeys(lambda: self.settings().get("media_keys", True), self.handle_media_key, log=self.log)
         self.services = [self.media, self.slideshow, self.weather, self.calendar, self.news, self.alerts,
                          self.netpoll, self.updates, self.activity, self.mediakeys]
@@ -10596,10 +11561,21 @@ class AppCore:
         self.next_draw = 0
         return True
 
-    def set_clock_option(self, face, opt, value):
-        """Option eines Zifferblatts am Display geändert (ClockOptionsMenu)."""
-        if self.save_setting(["clock", face, opt["key"]], value):
-            self.log(f"Uhr-Option: {CLOCK_FACES[face]} · {opt['label']} = {option_text(opt, value)}")
+    def set_item_option(self, section, item, opt, value):
+        """Option eines Zifferblatts ("clock") bzw. Stils der Visualisierung ("visual") am Display geändert."""
+        if self.save_setting([section, item, opt["key"]], value):
+            if section == "clock":
+                self.log(f"Uhr-Option: {CLOCK_FACES[item]} · {opt['label']} = {option_text(opt, value)}")
+            else:
+                self.log(f"Visualisierung-Option: {VISUAL_STYLES[item]} · {opt['label']} = {option_text(opt, value)}")
+
+    def visual_style(self):
+        style = (self.settings().get("visual") or {}).get("style")
+        return style if style in VISUAL_STYLES else "eq"
+
+    def set_visual_style(self, style):
+        if self.save_setting(["visual", "style"], style):
+            self.log(f"Visualisierung: {VISUAL_STYLES[style]}")
 
     def save_albums(self, selected, albums):
         """Albenauswahl in settings.json schreiben (die Verwaltung liest sie von dort)."""
@@ -10664,8 +11640,8 @@ class AppCore:
 #   Displaytasten gehen der Reihe nach an:
 #     1. Vorrang-Regeln: nachts weckt der erste Druck nur, der Bildschirmschoner
 #        endet nur, ein abgelaufener Timer bzw. eine Erinnerung wird nur bestätigt
-#     2. SETTINGS (ohne offenes Menü): lang gedrückt (LONG_PRESS) die Profilauswahl, kurz
-#        auf der Uhrseite die Zifferblätter, auf anderen Seiten ebenfalls die Profilauswahl.
+#     2. SETTINGS (ohne offenes Menü): lang gedrückt (LONG_PRESS) die Profilauswahl, kurz auf der
+#        Uhrseite die Zifferblätter, auf der Visualisierung die Stile, sonst ebenfalls die Profilauswahl.
 #        Entschieden wird beim Loslassen bzw. nach LONG_PRESS in settings_key_tick().
 #     3. das offene Menü (menue_logik)
 #     4. die Tasten der angezeigten Seite (@page_keys in den Seitenmodulen)
@@ -10900,8 +11876,11 @@ class KeyHandling:
 
     def _settings_key(self, long):
         """SETTINGS lang: Profilauswahl. Kurz: auf der Uhrseite die Zifferblätter, sonst die Profilauswahl."""
-        if not long and PAGE_IDS[self.page % len(PAGE_IDS)] == "clock":
+        page = PAGE_IDS[self.page % len(PAGE_IDS)]
+        if not long and page == "clock":
             self.menu = ClockMenu(self)
+        elif not long and page == "visual":
+            self.menu = VisualMenu(self)
         else:
             self.menu = ProfileMenu(self.prof_idx)
         if self.args.debug:
@@ -11308,6 +12287,7 @@ class App(AppCore, KeyHandling, TimedTasks):
         """Das Bild wählen, das gerade gezeigt werden soll, und senden."""
         r, rec, menu = self.renderer, self.rec, self.menu
         r.clock_face = self.clock_face()
+        r.visual_style = self.visual_style()
         if not self.media.fast_now and PAGE_IDS[self.page % len(PAGE_IDS)] == "music":
             self.media.fast_now = True
             self.media.wake.set()           # Musikseite wurde gerade sichtbar: sofort abfragen
@@ -11336,8 +12316,42 @@ class App(AppCore, KeyHandling, TimedTasks):
                 self.next_draw = now + (1.0 - time.time() % 1.0) + 0.02
         else:
             self.next_draw = now + (0.5 if fast else 1.0)
+        if self._visual_shown():
+            self.visual.want()              # Ausgang mithören, solange die Visualisierung zu sehen ist
+            if not fast:
+                self.next_draw = now + (1.0 if self.night_dark() else 1.0 / VISUAL_FPS)
+            self._visual_backlight(now)
+        else:
+            self._visual_backlight_off()
         if self.settings_down is not None:
             self.next_draw = min(self.next_draw, now + 0.05)    # Haltebalken von SETTINGS füllt sich
+
+    def _visual_shown(self):
+        if self.menu is not None:
+            return self.menu.kind in ("visuals", "visual_options")
+        return not self.rec and not self.flash and PAGE_IDS[self.page % len(PAGE_IDS)] == "visual"
+
+    def _visual_backlight(self, now):
+        """Tastaturbeleuchtung pulsiert mit dem Bass (Einstellung visual.backlight, Standard an)."""
+        s = self.settings()
+        if (not (s.get("visual") or {}).get("backlight", True) or self.args.keep_backlight
+                or s.get("keep_backlight") or self.rec or self.night_dark()):
+            self._visual_backlight_off()
+            return
+        snap = self.visual.snapshot()
+        k = round((0.15 + 0.85 * snap["bass"]) * 20) / 20 if snap.get("active") else 1.0
+        color = tuple(int(c * k) for c in PROFILE_COLOR[self.layer])
+        if color != self._vis_light and now - self._vis_light_t >= 0.04:
+            self._vis_light, self._vis_light_t = color, now
+            try:
+                self.g19.set_backlight(*color)
+            except Exception:               # Beleuchtung ist nicht kritisch
+                pass
+
+    def _visual_backlight_off(self):
+        if self._vis_light is not None:
+            self._vis_light = None
+            self.apply_leds()               # wieder die normale Farbe der Ebene
 
     def _compose(self, now):
         """Menü, Aufnahme, Einblendung oder Seite zeichnen."""
@@ -11394,7 +12408,7 @@ class App(AppCore, KeyHandling, TimedTasks):
         except Exception:                   # Tastatur evtl. schon abgezogen
             pass
         for s in (self.media, self.slideshow, self.weather, self.calendar, self.activity, self.notifier,
-                  self.mediakeys):
+                  self.mediakeys, self.visual):
             s.stop()
         self.radio.stop()
         self.ui.close()
@@ -11502,7 +12516,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.05-2"
+VERSION = "2026.11.05-3"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -11531,7 +12545,7 @@ def load_driver():
 
 
 # Alle Namen des Treibers, die die Verwaltung benutzt (g.<name>) – build.py trägt sie beim Bauen ein
-DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD ENTRY_TYPES FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller auto_backup backup_members clean_macros clean_settings err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed save_json save_state test_backup_target valid_colors".split()
+DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD ENTRY_TYPES FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VISUAL_OPTIONS VISUAL_STYLES VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller auto_backup backup_members clean_macros clean_settings err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed save_json save_state test_backup_target valid_colors".split()
 
 
 g = load_driver()
@@ -12071,7 +13085,7 @@ _preview_extra = {"news": PreviewData(g.NewsPoller), "warnings": PreviewData(g.W
 _PREVIEW_ATTR = {"news": "news", "warnings": "alerts", "network": "net", "updates": "updates"}
 
 
-def render_preview(page, layer, settings, pidx=0, colors=None, name=None, face=None):
+def render_preview(page, layer, settings, pidx=0, colors=None, name=None, face=None, style=None):
     global _renderer
     with _preview_lock:
         if _renderer is None:
@@ -12101,6 +13115,7 @@ def render_preview(page, layer, settings, pidx=0, colors=None, name=None, face=N
         _renderer.settings = s
         _renderer.clock_face = (face if face in g.CLOCK_FACES else      # Karte „Uhr“: gezeigtes Zifferblatt
                                 (prof.get("clock") or {}).get(lay, "digital"))  # sonst: am Display gewähltes
+        _renderer.visual_style = style if style in g.VISUAL_STYLES else s["visual"]["style"]
         _renderer.profile_name = (name if name is not None else prof["name"]) if len(profiles) > 1 else ""
         img = _renderer.render(int(page) % len(g.PAGE_NAMES), layer if layer in g.LAYERS else "M1",
                                prof["keys"])
@@ -12129,6 +13144,7 @@ class ApiKeys:
             "volume": g.VOLUME_ACTIONS,
             "entry_types": g.ENTRY_TYPES,
             "clock_faces": list(g.CLOCK_FACES.items()), "clock_options": g.CLOCK_OPTIONS,
+            "visual_styles": list(g.VISUAL_STYLES.items()), "visual_options": g.VISUAL_OPTIONS,
             "world_cities": g.WORLD_CITIES,
             "mtimes": {"macros": mtime(g.MACRO_FILE), "settings": mtime(g.SETTINGS_FILE)},
             "paths": {"macros": g.MACRO_FILE, "settings": g.SETTINGS_FILE,
@@ -12169,7 +13185,8 @@ class ApiKeys:
     def api_post_preview(self, q):
         body = self._json()
         png = render_preview(body.get("page", 0), body.get("profile", "M1"), body.get("settings"),
-                             body.get("pidx", 0), body.get("colors"), body.get("name"), body.get("face"))
+                             body.get("pidx", 0), body.get("colors"), body.get("name"), body.get("face"),
+                             body.get("style"))
         self._send(200, {"image": "data:image/png;base64," + base64.b64encode(png).decode()})
 
 
@@ -13197,6 +14214,22 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
       <div class="row" style="margin-top:8px"><button class="btn small" id="clkAll">Alle anhaken</button></div>
     </div>
     <div class="card">
+      <h2>Visualisierung</h2>
+      <p class="hint">Die Seite „Visualisierung“ bewegt sich zu allem, was der Rechner gerade abspielt (Radio, Spotify, Browser …). Der Treiber hört dafür den Ausgang mit (<code>pw-record</code>), nur solange die Seite zu sehen ist – es wird nichts gespeichert, das Mikrofon wird nicht benutzt. Seite unter „Displayseiten“ einschalten oder als Bildschirmschoner wählen. Am Display: MENU oder SETTINGS kurz = Stil wählen, dort ► = Optionen.</p>
+      <div class="preview">
+        <div>
+          <label class="field" style="max-width:300px"><span>Stil</span><select id="visStyle"></select></label>
+          <div id="visOpts"></div>
+          <label class="check"><input type="checkbox" id="visBacklight"> Tastaturbeleuchtung pulsiert im Takt</label>
+          <label class="check"><input type="checkbox" id="visTitle"> Laufenden Titel oben anzeigen</label>
+        </div>
+        <div>
+          <img class="lcd" id="visLcd" alt="Vorschau der Visualisierung">
+          <div class="hint" style="margin-top:6px">Vorschau mit künstlicher Musik.</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
       <h2>Nachtmodus</h2>
       <p class="hint">Zu festen Zeiten Display und Beleuchtung abdunkeln. Ein Tastendruck weckt beides für eine Minute.</p>
       <label class="check"><input type="checkbox" id="nightOn"> Nachtmodus verwenden</label>
@@ -13652,6 +14685,7 @@ async function loadState() {
   S.macros = d.macros; S.settings = d.settings; S.keys = d.keys; S.media = d.media; S.pages = d.pages; S.pageIds = d.page_ids; S.volume = d.volume;
   S.entryTypes = d.entry_types;
   S.clockFaces = d.clock_faces; S.clockOptions = d.clock_options; S.worldCities = d.world_cities;
+  S.visualStyles = d.visual_styles; S.visualOptions = d.visual_options;
   S.active = d.active; S.maxProfiles = d.max_profiles;
   if (UI.pidx === undefined) UI.pidx = d.active;
   UI.pidx = Math.min(UI.pidx, S.macros.profiles.length - 1);
@@ -14342,6 +15376,7 @@ function renderSettings() {
   $("#pvPages").replaceChildren(...S.pages.map((n, i) => el("option", {value: i, text: "Vorschau: " + n, selected: i === UI.pvPage})));
   renderPageList();
   renderClock();
+  renderVisual();
   const n = sd.night;
   $("#nightOn").checked = !!n.enabled; $("#nightStart").value = n.start; $("#nightEnd").value = n.end;
   document.querySelectorAll("#nightMode button").forEach(b => b.classList.toggle("active", b.dataset.mode === n.mode));
@@ -14471,8 +15506,11 @@ function renderClockOptions() {
   const face = UI.clkFace, opts = S.clockOptions[face] || [], d = clockDraft(face);
   const box = $("#clkOpts");
   if (!opts.length) { box.replaceChildren(el("p", {class: "hint", text: "Für dieses Zifferblatt gibt es keine Einstellungen."})); return; }
-  const changed = () => { touchSettings(); clockPreview(); };
-  box.replaceChildren(...opts.map(o => {
+  box.replaceChildren(...optionFields(opts, d, () => { touchSettings(); clockPreview(); }));
+}
+// Formularfelder für Optionen (CLOCK_OPTIONS/VISUAL_OPTIONS): d = Entwurf des Zifferblatts bzw. Stils
+function optionFields(opts, d, changed) {
+  return opts.map(o => {
     const val = o.key in d ? d[o.key] : o.default;
     if (o.type === "bool")
       return el("label", {class: "check clkopt"}, el("input", {type: "checkbox", checked: !!val,
@@ -14503,7 +15541,7 @@ function renderClockOptions() {
           S.worldCities.map(([n, tz]) => el("option", {value: tz, text: n}))))));
     }
     return null;
-  }));
+  });
 }
 let clkTimer = null;
 function clockPreview() {
@@ -14517,6 +15555,39 @@ function clockPreview() {
 }
 $("#clkFace").addEventListener("change", e => { UI.clkFace = e.target.value; renderClockOptions(); clockPreview(); });
 $("#clkAll").addEventListener("click", () => { UI.sdraft.clock.menu = []; touchSettings(); renderClock(); });
+
+// ---------------------------------------------------------------- Visualisierung: Stile
+// Der gewählte Stil (UI.sdraft.visual.style) gilt auch am Display; Optionen je Stil aus VISUAL_OPTIONS
+// (S.visualOptions) in UI.sdraft.visual[<stil>], gespeichert mit den übrigen Einstellungen.
+function renderVisual() {
+  const sd = UI.sdraft; if (!sd || !S.visualStyles) return;
+  const v = sd.visual;
+  $("#visStyle").replaceChildren(...S.visualStyles.map(([id, label]) =>
+    el("option", {value: id, text: label, selected: id === v.style})));
+  $("#visBacklight").checked = v.backlight !== false;
+  $("#visTitle").checked = v.title !== false;
+  renderVisualOptions();
+  visualPreview();
+}
+function renderVisualOptions() {
+  const v = UI.sdraft.visual, style = v.style;
+  if (!v[style]) v[style] = {};
+  $("#visOpts").replaceChildren(...optionFields(S.visualOptions[style] || [], v[style],
+    () => { touchSettings(); visualPreview(); }));
+}
+let visTimer = null;
+function visualPreview() {
+  clearTimeout(visTimer);
+  visTimer = setTimeout(async () => {
+    if (UI.tab !== "settings") return;
+    try { $("#visLcd").src = (await api("/api/preview", {body: {page: S.pageIds.indexOf("visual"), profile: UI.pvProfile || "M1",
+      settings: UI.sdraft, pidx: UI.pidx, style: UI.sdraft.visual.style}})).image; }
+    catch (e) { /* Vorschau ist nicht kritisch */ }
+  }, 200);
+}
+$("#visStyle").addEventListener("change", e => { UI.sdraft.visual.style = e.target.value; touchSettings(); renderVisualOptions(); visualPreview(); });
+$("#visBacklight").addEventListener("change", e => { UI.sdraft.visual.backlight = e.target.checked; touchSettings(); });
+$("#visTitle").addEventListener("change", e => { UI.sdraft.visual.title = e.target.checked; touchSettings(); visualPreview(); });
 
 // ---------------------------------------------------------------- Diashow (Piwigo)
 UI.albums = null;
@@ -15243,7 +16314,7 @@ Startet eine neue Oberfläche nicht, stellt die Verwaltung automatisch die vorhe
 == Bedienung an der Tastatur ==
 
 === Profile (Displaytaste SETTINGS) ===
-Bis zu 10 Profile. '''SETTINGS lang drücken''' (1 Sekunde) öffnet auf jeder Seite die Profilliste auf dem Display – sie erscheint schon, während die Taste noch gehalten wird. '''Kurz''' gedrückt öffnet SETTINGS auf der Seite '''Uhr''' die Liste der Zifferblätter (wie MENU), auf allen anderen Seiten ebenfalls die Profilliste.
+Bis zu 10 Profile. '''SETTINGS lang drücken''' (1 Sekunde) öffnet auf jeder Seite die Profilliste auf dem Display – sie erscheint schon, während die Taste noch gehalten wird. '''Kurz''' gedrückt öffnet SETTINGS auf der Seite '''Uhr''' die Liste der Zifferblätter (wie MENU), auf der Seite '''Visualisierung''' die Liste der Stile, auf allen anderen Seiten ebenfalls die Profilliste.
 {| class="wikitable"
 ! Taste !! Funktion
 |-
@@ -15449,6 +16520,33 @@ Auf der Seite '''Uhr''' öffnen '''MENU''' und ein kurzer Druck auf '''SETTINGS'
 Die meisten Zifferblätter werden genau zum Sekundenwechsel neu gezeichnet. Bewegte Zifferblätter (Pendel-, Kuckucks-, Sand- und Kerzenuhr, Planeten, Radar, Klappzahlen, Zählwerk) zeichnen 5-mal pro Sekunde, das Terminal 2-mal (Cursor).
 
 '''Eigene Zifferblätter''' (für Entwickler): siehe <code>ENTWICKLUNG.md</code> auf https://github.com/MrCatwiesel/g19s-kubuntu – ein Zifferblatt ist eine Methode mit <code>@clock_face("id")</code>, der Name steht in <code>CLOCK_FACES</code>, die Einstellungen in <code>CLOCK_OPTIONS</code>; <code>tests/uhren_vorschau.py</code> zeigt es als Bild.
+
+=== Visualisierung ===
+Die Seite '''Visualisierung''' bewegt sich zu allem, was der Rechner gerade abspielt – G19s-Radio, Spotify, Browser, Remote-Desktop-Ton. Dafür hört der Treiber den '''Ausgang''' (Monitor des Standard-Ausgangs von PipeWire) mit <code>pw-record</code> mit, und zwar '''nur, solange die Seite zu sehen ist'''; etwa 2 Sekunden nach dem Wegblättern endet die Aufnahme. Es wird nichts gespeichert, das Mikrofon wird nicht benutzt. Die Seite ist anfangs ausgeschaltet: unter '''Beleuchtung & Display → Displayseiten''' einschalten oder beim '''Bildschirmschoner''' als Seite wählen.
+
+'''Am Display:''' '''MENU''' oder ein kurzer Druck auf '''SETTINGS''' öffnet die Liste der Stile mit laufender Vorschau, '''OK''' übernimmt, '''Rechts (►)''' öffnet die Optionen des markierten Stils (wie bei den Zifferblättern). Der Stil steht in <code>settings.json</code> (<code>"visual": {"style": "dancer"}</code>) und gilt für alle Profile und Ebenen.
+{| class="wikitable"
+! Stil !! Aussehen !! Einstellungen
+|-
+| Grafik-Equalizer || LED-Balken mit fallenden Spitzenmarken || Anzahl der Balken (16–48), Farben (Grün-Gelb-Rot, Regenbogen, Farbe der Ebene), gespiegelt, Spitzenmarken
+|-
+| Tanzendes Mädchen || eine Tänzerin wechselt im Takt die Pose, wippt mit dem Bass, der Rock schwingt mit der Lautstärke || Farbe, Bühnenlicht
+|-
+| Lichtshow || Scheinwerfer schwenken, Farben pulsieren mit dem Bass, Spiegelkugel, Lichtpunkte || Anzahl der Scheinwerfer, sanfter Blitz bei kräftigen Schlägen (kein Stroboskop)
+|-
+| Oszilloskop || die Schwingung als leuchtende Linie auf einem Raster || Schwingung oder Stereo-Figur (links/rechts), Farbe, Nachleuchten
+|-
+| Kreis-Spektrum || Strahlenkranz, der im Takt atmet, mit Welle bei jedem Schlag || Regenbogen oder Farbe der Ebene
+|-
+| VU-Meter || zwei analoge Zeigerinstrumente (links/rechts) mit Übersteuerungs-Lampe || helle oder dunkle Skala
+|-
+| Spektrogramm || Wasserfall der Frequenzen (unten tief, oben hoch) || Farben Glut, Eis, Regenbogen
+|-
+| Feuerwerk || bei jedem Schlag explodiert eine Rakete über der Stadt || Leuchtspuren
+|}
+Oben steht der laufende Titel (abschaltbar). Ohne Ton bewegt sich die Seite nur ruhig und zeigt „Keine Wiedergabe“. Die '''Tastaturbeleuchtung pulsiert''' in der Farbe der Ebene mit dem Bass, solange die Seite zu sehen ist (nicht nachts, nicht bei „Beleuchtung nicht umfärben“). Alles einstellbar unter '''Beleuchtung & Display → Visualisierung''' mit Vorschau.
+
+<div style="border-left:4px solid #3366cc; background:#eaf3ff; padding:0.5em 1em; margin:1em 0;">'''Hinweis:''' Je nach Plasma-Version erscheint während der Visualisierung im Systemabschnitt der Kontrollleiste das Symbol „Aufnahme läuft“ (Eintrag „G19s Visualisierung“). Das ist der Mitschnitt des Ausgangs, nicht das Mikrofon. Zeigt die Seite „pw-record fehlt“: <code>sudo apt install pipewire-bin</code>.</div>
 
 === Textbausteine ===
 Im Reiter '''Textbausteine''' der Verwaltung Texte anlegen (Name, optionale Gruppe, Text – auch mehrzeilig). Dann einer G-Taste die Aktion '''Textbausteine''' geben und im Feld „Welche Textbausteine?“ wählen:
@@ -15816,6 +16914,7 @@ getfacl /dev/bus/usb/BUS/GERÄT                      # Rechte (Nummern aus lsusb
 |-
 | <code>0x83</code> (Interface 1) || Interrupt IN || G-/M-Tasten, nur Report-ID <code>0x02</code> auswerten
 |}
+* Visualisierung: <code>SoundAnalyzer</code> (klanganalyse) liest <code>pw-record --rate 22050 --channels 2 --format s16 -P '{ stream.capture.sink = true }' -</code> (ersatzweise <code>parec -d @DEFAULT_MONITOR@</code>), FFT über 2048 Werte, 64 logarithmische Bänder 40 Hz–11 kHz mit automatischer Verstärkung, Takt = Bassenergie über dem 1,5-Fachen des Mittels der letzten Sekunde. Gezeichnet mit 20 Bildern/s; die Stile (<code>@vis_style</code> in <code>seite_visual</code>) brauchen je Bild 1–8 ms.
 * MENU auf Seiten ohne eigene Tastenfunktion für MENU öffnet <code>QuickMenu</code>; in der Zifferblatt-Liste öffnet Rechts <code>ClockOptionsMenu</code> (Optionen aus <code>CLOCK_OPTIONS</code>, Typen bool/choice/color, Farben aus <code>CLOCK_COLOR_CHOICES</code>, Speichern über <code>save_setting</code>).
 * Displaytaste SETTINGS (<code>0x01</code>): ab 1 s gehalten (<code>LONG_PRESS</code>) Profilmenü, kurz auf der Uhrseite die Zifferblätter, sonst ebenfalls das Profilmenü. Entschieden wird beim Loslassen bzw. nach 1 s (<code>settings_key_tick</code>).
 * Report <code>0x02</code>: Byte 1 = G1–G8 (Bit 0–7), Byte 2 = G9–G12 (Bit 0–3), M1 0x10, M2 0x20, M3 0x40, MR 0x80.

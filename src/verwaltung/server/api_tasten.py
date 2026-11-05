@@ -16,6 +16,7 @@ class ApiKeys:
             "volume": g.VOLUME_ACTIONS,
             "entry_types": g.ENTRY_TYPES,
             "clock_faces": list(g.CLOCK_FACES.items()), "clock_options": g.CLOCK_OPTIONS,
+            "visual_styles": list(g.VISUAL_STYLES.items()), "visual_options": g.VISUAL_OPTIONS,
             "world_cities": g.WORLD_CITIES,
             "mtimes": {"macros": mtime(g.MACRO_FILE), "settings": mtime(g.SETTINGS_FILE)},
             "paths": {"macros": g.MACRO_FILE, "settings": g.SETTINGS_FILE,
@@ -56,5 +57,6 @@ class ApiKeys:
     def api_post_preview(self, q):
         body = self._json()
         png = render_preview(body.get("page", 0), body.get("profile", "M1"), body.get("settings"),
-                             body.get("pidx", 0), body.get("colors"), body.get("name"), body.get("face"))
+                             body.get("pidx", 0), body.get("colors"), body.get("name"), body.get("face"),
+                             body.get("style"))
         self._send(200, {"image": "data:image/png;base64," + base64.b64encode(png).decode()})

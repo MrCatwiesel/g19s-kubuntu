@@ -14,6 +14,7 @@ function renderSettings() {
   $("#pvPages").replaceChildren(...S.pages.map((n, i) => el("option", {value: i, text: "Vorschau: " + n, selected: i === UI.pvPage})));
   renderPageList();
   renderClock();
+  renderVisual();
   const n = sd.night;
   $("#nightOn").checked = !!n.enabled; $("#nightStart").value = n.start; $("#nightEnd").value = n.end;
   document.querySelectorAll("#nightMode button").forEach(b => b.classList.toggle("active", b.dataset.mode === n.mode));

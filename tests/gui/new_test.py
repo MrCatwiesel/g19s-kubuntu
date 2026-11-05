@@ -17,7 +17,7 @@ with sync_playwright() as p:
     ok("Stumm" in pg.inner_text(".gkey >> nth=9"), "Kachel zeigt „Stumm“")
     # Seiten, Nachtmodus, Bildschirmschoner
     pg.click("nav >> text=Beleuchtung"); pg.wait_for_timeout(400)
-    ok(pg.locator(".pagerow").count() == 11, "11 Displayseiten aufgelistet")
+    ok(pg.locator(".pagerow").count() == 12, "12 Displayseiten aufgelistet")
     rows = pg.locator(".pagerow")
     names = [rows.nth(i).locator(".pn").inner_text() for i in range(7)]
     ok(names[:4] == ["Uhr", "Musik", "Wetter", "Termine"], "Standardreihenfolge: " + ", ".join(names))

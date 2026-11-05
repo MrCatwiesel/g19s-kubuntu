@@ -61,9 +61,20 @@ class ProfileMenu(Menu):
                                                 self.cursor, app.prof_idx, app.profile_colors)
 
 
+def option_list(section, item):
+    """Am Display änderbare Optionen eines Zifferblatts ("clock") bzw. Stils ("visual");
+    die Städteliste der Weltuhr nur in der Verwaltung."""
+    src = CLOCK_OPTIONS if section == "clock" else VISUAL_OPTIONS
+    return [o for o in src.get(item, []) if o["type"] in ("bool", "choice", "color")]
+
+
 def clock_option_list(face):
-    """Am Display änderbare Optionen eines Zifferblatts (die Städteliste der Weltuhr nur in der Verwaltung)."""
-    return [o for o in CLOCK_OPTIONS.get(face, []) if o["type"] in ("bool", "choice", "color")]
+    return option_list("clock", face)
+
+
+def item_options(settings, section, item):
+    """Aktuelle Werte der Optionen eines Zifferblatts bzw. Stils."""
+    return clock_options(settings, item) if section == "clock" else visual_options(settings, item)
 
 
 def _cycle(values, current, step):
@@ -120,7 +131,7 @@ class ClockMenu(Menu):
             app.menu = None
             app.set_clock_face(face)
         elif pressed & LKEY_BITS["RIGHT"] and clock_option_list(face):
-            app.menu = ClockOptionsMenu(face, self.cursor)      # ► Optionen des markierten Zifferblatts
+            app.menu = OptionsMenu("clock", face, self.cursor)  # ► Optionen des markierten Zifferblatts
         elif pressed & LKEY_BITS["RIGHT"]:
             self.touch()                    # Zifferblatt ohne Optionen: nichts zu tun
         elif pressed & CLOSE_KEYS:
@@ -142,25 +153,26 @@ class ClockMenu(Menu):
                                      PROFILE_COLOR[app.layer], hint)
 
 
-class ClockOptionsMenu(Menu):
-    """Zifferblatt-Liste, ►: Optionen des Zifferblatts ändern (jede Änderung wird gleich gespeichert
-    und ist in der Vorschau zu sehen). BACK zurück zur Liste, MENU/SETTINGS schließen."""
-    kind = "clock_options"
+class OptionsMenu(Menu):
+    """Zifferblatt- bzw. Stil-Liste, ►: Optionen ändern (jede Änderung wird gleich gespeichert und ist
+    in der Vorschau zu sehen). BACK zurück zur Liste, MENU/SETTINGS schließen.
+    section = "clock" (Zifferblatt der Uhr) oder "visual" (Stil der Visualisierung)."""
 
-    def __init__(self, face, back_cursor):
+    def __init__(self, section, item, back_cursor):
         super().__init__()
-        self.face, self.back = face, back_cursor
+        self.section, self.item, self.back = section, item, back_cursor
+        self.kind = "clock_options" if section == "clock" else "visual_options"
 
     def on_key(self, app, pressed):
-        opts = clock_option_list(self.face)
+        opts = option_list(self.section, self.item)
         self.cursor = self.step(self.cursor, pressed, len(opts))
         step = -1 if pressed & LKEY_BITS["LEFT"] else 1 if pressed & (LKEY_BITS["RIGHT"] | LKEY_BITS["OK"]) else 0
         if step:
             opt = opts[self.cursor]
-            value = clock_options(app.settings(), self.face)[opt["key"]]
-            app.set_clock_option(self.face, opt, option_next(opt, value, step))
+            value = item_options(app.settings(), self.section, self.item)[opt["key"]]
+            app.set_item_option(self.section, self.item, opt, option_next(opt, value, step))
         elif pressed & LKEY_BITS["BACK"]:
-            app.menu = ClockMenu(app)
+            app.menu = (ClockMenu if self.section == "clock" else VisualMenu)(app)
             app.menu.cursor = self.back
         elif pressed & (LKEY_BITS["MENU"] | LKEY_BITS["SETTINGS"]):
             app.menu = None
@@ -169,16 +181,62 @@ class ClockOptionsMenu(Menu):
         app.next_draw = 0
 
     def draw(self, app, now):
-        opts = clock_option_list(self.face)
+        opts = option_list(self.section, self.item)
         self.cursor = min(self.cursor, len(opts) - 1)
         opt = opts[self.cursor]
-        value = clock_options(app.settings(), self.face)[opt["key"]]
+        value = item_options(app.settings(), self.section, self.item)[opt["key"]]
         r = app.renderer
-        r.clock_face = self.face            # app.draw() setzt beim nächsten Bild wieder das eingestellte
-        img = r.render(PAGE_IDS.index("clock"), app.layer, {})
+        if self.section == "clock":
+            r.clock_face = self.item        # app.draw() setzt beim nächsten Bild wieder das eingestellte
+            name, page_id = CLOCK_FACES[self.item], "clock"
+        else:
+            r.visual_style = self.item
+            name, page_id = VISUAL_STYLES[self.item], "visual"
+        img = r.render(PAGE_IDS.index(page_id), app.layer, {})
         swatch = tuple(value) if opt["type"] == "color" and value else None
-        return r.render_option_overlay(img, CLOCK_FACES[self.face], opt["label"], option_text(opt, value),
+        return r.render_option_overlay(img, name, opt["label"], option_text(opt, value),
                                        self.cursor + 1, len(opts), swatch, PROFILE_COLOR[app.layer])
+
+
+class VisualMenu(Menu):
+    """Visualisierung, MENU oder SETTINGS kurz: Stil wählen (Vorschau läuft live), ► Optionen."""
+    kind = "visuals"
+
+    def __init__(self, app):
+        super().__init__()
+        styles = list(VISUAL_STYLES)
+        cur = app.visual_style()
+        self.cursor = styles.index(cur) if cur in styles else 0
+
+    @staticmethod
+    def items(app):
+        cur = app.visual_style()
+        return [{"label": label, "style": st, "mark": "▶" if st == cur else ""} for st, label in VISUAL_STYLES.items()]
+
+    def on_key(self, app, pressed):
+        items = self.items(app)
+        self.cursor = self.step(self.cursor, pressed, len(items))
+        style = items[self.cursor]["style"]
+        if pressed & LKEY_BITS["OK"]:
+            app.menu = None
+            app.set_visual_style(style)
+        elif pressed & LKEY_BITS["RIGHT"] and option_list("visual", style):
+            app.menu = OptionsMenu("visual", style, self.cursor)
+        elif pressed & CLOSE_KEYS:
+            app.menu = None
+        elif pressed:
+            self.touch()
+        app.next_draw = 0
+
+    def draw(self, app, now):
+        items = self.items(app)
+        self.cursor = min(self.cursor, len(items) - 1)
+        it, r = items[self.cursor], app.renderer
+        r.visual_style = it["style"]        # app.draw() setzt beim nächsten Bild wieder den eingestellten
+        img = r.render(PAGE_IDS.index("visual"), app.layer, {})
+        return r.render_face_preview(img, it["label"], self.cursor + 1, len(items), bool(it["mark"]),
+                                     PROFILE_COLOR[app.layer], "▲▼ blättern · OK übernehmen · ► Optionen",
+                                     title="Stil")
 
 
 class QuickMenu(Menu):

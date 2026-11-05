@@ -1,0 +1,61 @@
+"""Klanganalyse der Visualisierung: Frequenzbänder, Pegel links/rechts, Takt, Stille, Einstellungen."""
+import math
+import numpy as np
+from common import g, eq, ok, done
+
+RATE, BLOCK = g.AUDIO_RATE, g.SoundAnalyzer.BLOCK
+a = g.SoundAnalyzer(lambda: {}, log=lambda m: None)
+
+
+def blocks(seconds, fn):
+    """Stereo-Blöcke wie von pw-record (L, R abwechselnd) aus fn(t) -> (l, r)."""
+    n = 0
+    while n < seconds * RATE:
+        t = (np.arange(n, n + BLOCK)) / RATE
+        l, r = fn(t)
+        out = np.empty(BLOCK * 2, np.float32)
+        out[0::2], out[1::2] = l, r
+        yield out, n / RATE
+        n += BLOCK
+
+
+# 1 kHz nur links: stärkstes Band bei 1 kHz, linker Pegel deutlich höher
+for samples, t in blocks(1.0, lambda t: (0.5 * np.sin(2 * np.pi * 1000 * t), 0.02 * np.sin(2 * np.pi * 1000 * t))):
+    a.feed(samples, t)
+s = a.snapshot()
+lo, hi = a.edges[int(np.argmax(s["bands"]))]
+freq = (lo + hi) / 2 * RATE / g.AUDIO_FFT
+ok(800 < freq < 1250, f"stärkstes Band bei 1 kHz (ist {freq:.0f} Hz)")
+ok(s["active"] and s["left"] > s["right"] + 0.2, f"Pegel links {s['left']:.2f} > rechts {s['right']:.2f}")
+ok(s["bands"][:4].max() < 0.5, "tiefe Bänder bleiben ruhig")
+
+# Bass-Schlag alle 0,5 s: Takt wird erkannt (etwa 2 je Sekunde)
+a.reset()
+kick = lambda t: (0.8 * np.exp(-(t % 0.5) * 14) * np.sin(2 * np.pi * 55 * t) + 0.05 * np.sin(2 * np.pi * 900 * t),) * 2
+for samples, t in blocks(4.0, kick):
+    a.feed(samples, t)
+s = a.snapshot()
+ok(5 <= s["beats"] <= 8, f"Takt erkannt: {s['beats']} Schläge in 4 s (1 s Anlauf)")
+ok(s["bass"] > s["treble"], "Bass stärker als Höhen")
+
+# Stille: nicht aktiv, Bänder fallen ab
+for samples, t in blocks(1.0, lambda t: (t * 0, t * 0)):
+    a.feed(samples, t + 4)
+s = a.snapshot()
+ok(not s["active"] and s["bands"].max() < 0.05, "Stille: inaktiv, Bänder bei null")
+
+# künstliche Werte (Vorschau): gleiche Zeit → gleiche Werte, Form wie echte
+d1, d2 = g.demo_snapshot(100.25), g.demo_snapshot(100.25)
+ok(np.array_equal(d1["bands"], d2["bands"]) and d1["beats"] == 200, "demo_snapshot ist reproduzierbar")
+eq(set(d1) >= set(s), True, "demo_snapshot hat alle Felder der echten Analyse")
+
+# Einstellungen: Standardwerte und ungültige Werte
+st = g.clean_settings({"visual": {"style": "gibtsnicht", "eq": {"bars": "999", "mirror": True}}})
+eq(st["visual"]["style"], "eq", "unbekannter Stil → Grafik-Equalizer")
+eq(st["visual"]["eq"]["bars"], "32", "ungültige Balkenzahl → Standard")
+eq(st["visual"]["eq"]["mirror"], True, "gültige Option bleibt")
+eq(st["visual"]["backlight"], True, "Tastaturlicht im Takt: Standard an")
+eq(g.visual_options(st, "eq")["mirror"], True, "visual_options liest settings.json")
+ok(all(s in g.VISUAL_RENDERERS for s in g.VISUAL_STYLES), "jeder Stil hat eine Zeichenfunktion")
+ok("visual" in g.PAGE_IDS and len(g.PAGE_IDS) == len(g.PAGE_NAMES), "Seite „Visualisierung“ angemeldet")
+done()

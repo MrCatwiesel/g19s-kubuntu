@@ -89,6 +89,7 @@ class App(AppCore, KeyHandling, TimedTasks):
         """Das Bild wählen, das gerade gezeigt werden soll, und senden."""
         r, rec, menu = self.renderer, self.rec, self.menu
         r.clock_face = self.clock_face()
+        r.visual_style = self.visual_style()
         if not self.media.fast_now and PAGE_IDS[self.page % len(PAGE_IDS)] == "music":
             self.media.fast_now = True
             self.media.wake.set()           # Musikseite wurde gerade sichtbar: sofort abfragen
@@ -117,8 +118,42 @@ class App(AppCore, KeyHandling, TimedTasks):
                 self.next_draw = now + (1.0 - time.time() % 1.0) + 0.02
         else:
             self.next_draw = now + (0.5 if fast else 1.0)
+        if self._visual_shown():
+            self.visual.want()              # Ausgang mithören, solange die Visualisierung zu sehen ist
+            if not fast:
+                self.next_draw = now + (1.0 if self.night_dark() else 1.0 / VISUAL_FPS)
+            self._visual_backlight(now)
+        else:
+            self._visual_backlight_off()
         if self.settings_down is not None:
             self.next_draw = min(self.next_draw, now + 0.05)    # Haltebalken von SETTINGS füllt sich
+
+    def _visual_shown(self):
+        if self.menu is not None:
+            return self.menu.kind in ("visuals", "visual_options")
+        return not self.rec and not self.flash and PAGE_IDS[self.page % len(PAGE_IDS)] == "visual"
+
+    def _visual_backlight(self, now):
+        """Tastaturbeleuchtung pulsiert mit dem Bass (Einstellung visual.backlight, Standard an)."""
+        s = self.settings()
+        if (not (s.get("visual") or {}).get("backlight", True) or self.args.keep_backlight
+                or s.get("keep_backlight") or self.rec or self.night_dark()):
+            self._visual_backlight_off()
+            return
+        snap = self.visual.snapshot()
+        k = round((0.15 + 0.85 * snap["bass"]) * 20) / 20 if snap.get("active") else 1.0
+        color = tuple(int(c * k) for c in PROFILE_COLOR[self.layer])
+        if color != self._vis_light and now - self._vis_light_t >= 0.04:
+            self._vis_light, self._vis_light_t = color, now
+            try:
+                self.g19.set_backlight(*color)
+            except Exception:               # Beleuchtung ist nicht kritisch
+                pass
+
+    def _visual_backlight_off(self):
+        if self._vis_light is not None:
+            self._vis_light = None
+            self.apply_leds()               # wieder die normale Farbe der Ebene
 
     def _compose(self, now):
         """Menü, Aufnahme, Einblendung oder Seite zeichnen."""
@@ -175,7 +210,7 @@ class App(AppCore, KeyHandling, TimedTasks):
         except Exception:                   # Tastatur evtl. schon abgezogen
             pass
         for s in (self.media, self.slideshow, self.weather, self.calendar, self.activity, self.notifier,
-                  self.mediakeys):
+                  self.mediakeys, self.visual):
             s.stop()
         self.radio.stop()
         self.ui.close()

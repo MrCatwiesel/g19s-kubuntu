@@ -57,9 +57,9 @@ TAP_MS = 20          # Haltezeit bei Schritten vom Typ "tap"
 TEXT_DELAY_MS = 12   # Pause zwischen zwei Zeichen bei "text"
 
 PAGE_IDS = ["clock", "music", "macros", "slides", "weather", "calendar", "hardware",
-            "news", "warnings", "network", "updates"]
+            "news", "warnings", "network", "updates", "visual"]
 PAGE_NAMES = ["Uhr", "Musik", "Makros", "Bilder", "Wetter", "Termine", "Hardware",
-              "Nachrichten", "Unwetter", "Netzwerk", "Updates"]
+              "Nachrichten", "Unwetter", "Netzwerk", "Updates", "Visualisierung"]
 # Zifferblätter der Seite „Uhr“ (Auswahl am Display mit MENU, gespeichert je Profil und Ebene).
 # Reihenfolge = Reihenfolge im Displaymenü und in der Verwaltung.
 CLOCK_FACES = {
@@ -154,6 +154,53 @@ CLOCK_COLOR_CHOICES = [
     ([255, 215, 0], "Gelb"), ([40, 200, 80], "Grün"), ([0, 200, 200], "Türkis"), ([30, 120, 255], "Blau"),
     ([150, 80, 255], "Violett"), ([255, 80, 180], "Pink"),
 ]
+# Stile der Seite „Visualisierung“ (Auswahl am Display mit MENU, gespeichert in settings.json → "visual")
+VISUAL_STYLES = {
+    "eq": "Grafik-Equalizer", "dancer": "Tanzendes Mädchen", "lights": "Lichtshow", "scope": "Oszilloskop",
+    "ring": "Kreis-Spektrum", "vu": "VU-Meter", "spectro": "Spektrogramm", "fireworks": "Feuerwerk",
+}
+VISUAL_FPS = 20             # Bilder je Sekunde der Visualisierung
+# Einstellungen je Stil (Verwaltung → Beleuchtung & Display → Visualisierung, am Display ►), wie CLOCK_OPTIONS
+VISUAL_OPTIONS = {
+    "eq": [
+        {"key": "bars", "label": "Anzahl der Balken", "type": "choice", "default": "32",
+         "choices": [["16", "16"], ["24", "24"], ["32", "32"], ["48", "48"]]},
+        {"key": "colors", "label": "Farben", "type": "choice", "default": "led",
+         "choices": [["led", "Grün-Gelb-Rot (LED)"], ["rainbow", "Regenbogen"], ["layer", "Farbe der Ebene"]]},
+        {"key": "mirror", "label": "Gespiegelt (von der Mitte aus)", "type": "bool", "default": False},
+        {"key": "peaks", "label": "Spitzenmarken", "type": "bool", "default": True},
+    ],
+    "dancer": [
+        {"key": "color", "label": "Farbe der Tänzerin", "type": "color", "default": None, "none_label": _LAYER},
+        {"key": "stage", "label": "Bühnenlicht", "type": "bool", "default": True},
+    ],
+    "lights": [
+        {"key": "beams", "label": "Scheinwerfer", "type": "choice", "default": "5",
+         "choices": [["3", "3"], ["5", "5"], ["7", "7"]]},
+        {"key": "flash", "label": "Sanfter Blitz bei kräftigen Schlägen", "type": "bool", "default": True},
+    ],
+    "scope": [
+        {"key": "mode", "label": "Darstellung", "type": "choice", "default": "line",
+         "choices": [["line", "Schwingung"], ["xy", "Stereo-Figur (links/rechts)"]]},
+        {"key": "color", "label": "Farbe", "type": "color", "default": None, "none_label": "Grün (Standard)"},
+        {"key": "glow", "label": "Nachleuchten", "type": "bool", "default": True},
+    ],
+    "ring": [
+        {"key": "colors", "label": "Farben", "type": "choice", "default": "rainbow",
+         "choices": [["rainbow", "Regenbogen"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "vu": [
+        {"key": "dial", "label": "Skala", "type": "choice", "default": "cream",
+         "choices": [["cream", "Hell (klassisch)"], ["dark", "Dunkel mit bernsteinfarbenem Licht"]]},
+    ],
+    "spectro": [
+        {"key": "palette", "label": "Farben", "type": "choice", "default": "fire",
+         "choices": [["fire", "Glut"], ["ice", "Eis"], ["rainbow", "Regenbogen"]]},
+    ],
+    "fireworks": [
+        {"key": "trails", "label": "Leuchtspuren", "type": "bool", "default": True},
+    ],
+}
 OLD_CLOCK_PAGES = {"clock_chrono": "chrono", "clock_steampunk": "steampunk",      # Version 2026.09.28-8/-9
                    "clock_station": "station", "clock_binary": "binary"}
 DEFAULT_PAGE_ORDER = ["clock", "music", "weather", "calendar", "hardware", "macros", "slides"]

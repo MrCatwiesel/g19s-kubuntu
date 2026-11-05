@@ -239,8 +239,19 @@ def _page_ids():
 
 def _clock_section():
     """settings.json → "clock": {"menu": [...], "<zifferblatt>": {<optionen>}} aus CLOCK_OPTIONS."""
+    return Section(dict(menu=FaceList([]), **_option_sections(CLOCK_OPTIONS)))
+
+
+def _visual_section():
+    """settings.json → "visual": {"style", "backlight", "title", "<stil>": {<optionen>}} aus VISUAL_OPTIONS."""
+    return Section(dict(style=Choice("eq", lambda: list(VISUAL_STYLES)), backlight=Bool(True), title=Bool(True),
+                        **_option_sections(VISUAL_OPTIONS)))
+
+
+def _option_sections(options):
+    """Je Eintrag (Zifferblatt/Stil) ein Abschnitt mit den Feldern seiner Optionen."""
     faces = {}
-    for face, opts in CLOCK_OPTIONS.items():
+    for face, opts in options.items():
         fields = {}
         for o in opts:
             if o["type"] == "bool":
@@ -252,7 +263,7 @@ def _clock_section():
             elif o["type"] == "cities":
                 fields[o["key"]] = Items(o["default"], Entry({"name": Str(maxlen=24), "tz": Str()}), required="tz", limit=6)
         faces[face] = Section(fields)
-    return Section(dict(menu=FaceList([]), **faces))
+    return faces
 
 
 # --- Das Schema ------------------------------------------------------------- #
@@ -330,6 +341,7 @@ SCHEMA = {
     "layer_overlay": Bool(True),       # M1/M2/M3: Belegung der G-Tasten kurz einblenden
     "media_keys": Bool(True),          # Lautstärkerad/Stumm/Medientasten vom Treiber (auch im Remote-Desktop)
     "pages_rev": Int(PAGES_REV, PAGES_REV, PAGES_REV),  # Stand der Seitenliste (für Umstellungen)
+    "visual": _visual_section(),               # Seite „Visualisierung“: Stil, Tastaturlicht im Takt, Optionen
     "clock": _clock_section(),                  # Zifferblätter der Uhr: Auswahl fürs Displaymenü, Optionen
 }
 

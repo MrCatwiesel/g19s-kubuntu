@@ -32,6 +32,7 @@ Für die G19s gibt es unter Linux keinen offiziellen Treiber. Die normalen Taste
 * '''Terminerinnerung''' vor Terminbeginn, '''Radiowecker''' und '''Einschlaftimer''', '''Song merken''' (Radiotitel in eine Liste), '''Lieblingsbilder''' in der Diashow, '''Mikrofon stumm''' per G-Taste (MR-Leuchte als Anzeige).
 * Displayseiten je Ebene '''und''' je Profil einstellbar, '''automatische Sicherung''' in einen Ordner.
 * '''25 Zifferblätter''' für die Uhr (u. a. Chronometer, Bahnhofsuhr, Pendel- und Kuckucksuhr, Astro- und Sonnenuhr, Weltzeituhr, Nixie-Röhren, Wortuhr) – Auswahl am Display mit MENU oder SETTINGS (kurz) je Profil und Ebene, Aussehen in der Verwaltung einstellbar.
+* '''Visualisierung''' zur laufenden Musik in acht Stilen: Grafik-Equalizer, Tanzendes Mädchen, Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm, Feuerwerk – die Tastaturbeleuchtung pulsiert auf Wunsch im Takt.
 * Weitere Seiten: '''Nachrichten''' (RSS/Atom), '''Unwetter''' (amtliche DWD-Warnungen), '''Netzwerk''' (Erreichbarkeit von Router, NAS …), '''Updates''' (Paket- und Flatpak-Updates, Neustart nötig).
 * '''Display''' mit sieben Standardseiten: Uhr, Musik (inkl. Internetradio), Wetter, Termine, Hardware (Auslastung, Temperaturen, Arbeitsspeicher, Lüfter, Netz, Datenträger), Makro-Übersicht, Bilder. Welche Seiten in welcher Reihenfolge erscheinen, ist frei wählbar.
 * '''Diashow''' mit Bildern aus Piwigo-Alben (auch private Alben) oder aus einem Ordner auf dem Rechner – auf Wunsch als '''Bildschirmschoner'''.
@@ -109,7 +110,7 @@ sudo apt install python3-usb python3-evdev python3-pil python3-numpy playerctl m
 |-
 | <code>libnotify-bin</code> || nur für den Knopf „Testbenachrichtigung senden“ in der Verwaltung
 |}
-Bei Kubuntu bereits vorhanden und ebenfalls genutzt: <code>dbus-monitor</code> (Paket <code>dbus-bin</code>, Benachrichtigungen) und <code>wpctl</code> (Paket <code>wireplumber</code>, Lautstärke). Für Grafikkarten von NVIDIA liest die Hardware-Seite Temperatur und Auslastung über <code>nvidia-smi</code>, falls der NVIDIA-Treiber installiert ist.
+Bei Kubuntu bereits vorhanden und ebenfalls genutzt: <code>pw-record</code> (Paket <code>pipewire-bin</code>, Visualisierung; ersatzweise <code>parec</code>), <code>dbus-monitor</code> (Paket <code>dbus-bin</code>, Benachrichtigungen) und <code>wpctl</code> (Paket <code>wireplumber</code>, Lautstärke). Für Grafikkarten von NVIDIA liest die Hardware-Seite Temperatur und Auslastung über <code>nvidia-smi</code>, falls der NVIDIA-Treiber installiert ist.
 
 Kontrolle:
 <pre>
@@ -269,7 +270,7 @@ Startet eine neue Oberfläche nicht, stellt die Verwaltung automatisch die vorhe
 == Bedienung an der Tastatur ==
 
 === Profile (Displaytaste SETTINGS) ===
-Bis zu 10 Profile. '''SETTINGS lang drücken''' (1 Sekunde) öffnet auf jeder Seite die Profilliste auf dem Display – sie erscheint schon, während die Taste noch gehalten wird. '''Kurz''' gedrückt öffnet SETTINGS auf der Seite '''Uhr''' die Liste der Zifferblätter (wie MENU), auf allen anderen Seiten ebenfalls die Profilliste.
+Bis zu 10 Profile. '''SETTINGS lang drücken''' (1 Sekunde) öffnet auf jeder Seite die Profilliste auf dem Display – sie erscheint schon, während die Taste noch gehalten wird. '''Kurz''' gedrückt öffnet SETTINGS auf der Seite '''Uhr''' die Liste der Zifferblätter (wie MENU), auf der Seite '''Visualisierung''' die Liste der Stile, auf allen anderen Seiten ebenfalls die Profilliste.
 {| class="wikitable"
 ! Taste !! Funktion
 |-
@@ -475,6 +476,33 @@ Auf der Seite '''Uhr''' öffnen '''MENU''' und ein kurzer Druck auf '''SETTINGS'
 Die meisten Zifferblätter werden genau zum Sekundenwechsel neu gezeichnet. Bewegte Zifferblätter (Pendel-, Kuckucks-, Sand- und Kerzenuhr, Planeten, Radar, Klappzahlen, Zählwerk) zeichnen 5-mal pro Sekunde, das Terminal 2-mal (Cursor).
 
 '''Eigene Zifferblätter''' (für Entwickler): siehe <code>ENTWICKLUNG.md</code> auf https://github.com/MrCatwiesel/g19s-kubuntu – ein Zifferblatt ist eine Methode mit <code>@clock_face("id")</code>, der Name steht in <code>CLOCK_FACES</code>, die Einstellungen in <code>CLOCK_OPTIONS</code>; <code>tests/uhren_vorschau.py</code> zeigt es als Bild.
+
+=== Visualisierung ===
+Die Seite '''Visualisierung''' bewegt sich zu allem, was der Rechner gerade abspielt – G19s-Radio, Spotify, Browser, Remote-Desktop-Ton. Dafür hört der Treiber den '''Ausgang''' (Monitor des Standard-Ausgangs von PipeWire) mit <code>pw-record</code> mit, und zwar '''nur, solange die Seite zu sehen ist'''; etwa 2 Sekunden nach dem Wegblättern endet die Aufnahme. Es wird nichts gespeichert, das Mikrofon wird nicht benutzt. Die Seite ist anfangs ausgeschaltet: unter '''Beleuchtung & Display → Displayseiten''' einschalten oder beim '''Bildschirmschoner''' als Seite wählen.
+
+'''Am Display:''' '''MENU''' oder ein kurzer Druck auf '''SETTINGS''' öffnet die Liste der Stile mit laufender Vorschau, '''OK''' übernimmt, '''Rechts (►)''' öffnet die Optionen des markierten Stils (wie bei den Zifferblättern). Der Stil steht in <code>settings.json</code> (<code>"visual": {"style": "dancer"}</code>) und gilt für alle Profile und Ebenen.
+{| class="wikitable"
+! Stil !! Aussehen !! Einstellungen
+|-
+| Grafik-Equalizer || LED-Balken mit fallenden Spitzenmarken || Anzahl der Balken (16–48), Farben (Grün-Gelb-Rot, Regenbogen, Farbe der Ebene), gespiegelt, Spitzenmarken
+|-
+| Tanzendes Mädchen || eine Tänzerin wechselt im Takt die Pose, wippt mit dem Bass, der Rock schwingt mit der Lautstärke || Farbe, Bühnenlicht
+|-
+| Lichtshow || Scheinwerfer schwenken, Farben pulsieren mit dem Bass, Spiegelkugel, Lichtpunkte || Anzahl der Scheinwerfer, sanfter Blitz bei kräftigen Schlägen (kein Stroboskop)
+|-
+| Oszilloskop || die Schwingung als leuchtende Linie auf einem Raster || Schwingung oder Stereo-Figur (links/rechts), Farbe, Nachleuchten
+|-
+| Kreis-Spektrum || Strahlenkranz, der im Takt atmet, mit Welle bei jedem Schlag || Regenbogen oder Farbe der Ebene
+|-
+| VU-Meter || zwei analoge Zeigerinstrumente (links/rechts) mit Übersteuerungs-Lampe || helle oder dunkle Skala
+|-
+| Spektrogramm || Wasserfall der Frequenzen (unten tief, oben hoch) || Farben Glut, Eis, Regenbogen
+|-
+| Feuerwerk || bei jedem Schlag explodiert eine Rakete über der Stadt || Leuchtspuren
+|}
+Oben steht der laufende Titel (abschaltbar). Ohne Ton bewegt sich die Seite nur ruhig und zeigt „Keine Wiedergabe“. Die '''Tastaturbeleuchtung pulsiert''' in der Farbe der Ebene mit dem Bass, solange die Seite zu sehen ist (nicht nachts, nicht bei „Beleuchtung nicht umfärben“). Alles einstellbar unter '''Beleuchtung & Display → Visualisierung''' mit Vorschau.
+
+<div style="border-left:4px solid #3366cc; background:#eaf3ff; padding:0.5em 1em; margin:1em 0;">'''Hinweis:''' Je nach Plasma-Version erscheint während der Visualisierung im Systemabschnitt der Kontrollleiste das Symbol „Aufnahme läuft“ (Eintrag „G19s Visualisierung“). Das ist der Mitschnitt des Ausgangs, nicht das Mikrofon. Zeigt die Seite „pw-record fehlt“: <code>sudo apt install pipewire-bin</code>.</div>
 
 === Textbausteine ===
 Im Reiter '''Textbausteine''' der Verwaltung Texte anlegen (Name, optionale Gruppe, Text – auch mehrzeilig). Dann einer G-Taste die Aktion '''Textbausteine''' geben und im Feld „Welche Textbausteine?“ wählen:
@@ -842,6 +870,7 @@ getfacl /dev/bus/usb/BUS/GERÄT                      # Rechte (Nummern aus lsusb
 |-
 | <code>0x83</code> (Interface 1) || Interrupt IN || G-/M-Tasten, nur Report-ID <code>0x02</code> auswerten
 |}
+* Visualisierung: <code>SoundAnalyzer</code> (klanganalyse) liest <code>pw-record --rate 22050 --channels 2 --format s16 -P '{ stream.capture.sink = true }' -</code> (ersatzweise <code>parec -d @DEFAULT_MONITOR@</code>), FFT über 2048 Werte, 64 logarithmische Bänder 40 Hz–11 kHz mit automatischer Verstärkung, Takt = Bassenergie über dem 1,5-Fachen des Mittels der letzten Sekunde. Gezeichnet mit 20 Bildern/s; die Stile (<code>@vis_style</code> in <code>seite_visual</code>) brauchen je Bild 1–8 ms.
 * MENU auf Seiten ohne eigene Tastenfunktion für MENU öffnet <code>QuickMenu</code>; in der Zifferblatt-Liste öffnet Rechts <code>ClockOptionsMenu</code> (Optionen aus <code>CLOCK_OPTIONS</code>, Typen bool/choice/color, Farben aus <code>CLOCK_COLOR_CHOICES</code>, Speichern über <code>save_setting</code>).
 * Displaytaste SETTINGS (<code>0x01</code>): ab 1 s gehalten (<code>LONG_PRESS</code>) Profilmenü, kurz auf der Uhrseite die Zifferblätter, sonst ebenfalls das Profilmenü. Entschieden wird beim Loslassen bzw. nach 1 s (<code>settings_key_tick</code>).
 * Report <code>0x02</code>: Byte 1 = G1–G8 (Bit 0–7), Byte 2 = G9–G12 (Bit 0–3), M1 0x10, M2 0x20, M3 0x40, MR 0x80.

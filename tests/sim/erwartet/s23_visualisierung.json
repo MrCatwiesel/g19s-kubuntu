@@ -1,0 +1,26 @@
+{
+ "am_ende": [
+  0,
+  110,
+  255
+ ],
+ "aufruf_monitor": true,
+ "laeuft": true,
+ "log": [
+  "Visualisierung: höre den Ausgang mit (pw-record)",
+  "Visualisierung-Option: Tanzendes Mädchen · Bühnenlicht = aus",
+  "Visualisierung: Tanzendes Mädchen"
+ ],
+ "nach_verlassen": false,
+ "optionen": {
+  "stage": false
+ },
+ "puls": true,
+ "stil": "dancer",
+ "still_volle_farbe": [
+  0,
+  110,
+  255
+ ],
+ "takt": true
+}

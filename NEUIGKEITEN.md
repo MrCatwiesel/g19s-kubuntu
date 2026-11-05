@@ -3,6 +3,12 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.05-3
+- Neu: Displayseite „Visualisierung“ – bewegt sich zu allem, was der Rechner gerade abspielt (Radio, Spotify, Browser …). Acht Stile: Grafik-Equalizer, Tanzendes Mädchen, Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm und Feuerwerk.
+- Stil wählen am Display mit MENU oder SETTINGS kurz, Rechts öffnet die Optionen des Stils. In der Verwaltung unter „Beleuchtung & Display → Visualisierung“ mit Vorschau.
+- Die Tastaturbeleuchtung pulsiert im Takt mit, solange die Seite zu sehen ist (abschaltbar).
+- Die Seite ist anfangs aus: unter „Displayseiten“ einschalten oder als Bildschirmschoner wählen. Der Ton wird nur mitgehört, solange die Seite zu sehen ist, und nirgends gespeichert.
+
 ## 2026.11.05-2
 - Neu: Optionen der Zifferblätter direkt am Display ändern – in der Zifferblatt-Liste (Uhr: MENU oder SETTINGS kurz) öffnet Rechts die Optionen des markierten Zifferblatts, z. B. Sekunden, Datum, Farbe oder Darstellung. Das Zifferblatt läuft dabei als Vorschau mit, jede Änderung gilt sofort.
 - Neu: Schnellmenü per MENU auf den Seiten Makros, Wetter und Hardware – Helligkeit, Nachtmodus ein/aus, Diashow pausieren, Bildschirmschoner sofort, Profil wählen.
