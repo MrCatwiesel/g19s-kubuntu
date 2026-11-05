@@ -500,7 +500,7 @@ Die Seite '''Visualisierung''' bewegt sich zu allem, was der Rechner gerade absp
 |-
 | Feuerwerk || bei jedem Schlag explodiert eine Rakete über der Stadt || Leuchtspuren
 |}
-Oben steht der laufende Titel (abschaltbar). Ohne Ton bewegt sich die Seite nur ruhig und zeigt „Keine Wiedergabe“. Die '''Tastaturbeleuchtung pulsiert''' in der Farbe der Ebene mit dem Bass, solange die Seite zu sehen ist (nicht nachts, nicht bei „Beleuchtung nicht umfärben“). Alles einstellbar unter '''Beleuchtung & Display → Visualisierung''' mit Vorschau.
+Oben steht der laufende Titel (abschaltbar). Ohne Ton bewegt sich die Seite nur ruhig und zeigt „Keine Wiedergabe“; ist der Ausgang stumm geschaltet (oder auf 0 %), zeigt sie „Ton stumm“ – der mitgehörte Ausgang selbst merkt vom Stummschalten nichts, deshalb fragt der Treiber jede Sekunde nach. Die '''Tastaturbeleuchtung pulsiert''' in der Farbe der Ebene mit dem Bass, solange die Seite zu sehen ist (nicht nachts, nicht bei „Beleuchtung nicht umfärben“). Alles einstellbar unter '''Beleuchtung & Display → Visualisierung''' mit Vorschau.
 
 <div style="border-left:4px solid #3366cc; background:#eaf3ff; padding:0.5em 1em; margin:1em 0;">'''Hinweis:''' Je nach Plasma-Version erscheint während der Visualisierung im Systemabschnitt der Kontrollleiste das Symbol „Aufnahme läuft“ (Eintrag „G19s Visualisierung“). Das ist der Mitschnitt des Ausgangs, nicht das Mikrofon. Zeigt die Seite „pw-record fehlt“: <code>sudo apt install pipewire-bin</code>.</div>
 

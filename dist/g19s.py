@@ -40,7 +40,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.05-3"
+VERSION = "2026.11.05-4"
 
 # Weitere Importe der Module
 import select
@@ -1526,6 +1526,8 @@ def mic_state(env=None, toggle=False):
 #
 #   Aufnahme mit pw-record (stream.capture.sink = Monitor des Standard-Ausgangs), ersatzweise parec.
 #   Nur solange want() regelmäßig aufgerufen wird (Seite sichtbar); danach endet die Aufnahme.
+#   Der Monitor bekommt Stummschalten und Lautstärke des Ausgangs nicht mit – deshalb wird jede Sekunde
+#   nachgefragt (change_volume "get"); ist der Ausgang stumm oder auf 0 %, gilt das wie Stille.
 #   Es wird nichts gespeichert, das Mikrofon wird nicht benutzt. snapshot() liefert Bänder (0…1),
 #   Pegel links/rechts, Bass/Mitten/Höhen, Wellenform und einen Taktzähler für die Zeichenfunktionen.
 #   demo_snapshot() erzeugt dieselben Werte künstlich (Vorschau der Verwaltung, Leerlauf, Tests).
@@ -1557,7 +1559,7 @@ def _band_edges():
 def _empty_snapshot(t=0.0):
     return {"t": t, "bands": np.zeros(AUDIO_BANDS), "left": 0.0, "right": 0.0, "level": 0.0, "bass": 0.0,
             "mid": 0.0, "treble": 0.0, "wave": np.zeros(640), "wave_l": np.zeros(256), "wave_r": np.zeros(256),
-            "beats": 0, "beat_t": -10.0, "active": False, "error": None, "demo": False}
+            "beats": 0, "beat_t": -10.0, "active": False, "error": None, "demo": False, "muted": False}
 
 
 def demo_snapshot(t, amp=1.0):
@@ -1602,6 +1604,7 @@ class SoundAnalyzer:
         self.window = np.hanning(AUDIO_FFT)
         self._snap = _empty_snapshot()
         self._error_logged = None
+        self.muted, self.mute_checked = False, 0.0
         self.reset()
 
     def reset(self):
@@ -1662,6 +1665,10 @@ class SoundAnalyzer:
         frame_bytes = self.BLOCK * 4    # Stereo, 16 Bit
         buf = b""
         while self.running and time.monotonic() < self.wanted_until:
+            if time.monotonic() >= self.mute_checked + 1.0:
+                self.mute_checked = time.monotonic()
+                vol = change_volume("get", env=self.env_func())
+                self.muted = bool(vol and (vol[1] or vol[0] == 0))
             if self.proc is None or self.proc.poll() is not None:
                 if self.proc is not None:
                     self._set_error("Aufnahmeprogramm hat sich beendet – neuer Versuch in 5 s")
@@ -1720,7 +1727,7 @@ class SoundAnalyzer:
         self.ref_db = max(peak, self.ref_db - 0.04, -60.0)       # Verstärkung passt sich langsam an
         val = np.clip((db - (self.ref_db - 48.0)) / 48.0, 0, 1)
         rms = float(np.sqrt(np.mean(mono ** 2)))
-        active = rms > 2e-4
+        active = rms > 2e-4 and not self.muted
         if not active:
             val = val * 0.0
         self.bands = np.maximum(val, self.bands * 0.82)         # schnell hoch, langsam runter
@@ -1744,7 +1751,8 @@ class SoundAnalyzer:
                 "level": (levels[0] + levels[1]) / 2, "bass": float(b[:8].mean()), "mid": float(b[16:40].mean()),
                 "treble": float(b[40:].mean()), "wave": self.ring[-640:].copy() * 3.0,
                 "wave_l": left[-256:].copy() * 3.0, "wave_r": right[-256:].copy() * 3.0,
-                "beats": self.beats, "beat_t": self.beat_t, "active": active, "error": None, "demo": False}
+                "beats": self.beats, "beat_t": self.beat_t, "active": active, "error": None, "demo": False,
+                "muted": self.muted}
         with self.lock:
             self._snap = snap
 
@@ -9405,7 +9413,7 @@ class VisualPage:
         if snap.get("active"):
             return snap
         idle = demo_snapshot(now, amp=0.22)                 # Stille: ruhige Bewegung
-        idle.update(idle=True, error=snap.get("error"))
+        idle.update(idle=True, error=snap.get("error"), muted=snap.get("muted", False))
         return idle
 
     def _vis_dt(self, st, t):
@@ -9430,7 +9438,7 @@ class VisualPage:
         if snap.get("error"):
             self._center(d, VIS_H - 22, self._fit(d, snap["error"], self.f_tiny, WIDTH - 16), self.f_tiny, (235, 120, 90))
         elif snap.get("idle"):
-            self._center(d, VIS_H - 22, "Keine Wiedergabe", self.f_tiny, self.DIM)
+            self._center(d, VIS_H - 22, "Ton stumm" if snap.get("muted") else "Keine Wiedergabe", self.f_tiny, self.DIM)
         return img
 
     # -- 1. Grafik-Equalizer ------------------------------------------------- #

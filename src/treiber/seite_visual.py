@@ -84,7 +84,7 @@ class VisualPage:
         if snap.get("active"):
             return snap
         idle = demo_snapshot(now, amp=0.22)                 # Stille: ruhige Bewegung
-        idle.update(idle=True, error=snap.get("error"))
+        idle.update(idle=True, error=snap.get("error"), muted=snap.get("muted", False))
         return idle
 
     def _vis_dt(self, st, t):
@@ -109,7 +109,7 @@ class VisualPage:
         if snap.get("error"):
             self._center(d, VIS_H - 22, self._fit(d, snap["error"], self.f_tiny, WIDTH - 16), self.f_tiny, (235, 120, 90))
         elif snap.get("idle"):
-            self._center(d, VIS_H - 22, "Keine Wiedergabe", self.f_tiny, self.DIM)
+            self._center(d, VIS_H - 22, "Ton stumm" if snap.get("muted") else "Keine Wiedergabe", self.f_tiny, self.DIM)
         return img
 
     # -- 1. Grafik-Equalizer ------------------------------------------------- #

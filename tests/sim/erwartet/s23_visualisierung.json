@@ -5,6 +5,12 @@
   255
  ],
  "aufruf_monitor": true,
+ "bei_stille": [
+  "leerlauf"
+ ],
+ "bei_stumm": [
+  "stumm"
+ ],
  "laeuft": true,
  "log": [
   "Visualisierung: höre den Ausgang mit (pw-record)",
@@ -22,5 +28,8 @@
   110,
   255
  ],
- "takt": true
+ "takt": true,
+ "vorher": [
+  "musik"
+ ]
 }

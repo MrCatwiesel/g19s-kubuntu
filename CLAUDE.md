@@ -34,7 +34,7 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
 - Aus der Sandbox ist `raw.githubusercontent.com` nicht erreichbar; die Update-Suche wird
   mit dem Fake-GitHub (`G19S_UPDATE_URL`, `tests/fakes/infodienste.py`) getestet.
 
-## Stand (2026.11.05-3)
+## Stand (2026.11.05-4)
 - Alle Punkte der Prüfung Sicherheit/Lesbarkeit/Performance umgesetzt; L7 (Umbenennung
   profile→layer) bewusst verworfen.
 - 2026.09.30-5: Update direkt von GitHub (Dienst & Sicherung → „Nach Updates suchen“),
@@ -97,6 +97,9 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
   Verwaltung: Karte „Visualisierung“ (`11c_visual.js`, `optionFields` aus 11b_uhr.js gemeinsam). Tests:
   Fake `tests/fakes/bin/pw-record` (Python, Kick alle 0,5 s), Sim `s23_visualisierung`, `test_klanganalyse.py`,
   Bilder `vis_*`. Footer-Punkte aller Referenzbilder geändert (12 Seiten).
+- 2026.11.05-4: Nutzer: „nach Stumm zeigt Visualisierung weiterhin an“ – der PipeWire-Monitor ist vor Mute/Lautstärke
+  (Beleg, dass der Ausgang und nicht das Mikrofon mitgehört wird). `SoundAnalyzer` fragt jede Sekunde
+  `change_volume("get")`; stumm oder 0 % → `muted`, inaktiv, Seite zeigt „Ton stumm“. Fake-wpctl: `$S/sinkmute`.
 - Beobachtet: Benachrichtigungen erscheinen im Journal doppelt (vermutlich sendet Plasma zweimal) – harmlos.
 - Beobachtet (2026-10-02): RDP-Sitzung (xfreerdp/sdl-freerdp 3.32.0 → Windows-PC) brach beim Kopieren bzw.
   ~10 s nach dem Login ab: `cliprdr … Error was 1359 → Network disconnect`. Ursache ist ein FreeRDP-Fehler bei

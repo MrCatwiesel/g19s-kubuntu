@@ -3,6 +3,9 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.05-4
+- Visualisierung: Ist der Ton stumm geschaltet (Stummtaste) oder auf 0 %, kommt die Seite zur Ruhe, zeigt „Ton stumm“, und die Tastatur pulsiert nicht mehr. Bisher lief sie weiter, weil das Radio im Hintergrund weiterspielt.
+
 ## 2026.11.05-3
 - Neu: Displayseite „Visualisierung“ – bewegt sich zu allem, was der Rechner gerade abspielt (Radio, Spotify, Browser …). Acht Stile: Grafik-Equalizer, Tanzendes Mädchen, Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm und Feuerwerk.
 - Stil wählen am Display mit MENU oder SETTINGS kurz, Rechts öffnet die Optionen des Stils. In der Verwaltung unter „Beleuchtung & Display → Visualisierung“ mit Vorschau.
