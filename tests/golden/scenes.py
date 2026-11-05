@@ -142,7 +142,9 @@ for style in g.VISUAL_STYLES:
 for name, style, opts in (("eq_gespiegelt", "eq", {"mirror": True, "colors": "rainbow", "bars": "48"}),
                           ("taenzerin_ohne_buehne", "dancer", {"stage": False, "color": [255, 80, 180]}),
                           ("oszi_stereo", "scope", {"mode": "xy", "color": [255, 200, 0]}),
-                          ("vu_dunkel", "vu", {"dial": "dark"}), ("spektrogramm_eis", "spectro", {"palette": "ice"})):
+                          ("vu_dunkel", "vu", {"dial": "dark"}), ("spektrogramm_eis", "spectro", {"palette": "ice"}),
+                          ("weihnachtsmann", "xmas", {"dance": "santa", "snow": "heavy"}),
+                          ("weihnachtsfrau", "xmas", {"dance": "mrs", "snow": "light", "lights": False})):
     scenes[f"vis_opt_{name}"] = lambda r, style=style, opts=opts: _visual(r, style, opts)
 
 
@@ -157,8 +159,8 @@ class _Talk:
         return d
 
 
-def _bored(r, talk_s):
-    r.visual_style, r.visual = "dancer", _Talk(talk_s)
+def _bored(r, talk_s, style="dancer"):
+    r.visual_style, r.visual = style, _Talk(talk_s)
     r.render(g.PAGE_IDS.index("visual"), "M2", macros)          # erstes Bild: Haltung beginnt
     r.visual.t += 1.0                                           # eine Sekunde später: Haltung erreicht
     r.visual.talk_s -= 1.0
@@ -167,6 +169,7 @@ def _bored(r, talk_s):
 
 scenes["vis_taenzerin_gaehnt"] = lambda r: _bored(r, 6.0)
 scenes["vis_taenzerin_sitzt"] = lambda r: _bored(r, 40.0)
+scenes["vis_weihnachten_bank"] = lambda r: _bored(r, 10.0, "xmas")
 
 
 def _face_opt(r, face, opts):

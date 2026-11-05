@@ -143,7 +143,11 @@ class App(AppCore, KeyHandling, TimedTasks):
         snap = self.visual.snapshot()
         quiet = not snap.get("active") or snap.get("talk") or self.renderer.vis_talk   # Stille, Wortbeitrag
         k = 1.0 if quiet else round((0.15 + 0.85 * snap["bass"]) * 20) / 20
-        color = tuple(int(c * k) for c in PROFILE_COLOR[self.layer])
+        base = PROFILE_COLOR[self.layer]
+        if self.visual_style() == "xmas" and not quiet and \
+                visual_options(s, "xmas")["keys"] == "redgreen":    # Weihnachten: rot und grün im Wechsel
+            base = (255, 20, 10) if snap["beats"] % 2 else (20, 220, 40)
+        color = tuple(int(c * k) for c in base)
         if color != self._vis_light and now - self._vis_light_t >= 0.04:
             self._vis_light, self._vis_light_t = color, now
             try:

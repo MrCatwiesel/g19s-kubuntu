@@ -415,10 +415,20 @@ class AppCore:
                 self.log(f"Visualisierung-Option: {VISUAL_STYLES[item]} · {opt['label']} = {option_text(opt, value)}")
 
     def visual_style(self):
-        style = (self.settings().get("visual") or {}).get("style")
+        """Gezeigter Stil: der gewählte – in der Weihnachtszeit „Weihnachten“ (abschaltbar; wählt der Nutzer dann
+        am Display einen anderen Stil, gilt dieser bis zum Ende der Weihnachtszeit)."""
+        vis = self.settings().get("visual") or {}
+        season = xmas_season()
+        if vis.get("xmas_auto", True) and season and vis.get("xmas_skip") != season:
+            return "xmas"
+        style = vis.get("style")
         return style if style in VISUAL_STYLES else "eq"
 
     def set_visual_style(self, style):
+        season = xmas_season()
+        vis = self.settings().get("visual") or {}
+        if season and vis.get("xmas_auto", True):
+            self.save_setting(["visual", "xmas_skip"], 0 if style == "xmas" else season)
         if self.save_setting(["visual", "style"], style):
             self.log(f"Visualisierung: {VISUAL_STYLES[style]}")
 

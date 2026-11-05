@@ -3,6 +3,12 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.05-8
+- Neuer Stil „Weihnachten“: Weihnachtsmann und Weihnachtsfrau tanzen neben einem geschmückten Weihnachtsbaum im Schneefall – räumlich gezeichnet mit Licht und Schatten. Einzeln oder als Paar (sie dreht sich unter seinem Arm), auf Wunsch abwechselnd jede Minute.
+- Die Lichterkette blinkt im Takt, der Stern leuchtet mit dem Bass, kräftige Schläge wirbeln den Schnee auf. Die Tastatur pulsiert rot und grün.
+- Bei Nachrichten und Werbung setzen sich die beiden auf eine Bank: er liest die Wunschliste, sie trinkt Kakao.
+- Vom 1. Advent bis zum 6. Januar zeigt die Visualisierung automatisch „Weihnachten“ (abschaltbar). Alles einstellbar unter „Beleuchtung & Display → Visualisierung“.
+
 ## 2026.11.05-7
 - Visualisierung erkennt Wortbeiträge: Nachrichten und Moderation am Klang (Sprache statt Musik, nach etwa 4–6 Sekunden), Nachrichten und Werbung zusätzlich an Stichwörtern im Titel des Senders (einstellbar unter „Beleuchtung & Display → Visualisierung“).
 - Bei Wortbeiträgen langweilt sich das tanzende Mädchen: Arme verschränken, gähnen, auf die Uhr schauen, mit dem Fuß tippen – nach 30 Sekunden setzt es sich auf den Bühnenrand und döst. Kommt wieder Musik, tanzt es weiter.

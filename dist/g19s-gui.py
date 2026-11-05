@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.05-7"
+VERSION = "2026.11.05-8"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -1746,6 +1746,7 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
           <div id="visOpts"></div>
           <label class="check"><input type="checkbox" id="visBacklight"> Tastaturbeleuchtung pulsiert im Takt</label>
           <label class="check"><input type="checkbox" id="visTitle"> Laufenden Titel oben anzeigen</label>
+          <label class="check"><input type="checkbox" id="visXmas"> In der Weihnachtszeit (1. Advent bis 6. Januar) automatisch den Stil „Weihnachten“ zeigen – wer dann am Display einen anderen Stil wählt, behält diesen bis zum Ende der Weihnachtszeit</label>
           <label class="field" style="max-width:360px"><span>Wortbeitrag, wenn der Titel des Senders eines dieser Wörter enthält (durch Komma getrennt) – die Tänzerin langweilt sich dann</span><input type="text" id="visTalkWords" maxlength="300"></label>
           <p class="hint" style="max-width:360px">Nachrichten und Moderation erkennt die Visualisierung zusätzlich am Klang (Sprache statt Musik). Werbung mit Musik darunter nur über diese Wörter.</p>
         </div>
@@ -3092,6 +3093,7 @@ function renderVisual() {
     el("option", {value: id, text: label, selected: id === v.style})));
   $("#visBacklight").checked = v.backlight !== false;
   $("#visTitle").checked = v.title !== false;
+  $("#visXmas").checked = v.xmas_auto !== false;
   $("#visTalkWords").value = v.talk_words || "";
   renderVisualOptions();
   visualPreview();
@@ -3116,6 +3118,7 @@ $("#visStyle").addEventListener("change", e => { UI.sdraft.visual.style = e.targ
 $("#visBacklight").addEventListener("change", e => { UI.sdraft.visual.backlight = e.target.checked; touchSettings(); });
 $("#visTitle").addEventListener("change", e => { UI.sdraft.visual.title = e.target.checked; touchSettings(); visualPreview(); });
 $("#visTalkWords").addEventListener("input", e => { UI.sdraft.visual.talk_words = e.target.value; touchSettings(); });
+$("#visXmas").addEventListener("change", e => { UI.sdraft.visual.xmas_auto = e.target.checked; UI.sdraft.visual.xmas_skip = 0; touchSettings(); });
 
 // ---------------------------------------------------------------- Diashow (Piwigo)
 UI.albums = null;

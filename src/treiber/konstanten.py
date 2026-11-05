@@ -158,6 +158,7 @@ CLOCK_COLOR_CHOICES = [
 VISUAL_STYLES = {
     "eq": "Grafik-Equalizer", "dancer": "Tanzendes Mädchen", "lights": "Lichtshow", "scope": "Oszilloskop",
     "ring": "Kreis-Spektrum", "vu": "VU-Meter", "spectro": "Spektrogramm", "fireworks": "Feuerwerk",
+    "xmas": "Weihnachten",
 }
 VISUAL_FPS = 20             # Bilder je Sekunde der Visualisierung
 # Stichwörter im Titel des Senders, die einen Wortbeitrag anzeigen (Tänzerin langweilt sich); änderbar
@@ -201,6 +202,16 @@ VISUAL_OPTIONS = {
     ],
     "fireworks": [
         {"key": "trails", "label": "Leuchtspuren", "type": "bool", "default": True},
+    ],
+    "xmas": [
+        {"key": "dance", "label": "Tanz", "type": "choice", "default": "auto",
+         "choices": [["auto", "Abwechselnd (jede Minute)"], ["pair", "Paartanz"], ["santa", "Weihnachtsmann allein"],
+                     ["mrs", "Weihnachtsfrau allein"]]},
+        {"key": "snow", "label": "Schneefall", "type": "choice", "default": "normal",
+         "choices": [["light", "Leicht"], ["normal", "Normal"], ["heavy", "Dicht"]]},
+        {"key": "lights", "label": "Lichterkette blinkt im Takt", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "redgreen",
+         "choices": [["redgreen", "Rot und Grün im Takt"], ["layer", "Farbe der Ebene"]]},
     ],
 }
 OLD_CLOCK_PAGES = {"clock_chrono": "chrono", "clock_steampunk": "steampunk",      # Version 2026.09.28-8/-9

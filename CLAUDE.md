@@ -34,7 +34,7 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
 - Aus der Sandbox ist `raw.githubusercontent.com` nicht erreichbar; die Update-Suche wird
   mit dem Fake-GitHub (`G19S_UPDATE_URL`, `tests/fakes/infodienste.py`) getestet.
 
-## Stand (2026.11.05-7)
+## Stand (2026.11.05-8)
 - Alle Punkte der Prüfung Sicherheit/Lesbarkeit/Performance umgesetzt; L7 (Umbenennung
   profile→layer) bewusst verworfen.
 - 2026.09.30-5: Update direkt von GitHub (Dienst & Sicherung → „Nach Updates suchen“),
@@ -114,6 +114,13 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
   Standard TALK_WORDS) auf Titel/Künstler. Tänzerin: `BORED_POSES`/`_bored_pose` (cross, yawn+„Gähn …“, hips, watch;
   ab 30 s sit + Zzz), Licht gedimmt; Tastatur ruhig (`vis_talk`). Fake pw-record: `$S/pw-record.speech`.
   Sim `s24_wortbeitrag`, Bilder `vis_taenzerin_gaehnt/_sitzt`.
+- 2026.11.05-8 (Nutzerwunsch, alle Antworten als Optionen): Stil „Weihnachten“ (`xmas`, `seite_visual_xmas.py`,
+  Mixin `XmasVisual`). Figuren aus beleuchteten Ellipsoid-Sprites (`_blob_sprite`, Cache ≤ 2500, Winkel in 6°-Stufen),
+  Arme/Beine per `_ik`, Posen als Hand-/Fußziele (`SANTA_POSES`, `MRS_POSES`), Pirouette/Drehung unter dem Arm alle
+  8 Schritte (`spin`, Rückansicht), Paar `_xmas_pair` (gehaltene Hände per IK), Bank bei `talk`. ≈ 2 ms je Bild.
+  Optionen dance (auto=Wechsel jede Minute)/snow/lights/keys (redgreen: `_visual_backlight`). Weihnachtszeit:
+  `xmas_season()` (hilfen; 1. Advent–6.1.), `visual.xmas_auto` (Standard an) + `xmas_skip` (Jahr der Abwahl am Display)
+  in `visual_style()`/`set_visual_style()`. Sim `s25_weihnachten` (xmas_season gepatcht), Bilder `vis_xmas*`.
 - Beobachtet: Benachrichtigungen erscheinen im Journal doppelt (vermutlich sendet Plasma zweimal) – harmlos.
 - Beobachtet (2026-10-02): RDP-Sitzung (xfreerdp/sdl-freerdp 3.32.0 → Windows-PC) brach beim Kopieren bzw.
   ~10 s nach dem Login ab: `cliprdr … Error was 1359 → Network disconnect`. Ursache ist ein FreeRDP-Fehler bei

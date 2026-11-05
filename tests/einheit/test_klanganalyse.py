@@ -100,6 +100,19 @@ eq(g.talk_word(w, {"artist": "WERBUNG", "title": ""}), "Werbung", "Groß-/Kleins
 eq(g.talk_word({"visual": {"talk_words": ""}}, {"title": "Nachrichten"}), None, "ohne Stichwörter nie")
 eq([g._bored_pose(b) for b in (0, 6, 8, 11, 31)], ["cross", "yawn", "hips", "watch", "sit"], "Haltungen der Langeweile")
 
+# Weihnachtszeit: 1. Advent bis 6. Januar
+import datetime as dt
+D = dt.date
+eq([g.xmas_season(D(2026, 11, 28)), g.xmas_season(D(2026, 11, 29)), g.xmas_season(D(2026, 12, 31)),
+    g.xmas_season(D(2027, 1, 6)), g.xmas_season(D(2027, 1, 7))], [None, 2026, 2026, 2026, None],
+   "2026: 1. Advent am 29.11., Ende am 6.1.")
+eq([g.xmas_season(D(2022, 11, 26)), g.xmas_season(D(2022, 11, 27))], [None, 2022],
+   "2022 (Weihnachten an einem Sonntag): 1. Advent am 27.11.")
+eq(g.xmas_season(D(2025, 11, 30)), 2025, "2025: 1. Advent am 30.11.")
+xp = [g._ik((0, 0), (20, 25), 18, 18, 1)[1], g._ik((0, 0), (100, 0), 18, 18, 1)[1]]
+ok(abs(xp[0][0] - 20) < 0.01 and abs(xp[0][1] - 25) < 0.01, "IK: erreichbares Ziel wird getroffen")
+ok(abs(math.hypot(*xp[1]) - 35.99) < 0.1, "IK: zu fernes Ziel – Arm gestreckt in Zielrichtung")
+
 # Einstellungen: Standardwerte und ungültige Werte
 st = g.clean_settings({"visual": {"style": "gibtsnicht", "eq": {"bars": "999", "mirror": True}}})
 eq(st["visual"]["style"], "eq", "unbekannter Stil → Grafik-Equalizer")
