@@ -69,6 +69,6 @@ light = [(t, c) for t, c in s.backlight]
 pulse = {c for t, c in light if 1.8 <= t < 2.9}
 st = json.load(open(g.SETTINGS_FILE))
 s.finish(takt=max(beats or [0]) >= 4, puls=len(pulse) >= 3, still_volle_farbe=[c for t, c in light if t < 7.95][-1],
-         am_ende=light[-1][1], vorher=phase(2.0, 3.0), bei_stumm=phase(7.9, 8.0), bei_stille=phase(8.6, 9.0), stil=st["visual"]["style"], optionen=st["visual"].get("dancer"),
+         am_ende=light[-1][1], stumm_steht=not [t for t, _ in s.frames if 7.85 <= t < 8.0], vorher=phase(2.0, 3.0), bei_stumm=phase(7.9, 8.0), bei_stille=phase(8.6, 9.0), stil=st["visual"]["style"], optionen=st["visual"].get("dancer"),
          aufruf_monitor="stream.capture.sink = true" in open(os.path.join(S, "pw-record.log")).read(),
          log=s.log_lines(r"^Visualisierung"))

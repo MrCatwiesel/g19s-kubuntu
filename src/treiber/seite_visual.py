@@ -1,8 +1,8 @@
 """Displayseite „Visualisierung“: acht Stile, die auf die laufende Musik reagieren.
 
 Die Werte kommen von SoundAnalyzer (klanganalyse) über self.visual.snapshot(); ohne Analyse
-(Vorschau der Verwaltung, Referenzbilder) bzw. ohne Ton zeichnen die Stile mit demo_snapshot()
-(ohne Ton gedämpft, mit Hinweis „Keine Wiedergabe“). Ein Stil wird mit @vis_style("id")
+(Vorschau der Verwaltung, Referenzbilder) zeichnen die Stile mit demo_snapshot(). Ohne Ton (Stille,
+Ausgang stumm) steht das letzte Bild abgedunkelt still, mit Hinweis „Keine Wiedergabe“ bzw. „Ton stumm“. Ein Stil wird mit @vis_style("id")
 angemeldet (@vis_style) und bekommt (snapshot, optionen, farbe der ebene); er liefert ein Bild WIDTH×HEIGHT,
 die Fußzeile zeichnet render(). Zustand zwischen zwei Bildern (Spitzen, Teilchen …) liegt in
 self._vstate(stil) und wird beim Stilwechsel verworfen.
@@ -83,7 +83,7 @@ class VisualPage:
             return demo_snapshot(now)                       # Vorschau: als liefe Musik
         if snap.get("active"):
             return snap
-        idle = demo_snapshot(now, amp=0.22)                 # Stille: ruhige Bewegung
+        idle = demo_snapshot(0.0, amp=0.22)                 # Stille: nur für ein erstes Standbild
         idle.update(idle=True, error=snap.get("error"), muted=snap.get("muted", False))
         return idle
 
@@ -97,20 +97,40 @@ class VisualPage:
         snap = self._vis_snapshot()
         style = self.visual_style if self.visual_style in VISUAL_RENDERERS else "eq"
         color = PROFILE_COLOR.get(profile, self.FG)
+        if snap.get("idle"):
+            return self._vis_still(snap, style, profile, color)
         img = VISUAL_RENDERERS[style](self, snap, visual_options(self.settings, style), color)
+        self._vis_last = (style, profile, img.copy())      # für das Standbild, wenn der Ton aufhört
         d = ImageDraw.Draw(img)
         vis = (self.settings or {}).get("visual") or {}
         info = self.media.snapshot()[0] if (self.media is not None and vis.get("title", True)) else None
-        if info and info.get("title") and not snap.get("idle"):
+        if info and info.get("title"):
             text = " – ".join(x for x in (info.get("artist"), info.get("title")) if x)
             text = self._fit(d, text, self.f_tiny, WIDTH - 16)
             d.text((9, 4), text, font=self.f_tiny, fill=(0, 0, 0))
             d.text((8, 3), text, font=self.f_tiny, fill=(225, 230, 240))
-        if snap.get("error"):
-            self._center(d, VIS_H - 22, self._fit(d, snap["error"], self.f_tiny, WIDTH - 16), self.f_tiny, (235, 120, 90))
-        elif snap.get("idle"):
-            self._center(d, VIS_H - 22, "Ton stumm" if snap.get("muted") else "Keine Wiedergabe", self.f_tiny, self.DIM)
         return img
+
+    def _vis_still(self, snap, style, profile, color):
+        """Ohne Ton: letztes Bild dieses Stils abgedunkelt mit Hinweis (zwischengespeichert, keine Bewegung)."""
+        text = snap["error"] if snap.get("error") else "Ton stumm" if snap.get("muted") else "Keine Wiedergabe"
+        last = self.__dict__.get("_vis_last")
+        key = (style, profile, text, id(last))
+        cached = self.__dict__.get("_vis_still_img")
+        if cached is None or cached[0] != key:
+            if last and last[0] == style and last[1] == profile:
+                base = last[2]
+            else:                                           # noch kein Bild mit Ton: ruhiges Standbild
+                base = VISUAL_RENDERERS[style](self, snap, visual_options(self.settings, style), color)
+            img = Image.blend(base, Image.new("RGB", base.size, (0, 0, 0)), 0.55)
+            d = ImageDraw.Draw(img)
+            w = d.textlength(text, font=self.f_small) + 24
+            y = VIS_H // 2 - 14
+            d.rounded_rectangle([(WIDTH - w) / 2, y, (WIDTH + w) / 2, y + 28], radius=8, fill=(20, 24, 34))
+            self._center(d, y + 5, self._fit(d, text, self.f_small, WIDTH - 40), self.f_small,
+                         (235, 120, 90) if snap.get("error") else self.FG)
+            self._vis_still_img = cached = (key, img)
+        return cached[1].copy()
 
     # -- 1. Grafik-Equalizer ------------------------------------------------- #
     def _eq_layers(self, n, colors, mirror, color):

@@ -3,6 +3,9 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.05-6
+- Visualisierung ohne Ton: Statt einer leichten Bewegung bleibt jetzt das letzte Bild abgedunkelt stehen, mit dem Hinweis „Keine Wiedergabe“ bzw. „Ton stumm“. Mit der Musik geht es sofort weiter.
+
 ## 2026.11.05-5
 - Visualisierung: Schläge werden auch bei dichter Musik (z. B. Rock, bei dem der Bass nie leise wird) zuverlässig erkannt, dazu das Tempo.
 - Das tanzende Mädchen tanzt jetzt durchgehend im Takt: Es geht auf jedem Schlag in die Knie, verlagert das Gewicht von Seite zu Seite, schwingt Arme und Kopf und wechselt die Pose schneller. Wird ein Schlag nicht erkannt, tanzt es im Tempo weiter. Je lauter, desto größer die Bewegungen.

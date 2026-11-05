@@ -34,7 +34,7 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
 - Aus der Sandbox ist `raw.githubusercontent.com` nicht erreichbar; die Update-Suche wird
   mit dem Fake-GitHub (`G19S_UPDATE_URL`, `tests/fakes/infodienste.py`) getestet.
 
-## Stand (2026.11.05-5)
+## Stand (2026.11.05-6)
 - Alle Punkte der Prüfung Sicherheit/Lesbarkeit/Performance umgesetzt; L7 (Umbenennung
   profile→layer) bewusst verworfen.
 - 2026.09.30-5: Update direkt von GitHub (Dienst & Sicherung → „Nach Updates suchen“),
@@ -104,7 +104,8 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
   (Verhältnis 1,3 + steigend ODER Fluss > Mittel+1,5σ; Tempo `period` = Median der Abstände), Tänzerin bewegt sich
   phasengekoppelt (Knie, Gewicht, Arme, Kopf) und macht ohne erkannten Schlag nach 1,6 Perioden selbst den nächsten
   Schritt. Am Gerät zuvor bestätigt: Visualisierung läuft, ruhige Leerlauf-Bewegung bei Stumm („leichte Bewegungen“).
-  Nutzer gefragt, ob Leerlauf ganz still / Uhr / so bleiben soll – Antwort offen.
+- 2026.11.05-6: Nutzer wählte „Stillstand ohne Ton“: `_vis_still` – letztes Bild mit Ton (`_vis_last`) abgedunkelt
+  plus Hinweis, zwischengespeichert; ohne früheres Bild ein Standbild aus demo_snapshot(0). Sim s23 `stumm_steht`.
 - Beobachtet: Benachrichtigungen erscheinen im Journal doppelt (vermutlich sendet Plasma zweimal) – harmlos.
 - Beobachtet (2026-10-02): RDP-Sitzung (xfreerdp/sdl-freerdp 3.32.0 → Windows-PC) brach beim Kopieren bzw.
   ~10 s nach dem Login ab: `cliprdr … Error was 1359 → Network disconnect`. Ursache ist ein FreeRDP-Fehler bei
