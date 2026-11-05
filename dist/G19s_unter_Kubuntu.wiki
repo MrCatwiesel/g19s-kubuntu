@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.11.05-9)
+| 28.09.2026 (Version 2026.11.05-10)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -74,6 +74,22 @@ Für die G19s gibt es unter Linux keinen offiziellen Treiber. Die normalen Taste
 |}
 
 == Installation ==
+=== Mit dem Installer (empfohlen) ===
+Ein Befehl im Terminal, als normaler Benutzer (nicht mit <code>sudo</code> davor – der Installer fragt selbst nach dem Passwort, wo es nötig ist):
+<pre>
+curl -fsSL https://github.com/MrCatwiesel/g19s-kubuntu/releases/latest/download/install.sh | bash
+</pre>
+Der Installer
+* installiert die benötigten Pakete (Kubuntu/Debian/Ubuntu mit <code>apt</code>, Fedora mit <code>dnf</code>, Arch mit <code>pacman</code>, openSUSE mit <code>zypper</code>),
+* lädt Treiber und Verwaltung der aktuellen Version, prüft sie und legt sie nach <code>~/.local/bin</code> (eine vorhandene Version wird gesichert),
+* richtet die udev-Regel, die Gruppe <code>input</code> (Makroaufnahme), den Autostart-Dienst und den Menüeintrag „G19s-Verwaltung“ ein,
+* prüft, ob die G19s angeschlossen ist, und sagt am Ende, was noch zu tun ist – meist: '''Rechner einmal neu starten'''.
+Erneut ausgeführt, aktualisiert er die Installation. Optionen: <code>--ja</code> (ohne Rückfragen), <code>--ohne-pakete</code> (Pakete selbst installieren).
+
+'''Entfernen:''' <code>bash ~/.local/share/g19s/install.sh --deinstallieren</code> – Programme, Autostart, Menüeintrag und udev-Regel werden entfernt, Einstellungen und Makros bleiben. Mit <code>--deinstallieren --alles</code> werden auch sie gelöscht. Installierte Pakete und die Gruppe <code>input</code> bleiben.
+
+'''Installation von Hand''' – nur nötig, wenn der Installer nicht passt (Schritte 1–8):
+
 Alle Befehle werden als normaler Benutzer im Terminal (Konsole) ausgeführt. <code>sudo</code> steht nur dort, wo es nötig ist. Die Blöcke unter „Dateien anlegen“ werden '''komplett''' markiert, kopiert und ins Terminal eingefügt. Sie schreiben die jeweilige Datei direkt an die richtige Stelle, ein Download ist nicht nötig.
 
 === 1. Tastatur prüfen ===
@@ -166,7 +182,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.05-9"
+VERSION = "2026.11.05-10"
 
 # Weitere Importe der Module
 import select
@@ -13160,7 +13176,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.05-9"
+VERSION = "2026.11.05-10"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"

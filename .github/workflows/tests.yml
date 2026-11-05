@@ -68,5 +68,5 @@ jobs:
           # Abschnitt „## <Version>“ aus NEUIGKEITEN.md bis zur nächsten Überschrift „## “
           awk -v v="## $V" '$0 == v {on=1; next} on && /^## / {exit} on {print}' NEUIGKEITEN.md > notizen.md
           grep -q '[^[:space:]]' notizen.md || { echo "::error::NEUIGKEITEN.md hat keinen Abschnitt „## $V“"; exit 1; }
-          gh release create "v$V" dist/g19s.py dist/g19s-gui.py dist/G19s_unter_Kubuntu.wiki \
+          gh release create "v$V" dist/g19s.py dist/g19s-gui.py dist/G19s_unter_Kubuntu.wiki dist/install.sh \
             --target "$GITHUB_SHA" --title "$V" --notes-file notizen.md

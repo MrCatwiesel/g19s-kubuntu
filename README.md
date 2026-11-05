@@ -44,8 +44,20 @@ vieles mehr – ohne Logitech-Software, in zwei Python-Dateien. Kostenlos und qu
 
 ## Installation
 
+Am einfachsten mit dem Installer – ein Befehl im Terminal (als normaler Benutzer, er fragt
+selbst nach dem sudo-Passwort):
+
+```bash
+curl -fsSL https://github.com/MrCatwiesel/g19s-kubuntu/releases/latest/download/install.sh | bash
+```
+
+Er installiert die nötigen Pakete (apt, dnf, pacman oder zypper), richtet udev-Regel, Gruppe `input`,
+Autostart und den Menüeintrag ein und prüft, ob die Tastatur angeschlossen ist. Danach den Rechner
+einmal neu starten. Erneut ausgeführt, aktualisiert er. Entfernen:
+`bash ~/.local/share/g19s/install.sh --deinstallieren` (Einstellungen bleiben, mit `--alles` nicht).
+
 Die ausführliche Anleitung (Pakete, udev-Regel, Autostart, Fehlerbehebung) steht in der
-Wiki-Seite [`dist/G19s_unter_Kubuntu.wiki`](dist/G19s_unter_Kubuntu.wiki). Kurzfassung:
+Wiki-Seite [`dist/G19s_unter_Kubuntu.wiki`](dist/G19s_unter_Kubuntu.wiki). Von Hand geht es so:
 
 ```bash
 sudo apt install python3-usb python3-evdev python3-pil python3-numpy playerctl mpv mpv-mpris libnotify-bin smbclient

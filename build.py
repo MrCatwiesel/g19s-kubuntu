@@ -148,6 +148,9 @@ def driver_api(driver, gui):
     return used
 
 
+GITHUB_REPO = "MrCatwiesel/g19s-kubuntu"       # Releases für Installer und Update-Suche
+
+
 def main():
     os.makedirs(DIST, exist_ok=True)
     driver, order = bundle(os.path.join("src", "treiber"), "kopf")
@@ -176,6 +179,15 @@ def main():
         if "\nG19S_EOF\n" in text:
             sys.exit("Programmtext enthält die Heredoc-Endmarke G19S_EOF")
     open(os.path.join(DIST, "G19s_unter_Kubuntu.wiki"), "w", encoding="utf-8").write(wiki)
+    inst = read("src", "installer", "install.sh")
+    for key, text in (("RULES", read("dateien", "70-g19s.rules")), ("SERVICE", read("dateien", "g19s.service")),
+                      ("VERSION", version), ("REPO", GITHUB_REPO)):
+        inst = inst.replace(f"@@{key}@@", text.rstrip("\n"))
+    if "@@" in inst:
+        sys.exit("Installer-Vorlage enthält unbekannte Platzhalter: " + ", ".join(set(re.findall(r"@@\w+@@", inst))))
+    path = os.path.join(DIST, "install.sh")
+    open(path, "w", encoding="utf-8").write(inst)
+    os.chmod(path, 0o755)
     print(f"Version {version}: g19s.py {driver.count(chr(10))} Zeilen aus {len(order)} Modulen, "
           f"g19s-gui.py {gui.count(chr(10))} Zeilen, Wiki {wiki.count(chr(10))} Zeilen")
 

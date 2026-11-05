@@ -43,6 +43,7 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
     src/verwaltung/server/  Module der Verwaltung (HTTP-Handler aus Api*-Mixins)
     src/verwaltung/seite/   geruest.html + stil.css + js/*.js (nach Dateiname sortiert)
     doku/wiki_vorlage.txt   Wiki-Text mit Platzhaltern @@G19S_PY@@, @@GUI_PY@@, …
+    src/installer/install.sh  Vorlage des Installers (→ dist/install.sh, Release-Datei; Test: tests/einheit/test_installer.py)
     dateien/                udev-Regel, systemd-Dienst, Beispiel-Makros
     tests/                  siehe unten
 
