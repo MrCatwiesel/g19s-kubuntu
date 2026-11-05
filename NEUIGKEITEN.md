@@ -3,6 +3,9 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.05-14
+- Installer: Liegen Treiber und Verwaltung neben `install.sh`, erkennt er sie jetzt am Inhalt – auch wenn der Browser sie z. B. als `g19s(1).py` gespeichert hat. Ist eine Version auf GitHub noch nicht fertig, sagt er das verständlich.
+
 ## 2026.11.05-13
 - Nachtmodus „gedimmt“ ist nicht mehr träge: Bewegte Zifferblätter und die Visualisierung laufen nachts flüssig weiter (bisher nur 1 Bild pro Sekunde), das Display ist nur dunkler.
 - Im gedimmten Nachtmodus wirkt der erste Tastendruck sofort (bisher machte er nur das Display hell). Bei „Display aus“ weckt der erste Druck weiterhin nur.

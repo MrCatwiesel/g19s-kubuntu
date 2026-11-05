@@ -82,6 +82,19 @@ code, out, log = run(os.path.join(alone, "install.sh"), "--ja", "--ohne-pakete",
 eq(code, 0, "Installation per Download" + ("" if code == 0 else ": " + out[-600:]))
 ok(exists(home3, ".local/bin/g19s.py"), "heruntergeladener Treiber installiert")
 
+# 3b. Dateien mit Browser-Namen neben dem Installer werden am Inhalt erkannt (kein Download)
+renamed = os.path.join(ROOT, "downloads")
+os.makedirs(renamed)
+shutil.copy(os.path.join(DIST, "install.sh"), renamed)
+shutil.copy(os.path.join(DIST, "g19s.py"), os.path.join(renamed, "g19s(1).py"))
+shutil.copy(os.path.join(DIST, "g19s-gui.py"), os.path.join(renamed, "g19s-gui(2).py"))
+home3b = os.path.join(ROOT, "home3b")
+os.makedirs(home3b)
+code, out, log = run(os.path.join(renamed, "install.sh"), "--ja", "--ohne-pakete", home=home3b, url="file:///gibt/es/nicht")
+ok(code == 0 and "aus g19s(1).py" in out and exists(home3b, ".local/bin/g19s-gui.py"), "Browser-Namen wie „g19s(1).py“ erkannt")
+code, out, log = run(os.path.join(alone, "install.sh"), "--ja", "--ohne-pakete", home=home3b, url="file:///gibt/es/nicht")
+ok(code != 0 and "ein paar" in out, "Version noch nicht auf GitHub: verständliche Meldung")
+
 # 4. beschädigter Download wird abgelehnt, nichts installiert
 broken = os.path.join(ROOT, "kaputt")
 os.makedirs(broken)

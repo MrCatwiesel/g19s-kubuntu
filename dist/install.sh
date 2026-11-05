@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# G19s-Treiber für Linux – Installer (Version 2026.11.05-13)
+# G19s-Treiber für Linux – Installer (Version 2026.11.05-14)
 #
 #   Installieren/Aktualisieren:  bash install.sh
 #   ohne Rückfragen:             bash install.sh --ja
@@ -14,7 +14,7 @@
 # udev-Regel (Zugriff auf die Tastatur) und die Gruppe „input“ (Makroaufnahme).
 set -euo pipefail
 
-VERSION="2026.11.05-13"
+VERSION="2026.11.05-14"
 REPO="MrCatwiesel/g19s-kubuntu"
 BIN="$HOME/.local/bin"
 CONF="${XDG_CONFIG_HOME:-$HOME/.config}"
@@ -146,13 +146,28 @@ ok "Python-Module vorhanden"
 step "Programme"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || echo "")"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+local_file() {   # local_file driver|gui → passende Datei neben dem Skript (Name egal, z. B. „g19s(1).py“)
+  local c
+  [ -n "$HERE" ] || return 1
+  for c in "$HERE"/*.py; do
+    [ -f "$c" ] || continue
+    grep -q "^G19S_COMPONENT = \"$1\"" "$c" && grep -q "^VERSION = \"$VERSION\"" "$c" && { echo "$c"; return 0; }
+  done
+  return 1
+}
+fetch_failed() {
+  die "$1 der Version $VERSION ist auf GitHub nicht abrufbar. Ist die Version gerade erst erschienen, ein paar
+  Minuten warten (GitHub baut sie noch) – oder g19s.py und g19s-gui.py derselben Version neben install.sh legen."
+}
 for f in g19s.py g19s-gui.py; do
-  if [ -n "$HERE" ] && [ -f "$HERE/$f" ] && grep -q "^VERSION = \"$VERSION\"" "$HERE/$f"; then
-    cp "$HERE/$f" "$TMP/$f"
+  comp=driver; [ "$f" = g19s-gui.py ] && comp=gui
+  if src=$(local_file "$comp"); then
+    cp "$src" "$TMP/$f"
+    ok "$f aus $(basename "$src")"
   elif command -v curl >/dev/null; then
-    curl -fsSL "$SRC_URL/$f" -o "$TMP/$f" || die "Download von $SRC_URL/$f fehlgeschlagen"
+    curl -fsSL "$SRC_URL/$f" -o "$TMP/$f" || fetch_failed "$f"
   elif command -v wget >/dev/null; then
-    wget -q "$SRC_URL/$f" -O "$TMP/$f" || die "Download von $SRC_URL/$f fehlgeschlagen"
+    wget -q "$SRC_URL/$f" -O "$TMP/$f" || fetch_failed "$f"
   else
     die "Weder curl noch wget gefunden – bitte eines davon installieren."
   fi
