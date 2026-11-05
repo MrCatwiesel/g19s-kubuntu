@@ -68,9 +68,9 @@ async function runUpdate(path, body, busyText) {
   try { r = await api(path, {body}); }
   catch (err) { box.replaceChildren(el("div", {class: "warnbox", text: err.message})); return; }
   box.replaceChildren(...r.installed.map(x => el("div", {class: "hint", style: {margin: "2px 0"}},
-    "✓ ", el("b", {text: COMP_NAME[x.component]}), ` aktualisiert: ${x.old} → ${x.new}`,
+    "✓ ", el("b", {text: COMP_NAME[x.component]}), `: ${x.old} → ${x.new}`,
     x.warning ? el("span", {style: {color: "var(--danger)"}, text: " – " + x.warning}) : "")));
-  if (!r.restart_gui) { toast("Update eingespielt, der Treiber wurde neu gestartet."); refreshService(); return; }
+  if (!r.restart_gui) { toast("Eingespielt, der Treiber wurde neu gestartet."); refreshService(); return; }
   $("#ovTitle").textContent = "Verwaltung wird neu gestartet …";
   $("#ovText").textContent = "Einen Moment bitte, die Seite lädt gleich von selbst neu.";
   $("#overlay").classList.add("show");
@@ -90,6 +90,25 @@ $("#updateFile").addEventListener("change", async e => {
   try { for (const f of files) payload.push({name: f.name, data: toBase64(await f.arrayBuffer())}); }
   catch (err) { toast("Datei konnte nicht gelesen werden", true); return; }
   runUpdate("/api/update", {files: payload}, "Spiele Update ein …");
+});
+$("#rollback").addEventListener("click", async () => {
+  const box = $("#updateResult");
+  let r;
+  try { r = await api("/api/rollback"); }
+  catch (err) { box.replaceChildren(el("div", {class: "warnbox", text: err.message})); return; }
+  if (!r.versions.length) { box.replaceChildren(el("div", {class: "hint", text: "Es gibt noch keine gesicherte Version – Sicherungen entstehen bei jedem Update."})); return; }
+  box.replaceChildren(el("div", {class: "hint", text: "Gesicherte Versionen (neueste zuerst):"}),
+    ...r.versions.map(v => {
+      const parts = ["driver", "gui"].filter(c => v[c]).map(c => `${COMP_NAME[c]} ${v[c]}`).join(" · ");
+      const go = el("button", {class: "btn small", text: "Wiederherstellen"});
+      go.addEventListener("click", () => {
+        if (updateBlocked()) return;
+        if (!confirm(`Version vom ${v.date} wiederherstellen (${parts})? Die jetzige Version wird vorher gesichert.`)) return;
+        runUpdate("/api/rollback", {id: v.id}, "Stelle die Version wieder her …");
+      });
+      return el("div", {class: "row rollback", style: {gap: "10px", margin: "4px 0"}},
+        el("span", {style: {minWidth: "130px"}, text: v.date}), el("span", {class: "muted", text: parts}), go);
+    }));
 });
 $("#updateCheck").addEventListener("click", async () => {
   const box = $("#updateResult"), btn = $("#updateCheck");

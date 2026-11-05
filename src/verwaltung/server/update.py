@@ -78,7 +78,85 @@ def install_update(files):
         os.replace(tmp, target)
         result.append({"component": comp, "file": name, "old": old, "new": version_of(text),
                        "backup": backup})
+    prune_backups()
     return result
+
+
+# --------------------------------------------------------------------------- #
+# Vorherige Version wiederherstellen (Sicherungen aus Updates und Installer)
+# --------------------------------------------------------------------------- #
+BACKUP_KEEP = 10                         # je Programmteil so viele Sicherungen aufheben
+BACKUP_NAME = re.compile(r"(g19s|g19s-gui)\.py\.(\d{8}-\d{6})")
+
+
+def _backup_files():
+    try:
+        names = os.listdir(UPDATE_BACKUP_DIR)
+    except OSError:
+        return []
+    return [(m.group(1), m.group(2), n) for n in names for m in [BACKUP_NAME.fullmatch(n)] if m]
+
+
+def prune_backups():
+    """Nur die neuesten BACKUP_KEEP Sicherungen je Programmteil behalten."""
+    for base in ("g19s", "g19s-gui"):
+        stamps = sorted((s, n) for b, s, n in _backup_files() if b == base)
+        for _, n in stamps[:-BACKUP_KEEP]:
+            try:
+                os.remove(os.path.join(UPDATE_BACKUP_DIR, n))
+            except OSError:
+                pass
+
+
+def old_versions():
+    """Gesicherte Versionen, je Zeitpunkt zusammengefasst, neueste zuerst:
+    [{"id": "20261105-183000", "date": "05.11.2026 18:30", "driver": "2026.11.05-9", "gui": …}]."""
+    groups = {}
+    for base, stamp, name in _backup_files():
+        comp = "driver" if base == "g19s" else "gui"
+        groups.setdefault(stamp, {})[comp] = file_version(os.path.join(UPDATE_BACKUP_DIR, name))
+    out = []
+    for stamp in sorted(groups, reverse=True):
+        date = datetime.datetime.strptime(stamp, "%Y%m%d-%H%M%S").strftime("%d.%m.%Y %H:%M")
+        out.append(dict(groups[stamp], id=stamp, date=date))
+    return out
+
+
+def _top_level_names(text):
+    import ast
+    names = set()
+    for node in ast.parse(text).body:
+        if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+            names.add(node.name)
+        elif isinstance(node, ast.Assign):
+            names.update(t.id for t in node.targets if isinstance(t, ast.Name))
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            names.update((a.asname or a.name).split(".")[0] for a in node.names)
+    return names
+
+
+def restore_old(stamp):
+    """Sicherung stamp wieder einspielen – über install_update, also geprüft und mit Sicherung der jetzigen
+    Version (so lässt sich auch die Wiederherstellung rückgängig machen)."""
+    if not re.fullmatch(r"\d{8}-\d{6}", str(stamp or "")):
+        raise ValueError("Unbekannte Sicherung")
+    files = []
+    for base in ("g19s.py", "g19s-gui.py"):
+        path = os.path.join(UPDATE_BACKUP_DIR, f"{base}.{stamp}")
+        if os.path.exists(path):
+            with open(path, "rb") as f:
+                files.append((base, f.read()))
+    if not files:
+        raise ValueError("Diese Sicherung gibt es nicht mehr")
+    if [n for n, _ in files] == ["g19s.py"]:     # nur Treiber: passt er zur laufenden Verwaltung?
+        try:
+            have = _top_level_names(files[0][1].decode("utf-8"))
+        except (SyntaxError, UnicodeDecodeError):
+            have = set()
+        if [n for n in DRIVER_API if n not in have]:
+            raise ValueError("Dieser ältere Treiber passt nicht zur installierten Verwaltung – "
+                             "bitte eine Sicherung wählen, die auch die Verwaltung enthält")
+    return install_update(files)
 
 
 # --------------------------------------------------------------------------- #

@@ -3,6 +3,10 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.05-11
+- Neu: „Vorherige Version wiederherstellen“ unter „Dienst & Sicherung“. Die Verwaltung zeigt die zuletzt gesicherten Versionen und spielt die gewählte geprüft wieder ein – die jetzige Version wird dabei gesichert, man kann also auch wieder zurück.
+- Aufgehoben werden die zehn neuesten Sicherungen je Programmteil; ältere werden automatisch gelöscht.
+
 ## 2026.11.05-10
 - Neu: Installer für Linux. Ein Befehl genügt: `curl -fsSL https://github.com/MrCatwiesel/g19s-kubuntu/releases/latest/download/install.sh | bash` – er installiert Pakete (apt, dnf, pacman, zypper), Treiber, Verwaltung, Zugriffsrechte, Autostart und Menüeintrag und prüft die Tastatur. Erneut ausgeführt, aktualisiert er.
 - Entfernen mit `bash ~/.local/share/g19s/install.sh --deinstallieren` (Einstellungen bleiben, mit `--alles` werden auch sie gelöscht).

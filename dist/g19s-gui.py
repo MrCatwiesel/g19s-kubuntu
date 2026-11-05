@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.05-10"
+VERSION = "2026.11.05-11"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -374,7 +374,85 @@ def install_update(files):
         os.replace(tmp, target)
         result.append({"component": comp, "file": name, "old": old, "new": version_of(text),
                        "backup": backup})
+    prune_backups()
     return result
+
+
+# --------------------------------------------------------------------------- #
+# Vorherige Version wiederherstellen (Sicherungen aus Updates und Installer)
+# --------------------------------------------------------------------------- #
+BACKUP_KEEP = 10                         # je Programmteil so viele Sicherungen aufheben
+BACKUP_NAME = re.compile(r"(g19s|g19s-gui)\.py\.(\d{8}-\d{6})")
+
+
+def _backup_files():
+    try:
+        names = os.listdir(UPDATE_BACKUP_DIR)
+    except OSError:
+        return []
+    return [(m.group(1), m.group(2), n) for n in names for m in [BACKUP_NAME.fullmatch(n)] if m]
+
+
+def prune_backups():
+    """Nur die neuesten BACKUP_KEEP Sicherungen je Programmteil behalten."""
+    for base in ("g19s", "g19s-gui"):
+        stamps = sorted((s, n) for b, s, n in _backup_files() if b == base)
+        for _, n in stamps[:-BACKUP_KEEP]:
+            try:
+                os.remove(os.path.join(UPDATE_BACKUP_DIR, n))
+            except OSError:
+                pass
+
+
+def old_versions():
+    """Gesicherte Versionen, je Zeitpunkt zusammengefasst, neueste zuerst:
+    [{"id": "20261105-183000", "date": "05.11.2026 18:30", "driver": "2026.11.05-9", "gui": …}]."""
+    groups = {}
+    for base, stamp, name in _backup_files():
+        comp = "driver" if base == "g19s" else "gui"
+        groups.setdefault(stamp, {})[comp] = file_version(os.path.join(UPDATE_BACKUP_DIR, name))
+    out = []
+    for stamp in sorted(groups, reverse=True):
+        date = datetime.datetime.strptime(stamp, "%Y%m%d-%H%M%S").strftime("%d.%m.%Y %H:%M")
+        out.append(dict(groups[stamp], id=stamp, date=date))
+    return out
+
+
+def _top_level_names(text):
+    import ast
+    names = set()
+    for node in ast.parse(text).body:
+        if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+            names.add(node.name)
+        elif isinstance(node, ast.Assign):
+            names.update(t.id for t in node.targets if isinstance(t, ast.Name))
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            names.update((a.asname or a.name).split(".")[0] for a in node.names)
+    return names
+
+
+def restore_old(stamp):
+    """Sicherung stamp wieder einspielen – über install_update, also geprüft und mit Sicherung der jetzigen
+    Version (so lässt sich auch die Wiederherstellung rückgängig machen)."""
+    if not re.fullmatch(r"\d{8}-\d{6}", str(stamp or "")):
+        raise ValueError("Unbekannte Sicherung")
+    files = []
+    for base in ("g19s.py", "g19s-gui.py"):
+        path = os.path.join(UPDATE_BACKUP_DIR, f"{base}.{stamp}")
+        if os.path.exists(path):
+            with open(path, "rb") as f:
+                files.append((base, f.read()))
+    if not files:
+        raise ValueError("Diese Sicherung gibt es nicht mehr")
+    if [n for n, _ in files] == ["g19s.py"]:     # nur Treiber: passt er zur laufenden Verwaltung?
+        try:
+            have = _top_level_names(files[0][1].decode("utf-8"))
+        except (SyntaxError, UnicodeDecodeError):
+            have = set()
+        if [n for n in DRIVER_API if n not in have]:
+            raise ValueError("Dieser ältere Treiber passt nicht zur installierten Verwaltung – "
+                             "bitte eine Sicherung wählen, die auch die Verwaltung enthält")
+    return install_update(files)
 
 
 # --------------------------------------------------------------------------- #
@@ -984,6 +1062,12 @@ class ApiService:
                 raise ValueError("Keine neuere Version verfügbar")
         self.app.github_update = None
         self._finish_update(install_update(list(newer.values())))
+
+    def api_get_rollback(self, q):
+        self._send(200, {"versions": old_versions()})
+
+    def api_post_rollback(self, q):
+        self._finish_update(restore_old(self._json().get("id")))
 
     def _finish_update(self, result):
         comps = {r["component"] for r in result}
@@ -1946,11 +2030,12 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
     </div>
     <div class="card">
       <h2>Programm aktualisieren</h2>
-      <p class="hint"><b>Von GitHub:</b> „Nach Updates suchen“ vergleicht die installierten Versionen mit der neuesten veröffentlichten Version auf GitHub, zeigt, was neu ist, und spielt sie auf Wunsch ein. <b>Von Hand:</b> neue Versionen von <code>g19s.py</code> und <code>g19s-gui.py</code> auswählen – einzeln oder beide zusammen, der Dateiname spielt keine Rolle (auch <code>g19s(3).py</code> ist in Ordnung). Die Dateien werden geprüft, die alten Versionen gesichert und alles neu gestartet.</p>
+      <p class="hint"><b>Von GitHub:</b> „Nach Updates suchen“ vergleicht die installierten Versionen mit der neuesten veröffentlichten Version auf GitHub, zeigt, was neu ist, und spielt sie auf Wunsch ein. <b>Von Hand:</b> neue Versionen von <code>g19s.py</code> und <code>g19s-gui.py</code> auswählen – einzeln oder beide zusammen, der Dateiname spielt keine Rolle (auch <code>g19s(3).py</code> ist in Ordnung). Die Dateien werden geprüft, die alten Versionen gesichert und alles neu gestartet. <b>Zurück:</b> „Vorherige Version wiederherstellen“ spielt eine der zehn zuletzt gesicherten Versionen wieder ein – auch das lässt sich wieder rückgängig machen.</p>
       <div class="kv" id="versions" style="margin-bottom:12px"></div>
       <div class="row" style="gap:8px;flex-wrap:wrap">
         <button class="btn primary" id="updateCheck">🔍 Nach Updates suchen</button>
         <label class="btn">⬆ Update-Dateien auswählen …<input type="file" id="updateFile" accept=".py" multiple hidden></label>
+        <button class="btn" id="rollback">↩ Vorherige Version wiederherstellen …</button>
       </div>
       <div id="updateResult" style="margin-top:10px"></div>
     </div>
@@ -3472,9 +3557,9 @@ async function runUpdate(path, body, busyText) {
   try { r = await api(path, {body}); }
   catch (err) { box.replaceChildren(el("div", {class: "warnbox", text: err.message})); return; }
   box.replaceChildren(...r.installed.map(x => el("div", {class: "hint", style: {margin: "2px 0"}},
-    "✓ ", el("b", {text: COMP_NAME[x.component]}), ` aktualisiert: ${x.old} → ${x.new}`,
+    "✓ ", el("b", {text: COMP_NAME[x.component]}), `: ${x.old} → ${x.new}`,
     x.warning ? el("span", {style: {color: "var(--danger)"}, text: " – " + x.warning}) : "")));
-  if (!r.restart_gui) { toast("Update eingespielt, der Treiber wurde neu gestartet."); refreshService(); return; }
+  if (!r.restart_gui) { toast("Eingespielt, der Treiber wurde neu gestartet."); refreshService(); return; }
   $("#ovTitle").textContent = "Verwaltung wird neu gestartet …";
   $("#ovText").textContent = "Einen Moment bitte, die Seite lädt gleich von selbst neu.";
   $("#overlay").classList.add("show");
@@ -3494,6 +3579,25 @@ $("#updateFile").addEventListener("change", async e => {
   try { for (const f of files) payload.push({name: f.name, data: toBase64(await f.arrayBuffer())}); }
   catch (err) { toast("Datei konnte nicht gelesen werden", true); return; }
   runUpdate("/api/update", {files: payload}, "Spiele Update ein …");
+});
+$("#rollback").addEventListener("click", async () => {
+  const box = $("#updateResult");
+  let r;
+  try { r = await api("/api/rollback"); }
+  catch (err) { box.replaceChildren(el("div", {class: "warnbox", text: err.message})); return; }
+  if (!r.versions.length) { box.replaceChildren(el("div", {class: "hint", text: "Es gibt noch keine gesicherte Version – Sicherungen entstehen bei jedem Update."})); return; }
+  box.replaceChildren(el("div", {class: "hint", text: "Gesicherte Versionen (neueste zuerst):"}),
+    ...r.versions.map(v => {
+      const parts = ["driver", "gui"].filter(c => v[c]).map(c => `${COMP_NAME[c]} ${v[c]}`).join(" · ");
+      const go = el("button", {class: "btn small", text: "Wiederherstellen"});
+      go.addEventListener("click", () => {
+        if (updateBlocked()) return;
+        if (!confirm(`Version vom ${v.date} wiederherstellen (${parts})? Die jetzige Version wird vorher gesichert.`)) return;
+        runUpdate("/api/rollback", {id: v.id}, "Stelle die Version wieder her …");
+      });
+      return el("div", {class: "row rollback", style: {gap: "10px", margin: "4px 0"}},
+        el("span", {style: {minWidth: "130px"}, text: v.date}), el("span", {class: "muted", text: parts}), go);
+    }));
 });
 $("#updateCheck").addEventListener("click", async () => {
   const box = $("#updateResult"), btn = $("#updateCheck");
