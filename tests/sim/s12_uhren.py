@@ -13,12 +13,12 @@ s.key(4.4, "MENU"); s.key(4.8, "UP"); s.key(5.2, "OK")
 # M2: aus der alten Seite „Chronometer“ wurde Uhr mit Zifferblatt Chronometer → Digitaluhr
 s.gkey(5.8, "M2"); s.key(6.4, "MENU"); s.key(6.8, "UP"); s.key(7.2, "OK")
 # SETTINGS lang öffnet auch auf der Uhr die Profilauswahl, BACK schließt das Zifferblatt-Menü
-s.key(7.4, "SETTINGS", hold=0.8); s.key(8.4, "BACK"); s.key(8.8, "MENU"); s.key(9.2, "DOWN"); s.key(9.6, "BACK")
+s.key(7.5, "SETTINGS", hold=1.3); s.key(9.1, "BACK"); s.key(9.5, "MENU"); s.key(9.9, "DOWN"); s.key(10.3, "BACK")
 # Profil mit eigenen Seiten: Binäruhr (umgestellt) → Bahnhofsuhr
-s.call(10.0, lambda sim: sim.g.save_state(profile=1))
+s.call(10.8, lambda sim: sim.g.save_state(profile=1))
 s.key(14.0, "MENU"); s.key(14.4, "UP"); s.key(14.8, "OK")
 s.run(16)
-s.save({"zifferblatt": 2.4, "profil": 8.3, "bahnhof": 3.0})
+s.save({"zifferblatt": 2.4, "profil": 8.7, "bahnhof": 3.0})
 m = json.load(open(s.g.MACRO_FILE))
 s.finish(pages=[[p, prof] for p, prof in s.page_seq()],
          layer_pages=s.g.load_settings()["layer_pages"],

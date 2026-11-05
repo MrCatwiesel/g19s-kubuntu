@@ -34,7 +34,7 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
 - Aus der Sandbox ist `raw.githubusercontent.com` nicht erreichbar; die Update-Suche wird
   mit dem Fake-GitHub (`G19S_UPDATE_URL`, `tests/fakes/infodienste.py`) getestet.
 
-## Stand (2026.11.04-1)
+## Stand (2026.11.05-1)
 - Alle Punkte der Prüfung Sicherheit/Lesbarkeit/Performance umgesetzt; L7 (Umbenennung
   profile→layer) bewusst verworfen.
 - 2026.09.30-5: Update direkt von GitHub (Dienst & Sicherung → „Nach Updates suchen“),
@@ -74,7 +74,7 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
   statt B (nur bei aktivem RDP-Fenster, bräuchte KWin-Skript). Sim `s20_medientasten`; im Harness läuft der
   Faden nur mit `media_keys=True`. Geräte am echten Rechner: event3 Tastatur, event4 Consumer Control.
   Am echten Gerät bestätigt (2026-10-02): Medientasten im RDP, Zwischenablage weiter ok.
-- 2026.11.04-1: SETTINGS kurz/lang (Wunsch Nutzer: „Optionstaste“ = SETTINGS). Lang (`LONG_PRESS` 0,6 s,
+- 2026.11.04-1: SETTINGS kurz/lang (Wunsch Nutzer: „Optionstaste“ = SETTINGS). Lang (`LONG_PRESS` 0,6 s, ab 2026.11.05-1 auf Wunsch 1,0 s;
   `settings_key_tick` in `tick`, öffnet schon beim Halten) = Profilauswahl überall; kurz auf der Uhrseite =
   `ClockMenu`, sonst Profilauswahl. Entscheidung beim Loslassen (`settings_down` in app_tasten). s03/s09/s12 nutzen
   jetzt langen Druck, Sim `s21_settings_kurz_lang`. Idee für später (vorgeschlagen, nicht beauftragt): Optionen des
@@ -88,7 +88,7 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
   das Einfügen. Bei Ärger mit Einfügen in RDP zuerst den xfreerdp-Aufruf prüfen.
 
 ## Offene Punkte
-1. Neu zu 2026.11.04-1: SETTINGS kurz/lang am echten Gerät prüfen (Haltezeit angenehm?).
+1. Neu zu 2026.11.04-1: SETTINGS kurz/lang am echten Gerät prüfen (Haltezeit seit -05-1 1 s).
    Offen zu 2026.10.01-8: erscheint außerhalb von RDP auch die KDE-Lautstärkeanzeige (osdService unter Plasma 6)?
    Nutzer bestätigte nur die Prozentanzeige auf dem G19s-Display.
    Dazu aus -7: G1 und unbelegte G-Taste mit --debug mehrmals schnell – je ein „gedrückt“/„losgelassen“.
