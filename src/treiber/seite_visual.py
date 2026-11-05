@@ -200,22 +200,36 @@ class VisualPage:
         S = 2                                               # doppelt zeichnen, dann verkleinern (glatte Kanten)
         W, H = WIDTH * S, HEIGHT * S
         t = s["t"]
-        st = self._vstate("dancer", lambda: {"from": DANCE_POSES[0], "to": DANCE_POSES[0], "t0": t, "beats": s["beats"]})
+        period = max(0.3, min(1.2, s.get("period") or 0.5))
+        moving = s.get("active") or (s.get("demo") and not s.get("idle"))
+        st = self._vstate("dancer", lambda: {"from": DANCE_POSES[0], "to": DANCE_POSES[0], "t0": t,
+                                              "beats": s["beats"], "k": 0})
+
+        def step():                                         # nächste Pose (schnell überblendet)
+            st["k"] += 1
+            k = st["k"]
+            st.update({"from": self._dance_pose(st, t), "to": DANCE_POSES[(k * 3 + k // 4) % len(DANCE_POSES)], "t0": t})
+
         if s["beats"] != st["beats"]:
-            cur = self._dance_pose(st, t)
-            st.update({"from": cur, "to": DANCE_POSES[(s["beats"] * 3 + s["beats"] // 4) % len(DANCE_POSES)],
-                       "t0": t, "beats": s["beats"]})
+            st["beats"] = s["beats"]
+            step()
+        elif moving and t - st["t0"] > period * 1.6:
+            step()                                          # Schlag nicht erkannt: im Tempo weitertanzen
+        energy = 0.35 + 0.65 * s["level"] if moving else 0.25
+        phase = ((t - st["t0"]) / period) % 1.0             # 0 = Schlag, 1 = nächster Schlag
         pose = list(self._dance_pose(st, t))
-        wig = math.sin(t * 9.0) * s["treble"] * 30
-        pose[1] += wig
+        wig = math.sin(2 * math.pi * phase * 2) * (20 + 30 * (s["mid"] + s["treble"])) * energy
+        pose[1] += wig                                      # Unterarme schwingen im Takt
         pose[3] -= wig
+        sway = math.sin(math.pi * (st["k"] + phase))        # Gewicht wechselt bei jedem Schlag die Seite
+        pose[8] += sway * 9 * energy
+        pose[9] += math.sin(2 * math.pi * phase) * 12 * energy
         body = tuple(o["color"]) if o.get("color") else color
         img = self._dance_stage(s, o, body, W, H, S)
         d = ImageDraw.Draw(img)
         floor = (VIS_H - 26) * S
-        since = t - s["beat_t"]
-        dip = 7 * math.exp(-max(0.0, since) * 9) if since >= 0 else 0
-        hip = (WIDTH / 2 * S + math.sin(t * 1.7) * 10 * S, floor - 72 * S + (dip - s["bass"] * 6) * S)
+        dip = (1 + math.cos(2 * math.pi * phase)) / 2 * (4 + 12 * energy)   # in die Knie auf dem Schlag
+        hip = (WIDTH / 2 * S + sway * 14 * energy * S, floor - 72 * S + dip * S)
         lu, lf, ru, rf, lt, ls, rt, rs, lean, head = pose
 
         def at(p, ang, length):
@@ -261,7 +275,7 @@ class VisualPage:
         return img.reduce(S)
 
     def _dance_pose(self, st, t):
-        k = _smooth((t - st["t0"]) / 0.2)
+        k = _smooth((t - st["t0"]) / 0.15)
         return tuple(a + (b - a) * k for a, b in zip(st["from"], st["to"]))
 
     def _dance_stage(self, s, o, body, W, H, S):

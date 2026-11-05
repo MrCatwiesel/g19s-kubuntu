@@ -40,7 +40,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.05-4"
+VERSION = "2026.11.05-5"
 
 # Weitere Importe der Module
 import select
@@ -1559,7 +1559,7 @@ def _band_edges():
 def _empty_snapshot(t=0.0):
     return {"t": t, "bands": np.zeros(AUDIO_BANDS), "left": 0.0, "right": 0.0, "level": 0.0, "bass": 0.0,
             "mid": 0.0, "treble": 0.0, "wave": np.zeros(640), "wave_l": np.zeros(256), "wave_r": np.zeros(256),
-            "beats": 0, "beat_t": -10.0, "active": False, "error": None, "demo": False, "muted": False}
+            "beats": 0, "beat_t": -10.0, "period": 0.5, "active": False, "error": None, "demo": False, "muted": False}
 
 
 def demo_snapshot(t, amp=1.0):
@@ -1583,7 +1583,7 @@ def demo_snapshot(t, amp=1.0):
                 left=float(np.clip(level * (0.95 + 0.05 * math.sin(t * 1.3)), 0, 1)),
                 right=float(np.clip(level * (0.9 + 0.08 * math.cos(t * 1.1)), 0, 1)),
                 bass=float(np.clip((0.35 + 0.65 * kick) * amp, 0, 1)), mid=float(np.mean(bands[16:40])),
-                treble=float(np.mean(bands[40:])), beats=int(t * 2.0), beat_t=math.floor(t * 2.0) / 2.0,
+                treble=float(np.mean(bands[40:])), beats=int(t * 2.0), beat_t=math.floor(t * 2.0) / 2.0, period=0.5,
                 active=amp > 0.5, demo=True)
     return snap
 
@@ -1611,7 +1611,8 @@ class SoundAnalyzer:
         self.ring = np.zeros(AUDIO_FFT)
         self.bands = np.zeros(AUDIO_BANDS)
         self.ref_db = -30.0             # gleitender Höchstwert der Bänder (automatische Verstärkung)
-        self.bass_hist = []
+        self.bass_hist, self.flux_hist, self.intervals = [], [], []
+        self.prev_log = None
         self.beats, self.beat_t = 0, -10.0
         self.vu = [0.0, 0.0]
 
@@ -1737,24 +1738,42 @@ class SoundAnalyzer:
             target = float(np.clip((20 * math.log10(r + 1e-9) + 45.0) / 45.0, 0, 1))
             self.vu[i] += (target - self.vu[i]) * (0.5 if target > self.vu[i] else 0.15)
             levels.append(self.vu[i])
-        energy = float(np.mean(raw[:7] ** 2))                    # Bass bis ≈ 120 Hz
-        hist = self.bass_hist
-        avg = sum(hist) / len(hist) if hist else energy
-        if active and len(hist) > 20 and energy > avg * 1.5 and now - self.beat_t > 0.28:
-            self.beats += 1
-            self.beat_t = now
-        hist.append(energy)
-        if len(hist) > 43:
-            hist.pop(0)
+        self._detect_beat(float(np.mean(raw[:10] ** 2)), active, now)    # Bass bis ≈ 160 Hz
         b = self.bands
+        period = float(np.median(self.intervals)) if len(self.intervals) >= 3 else 0.5
         snap = {"t": now, "bands": b.copy(), "left": levels[0], "right": levels[1],
                 "level": (levels[0] + levels[1]) / 2, "bass": float(b[:8].mean()), "mid": float(b[16:40].mean()),
                 "treble": float(b[40:].mean()), "wave": self.ring[-640:].copy() * 3.0,
                 "wave_l": left[-256:].copy() * 3.0, "wave_r": right[-256:].copy() * 3.0,
-                "beats": self.beats, "beat_t": self.beat_t, "active": active, "error": None, "demo": False,
+                "beats": self.beats, "beat_t": self.beat_t, "period": period, "active": active, "error": None, "demo": False,
                 "muted": self.muted}
         with self.lock:
             self._snap = snap
+
+    def _detect_beat(self, energy, active, now):
+        """Schlag = Bassenergie steigt deutlich: über dem 1,3-Fachen des Mittels der letzten Sekunde (und steigend)
+        oder ein ungewöhnlich starker Anstieg (Fluss) – so auch bei dichter Musik, in der der Bass nie leise wird.
+        Aus den Abständen ergibt sich das Tempo (period)."""
+        log_e = math.log10(energy + 1e-12)
+        flux = max(0.0, log_e - self.prev_log) if self.prev_log is not None else 0.0
+        self.prev_log = log_e
+        hist, fh = self.bass_hist, self.flux_hist
+        if active and len(hist) > 20 and now - self.beat_t > 0.25:
+            avg = sum(hist) / len(hist)
+            mf = sum(fh) / len(fh)
+            sf = math.sqrt(sum((f - mf) ** 2 for f in fh) / len(fh))
+            rising = energy > hist[-1] * 1.15
+            if (energy > avg * 1.3 and rising) or (flux > mf + 1.5 * sf and flux > 0.05):
+                gap = now - self.beat_t
+                if 0.27 <= gap <= 1.2:
+                    self.intervals = (self.intervals + [gap])[-8:]
+                self.beats += 1
+                self.beat_t = now
+        hist.append(energy)
+        fh.append(flux)
+        if len(hist) > 43:
+            hist.pop(0)
+            fh.pop(0)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -9529,22 +9548,36 @@ class VisualPage:
         S = 2                                               # doppelt zeichnen, dann verkleinern (glatte Kanten)
         W, H = WIDTH * S, HEIGHT * S
         t = s["t"]
-        st = self._vstate("dancer", lambda: {"from": DANCE_POSES[0], "to": DANCE_POSES[0], "t0": t, "beats": s["beats"]})
+        period = max(0.3, min(1.2, s.get("period") or 0.5))
+        moving = s.get("active") or (s.get("demo") and not s.get("idle"))
+        st = self._vstate("dancer", lambda: {"from": DANCE_POSES[0], "to": DANCE_POSES[0], "t0": t,
+                                              "beats": s["beats"], "k": 0})
+
+        def step():                                         # nächste Pose (schnell überblendet)
+            st["k"] += 1
+            k = st["k"]
+            st.update({"from": self._dance_pose(st, t), "to": DANCE_POSES[(k * 3 + k // 4) % len(DANCE_POSES)], "t0": t})
+
         if s["beats"] != st["beats"]:
-            cur = self._dance_pose(st, t)
-            st.update({"from": cur, "to": DANCE_POSES[(s["beats"] * 3 + s["beats"] // 4) % len(DANCE_POSES)],
-                       "t0": t, "beats": s["beats"]})
+            st["beats"] = s["beats"]
+            step()
+        elif moving and t - st["t0"] > period * 1.6:
+            step()                                          # Schlag nicht erkannt: im Tempo weitertanzen
+        energy = 0.35 + 0.65 * s["level"] if moving else 0.25
+        phase = ((t - st["t0"]) / period) % 1.0             # 0 = Schlag, 1 = nächster Schlag
         pose = list(self._dance_pose(st, t))
-        wig = math.sin(t * 9.0) * s["treble"] * 30
-        pose[1] += wig
+        wig = math.sin(2 * math.pi * phase * 2) * (20 + 30 * (s["mid"] + s["treble"])) * energy
+        pose[1] += wig                                      # Unterarme schwingen im Takt
         pose[3] -= wig
+        sway = math.sin(math.pi * (st["k"] + phase))        # Gewicht wechselt bei jedem Schlag die Seite
+        pose[8] += sway * 9 * energy
+        pose[9] += math.sin(2 * math.pi * phase) * 12 * energy
         body = tuple(o["color"]) if o.get("color") else color
         img = self._dance_stage(s, o, body, W, H, S)
         d = ImageDraw.Draw(img)
         floor = (VIS_H - 26) * S
-        since = t - s["beat_t"]
-        dip = 7 * math.exp(-max(0.0, since) * 9) if since >= 0 else 0
-        hip = (WIDTH / 2 * S + math.sin(t * 1.7) * 10 * S, floor - 72 * S + (dip - s["bass"] * 6) * S)
+        dip = (1 + math.cos(2 * math.pi * phase)) / 2 * (4 + 12 * energy)   # in die Knie auf dem Schlag
+        hip = (WIDTH / 2 * S + sway * 14 * energy * S, floor - 72 * S + dip * S)
         lu, lf, ru, rf, lt, ls, rt, rs, lean, head = pose
 
         def at(p, ang, length):
@@ -9590,7 +9623,7 @@ class VisualPage:
         return img.reduce(S)
 
     def _dance_pose(self, st, t):
-        k = _smooth((t - st["t0"]) / 0.2)
+        k = _smooth((t - st["t0"]) / 0.15)
         return tuple(a + (b - a) * k for a, b in zip(st["from"], st["to"]))
 
     def _dance_stage(self, s, o, body, W, H, S):

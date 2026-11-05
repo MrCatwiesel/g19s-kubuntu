@@ -37,10 +37,25 @@ for samples, t in blocks(4.0, kick):
 s = a.snapshot()
 ok(5 <= s["beats"] <= 8, f"Takt erkannt: {s['beats']} Schläge in 4 s (1 s Anlauf)")
 ok(s["bass"] > s["treble"], "Bass stärker als Höhen")
+ok(abs(s["period"] - 0.5) < 0.03, f"Tempo erkannt: {s['period']:.3f} s je Schlag")
+
+# dichte Musik (Bass klingt durch, Rauschen): Schläge trotzdem erkannt; Dauerton: keine falschen Schläge
+rng = np.random.default_rng(1)
+dense = lambda t: (0.7 * np.exp(-(t % (60 / 140)) * 14) * np.sin(2 * np.pi * 55 * t) + 0.35 * np.sin(2 * np.pi * 82 * t)
+                   + 0.2 * rng.standard_normal(len(t)),) * 2
+a.reset()
+for samples, t in blocks(8.0, dense):
+    a.feed(samples, t + 10)
+s = a.snapshot()
+ok(s["beats"] >= 14 and abs(s["period"] - 60 / 140) < 0.03, f"dichte Musik 140/min: {s['beats']} Schläge, {s['period']:.3f} s")
+a.reset()
+for samples, t in blocks(6.0, lambda t: (0.5 * np.sin(2 * np.pi * 82 * t) + 0.1 * rng.standard_normal(len(t)),) * 2):
+    a.feed(samples, t + 20)
+eq(a.snapshot()["beats"], 0, "Dauerton ohne Schläge")
 
 # Stille: nicht aktiv, Bänder fallen ab
 for samples, t in blocks(1.0, lambda t: (t * 0, t * 0)):
-    a.feed(samples, t + 4)
+    a.feed(samples, t + 30)
 s = a.snapshot()
 ok(not s["active"] and s["bands"].max() < 0.05, "Stille: inaktiv, Bänder bei null")
 
