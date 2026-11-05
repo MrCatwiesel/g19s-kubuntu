@@ -1,8 +1,12 @@
 # G19s unter Kubuntu
 
 Treiber und grafische Verwaltung für die **Logitech G19s** unter Kubuntu/KDE Plasma:
-Farbdisplay, 12 G-Tasten mit drei Ebenen (M1–M3), Makros, Internetradio und vieles mehr –
-ohne Logitech-Software, in zwei Python-Dateien.
+Farbdisplay, 12 G-Tasten mit drei Ebenen (M1–M3), Makros, Internetradio, Musikvisualisierung und
+vieles mehr – ohne Logitech-Software, in zwei Python-Dateien. Kostenlos und quelloffen.
+
+> **Für wen?** Alle, die eine Logitech G19s (USB-Kennung `046d:c229`) unter Linux weiter nutzen
+> möchten. Entwickelt und getestet unter Kubuntu 26.04 mit KDE Plasma 6 (Wayland); andere
+> Distributionen mit KDE und PipeWire sollten funktionieren. Die ältere G19 (ohne „s“) ist ungetestet.
 
 ![Displayseiten](doku/bilder/displayseiten.png)
 
@@ -12,18 +16,29 @@ ohne Logitech-Software, in zwei Python-Dateien.
   Tastenkombination, Makro (auch direkt an der Tastatur mit **MR** aufnehmen), Webseite, Programm,
   Radiosender, Musiksteuerung, Lautstärke, Textbausteine, Timer/Stoppuhr/Pomodoro,
   Einschlaftimer, Mikrofon stumm
-- **Bis zu 10 Profile** mit je drei Ebenen und eigenen Beleuchtungsfarben
+- **Bis zu 10 Profile** mit je drei Ebenen und eigenen Beleuchtungsfarben; beim Ebenenwechsel zeigt
+  das Display kurz die Belegung der G-Tasten
+- **Lautstärkerad und Medientasten** wirken auch im Remote-Desktop (z. B. xfreerdp), Texte lassen
+  sich über die Zwischenablage einfügen – auch in RDP-Fenster
 - **Displayseiten** (je Ebene und Profil wählbar): Uhr, Musik mit Cover und Internetradio, Wetter,
   Termine (iCalendar/Nextcloud-CalDAV), Hardware, Makros, Diashow (Piwigo oder Ordner),
-  Nachrichten (RSS/Atom), Unwetterwarnungen (DWD), Netzwerk, Updates
+  Nachrichten (RSS/Atom), Unwetterwarnungen (DWD), Netzwerk, Updates, Visualisierung
 - **25 Zifferblätter** für die Uhr – von Chronometer, Bahnhofs- und Kuckucksuhr über Astro- und
   Sonnenuhr bis Nixie-Röhren und Wortuhr, Auswahl am Display mit MENU und Live-Vorschau
+- **Visualisierung** zu allem, was der Rechner abspielt: Grafik-Equalizer, tanzendes Mädchen,
+  Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm, Feuerwerk und – in der
+  Weihnachtszeit automatisch – tanzende Weihnachtsleute im Schnee; die Tastatur pulsiert im Takt.
+  Bei Nachrichten und Werbung langweilt sich die Tänzerin.
+- Bedienung am Display: Zifferblätter und ihre Optionen, Stile, Schnellmenü (Helligkeit, Nachtmodus,
+  Diashow, Bildschirmschoner), Profile (SETTINGS lang drücken)
 - Terminerinnerung, Radiowecker, Nachtmodus, Bildschirmschoner, KDE-Benachrichtigungen auf dem Display
 - **G19s-Verwaltung** im Browser: Tastenbelegung, Makro-Editor, Sender, Display, Infoseiten,
   Dienst, Sicherung, Updates direkt von GitHub
 - **Automatische Sicherung** in einen Ordner, auf ein NAS (SMB/WebDAV) oder in die Nextcloud
 
 ![Zifferblätter](doku/bilder/zifferblaetter.png)
+
+![Visualisierung](doku/bilder/visualisierung.png)
 
 ![G19s-Verwaltung](doku/bilder/verwaltung-tasten.png)
 
@@ -43,6 +58,11 @@ python3 ~/.local/bin/g19s-gui.py --install-desktop     # Eintrag „G19s-Verwalt
 ```
 
 Für die Makroaufnahme zusätzlich `sudo usermod -aG input $USER`, danach den PC neu starten.
+
+**Erste Schritte:** Nach dem Start zeigt das Display die Uhr. Mit **Links/Rechts** blätterst du
+durch die Seiten, **MENU** öffnet die Auswahl der jeweiligen Seite (z. B. Zifferblatt, Sender,
+Stil), **SETTINGS lang** wählt das Profil. Alles Weitere – Tastenbelegung, Seiten, Farben,
+Sender – stellst du in der **G19s-Verwaltung** im Startmenü ein.
 Neue Versionen holt die Verwaltung unter **Dienst & Sicherung → Nach Updates suchen**
 direkt aus den [GitHub-Releases](https://github.com/MrCatwiesel/g19s-kubuntu/releases),
 mit „Was ist neu“. Was sich je Version geändert hat, steht in [NEUIGKEITEN.md](NEUIGKEITEN.md).
