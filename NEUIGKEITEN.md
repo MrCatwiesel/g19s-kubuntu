@@ -3,6 +3,9 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.05-16
+- Visualisierung „Weihnachten“: Wie oft beim Tanz „Abwechselnd“ gewechselt wird, ist jetzt einstellbar – alle 30 Sekunden, jede Minute (wie bisher), alle 2, 5 oder 10 Minuten. Am Display im Optionsmenü des Stils oder in der Verwaltung unter „Beleuchtung & Display → Visualisierung“.
+
 ## 2026.11.05-15
 - Visualisierung „Weihnachten“: Weihnachtsmann und Weihnachtsfrau verschwinden nicht mehr einfach. Wechselt der Tanz (Paar, er allein, sie allein), winkt die eine Figur zum Abschied und geht aus dem Bild – er nach links, sie nach rechts –, die andere kommt herein und winkt beim Ankommen. Zum Paartanz reichen sie sich die Hand, sobald beide da sind.
 - Bei Wortbeiträgen gehen beide zur Bank und setzen sich (auch wer gerade nicht im Bild war, kommt dazu); bei Musik stehen sie wieder auf und tanzen weiter. Die Bank blendet weich ein und aus.

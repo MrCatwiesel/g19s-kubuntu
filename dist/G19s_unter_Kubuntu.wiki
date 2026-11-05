@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.11.05-15)
+| 28.09.2026 (Version 2026.11.05-16)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -182,7 +182,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.05-15"
+VERSION = "2026.11.05-16"
 
 # Weitere Importe der Module
 import select
@@ -411,8 +411,11 @@ VISUAL_OPTIONS = {
     ],
     "xmas": [
         {"key": "dance", "label": "Tanz", "type": "choice", "default": "auto",
-         "choices": [["auto", "Abwechselnd (jede Minute)"], ["pair", "Paartanz"], ["santa", "Weihnachtsmann allein"],
+         "choices": [["auto", "Abwechselnd"], ["pair", "Paartanz"], ["santa", "Weihnachtsmann allein"],
                      ["mrs", "Weihnachtsfrau allein"]]},
+        {"key": "every", "label": "Wechsel bei „Abwechselnd“", "type": "choice", "default": "60",
+         "choices": [["30", "alle 30 Sekunden"], ["60", "jede Minute"], ["120", "alle 2 Minuten"],
+                     ["300", "alle 5 Minuten"], ["600", "alle 10 Minuten"]]},
         {"key": "snow", "label": "Schneefall", "type": "choice", "default": "normal",
          "choices": [["light", "Leicht"], ["normal", "Normal"], ["heavy", "Dicht"]]},
         {"key": "lights", "label": "Lichterkette blinkt im Takt", "type": "bool", "default": True},
@@ -10673,7 +10676,8 @@ class XmasVisual:
         d.polygon(pts, fill=(255, 220, 70))
         mode = o["dance"]
         if mode == "auto":
-            mode = ("pair", "santa", "mrs")[int((t - st["start"]) // 60) % 3]
+            every = int(o["every"]) if str(o.get("every")).isdigit() else 60          # Wechsel alle … Sekunden
+            mode = ("pair", "santa", "mrs")[int((t - st["start"]) // max(10, every)) % 3]
         enter = self.__dict__.pop("_vis_enter", False) and not s.get("demo")
         acts = self._xmas_actors(st, t, dt, mode, talk, enter, period)
         floor = XMAS_FLOOR
@@ -13322,7 +13326,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.05-15"
+VERSION = "2026.11.05-16"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -17473,7 +17477,7 @@ Die Seite '''Visualisierung''' bewegt sich zu allem, was der Rechner gerade absp
 |-
 | Feuerwerk || bei jedem Schlag explodiert eine Rakete über der Stadt || Leuchtspuren
 |-
-| Weihnachten || Weihnachtsmann und Weihnachtsfrau – räumlich gezeichnet mit Licht, Glanz und Schatten – tanzen neben einem Weihnachtsbaum im Schneefall: er wippt mit dem Bauch, winkt, kickt; sie dreht Pirouetten. Im Paartanz halten sie sich an den Händen, und alle acht Schritte dreht sie sich unter seinem Arm. Lichterkette blinkt im Takt, der Stern leuchtet mit dem Bass, kräftige Schläge wirbeln den Schnee auf. Wechselt der Tanz, verabschiedet sich eine Figur winkend und geht aus dem Bild (er nach links, sie nach rechts), die andere kommt herein; beim Öffnen der Seite kommen beide ins Bild gelaufen. Bei Wortbeiträgen gehen beide zu einer Bank – er liest die Wunschliste, sie trinkt Kakao || Tanz (abwechselnd jede Minute, Paartanz, nur Weihnachtsmann, nur Weihnachtsfrau), Schneefall (leicht, normal, dicht), Lichterkette im Takt, Tastaturbeleuchtung (rot und grün im Takt oder Farbe der Ebene)
+| Weihnachten || Weihnachtsmann und Weihnachtsfrau – räumlich gezeichnet mit Licht, Glanz und Schatten – tanzen neben einem Weihnachtsbaum im Schneefall: er wippt mit dem Bauch, winkt, kickt; sie dreht Pirouetten. Im Paartanz halten sie sich an den Händen, und alle acht Schritte dreht sie sich unter seinem Arm. Lichterkette blinkt im Takt, der Stern leuchtet mit dem Bass, kräftige Schläge wirbeln den Schnee auf. Wechselt der Tanz, verabschiedet sich eine Figur winkend und geht aus dem Bild (er nach links, sie nach rechts), die andere kommt herein; beim Öffnen der Seite kommen beide ins Bild gelaufen. Bei Wortbeiträgen gehen beide zu einer Bank – er liest die Wunschliste, sie trinkt Kakao || Tanz (abwechselnd, Paartanz, nur Weihnachtsmann, nur Weihnachtsfrau), Wechsel bei „Abwechselnd“ (alle 30 Sekunden, jede Minute, alle 2, 5 oder 10 Minuten), Schneefall (leicht, normal, dicht), Lichterkette im Takt, Tastaturbeleuchtung (rot und grün im Takt oder Farbe der Ebene)
 |}
 '''Weihnachtszeit:''' Vom 1. Advent bis zum 6. Januar zeigt die Visualisierung automatisch den Stil „Weihnachten“, egal welcher Stil gewählt ist (abschaltbar unter '''Beleuchtung & Display → Visualisierung'''). Wählt man in dieser Zeit am Display einen anderen Stil, bleibt dieser bis zum Ende der Weihnachtszeit; im nächsten Advent kommt „Weihnachten“ wieder.
 Oben steht der laufende Titel (abschaltbar). Ohne Ton bleibt das letzte Bild abgedunkelt stehen und zeigt „Keine Wiedergabe“; ist der Ausgang stumm geschaltet (oder auf 0 %), „Ton stumm“. Sobald wieder Musik kommt, geht es sofort weiter – der mitgehörte Ausgang selbst merkt vom Stummschalten nichts, deshalb fragt der Treiber jede Sekunde nach. Die '''Tastaturbeleuchtung pulsiert''' in der Farbe der Ebene mit dem Bass, solange die Seite zu sehen ist (nicht nachts, nicht bei „Beleuchtung nicht umfärben“). Alles einstellbar unter '''Beleuchtung & Display → Visualisierung''' mit Vorschau – dort auch die '''Bildrate''' (10, 15, 20 oder 25 Bilder je Sekunde; Standard 15). Mehr Bilder wirken flüssiger, brauchen aber mehr Rechenzeit; die Visualisierung ist die rechenintensivste Seite.

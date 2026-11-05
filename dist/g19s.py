@@ -40,7 +40,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.05-15"
+VERSION = "2026.11.05-16"
 
 # Weitere Importe der Module
 import select
@@ -269,8 +269,11 @@ VISUAL_OPTIONS = {
     ],
     "xmas": [
         {"key": "dance", "label": "Tanz", "type": "choice", "default": "auto",
-         "choices": [["auto", "Abwechselnd (jede Minute)"], ["pair", "Paartanz"], ["santa", "Weihnachtsmann allein"],
+         "choices": [["auto", "Abwechselnd"], ["pair", "Paartanz"], ["santa", "Weihnachtsmann allein"],
                      ["mrs", "Weihnachtsfrau allein"]]},
+        {"key": "every", "label": "Wechsel bei „Abwechselnd“", "type": "choice", "default": "60",
+         "choices": [["30", "alle 30 Sekunden"], ["60", "jede Minute"], ["120", "alle 2 Minuten"],
+                     ["300", "alle 5 Minuten"], ["600", "alle 10 Minuten"]]},
         {"key": "snow", "label": "Schneefall", "type": "choice", "default": "normal",
          "choices": [["light", "Leicht"], ["normal", "Normal"], ["heavy", "Dicht"]]},
         {"key": "lights", "label": "Lichterkette blinkt im Takt", "type": "bool", "default": True},
@@ -10531,7 +10534,8 @@ class XmasVisual:
         d.polygon(pts, fill=(255, 220, 70))
         mode = o["dance"]
         if mode == "auto":
-            mode = ("pair", "santa", "mrs")[int((t - st["start"]) // 60) % 3]
+            every = int(o["every"]) if str(o.get("every")).isdigit() else 60          # Wechsel alle … Sekunden
+            mode = ("pair", "santa", "mrs")[int((t - st["start"]) // max(10, every)) % 3]
         enter = self.__dict__.pop("_vis_enter", False) and not s.get("demo")
         acts = self._xmas_actors(st, t, dt, mode, talk, enter, period)
         floor = XMAS_FLOOR

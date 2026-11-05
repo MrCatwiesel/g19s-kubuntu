@@ -80,4 +80,23 @@ eq((sa["x"], mr["x"], mr["state"], st["bench"]), (OFF["santa"], 190, "dance", 0.
 # Seite verlassen und wieder geöffnet (page_visual setzt _vis_enter nach > 1,5 s Pause): neuer Auftritt
 f = run(0.5, "mrs", enter=True)
 eq(f[0][4], OFF["mrs"], "Wieder geöffnet: sie kommt erneut herein")
+
+# „Abwechselnd“ mit einstellbarer Wartezeit: bei 30 s geht sie nach gut 30 s, bei 120 s noch nicht
+def auto(every, seconds):
+    r._vis_states = {}
+    T[0] = 0.0
+    out = []
+    while T[0] < seconds:
+        s = g.demo_snapshot(5000 + T[0])
+        s.update(active=True, demo=True, talk=False, t=5000 + T[0])
+        g.VISUAL_RENDERERS["xmas"](r, s, dict(OPTS, dance="auto", every=every), (255, 255, 255))
+        T[0] += 1 / 15
+    a = r._vis_states["xmas"]["acts"]
+    return a["mrs"]["goal"]
+
+
+eq(OPTS["every"], "60", "Standard: Wechsel jede Minute")
+eq(auto("30", 31.0), OFF["mrs"], "Wechsel alle 30 s: nach 31 s soll sie gehen")
+eq(auto("120", 61.0), 226, "Wechsel alle 2 min: nach 61 s tanzt das Paar noch")
+eq(auto("kaputt", 61.0), OFF["mrs"], "Ungültiger Wert: wie jede Minute")
 done()

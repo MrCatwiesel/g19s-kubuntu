@@ -353,7 +353,8 @@ class XmasVisual:
         d.polygon(pts, fill=(255, 220, 70))
         mode = o["dance"]
         if mode == "auto":
-            mode = ("pair", "santa", "mrs")[int((t - st["start"]) // 60) % 3]
+            every = int(o["every"]) if str(o.get("every")).isdigit() else 60          # Wechsel alle … Sekunden
+            mode = ("pair", "santa", "mrs")[int((t - st["start"]) // max(10, every)) % 3]
         enter = self.__dict__.pop("_vis_enter", False) and not s.get("demo")
         acts = self._xmas_actors(st, t, dt, mode, talk, enter, period)
         floor = XMAS_FLOOR

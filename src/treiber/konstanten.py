@@ -205,8 +205,11 @@ VISUAL_OPTIONS = {
     ],
     "xmas": [
         {"key": "dance", "label": "Tanz", "type": "choice", "default": "auto",
-         "choices": [["auto", "Abwechselnd (jede Minute)"], ["pair", "Paartanz"], ["santa", "Weihnachtsmann allein"],
+         "choices": [["auto", "Abwechselnd"], ["pair", "Paartanz"], ["santa", "Weihnachtsmann allein"],
                      ["mrs", "Weihnachtsfrau allein"]]},
+        {"key": "every", "label": "Wechsel bei „Abwechselnd“", "type": "choice", "default": "60",
+         "choices": [["30", "alle 30 Sekunden"], ["60", "jede Minute"], ["120", "alle 2 Minuten"],
+                     ["300", "alle 5 Minuten"], ["600", "alle 10 Minuten"]]},
         {"key": "snow", "label": "Schneefall", "type": "choice", "default": "normal",
          "choices": [["light", "Leicht"], ["normal", "Normal"], ["heavy", "Dicht"]]},
         {"key": "lights", "label": "Lichterkette blinkt im Takt", "type": "bool", "default": True},
