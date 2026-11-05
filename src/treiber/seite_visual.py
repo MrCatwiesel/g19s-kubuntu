@@ -134,6 +134,10 @@ class VisualPage:
 
     @page("visual")
     def page_visual(self, profile, macros):
+        now = time.monotonic()
+        if now - self.__dict__.get("_vis_page_t", -99.0) > 1.5:
+            self._vis_enter = True                          # Seite neu geöffnet (Weihnachten: Auftritt)
+        self._vis_page_t = now
         snap = self._vis_snapshot()
         style = self.visual_style if self.visual_style in VISUAL_RENDERERS else "eq"
         color = PROFILE_COLOR.get(profile, self.FG)

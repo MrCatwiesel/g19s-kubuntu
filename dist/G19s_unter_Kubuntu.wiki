@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.11.05-14)
+| 28.09.2026 (Version 2026.11.05-15)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -182,7 +182,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.05-14"
+VERSION = "2026.11.05-15"
 
 # Weitere Importe der Module
 import select
@@ -9703,6 +9703,10 @@ class VisualPage:
 
     @page("visual")
     def page_visual(self, profile, macros):
+        now = time.monotonic()
+        if now - self.__dict__.get("_vis_page_t", -99.0) > 1.5:
+            self._vis_enter = True                          # Seite neu geöffnet (Weihnachten: Auftritt)
+        self._vis_page_t = now
         snap = self._vis_snapshot()
         style = self.visual_style if self.visual_style in VISUAL_RENDERERS else "eq"
         color = PROFILE_COLOR.get(profile, self.FG)
@@ -10320,7 +10324,9 @@ def keys_visual(app, pressed):
 #   Weihnachtsbaum im Schneefall. Die Figuren bestehen aus räumlich schattierten Körperteilen (Ellipsoide mit Licht
 #   von links oben, Glanzpunkt und Schatten) – so wirken sie plastisch, ohne echte 3D-Grafik. Arme und Beine
 #   werden über Zielpunkte für Hände und Füße gesetzt (zweigliedrige inverse Kinematik).
-#   Bei Wortbeiträgen sitzen beide auf einer Bank: er liest die Wunschliste, sie trinkt Kakao.
+#   Bei Wortbeiträgen gehen beide zu einer Bank: er liest die Wunschliste, sie trinkt Kakao. Wechselt der Tanz
+#   (Paar, er allein, sie allein), verabschiedet sich, wer gehen soll, winkt und geht aus dem Bild (er nach links,
+#   sie nach rechts); wer dazukommt, geht herein. Beim Öffnen der Seite kommen beide ins Bild gelaufen.
 # ═══════════════════════════════════════════════════════════════════════════
 
 XMAS_LIGHT = np.array([-0.45, -0.65, 0.62]) / np.linalg.norm([-0.45, -0.65, 0.62])
@@ -10328,6 +10334,10 @@ XMAS_HALF = (XMAS_LIGHT + np.array([0, 0, 1.0])) / np.linalg.norm(XMAS_LIGHT + n
 XMAS_FLOOR = VIS_H - 30                 # Höhe des Schneebodens unter den Füßen
 XMAS_RED, XMAS_FUR, XMAS_SKIN = (205, 24, 30), (246, 246, 250), (246, 204, 176)
 XMAS_TREE_X = 58
+XMAS_BENCH_X = 196
+XMAS_WALK_SPEED = 70                    # Gehen ins Bild und hinaus (Pixel je Sekunde)
+XMAS_OFF_MARGIN = 48
+XMAS_OFF = {"santa": -XMAS_OFF_MARGIN, "mrs": WIDTH + XMAS_OFF_MARGIN}   # er geht links, sie rechts hinaus
 
 # Posen: Hände relativ zur jeweiligen Schulter, Füße relativ zum Hüftgelenk (Pixel), Neigung, Kopf, Wippen
 SANTA_POSES = [
@@ -10366,6 +10376,14 @@ def _mix_pose(a, b, k):
     for key, va in a.items():
         vb = b.get(key, va)
         out[key] = tuple(x + (y - x) * k for x, y in zip(va, vb)) if isinstance(va, tuple) else va + (vb - va) * k
+    return out
+
+
+def _mix_pose_spin(a, b, k):
+    """Wie _mix_pose; eine Drehung über ±180° (Ende einer Pirouette) wird nicht zurückgespult."""
+    out = _mix_pose(a, b, k)
+    if abs(b["spin"] - a["spin"]) > 180:
+        out["spin"] = b["spin"]
     return out
 
 
@@ -10656,38 +10674,46 @@ class XmasVisual:
         mode = o["dance"]
         if mode == "auto":
             mode = ("pair", "santa", "mrs")[int((t - st["start"]) // 60) % 3]
+        enter = self.__dict__.pop("_vis_enter", False) and not s.get("demo")
+        acts = self._xmas_actors(st, t, dt, mode, talk, enter, period)
         floor = XMAS_FLOOR
-        if talk:                                                                    # Wortbeitrag: auf die Bank
-            bx = 196
-            self._xmas_bench(img, d, bx, floor)
-            sit = {"lh": (14, 22), "rh": (-14, 22), "lf": (0, 0), "rf": (0, 0), "lean": 0, "head": 10,
-                   "bob": math.sin(t * 0.8) * 0.8}
-            if mode in ("pair", "santa"):
-                self._santa(img, d, bx - (18 if mode == "pair" else 0), floor - 20, sit, t * 0.3, sitting=True, scroll=True)
-            if mode in ("pair", "mrs"):
-                self._mrs(img, d, bx + (24 if mode == "pair" else 0), floor - 20,
-                          dict(sit, lh=(10, 16), rh=(-10, 16), head=-8), t, sitting=True, mug=True)
-        else:
-            energy = 0.35 + 0.65 * s["level"] if moving else 0.25
-            phase = ((t - st["t0"]) / period) % 1.0
-            bob = (1 + math.cos(2 * math.pi * phase)) / 2 * (2 + 6 * energy)
-            sway = math.sin(math.pi * (st["k"] + phase)) * energy
-            k = _smooth((t - st["t0"]) / 0.18)
-            spin_k = (t - st["spin_t"]) / (period * 2)
-            spin = 360 * _smooth(spin_k) if 0 <= spin_k < 1 else 0.0
-            if mode == "pair":
-                self._xmas_pair(img, d, st, s, t, floor, bob, sway, k, spin, energy)
-            elif mode == "santa":
-                pose = _mix_pose(SANTA_POSES[(st["k"] - 1) % len(SANTA_POSES)], SANTA_POSES[st["k"] % len(SANTA_POSES)], k)
-                pose = self._xmas_wave(pose, t, energy)
-                pose.update(bob=bob, lean=pose["lean"] + sway * 6)
-                self._santa(img, d, 190 + sway * 10, floor, pose, t)
+        bench_on = talk or any(a["state"] == "sit" for a in acts.values())
+        st["bench"] = max(0.0, min(1.0, st["bench"] + (dt if bench_on else -dt) / 0.5))
+        if st["bench"] > 0:                                                         # Bank blendet weich ein/aus
+            if st["bench"] >= 1:
+                self._xmas_bench(img, d, XMAS_BENCH_X, floor)
             else:
-                pose = _mix_pose(MRS_POSES[(st["k"] - 1) % len(MRS_POSES)], MRS_POSES[st["k"] % len(MRS_POSES)], k)
-                if spin:
-                    pose = dict(MRS_POSES[0])
-                pose.update(bob=bob, lean=pose["lean"] + sway * 6)
-                self._mrs(img, d, 190 + sway * 12, floor, pose, t, spin=spin)
+                benched = img.copy()
+                self._xmas_bench(benched, ImageDraw.Draw(benched), XMAS_BENCH_X, floor)
+                img = Image.blend(img, benched, st["bench"])
+                d = ImageDraw.Draw(img)
+        energy = 0.35 + 0.65 * s["level"] if moving else 0.25
+        phase = ((t - st["t0"]) / period) % 1.0
+        bob = (1 + math.cos(2 * math.pi * phase)) / 2 * (2 + 6 * energy)
+        sway = math.sin(math.pi * (st["k"] + phase)) * energy
+        k = _smooth((t - st["t0"]) / 0.18)
+        spin_k = (t - st["spin_t"]) / (period * 2)
+        spin = 360 * _smooth(spin_k) if 0 <= spin_k < 1 else 0.0
+        poses = self._xmas_dance_poses(st, t, floor, mode, acts, bob, sway, k, spin, energy)
+        for who in ("santa", "mrs"):
+            a = acts[who]
+            pose = self._xmas_target(who, a, st, t, poses[who])
+            if a["pose"] is None or t - a["state_t"] > 0.35:
+                a["pose"] = pose
+            else:                                                                   # Haltungswechsel weich
+                a["pose"] = _mix_pose_spin(a["pose"], pose, 1 - math.exp(-dt * 12))
+            x = a["x"] + a["pose"]["dx"]
+            if not -XMAS_OFF_MARGIN < x < WIDTH + XMAS_OFF_MARGIN:
+                continue                                                            # ganz außerhalb des Bildes
+            p = dict(a["pose"])
+            p.pop("dx")
+            sp = p.pop("spin")
+            sitting = a["state"] == "sit"
+            if who == "santa":
+                self._santa(img, d, x, floor - 20 if sitting else floor, p, t * 0.3 if sitting else t,
+                            sitting=sitting, scroll=sitting)
+            else:
+                self._mrs(img, d, x, floor - 20 if sitting else floor, p, t, spin=sp, sitting=sitting, mug=sitting)
         self._xmas_snow(st, s, dt, img, o, front=True)
         return img
 
@@ -10700,9 +10726,114 @@ class XmasVisual:
         out["rh"] = (pose["rh"][0], pose["rh"][1] - w)
         return out
 
-    def _xmas_pair(self, img, d, st, s, t, floor, bob, sway, k, spin, energy):
+    # -- Auftritte: ins Bild gehen, hinausgehen, zur Bank -------------------- #
+    @staticmethod
+    def _xmas_goals(mode, talk):
+        """Zielposition je Figur: Bank bei Wortbeiträgen, sonst je Tanzmodus (außerhalb = XMAS_OFF)."""
+        if talk:
+            return {"santa": XMAS_BENCH_X - 18, "mrs": XMAS_BENCH_X + 24}
+        return {"pair": {"santa": 160, "mrs": 226}, "santa": {"santa": 190, "mrs": XMAS_OFF["mrs"]},
+                "mrs": {"santa": XMAS_OFF["santa"], "mrs": 190}}[mode]
+
+    def _xmas_actors(self, st, t, dt, mode, talk, enter, period):
+        """Position und Zustand (dance/wave/walk/sit) beider Figuren. Wer gehen soll, winkt erst zum Abschied;
+        wer neu hereinkommt, wartet, bis der andere sich verabschiedet hat, und winkt beim Ankommen."""
+        goals = self._xmas_goals(mode, talk)
+        acts = st.get("acts")
+        if acts is None or enter:
+            acts = st["acts"] = {}
+            for who, delay in (("santa", 0.3), ("mrs", 0.8)):
+                acts[who] = {"x": XMAS_OFF[who] if enter else goals[who], "goal": goals[who], "go_t": t + delay,
+                             "wave_t": -9.0, "came": enter, "dir": 1, "state": "", "state_t": t, "pose": None}
+            st["hold"] = 1.0 if mode == "pair" and not talk and not enter else 0.0
+            st["bench"] = 1.0 if talk and not enter else 0.0
+            st["gait"] = 0.0
+        on = {w: a["x"] != XMAS_OFF[w] for w, a in acts.items()}
+        leaving = {w: on[w] and goals[w] == XMAS_OFF[w] and a["goal"] != goals[w] for w, a in acts.items()}
+        for who, a in acts.items():
+            if goals[who] == a["goal"]:
+                continue
+            a["goal"], a["came"] = goals[who], not on[who]
+            other = "mrs" if who == "santa" else "santa"
+            if leaving[who]:
+                a["wave_t"] = a["go_t"] = t + 0.9                                   # erst winken, dann gehen
+            elif on[who]:
+                a["go_t"] = t + 0.4                                                 # Hand loslassen, aufstehen
+            else:
+                a["go_t"] = t + (1.5 if leaving[other] else 0.3)
+        st["gait"] += dt / max(0.4, min(0.8, period)) * math.pi                     # ein Schritt je Schlag
+        for who, a in acts.items():
+            dist = a["goal"] - a["x"]
+            walking = t >= a["go_t"] and dist != 0
+            if walking:
+                a["dir"] = 1 if dist > 0 else -1
+                a["x"] = a["goal"] if abs(dist) <= XMAS_WALK_SPEED * dt else a["x"] + a["dir"] * XMAS_WALK_SPEED * dt
+                if a["x"] == a["goal"]:
+                    walking = False
+                    if a["came"] and not talk and mode != "pair":
+                        a["wave_t"] = t + 0.8                                       # „Hallo!“
+                    a["came"] = False
+            at_goal = a["x"] == a["goal"]
+            state = "walk" if walking else "wave" if t < a["wave_t"] else "sit" if talk and at_goal else "dance"
+            if state != a["state"]:
+                a["state"], a["state_t"] = state, t
+        together = mode == "pair" and not talk and all(a["state"] == "dance" and a["x"] == a["goal"]
+                                                       for a in acts.values())
+        st["hold"] = max(0.0, min(1.0, st["hold"] + (dt if together else -dt) / 0.4))
+        return acts
+
+    def _xmas_dance_poses(self, st, t, floor, mode, acts, bob, sway, k, spin, energy):
+        """Tanzhaltung beider Figuren; im Paar mit gehaltenen Händen (Anteil st["hold"])."""
+        n = st["k"]
+        santa = _mix_pose(SANTA_POSES[(n - 1) % len(SANTA_POSES)], SANTA_POSES[n % len(SANTA_POSES)], k)
+        santa = self._xmas_wave(santa, t, energy)
+        santa.update(bob=bob, lean=santa["lean"] + sway * 6, dx=sway * (8 if mode == "pair" else 10), spin=0.0)
+        hold = st["hold"]
+        mrs = _mix_pose(MRS_POSES[(n - 1) % len(MRS_POSES)], MRS_POSES[n % len(MRS_POSES)], k)
+        if spin:
+            mrs = dict(MRS_POSES[0])                                                # Pirouette allein
+        mrs.update(bob=bob, lean=mrs["lean"] + sway * 6, dx=sway * (8 if mode == "pair" else 12), spin=spin)
+        if hold > 0:
+            sx, mx = acts["santa"]["x"] + sway * 8, acts["mrs"]["x"] + sway * 8
+            ps, pm = self._xmas_pair_poses(st, floor, bob, sway, spin if hold >= 1 else 0.0, sx, mx)
+            ps.update(dx=sway * 8, spin=0.0)
+            pm.update(dx=sway * 8, spin=spin if hold >= 1 else 0.0)
+            if hold >= 1:
+                santa, mrs = ps, pm
+            else:
+                santa, mrs = _mix_pose(santa, ps, hold), _mix_pose(mrs, pm, hold)
+                mrs["spin"] = 0.0
+        return {"santa": santa, "mrs": mrs}
+
+    @staticmethod
+    def _xmas_target(who, a, st, t, dance):
+        """Zielhaltung je Zustand: tanzen, winken, gehen (Schritt im Takt) oder sitzen."""
+        state = a["state"]
+        if state == "dance":
+            return dance
+        if state == "sit":
+            sit = {"lh": (14, 22), "rh": (-14, 22), "lf": (0, 0), "rf": (0, 0), "lean": 0, "head": 10,
+                   "bob": math.sin(t * 0.8) * 0.8, "dx": 0.0, "spin": 0.0}
+            return sit if who == "santa" else dict(sit, lh=(10, 16), rh=(-10, 16), head=-8)
+        if state == "wave":
+            w = math.sin(t * 10)
+            if who == "santa":
+                return dict(SANTA_POSES[2], rh=(22 + w * 6, -26), bob=0.0, dx=0.0, spin=0.0)
+            return dict(MRS_POSES[2], rh=(10 + w * 7, -34), bob=0.0, dx=0.0, spin=0.0)
+        g, dr = st["gait"], a["dir"]                                                # gehen
+        sg = math.sin(g)
+        lift_l, lift_r = max(0.0, sg), max(0.0, -sg)
+        bob = 2.5 * abs(math.cos(g))
+        if who == "santa":
+            return {"lh": (-4 + dr * 6 * sg, 30), "rh": (4 - dr * 6 * sg, 30), "lf": (-3 + dr * 3, 40 - 10 * lift_l),
+                    "rf": (3 + dr * 3, 40 - 10 * lift_r), "lean": dr * 5, "head": dr * 10, "bob": bob,
+                    "dx": 0.0, "spin": 0.0}
+        return {"lh": (-6 + dr * 5 * sg, 28), "rh": (6 - dr * 5 * sg, 28), "lf": (dr * 3, 22 - 7 * lift_l),
+                "rf": (dr * 3, 22 - 7 * lift_r), "lean": dr * 4, "head": dr * 8, "bob": bob, "dx": 0.0,
+                "spin": dr * 50.0}
+
+    def _xmas_pair_poses(self, st, floor, bob, sway, spin, sx, mx):
         """Paartanz: Hand in Hand, beide wiegen sich; jeden 8. Schritt dreht sie sich unter seinem Arm."""
-        sx, mx = 160 + sway * 8, 226 + sway * 8
         twirl = spin != 0.0
         joint = ((sx + mx) / 2, floor - (128 if twirl else 78) - bob)               # gehaltene Hände
         free = SANTA_POSES[st["k"] % 3]
@@ -10715,8 +10846,7 @@ class XmasVisual:
         mrs["lh"] = (joint[0] - (mx - 14), joint[1] - (floor - 40 + bob - 18 - 17 + 5))
         if twirl:
             mrs["rh"] = (8, 30)
-        self._santa(img, d, sx, floor, santa, t)
-        self._mrs(img, d, mx, floor, mrs, t, spin=spin)
+        return santa, mrs
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -13192,7 +13322,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.05-14"
+VERSION = "2026.11.05-15"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -17343,7 +17473,7 @@ Die Seite '''Visualisierung''' bewegt sich zu allem, was der Rechner gerade absp
 |-
 | Feuerwerk || bei jedem Schlag explodiert eine Rakete über der Stadt || Leuchtspuren
 |-
-| Weihnachten || Weihnachtsmann und Weihnachtsfrau – räumlich gezeichnet mit Licht, Glanz und Schatten – tanzen neben einem Weihnachtsbaum im Schneefall: er wippt mit dem Bauch, winkt, kickt; sie dreht Pirouetten. Im Paartanz halten sie sich an den Händen, und alle acht Schritte dreht sie sich unter seinem Arm. Lichterkette blinkt im Takt, der Stern leuchtet mit dem Bass, kräftige Schläge wirbeln den Schnee auf. Bei Wortbeiträgen sitzen sie auf einer Bank – er liest die Wunschliste, sie trinkt Kakao || Tanz (abwechselnd jede Minute, Paartanz, nur Weihnachtsmann, nur Weihnachtsfrau), Schneefall (leicht, normal, dicht), Lichterkette im Takt, Tastaturbeleuchtung (rot und grün im Takt oder Farbe der Ebene)
+| Weihnachten || Weihnachtsmann und Weihnachtsfrau – räumlich gezeichnet mit Licht, Glanz und Schatten – tanzen neben einem Weihnachtsbaum im Schneefall: er wippt mit dem Bauch, winkt, kickt; sie dreht Pirouetten. Im Paartanz halten sie sich an den Händen, und alle acht Schritte dreht sie sich unter seinem Arm. Lichterkette blinkt im Takt, der Stern leuchtet mit dem Bass, kräftige Schläge wirbeln den Schnee auf. Wechselt der Tanz, verabschiedet sich eine Figur winkend und geht aus dem Bild (er nach links, sie nach rechts), die andere kommt herein; beim Öffnen der Seite kommen beide ins Bild gelaufen. Bei Wortbeiträgen gehen beide zu einer Bank – er liest die Wunschliste, sie trinkt Kakao || Tanz (abwechselnd jede Minute, Paartanz, nur Weihnachtsmann, nur Weihnachtsfrau), Schneefall (leicht, normal, dicht), Lichterkette im Takt, Tastaturbeleuchtung (rot und grün im Takt oder Farbe der Ebene)
 |}
 '''Weihnachtszeit:''' Vom 1. Advent bis zum 6. Januar zeigt die Visualisierung automatisch den Stil „Weihnachten“, egal welcher Stil gewählt ist (abschaltbar unter '''Beleuchtung & Display → Visualisierung'''). Wählt man in dieser Zeit am Display einen anderen Stil, bleibt dieser bis zum Ende der Weihnachtszeit; im nächsten Advent kommt „Weihnachten“ wieder.
 Oben steht der laufende Titel (abschaltbar). Ohne Ton bleibt das letzte Bild abgedunkelt stehen und zeigt „Keine Wiedergabe“; ist der Ausgang stumm geschaltet (oder auf 0 %), „Ton stumm“. Sobald wieder Musik kommt, geht es sofort weiter – der mitgehörte Ausgang selbst merkt vom Stummschalten nichts, deshalb fragt der Treiber jede Sekunde nach. Die '''Tastaturbeleuchtung pulsiert''' in der Farbe der Ebene mit dem Bass, solange die Seite zu sehen ist (nicht nachts, nicht bei „Beleuchtung nicht umfärben“). Alles einstellbar unter '''Beleuchtung & Display → Visualisierung''' mit Vorschau – dort auch die '''Bildrate''' (10, 15, 20 oder 25 Bilder je Sekunde; Standard 15). Mehr Bilder wirken flüssiger, brauchen aber mehr Rechenzeit; die Visualisierung ist die rechenintensivste Seite.

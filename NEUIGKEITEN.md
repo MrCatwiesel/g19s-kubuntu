@@ -3,6 +3,11 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.05-15
+- Visualisierung „Weihnachten“: Weihnachtsmann und Weihnachtsfrau verschwinden nicht mehr einfach. Wechselt der Tanz (Paar, er allein, sie allein), winkt die eine Figur zum Abschied und geht aus dem Bild – er nach links, sie nach rechts –, die andere kommt herein und winkt beim Ankommen. Zum Paartanz reichen sie sich die Hand, sobald beide da sind.
+- Bei Wortbeiträgen gehen beide zur Bank und setzen sich (auch wer gerade nicht im Bild war, kommt dazu); bei Musik stehen sie wieder auf und tanzen weiter. Die Bank blendet weich ein und aus.
+- Beim Öffnen der Visualisierungsseite kommen die beiden ins Bild gelaufen, Schritt für Schritt im Takt der Musik.
+
 ## 2026.11.05-14
 - Installer: Liegen Treiber und Verwaltung neben `install.sh`, erkennt er sie jetzt am Inhalt – auch wenn der Browser sie z. B. als `g19s(1).py` gespeichert hat. Ist eine Version auf GitHub noch nicht fertig, sagt er das verständlich.
 

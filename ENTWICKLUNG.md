@@ -34,7 +34,8 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
       seite_*.py              je Displayseite: Zeichnen + Tasten
       uhr_basis, uhr_*.py     Zifferblätter der Seite „Uhr“ (@clock_face), 25 Stück
       seite_visual            Seite „Visualisierung“, 8 Stile (@vis_style), Optionen VISUAL_OPTIONS
-      seite_visual_xmas       Stil „Weihnachten“: schattierte Figuren (_blob/_limb, IK _ik), Baum, Schnee
+      seite_visual_xmas       Stil „Weihnachten“: schattierte Figuren (_blob/_limb, IK _ik), Baum, Schnee,
+                              Auftritte (_xmas_actors: Ziel/Zustand je Figur, Seite neu = _vis_enter)
       menues, einblendungen   Zeichnen von Menüs und Einblendungen
       menue_logik             Menü-Klassen (Tasten + draw)
       aktionen                G-Tasten-Aktionen (@gkey_action)

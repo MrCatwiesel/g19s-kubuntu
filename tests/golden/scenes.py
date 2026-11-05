@@ -169,7 +169,38 @@ def _bored(r, talk_s, style="dancer"):
 
 scenes["vis_taenzerin_gaehnt"] = lambda r: _bored(r, 6.0)
 scenes["vis_taenzerin_sitzt"] = lambda r: _bored(r, 40.0)
-scenes["vis_weihnachten_bank"] = lambda r: _bored(r, 10.0, "xmas")
+
+
+class _Live:
+    """Klanganalyse-Ersatz: künstliche Musik wie live (kein demo), Zeit wird von außen weitergestellt."""
+    def __init__(self):
+        self.t, self.talk = 5000.0, False
+
+    def snapshot(self):
+        d = g.demo_snapshot(self.t)
+        d.update(active=True, demo=False, talk=self.talk, talk_t=4990.0)
+        return d
+
+
+def _xmas_steps(r, steps, talk=False):
+    """Weihnachten live: Seite öffnen und steps = [(Sekunden, Tanzmodus), …] mit 15 Bildern je Sekunde abspielen."""
+    r.visual_style, r.visual = "xmas", _Live()
+    r.visual.talk = talk
+    r.settings = json.loads(json.dumps(settings))
+    r.settings.setdefault("visual", json.loads(json.dumps(g.DEFAULT_SETTINGS["visual"])))
+    img = None
+    for seconds, mode in steps:
+        r.settings["visual"]["xmas"] = dict(g.DEFAULT_SETTINGS["visual"]["xmas"], dance=mode)
+        for _ in range(int(round(seconds * 15))):
+            img = r.render(g.PAGE_IDS.index("visual"), "M2", macros)
+            r.visual.t += 1 / 15
+    return img
+
+
+scenes["vis_weihnachten_bank"] = lambda r: _xmas_steps(r, [(5.0, "pair")], talk=True)     # hingegangen, sitzen
+scenes["vis_weihnachten_auftritt"] = lambda r: _xmas_steps(r, [(1.8, "pair")])            # kommen herein
+scenes["vis_weihnachten_abschied"] = lambda r: _xmas_steps(r, [(5.0, "pair"), (0.6, "santa")])  # sie winkt
+scenes["vis_weihnachten_geht"] = lambda r: _xmas_steps(r, [(5.0, "pair"), (2.0, "santa")])      # sie geht
 
 
 def _face_opt(r, face, opts):
