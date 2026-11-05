@@ -40,7 +40,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.05-12"
+VERSION = "2026.11.05-13"
 
 # Weitere Importe der Module
 import select
@@ -11977,14 +11977,15 @@ class AppCore:
         self.next_draw = 0
 
     def wake(self, seconds=60):
-        """Tastendruck in der Nacht: Display für kurze Zeit normal anzeigen. True = war dunkel."""
+        """Tastendruck in der Nacht: Display für kurze Zeit normal hell. True = das Display war ganz aus
+        (Modus „off“) – dann weckt der Druck nur. Gedimmt ist alles zu sehen, der Druck wirkt sofort."""
         if self.night["active"]:
             was_dark = self.night_dark()
             self.night["wake_until"] = time.monotonic() + seconds
             if was_dark:
                 self.set_brightness(self.day_brightness())
                 self.apply_leds()
-            return was_dark
+            return was_dark and (self.settings().get("night") or {}).get("mode") == "off"
         return False
 
     # --- Einstellungen ------------------------------------------------------ #
@@ -12837,7 +12838,7 @@ class App(AppCore, KeyHandling, TimedTasks):
         preview = self.menu is not None and self.menu.kind in ("clocks", "clock_options")   # Vorschau läuft live
         if not fast and (preview or self.menu is None and PAGE_IDS[self.page % len(PAGE_IDS)] == "clock"):
             fps = clock_fps(r.clock_face, self.settings())
-            if fps > 1 and not self.night_dark():   # bewegte Zifferblätter; nachts (gedimmt) 1 Bild/s
+            if fps > 1:                     # bewegte Zifferblätter (auch nachts gedimmt flüssig)
                 self.next_draw = now + 1.0 / fps
             else:                           # kurz nach jedem Sekundenwechsel, damit kein Sekundenschritt fehlt
                 self.next_draw = now + (1.0 - time.time() % 1.0) + 0.02
@@ -12847,7 +12848,7 @@ class App(AppCore, KeyHandling, TimedTasks):
             self.visual.want()              # Ausgang mithören, solange die Visualisierung zu sehen ist
             if not fast:
                 fps = int((self.settings().get("visual") or {}).get("fps") or VISUAL_FPS)
-                self.next_draw = now + (1.0 if self.night_dark() else 1.0 / fps)
+                self.next_draw = now + 1.0 / fps
             self._visual_backlight(now)
         else:
             self._visual_backlight_off()

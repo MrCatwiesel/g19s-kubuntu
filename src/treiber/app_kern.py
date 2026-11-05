@@ -305,14 +305,15 @@ class AppCore:
         self.next_draw = 0
 
     def wake(self, seconds=60):
-        """Tastendruck in der Nacht: Display für kurze Zeit normal anzeigen. True = war dunkel."""
+        """Tastendruck in der Nacht: Display für kurze Zeit normal hell. True = das Display war ganz aus
+        (Modus „off“) – dann weckt der Druck nur. Gedimmt ist alles zu sehen, der Druck wirkt sofort."""
         if self.night["active"]:
             was_dark = self.night_dark()
             self.night["wake_until"] = time.monotonic() + seconds
             if was_dark:
                 self.set_brightness(self.day_brightness())
                 self.apply_leds()
-            return was_dark
+            return was_dark and (self.settings().get("night") or {}).get("mode") == "off"
         return False
 
     # --- Einstellungen ------------------------------------------------------ #

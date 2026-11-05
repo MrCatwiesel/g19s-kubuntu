@@ -3,6 +3,10 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.05-13
+- Nachtmodus „gedimmt“ ist nicht mehr träge: Bewegte Zifferblätter und die Visualisierung laufen nachts flüssig weiter (bisher nur 1 Bild pro Sekunde), das Display ist nur dunkler.
+- Im gedimmten Nachtmodus wirkt der erste Tastendruck sofort (bisher machte er nur das Display hell). Bei „Display aus“ weckt der erste Druck weiterhin nur.
+
 ## 2026.11.05-12
 - Visualisierung braucht deutlich weniger Rechenzeit: Bühne der Tänzerin und Lichtshow werden sparsamer gezeichnet (Tänzerin etwa halb so viel CPU), die Klanganalyse rechnet alle Frequenzbänder in einem Schritt.
 - Neue Einstellung „Bildrate“ (10, 15, 20 oder 25 Bilder je Sekunde). Standard ist jetzt 15 statt 20 – wer es flüssiger mag, stellt 20 oder 25 ein.

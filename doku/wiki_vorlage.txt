@@ -580,7 +580,8 @@ Die Warnungen stammen vom Deutschen Wetterdienst und werden über den freien Die
 
 === Nachtmodus ===
 In der Verwaltung unter '''Beleuchtung & Display → Nachtmodus''' Zeitraum wählen (z. B. 22:00 bis 07:00) und festlegen, ob das Display nur gedimmt oder ganz ausgeschaltet wird. Optional geht auch die Tastaturbeleuchtung aus.
-* Der '''erste''' Druck auf eine Displaytaste weckt Display und Beleuchtung für eine Minute, ohne sonst etwas auszulösen.
+* '''Gedimmt:''' Alles läuft weiter wie am Tag, nur dunkler – bewegte Zifferblätter und die Visualisierung bleiben flüssig. Ein Druck auf eine Displaytaste macht Display und Beleuchtung für eine Minute hell und wirkt sofort (blättert z. B. gleich weiter).
+* '''Display aus:''' Der '''erste''' Druck auf eine Displaytaste weckt Display und Beleuchtung für eine Minute, ohne sonst etwas auszulösen.
 * G-Tasten funktionieren nachts ganz normal.
 
 === Bildschirmschoner ===

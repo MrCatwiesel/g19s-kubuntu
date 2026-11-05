@@ -1,0 +1,11 @@
+{
+ "bilder_je_sekunde_gedimmt": true,
+ "helligkeit": [
+  10,
+  100
+ ],
+ "seiten": [
+  "visual",
+  "hardware"
+ ]
+}
