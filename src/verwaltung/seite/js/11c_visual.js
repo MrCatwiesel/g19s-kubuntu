@@ -8,6 +8,7 @@ function renderVisual() {
     el("option", {value: id, text: label, selected: id === v.style})));
   $("#visBacklight").checked = v.backlight !== false;
   $("#visTitle").checked = v.title !== false;
+  $("#visTalkWords").value = v.talk_words || "";
   renderVisualOptions();
   visualPreview();
 }
@@ -30,3 +31,4 @@ function visualPreview() {
 $("#visStyle").addEventListener("change", e => { UI.sdraft.visual.style = e.target.value; touchSettings(); renderVisualOptions(); visualPreview(); });
 $("#visBacklight").addEventListener("change", e => { UI.sdraft.visual.backlight = e.target.checked; touchSettings(); });
 $("#visTitle").addEventListener("change", e => { UI.sdraft.visual.title = e.target.checked; touchSettings(); visualPreview(); });
+$("#visTalkWords").addEventListener("input", e => { UI.sdraft.visual.talk_words = e.target.value; touchSettings(); });

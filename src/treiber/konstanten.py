@@ -160,6 +160,8 @@ VISUAL_STYLES = {
     "ring": "Kreis-Spektrum", "vu": "VU-Meter", "spectro": "Spektrogramm", "fireworks": "Feuerwerk",
 }
 VISUAL_FPS = 20             # Bilder je Sekunde der Visualisierung
+# Stichwörter im Titel des Senders, die einen Wortbeitrag anzeigen (Tänzerin langweilt sich); änderbar
+TALK_WORDS = "Nachrichten, News, Werbung, Werbepause, Verkehr, Wetter"
 # Einstellungen je Stil (Verwaltung → Beleuchtung & Display → Visualisierung, am Display ►), wie CLOCK_OPTIONS
 VISUAL_OPTIONS = {
     "eq": [

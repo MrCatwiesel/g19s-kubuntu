@@ -1,0 +1,21 @@
+{
+ "anfang": [
+  "tanzt"
+ ],
+ "log": [
+  "Visualisierung: Wortbeitrag erkannt",
+  "Visualisierung: Musik erkannt"
+ ],
+ "musik": [
+  "tanzt"
+ ],
+ "puls_bei_musik": true,
+ "ruhig_bei_sprache": true,
+ "ruhig_bei_titel": true,
+ "sprache": [
+  "cross"
+ ],
+ "titel": [
+  "cross"
+ ]
+}

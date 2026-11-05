@@ -64,6 +64,42 @@ d1, d2 = g.demo_snapshot(100.25), g.demo_snapshot(100.25)
 ok(np.array_equal(d1["bands"], d2["bands"]) and d1["beats"] == 200, "demo_snapshot ist reproduzierbar")
 eq(set(d1) >= set(s), True, "demo_snapshot hat alle Felder der echten Analyse")
 
+# Wortbeiträge: Sprache (auch mit leiser Musik darunter) wird nach einigen Sekunden erkannt, Musik nie
+import klang_signale as ks
+
+
+def talk_seq(parts):
+    """Je Sekunde: T = Wortbeitrag, m = Musik."""
+    an = g.SoundAnalyzer(lambda: {}, log=lambda m: None)
+    x, out = np.concatenate(parts), ""
+    for i in range(0, len(x) - BLOCK, BLOCK):
+        blk = x[i:i + BLOCK].astype(np.float32)
+        st = np.empty(BLOCK * 2, np.float32)
+        st[0::2], st[1::2] = blk, blk
+        an.feed(st, i / RATE)
+        if i % RATE < BLOCK:
+            out += "T" if an.talk else "m"
+    return out
+
+
+seq = talk_seq([ks.music(10), ks.speech(20), ks.music(10, seed=4)])
+ok(set(seq[:13]) == {"m"} and set(seq[16:30]) == {"T"} and set(seq[34:]) == {"m"},
+   f"Musik → Sprache → Musik: {seq} (Wortbeitrag nach ≈ 4–6 s, Musik nach ≈ 3–4 s)")
+for name, sig in (("Musik 140/min", ks.music(30, bpm=140, seed=3)), ("Ballade ohne Schlagzeug", ks.music(20, drums=False))):
+    eq(set(talk_seq([sig])), {"m"}, f"{name}: nie Wortbeitrag")
+brk = ks.music(30)
+brk[10 * RATE:int(11.5 * RATE)] = 0
+eq(set(talk_seq([brk])), {"m"}, "Musik mit 1,5 s Pause: kein Wortbeitrag")
+ok(talk_seq([ks.music(5), ks.speech(20, bed=0.3, seed=9)]).endswith("T" * 10), "Sprache mit Musikbett: Wortbeitrag")
+
+# Stichwörter im Sendertitel
+w = {"visual": {"talk_words": "Nachrichten, News, Werbung"}}
+eq(g.talk_word(w, {"artist": "Radio Bob", "title": "BOB News um 15 Uhr"}), "News", "Stichwort im Titel erkannt")
+eq(g.talk_word(w, {"artist": "Die Band", "title": "Newsletter"}), None, "nur ganze Wörter („Newsletter“ ≠ „News“)")
+eq(g.talk_word(w, {"artist": "WERBUNG", "title": ""}), "Werbung", "Groß-/Kleinschreibung egal")
+eq(g.talk_word({"visual": {"talk_words": ""}}, {"title": "Nachrichten"}), None, "ohne Stichwörter nie")
+eq([g._bored_pose(b) for b in (0, 6, 8, 11, 31)], ["cross", "yawn", "hips", "watch", "sit"], "Haltungen der Langeweile")
+
 # Einstellungen: Standardwerte und ungültige Werte
 st = g.clean_settings({"visual": {"style": "gibtsnicht", "eq": {"bars": "999", "mirror": True}}})
 eq(st["visual"]["style"], "eq", "unbekannter Stil → Grafik-Equalizer")

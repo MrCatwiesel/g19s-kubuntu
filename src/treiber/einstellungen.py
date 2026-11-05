@@ -245,6 +245,7 @@ def _clock_section():
 def _visual_section():
     """settings.json → "visual": {"style", "backlight", "title", "<stil>": {<optionen>}} aus VISUAL_OPTIONS."""
     return Section(dict(style=Choice("eq", lambda: list(VISUAL_STYLES)), backlight=Bool(True), title=Bool(True),
+                        talk_words=Str(TALK_WORDS, maxlen=300),
                         **_option_sections(VISUAL_OPTIONS)))
 
 

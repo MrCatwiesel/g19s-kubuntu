@@ -62,9 +62,49 @@ DANCE_POSES = [
 ]
 
 
+# Langeweile bei Wortbeiträgen (gleicher Aufbau wie DANCE_POSES): Arme verschränkt, Hände an den Hüften,
+# gähnen (Hand vor dem Mund), auf die Uhr schauen, auf dem Bühnenrand sitzen
+BORED_POSES = {
+    "cross": (-20, 95, 20, -95, -6, -4, 10, 6, 0, 8),
+    "hips": (-35, 35, 35, -35, -6, -4, 14, 4, 3, -6),
+    "yawn": (-20, 95, 125, -92, -6, -4, 10, 6, -3, -12),
+    "watch": (-70, 60, 35, -35, -6, -4, 12, 4, 2, 14),
+    "sit": (-15, 40, 15, -40, -18, 0, 18, 0, 4, 15),
+}
+BORED_CYCLE = [(5, "cross"), (2, "yawn"), (3, "hips"), (2.5, "watch")]     # Sekunden je Haltung, im Kreis
+BORED_SIT_AFTER = 30.0                 # so lange Wortbeitrag, dann setzt sie sich auf den Bühnenrand
+
+
+def _bored_pose(b):
+    """Haltung nach b Sekunden Wortbeitrag."""
+    if b >= BORED_SIT_AFTER:
+        return "sit"
+    total = sum(d for d, _ in BORED_CYCLE)
+    x = b % total
+    for d, name in BORED_CYCLE:
+        if x < d:
+            return name
+        x -= d
+    return "cross"
+
+
+def talk_word(settings, info):
+    """Steht eines der Stichwörter (settings.json → visual.talk_words, durch Komma getrennt) in Titel oder
+    Künstler des laufenden Titels? Dann ist es ein Wortbeitrag (z. B. Nachrichten, Werbung). Liefert das Wort."""
+    if not info:
+        return None
+    text = f"{info.get('artist') or ''} {info.get('title') or ''}"
+    words = str(((settings or {}).get("visual") or {}).get("talk_words") or "").split(",")
+    for w in (x.strip() for x in words):
+        if w and re.search(r"(?<!\w)" + re.escape(w) + r"(?!\w)", text, re.IGNORECASE):
+            return w
+    return None
+
+
 class VisualPage:
     visual = None                      # SoundAnalyzer (setzt die App) oder None = künstliche Werte
     visual_style = "eq"
+    vis_talk = False                   # gerade Wortbeitrag (Klang oder Stichwort) – Tastatur pulsiert dann nicht
 
     # -- Grundlagen ---------------------------------------------------------- #
     def _vstate(self, style, make):
@@ -98,13 +138,23 @@ class VisualPage:
         style = self.visual_style if self.visual_style in VISUAL_RENDERERS else "eq"
         color = PROFILE_COLOR.get(profile, self.FG)
         if snap.get("idle"):
+            self.vis_talk = False
             return self._vis_still(snap, style, profile, color)
+        vis = (self.settings or {}).get("visual") or {}
+        info = self.media.snapshot()[0] if self.media is not None else None
+        word = talk_word(self.settings, info)
+        if word:                                            # Sender meldet Nachrichten/Werbung
+            if self.__dict__.get("_title_talk_t") is None:
+                self._title_talk_t = snap["t"]
+            if not snap.get("talk"):
+                snap = dict(snap, talk=True, talk_t=self._title_talk_t)
+        else:
+            self._title_talk_t = None
+        self.vis_talk = bool(snap.get("talk"))
         img = VISUAL_RENDERERS[style](self, snap, visual_options(self.settings, style), color)
         self._vis_last = (style, profile, img.copy())      # für das Standbild, wenn der Ton aufhört
         d = ImageDraw.Draw(img)
-        vis = (self.settings or {}).get("visual") or {}
-        info = self.media.snapshot()[0] if (self.media is not None and vis.get("title", True)) else None
-        if info and info.get("title"):
+        if info and info.get("title") and vis.get("title", True):
             text = " – ".join(x for x in (info.get("artist"), info.get("title")) if x)
             text = self._fit(d, text, self.f_tiny, WIDTH - 16)
             d.text((9, 4), text, font=self.f_tiny, fill=(0, 0, 0))
@@ -230,26 +280,47 @@ class VisualPage:
             k = st["k"]
             st.update({"from": self._dance_pose(st, t), "to": DANCE_POSES[(k * 3 + k // 4) % len(DANCE_POSES)], "t0": t})
 
-        if s["beats"] != st["beats"]:
-            st["beats"] = s["beats"]
-            step()
-        elif moving and t - st["t0"] > period * 1.6:
-            step()                                          # Schlag nicht erkannt: im Tempo weitertanzen
-        energy = 0.35 + 0.65 * s["level"] if moving else 0.25
-        phase = ((t - st["t0"]) / period) % 1.0             # 0 = Schlag, 1 = nächster Schlag
-        pose = list(self._dance_pose(st, t))
-        wig = math.sin(2 * math.pi * phase * 2) * (20 + 30 * (s["mid"] + s["treble"])) * energy
-        pose[1] += wig                                      # Unterarme schwingen im Takt
-        pose[3] -= wig
-        sway = math.sin(math.pi * (st["k"] + phase))        # Gewicht wechselt bei jedem Schlag die Seite
-        pose[8] += sway * 9 * energy
-        pose[9] += math.sin(2 * math.pi * phase) * 12 * energy
-        body = tuple(o["color"]) if o.get("color") else color
-        img = self._dance_stage(s, o, body, W, H, S)
-        d = ImageDraw.Draw(img)
+        bored = _bored_pose(t - s.get("talk_t", t)) if s.get("talk") else None
+        thigh = 34
         floor = (VIS_H - 26) * S
-        dip = (1 + math.cos(2 * math.pi * phase)) / 2 * (4 + 12 * energy)   # in die Knie auf dem Schlag
-        hip = (WIDTH / 2 * S + sway * 14 * energy * S, floor - 72 * S + dip * S)
+        if bored:                                           # Wortbeitrag: gelangweilt
+            if st.get("bored") != bored:
+                st.update({"from": self._dance_pose(st, t), "to": BORED_POSES[bored], "t0": t, "bored": bored, "dur": 0.6})
+            st["beats"] = s["beats"]
+            pose = list(self._dance_pose(st, t))
+            pose[8] += math.sin(t * 0.7) * 3                # langsames Gewichtverlagern
+            if bored != "sit":
+                pose[7] += max(0.0, math.sin(t * 2 * math.pi * 1.4)) * 14     # Fuß tippt ungeduldig
+                hip = (WIDTH / 2 * S + math.sin(t * 0.7) * 5 * S, floor - 72 * S)
+            else:                                           # sitzt auf dem Bühnenrand, Beine baumeln
+                thigh = 12
+                pose[5] += math.sin(t * 1.3) * 10
+                pose[7] -= math.sin(t * 1.3 + 1) * 10
+                hip = (WIDTH / 2 * S, floor - 14 * S)
+            energy = 0.0
+        else:
+            if st.pop("bored", None):                       # Musik ist zurück: aufspringen
+                st["dur"] = 0.15
+                step()
+            if s["beats"] != st["beats"]:
+                st["beats"] = s["beats"]
+                step()
+            elif moving and t - st["t0"] > period * 1.6:
+                step()                                      # Schlag nicht erkannt: im Tempo weitertanzen
+            energy = 0.35 + 0.65 * s["level"] if moving else 0.25
+            phase = ((t - st["t0"]) / period) % 1.0         # 0 = Schlag, 1 = nächster Schlag
+            pose = list(self._dance_pose(st, t))
+            wig = math.sin(2 * math.pi * phase * 2) * (20 + 30 * (s["mid"] + s["treble"])) * energy
+            pose[1] += wig                                  # Unterarme schwingen im Takt
+            pose[3] -= wig
+            sway = math.sin(math.pi * (st["k"] + phase))    # Gewicht wechselt bei jedem Schlag die Seite
+            pose[8] += sway * 9 * energy
+            pose[9] += math.sin(2 * math.pi * phase) * 12 * energy
+            dip = (1 + math.cos(2 * math.pi * phase)) / 2 * (4 + 12 * energy)   # in die Knie auf dem Schlag
+            hip = (WIDTH / 2 * S + sway * 14 * energy * S, floor - 72 * S + dip * S)
+        body = tuple(o["color"]) if o.get("color") else color
+        img = self._dance_stage(s, o, body, W, H, S, dim=bool(bored))
+        d = ImageDraw.Draw(img)
         lu, lf, ru, rf, lt, ls, rt, rs, lean, head = pose
 
         def at(p, ang, length):
@@ -262,15 +333,16 @@ class VisualPage:
             d.ellipse([b[0] - r, b[1] - r, b[0] + r, b[1] + r], fill=body)
 
         neck = at(hip, 180 - lean, 52)
-        d.ellipse([hip[0] - 120 / 2 * S, floor - 5 * S, hip[0] + 120 / 2 * S, floor + 7 * S], fill=(12, 10, 18))
+        if bored != "sit":
+            d.ellipse([hip[0] - 120 / 2 * S, floor - 5 * S, hip[0] + 120 / 2 * S, floor + 7 * S], fill=(12, 10, 18))
         for side, (t_ang, s_ang) in ((-1, (lt, ls)), (1, (rt, rs))):           # Beine
             hj = (hip[0] + side * 8 * S, hip[1])
-            knee = at(hj, t_ang, 34)
+            knee = at(hj, t_ang, thigh)
             foot = at(knee, s_ang, 34)
             limb(hj, knee, 9)
             limb(knee, foot, 8)
             d.line([foot, (foot[0] + side * 7 * S, foot[1] + 1 * S)], fill=body, width=5 * S)
-        flare = 1 + s["level"] * 0.45                       # Rock schwingt mit der Lautstärke
+        flare = 1 + s["level"] * 0.45 * (0 if bored else 1)  # Rock schwingt mit der Lautstärke
         waist = at(hip, 180 - lean, 16)
         hem_y = hip[1] + 14 * S
         d.polygon([(waist[0] - 8 * S, waist[1]), (waist[0] + 8 * S, waist[1]),
@@ -287,19 +359,39 @@ class VisualPage:
         d.line([neck, hc], fill=body, width=7 * S)
         r = 13 * S
         d.ellipse([hc[0] - r, hc[1] - r, hc[0] + r, hc[1] + r], fill=body)
-        tail = 150 + math.sin(t * 5.5) * 18 + s["bass"] * 25 - lean            # Pferdeschwanz schwingt
+        tail = (175 + math.sin(t * 1.2) * 4 if bored else
+                150 + math.sin(t * 5.5) * 18 + s["bass"] * 25) - lean           # Pferdeschwanz schwingt
         base = at(hc, -125 - head, 11)
         tip = at(base, tail + 180, 26)
         mid = at(base, tail + 165, 14)
         d.polygon([at(base, tail + 90, 5), mid, tip, at(base, tail - 90, 5)], fill=body)
+        if bored in ("yawn", "sit"):
+            self._dance_bubble(d, hc, S, "Gähn …" if bored == "yawn" else None, t)
         return img.reduce(S)
 
+    def _dance_bubble(self, d, head, S, text, t):
+        """Sprechblase „Gähn …“ bzw. aufsteigende „Z“ neben dem Kopf."""
+        font = self.__dict__.setdefault("_bubble_font", load_font(14 * S, bold=True))
+        x, y = head[0] + 22 * S, head[1] - 38 * S
+        if text:
+            w = d.textlength(text, font=font)
+            d.rounded_rectangle([x, y, x + w + 16 * S, y + 24 * S], radius=10 * S, fill=(235, 235, 245))
+            d.polygon([(x + 8 * S, y + 22 * S), (x + 18 * S, y + 22 * S), (x, y + 34 * S)], fill=(235, 235, 245))
+            d.text((x + 8 * S, y + 4 * S), text, font=font, fill=(40, 40, 60))
+            return
+        for i in range(3):                                  # Zzz steigen auf und verblassen
+            k = (t * 0.5 + i / 3) % 1.0
+            v = int(220 * (1 - k))
+            size = int((10 + 6 * i) * S)
+            f = self.__dict__.setdefault(f"_z_font{size}", load_font(size, bold=True))
+            d.text((x + (k * 18 + i * 10) * S, y - k * 40 * S + 20 * S), "Z", font=f, fill=(v, v, min(255, v + 30)))
+
     def _dance_pose(self, st, t):
-        k = _smooth((t - st["t0"]) / 0.15)
+        k = _smooth((t - st["t0"]) / st.get("dur", 0.15))
         return tuple(a + (b - a) * k for a, b in zip(st["from"], st["to"]))
 
-    def _dance_stage(self, s, o, body, W, H, S):
-        """Bühne: Verlauf, Boden, zwei Lichtkegel in wechselnden Farben."""
+    def _dance_stage(self, s, o, body, W, H, S, dim=False):
+        """Bühne: Verlauf, Boden, zwei Lichtkegel in wechselnden Farben (dim: Wortbeitrag, Licht gedimmt)."""
         key = ("stage", bool(o["stage"]))
         cache = self.__dict__.setdefault("_dance_bg", {})
         if key not in cache:
@@ -313,7 +405,7 @@ class VisualPage:
         arr = cache[key].copy()
         if o["stage"]:
             hue = (s["beats"] % 6) / 6
-            bright = 0.25 + 0.5 * s["bass"]
+            bright = 0.08 if dim else 0.25 + 0.5 * s["bass"]
             for i, x in enumerate((0.18, 0.82)):
                 mask = Image.new("L", (W, H), 0)
                 md = ImageDraw.Draw(mask)

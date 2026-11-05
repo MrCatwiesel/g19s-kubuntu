@@ -146,6 +146,29 @@ for name, style, opts in (("eq_gespiegelt", "eq", {"mirror": True, "colors": "ra
     scenes[f"vis_opt_{name}"] = lambda r, style=style, opts=opts: _visual(r, style, opts)
 
 
+class _Talk:
+    """Klanganalyse-Ersatz: künstliche Musik, aber Wortbeitrag seit talk_s Sekunden."""
+    def __init__(self, talk_s):
+        self.t, self.talk_s = 5000.0, talk_s
+
+    def snapshot(self):
+        d = g.demo_snapshot(self.t)
+        d.update(active=True, demo=False, talk=True, talk_t=5000.0 - self.talk_s)
+        return d
+
+
+def _bored(r, talk_s):
+    r.visual_style, r.visual = "dancer", _Talk(talk_s)
+    r.render(g.PAGE_IDS.index("visual"), "M2", macros)          # erstes Bild: Haltung beginnt
+    r.visual.t += 1.0                                           # eine Sekunde später: Haltung erreicht
+    r.visual.talk_s -= 1.0
+    return r.render(g.PAGE_IDS.index("visual"), "M2", macros)
+
+
+scenes["vis_taenzerin_gaehnt"] = lambda r: _bored(r, 6.0)
+scenes["vis_taenzerin_sitzt"] = lambda r: _bored(r, 40.0)
+
+
 def _face_opt(r, face, opts):
     r.settings = json.loads(json.dumps(settings))
     r.settings.setdefault("clock", json.loads(json.dumps(g.DEFAULT_SETTINGS["clock"])))

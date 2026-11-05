@@ -141,7 +141,8 @@ class App(AppCore, KeyHandling, TimedTasks):
             self._visual_backlight_off()
             return
         snap = self.visual.snapshot()
-        k = round((0.15 + 0.85 * snap["bass"]) * 20) / 20 if snap.get("active") else 1.0
+        quiet = not snap.get("active") or snap.get("talk") or self.renderer.vis_talk   # Stille, Wortbeitrag
+        k = 1.0 if quiet else round((0.15 + 0.85 * snap["bass"]) * 20) / 20
         color = tuple(int(c * k) for c in PROFILE_COLOR[self.layer])
         if color != self._vis_light and now - self._vis_light_t >= 0.04:
             self._vis_light, self._vis_light_t = color, now

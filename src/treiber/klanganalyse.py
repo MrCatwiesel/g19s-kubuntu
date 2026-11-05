@@ -2,6 +2,9 @@
 
 Aufnahme mit pw-record (stream.capture.sink = Monitor des Standard-Ausgangs), ersatzweise parec.
 Nur solange want() regelmäßig aufgerufen wird (Seite sichtbar); danach endet die Aufnahme.
+Wortbeiträge (Nachrichten, Moderation): Sprache hat viele kurze Pausen, schwankt stark in der Lautstärke
+und hat kaum Bass – Musik läuft durch. Hält das gut 5 s an, meldet snapshot() "talk" (Tänzerin langweilt sich),
+nach 2 s Musik wieder nicht. Werbung mit Musik darunter erkennt nur der Titel des Senders (seite_visual).
 Der Monitor bekommt Stummschalten und Lautstärke des Ausgangs nicht mit – deshalb wird jede Sekunde
 nachgefragt (change_volume "get"); ist der Ausgang stumm oder auf 0 %, gilt das wie Stille.
 Es wird nichts gespeichert, das Mikrofon wird nicht benutzt. snapshot() liefert Bänder (0…1),
@@ -36,7 +39,8 @@ def _band_edges():
 def _empty_snapshot(t=0.0):
     return {"t": t, "bands": np.zeros(AUDIO_BANDS), "left": 0.0, "right": 0.0, "level": 0.0, "bass": 0.0,
             "mid": 0.0, "treble": 0.0, "wave": np.zeros(640), "wave_l": np.zeros(256), "wave_r": np.zeros(256),
-            "beats": 0, "beat_t": -10.0, "period": 0.5, "active": False, "error": None, "demo": False, "muted": False}
+            "beats": 0, "beat_t": -10.0, "period": 0.5, "active": False, "error": None, "demo": False, "muted": False,
+            "talk": False, "talk_t": 0.0}
 
 
 def demo_snapshot(t, amp=1.0):
@@ -91,6 +95,9 @@ class SoundAnalyzer:
         self.bass_hist, self.flux_hist, self.intervals = [], [], []
         self.prev_log = None
         self.beats, self.beat_t = 0, -10.0
+        self.env_rms, self.env_bass = [], []        # je Block (≈ 4 s): Lautstärke, Bassanteil
+        self.talk, self.talk_t, self.talk_votes = False, 0.0, 0
+        self.talk_feat = (0.0, 0.0, 0.0)
         self.vu = [0.0, 0.0]
 
     # -- öffentlich -------------------------------------------------------- #
@@ -216,6 +223,9 @@ class SoundAnalyzer:
             self.vu[i] += (target - self.vu[i]) * (0.5 if target > self.vu[i] else 0.15)
             levels.append(self.vu[i])
         self._detect_beat(float(np.mean(raw[:10] ** 2)), active, now)    # Bass bis ≈ 160 Hz
+        if not self.muted:                  # auch stille Blöcke zählen (Sprechpausen)
+            power = raw ** 2
+            self._detect_talk(rms, float(power[:8].sum() / (power.sum() + 1e-12)), now)
         b = self.bands
         period = float(np.median(self.intervals)) if len(self.intervals) >= 3 else 0.5
         snap = {"t": now, "bands": b.copy(), "left": levels[0], "right": levels[1],
@@ -223,6 +233,7 @@ class SoundAnalyzer:
                 "treble": float(b[40:].mean()), "wave": self.ring[-640:].copy() * 3.0,
                 "wave_l": left[-256:].copy() * 3.0, "wave_r": right[-256:].copy() * 3.0,
                 "beats": self.beats, "beat_t": self.beat_t, "period": period, "active": active, "error": None, "demo": False,
+                "talk": self.talk, "talk_t": self.talk_t,
                 "muted": self.muted}
         with self.lock:
             self._snap = snap
@@ -251,3 +262,36 @@ class SoundAnalyzer:
         if len(hist) > 43:
             hist.pop(0)
             fh.pop(0)
+
+    TALK_WINDOW = 172                   # Blöcke ≈ 4 s
+    TALK_ON, TALK_OFF = 2.0, 2.0        # so lange muss Sprache bzw. Musik nach vollem Fenster anhalten (s)
+
+    def _detect_talk(self, rms, bass_share, now):
+        """Sprache oder Musik? Pausenanteil (Blöcke unter 20 % des lauten Pegels), Schwankung der Lautstärke
+        und Bassanteil (< 80 Hz) über die letzten ≈ 4 s; Wechsel erst, wenn das Urteil eine Weile anhält."""
+        self.env_rms.append(rms)
+        self.env_bass.append(bass_share)
+        if len(self.env_rms) > self.TALK_WINDOW:
+            self.env_rms.pop(0)
+            self.env_bass.pop(0)
+        if len(self.env_rms) < self.TALK_WINDOW or len(self.env_rms) % 4:
+            return                              # erst bei vollem Fenster, dann ≈ 10× je Sekunde
+        env = np.array(self.env_rms)
+        loud = float(np.percentile(env, 90)) + 1e-9
+        pause = float(np.mean(env < 0.2 * loud))
+        cv = float(env.std() / (env.mean() + 1e-9))
+        bass = float(np.mean(self.env_bass))
+        self.talk_feat = (pause, cv, bass)
+        speech = pause >= 0.15 and cv >= 0.5 and bass <= 0.12
+        music = pause <= 0.06 or bass >= 0.2
+        need = int((self.TALK_OFF if self.talk else self.TALK_ON) * 10.75)    # Prüfungen ≈ 10,75 je Sekunde
+        if (speech and not self.talk) or (music and self.talk):
+            self.talk_votes += 1
+            if self.talk_votes >= need:
+                self.talk, self.talk_votes = not self.talk, 0
+                if self.talk:
+                    self.talk_t = now
+                self.log(f"Visualisierung: {'Wortbeitrag' if self.talk else 'Musik'} erkannt "
+                         f"(Pausen {pause:.2f}, Schwankung {cv:.2f}, Bass {bass:.2f})")
+        else:
+            self.talk_votes = 0

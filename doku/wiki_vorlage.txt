@@ -486,7 +486,7 @@ Die Seite '''Visualisierung''' bewegt sich zu allem, was der Rechner gerade absp
 |-
 | Grafik-Equalizer || LED-Balken mit fallenden Spitzenmarken || Anzahl der Balken (16–48), Farben (Grün-Gelb-Rot, Regenbogen, Farbe der Ebene), gespiegelt, Spitzenmarken
 |-
-| Tanzendes Mädchen || eine Tänzerin wechselt auf jedem Schlag die Pose, geht im Takt in die Knie, wiegt sich von Seite zu Seite (auch wenn ein Schlag nicht erkannt wird, im erkannten Tempo); Bewegungen und Rock wachsen mit der Lautstärke || Farbe, Bühnenlicht
+| Tanzendes Mädchen || eine Tänzerin wechselt auf jedem Schlag die Pose, geht im Takt in die Knie, wiegt sich von Seite zu Seite (auch wenn ein Schlag nicht erkannt wird, im erkannten Tempo); Bewegungen und Rock wachsen mit der Lautstärke. Bei '''Wortbeiträgen''' (siehe unten) langweilt sie sich || Farbe, Bühnenlicht
 |-
 | Lichtshow || Scheinwerfer schwenken, Farben pulsieren mit dem Bass, Spiegelkugel, Lichtpunkte || Anzahl der Scheinwerfer, sanfter Blitz bei kräftigen Schlägen (kein Stroboskop)
 |-
@@ -501,6 +501,8 @@ Die Seite '''Visualisierung''' bewegt sich zu allem, was der Rechner gerade absp
 | Feuerwerk || bei jedem Schlag explodiert eine Rakete über der Stadt || Leuchtspuren
 |}
 Oben steht der laufende Titel (abschaltbar). Ohne Ton bleibt das letzte Bild abgedunkelt stehen und zeigt „Keine Wiedergabe“; ist der Ausgang stumm geschaltet (oder auf 0 %), „Ton stumm“. Sobald wieder Musik kommt, geht es sofort weiter – der mitgehörte Ausgang selbst merkt vom Stummschalten nichts, deshalb fragt der Treiber jede Sekunde nach. Die '''Tastaturbeleuchtung pulsiert''' in der Farbe der Ebene mit dem Bass, solange die Seite zu sehen ist (nicht nachts, nicht bei „Beleuchtung nicht umfärben“). Alles einstellbar unter '''Beleuchtung & Display → Visualisierung''' mit Vorschau.
+
+'''Wortbeiträge''' (Nachrichten, Moderation, Werbung): Die Visualisierung erkennt Sprache am Klang – viele kurze Pausen, stark schwankende Lautstärke, kaum Bass. Nach etwa 4–6 Sekunden Sprache gilt es als Wortbeitrag, nach etwa 3 Sekunden Musik wieder als Musik (beides steht im Protokoll, mit den Messwerten). Zusätzlich zählt der Titel des Senders: Enthält er eines der Stichwörter aus '''Beleuchtung & Display → Visualisierung''' (Standard: Nachrichten, News, Werbung, Werbepause, Verkehr, Wetter – ganze Wörter, Groß-/Kleinschreibung egal), ist es sofort ein Wortbeitrag. Werbung mit Musik darunter erkennt nur das Stichwort. Während eines Wortbeitrags pulsiert die Tastatur nicht, und das '''tanzende Mädchen''' langweilt sich: Es verschränkt die Arme, gähnt („Gähn …“), stemmt die Hände in die Hüften, schaut auf die Uhr und tippt mit dem Fuß; nach 30 Sekunden setzt es sich auf den Bühnenrand und döst („Zzz“), das Bühnenlicht ist gedimmt. Kommt wieder Musik, tanzt es sofort weiter.
 
 <div style="border-left:4px solid #3366cc; background:#eaf3ff; padding:0.5em 1em; margin:1em 0;">'''Hinweis:''' Je nach Plasma-Version erscheint während der Visualisierung im Systemabschnitt der Kontrollleiste das Symbol „Aufnahme läuft“ (Eintrag „G19s Visualisierung“). Das ist der Mitschnitt des Ausgangs, nicht das Mikrofon. Zeigt die Seite „pw-record fehlt“: <code>sudo apt install pipewire-bin</code>.</div>
 

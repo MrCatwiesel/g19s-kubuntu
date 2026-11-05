@@ -34,7 +34,7 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
 - Aus der Sandbox ist `raw.githubusercontent.com` nicht erreichbar; die Update-Suche wird
   mit dem Fake-GitHub (`G19S_UPDATE_URL`, `tests/fakes/infodienste.py`) getestet.
 
-## Stand (2026.11.05-6)
+## Stand (2026.11.05-7)
 - Alle Punkte der Prüfung Sicherheit/Lesbarkeit/Performance umgesetzt; L7 (Umbenennung
   profile→layer) bewusst verworfen.
 - 2026.09.30-5: Update direkt von GitHub (Dienst & Sicherung → „Nach Updates suchen“),
@@ -106,6 +106,14 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
   Schritt. Am Gerät zuvor bestätigt: Visualisierung läuft, ruhige Leerlauf-Bewegung bei Stumm („leichte Bewegungen“).
 - 2026.11.05-6: Nutzer wählte „Stillstand ohne Ton“: `_vis_still` – letztes Bild mit Ton (`_vis_last`) abgedunkelt
   plus Hinweis, zwischengespeichert; ohne früheres Bild ein Standbild aus demo_snapshot(0). Sim s23 `stumm_steht`.
+- 2026.11.05-7 (Nutzerwunsch, „Reaktion auf Klang“): Wortbeiträge. `_detect_talk` in klanganalyse: Fenster 172 Blöcke
+  (≈ 4 s) aus Pegel und Bassanteil (< 80 Hz); Sprache = Pausen ≥ 0,15 (Blöcke < 20 % von P90) & Schwankung (CV) ≥ 0,5 &
+  Bass ≤ 0,12; Musik = Pausen ≤ 0,06 oder Bass ≥ 0,2; Wechsel nach 2 s Bestätigung; Wechsel mit Messwerten im Journal
+  („Visualisierung: Wortbeitrag erkannt (Pausen …, Schwankung …, Bass …)“) – Schwellen nur an künstlichen Signalen
+  (`tests/einheit/klang_signale.py`) abgestimmt, am echten Radio noch prüfen! Zusätzlich `talk_word` (visual.talk_words,
+  Standard TALK_WORDS) auf Titel/Künstler. Tänzerin: `BORED_POSES`/`_bored_pose` (cross, yawn+„Gähn …“, hips, watch;
+  ab 30 s sit + Zzz), Licht gedimmt; Tastatur ruhig (`vis_talk`). Fake pw-record: `$S/pw-record.speech`.
+  Sim `s24_wortbeitrag`, Bilder `vis_taenzerin_gaehnt/_sitzt`.
 - Beobachtet: Benachrichtigungen erscheinen im Journal doppelt (vermutlich sendet Plasma zweimal) – harmlos.
 - Beobachtet (2026-10-02): RDP-Sitzung (xfreerdp/sdl-freerdp 3.32.0 → Windows-PC) brach beim Kopieren bzw.
   ~10 s nach dem Login ab: `cliprdr … Error was 1359 → Network disconnect`. Ursache ist ein FreeRDP-Fehler bei
@@ -115,7 +123,9 @@ Kurzfassung für neue Sitzungen. Details zu Aufbau, Erweitern und Tests stehen i
   das Einfügen. Bei Ärger mit Einfügen in RDP zuerst den xfreerdp-Aufruf prüfen.
 
 ## Offene Punkte
-1. Zu 2026.11.05-3 (Journal 2026-11-05 13:41): pw-record startet und läuft (kein „hat sich beendet“) – „-“ als stdout
+1. Zu 2026.11.05-7 am Gerät: erkennt sie Nachrichten/Moderation bei Radio Bob? Journalzeilen „Wortbeitrag/Musik
+   erkannt“ mit Messwerten erbitten (auch Fehlalarme bei Musik!) und Schwellen danach nachstellen.
+   Zu 2026.11.05-3 (Journal 2026-11-05 13:41): pw-record startet und läuft (kein „hat sich beendet“) – „-“ als stdout
    wird also angenommen. NOCH OFFEN: hört es wirklich den Ausgang (Monitor) und nicht das Mikrofon? Test erbeten:
    Radio aus + ins Mikrofon sprechen → muss „Keine Wiedergabe“ bleiben; `pactl list source-outputs | grep -iE
    'source|G19s'` bzw. `wpctl status` (Streams). Außerdem Takt/Tastaturlicht, CPU (`ps -o pcpu,rss,args -C python3,pw-record`).

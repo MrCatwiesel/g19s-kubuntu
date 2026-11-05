@@ -3,6 +3,11 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.05-7
+- Visualisierung erkennt Wortbeiträge: Nachrichten und Moderation am Klang (Sprache statt Musik, nach etwa 4–6 Sekunden), Nachrichten und Werbung zusätzlich an Stichwörtern im Titel des Senders (einstellbar unter „Beleuchtung & Display → Visualisierung“).
+- Bei Wortbeiträgen langweilt sich das tanzende Mädchen: Arme verschränken, gähnen, auf die Uhr schauen, mit dem Fuß tippen – nach 30 Sekunden setzt es sich auf den Bühnenrand und döst. Kommt wieder Musik, tanzt es weiter.
+- Während eines Wortbeitrags pulsiert die Tastatur nicht.
+
 ## 2026.11.05-6
 - Visualisierung ohne Ton: Statt einer leichten Bewegung bleibt jetzt das letzte Bild abgedunkelt stehen, mit dem Hinweis „Keine Wiedergabe“ bzw. „Ton stumm“. Mit der Musik geht es sofort weiter.
 
