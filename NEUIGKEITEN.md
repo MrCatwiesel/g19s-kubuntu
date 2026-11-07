@@ -3,6 +3,14 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.07-4
+- Visualisierung „Weihnachten“, Feierabend – noch mehr Gags:
+  - Schneeballschlacht (sie trifft ihn, die Mütze fliegt; er trifft den Wichtel), in der Lichterkette verheddert (danach blinkt er bunt, der Baum bleibt dunkel), Schneeengel (sie zieht ihn am Bart hoch), heimlich ein Geschenk ausgepackt: Socken, Glühweintopf über den Kopf gestülpt und blind gegen den Baum, Polonaise mit Wichtel, Rentier und Katze, „Taxi nach Hause“ im Rentierschlitten (er kommt wieder), der Nachbar im Haus auf dem Hügel ruft „Ruhe da unten!“.
+  - **Running Gags:** Nach dem Ausrutschen fehlt ein Stiefel – er hinkt mit Socke, bis der Wichtel ihn zurückbringt (oder das Rentier kaut darauf). Der Wichtel kommt bis zu dreimal, die Liste wird jedes Mal länger.
+  - **Reaktionen:** lauter drehen → Jubel, leiser → Enttäuschung, Stumm → beide schlafen sofort auf der Bank ein. Wetter der Wetterseite: Regen mit Schirm, bei Sturm fliegt die Mütze davon, bei Tauwetter schmilzt der Schneemann. Neues Lied: „Das ist mein Lied!“, lange Moderation: „Laber nicht, spiel was!“. Freitag und Samstag wird länger gefeiert, Montag früh gibt es nur den Kater.
+  - **OK-Taste** auf der Visualisierungsseite: sofort ein Gag auf Bestellung.
+  - **Glühwein-Barometer** mit Becherzähler am rechten Rand (abschaltbar: „Feierabend: Glühwein-Barometer und Becherzähler“).
+
 ## 2026.11.07-3
 - Visualisierung „Weihnachten“, Feierabend: viel mehr Gags und jede Runde anders.
   - **Neue Gags:** ein Wichtel schreibt den Weihnachtsmann auf die Unartig-Liste; ein Rülpser lässt den Schnee vom Baum rieseln; eine Pupswolke (Lichter aus, eine Katze flüchtet); Ausrutschen auf der gefrorenen Pfütze (ein Stiefel fliegt); er rempelt den Baum an und trägt danach den Stern auf dem Kopf; Mistelzweig (sie weicht aus, er küsst den Baum); sie tanzt auf der Bank oder singt schief; sie filmt ihn mit Blitz für die Familiengruppe; ein Schneemann (Karottennase geklaut oder umgekippt nach Glühwein); ein Rentier trinkt aus dem Topf und torkelt mit blinkender Nase davon; „Der Morgen danach“ mit Sonnenbrille.

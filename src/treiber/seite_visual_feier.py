@@ -42,7 +42,18 @@ PARTY_GAGS = {
     "schneemann": {"dur": 10, "min": 0.3, "vars": ("nase", "gluehwein")},
     "rentierbesuch": {"dur": 13, "min": 0.3},
     "groelen": {"dur": 10, "min": 0.0, "song": True},                 # nur bei Weihnachtsliedern im Radio
+    "schneeball": {"dur": 8, "min": 0.2},
+    "lichterkette": {"dur": 7, "min": 0.5},
+    "schneeengel": {"dur": 10, "min": 0.55},
+    "geschenk": {"dur": 9, "min": 0.25},
+    "topf": {"dur": 11, "min": 0.65},
+    "polonaise": {"dur": 20, "min": 0.45},
+    "taxi": {"dur": 13, "min": 0.7},
+    "nachbar": {"dur": 7, "min": 0.3},
+    "stiefel": {"dur": 9, "min": 0.0, "needs": ("noboot",)},            # Wichtel bringt den Stiefel zurück
+    "muetze": {"dur": 8, "min": 0.0, "storm": True},                   # nur bei Sturm (Wetterseite)
 }
+PARTY_ELF_MAX = 3                         # so oft kommt der Wichtel je Runde (die Liste wird länger)
 PARTY_END = [("gruen", 6), ("bescherung", 8), ("kater", None), ("morgen", 10), ("noch", 7)]
 PARTY_END_FIXED = sum(d for _n, d in PARTY_END if d)
 PARTY_SONG_WORDS = ("christmas", "xmas", "weihnacht", "jingle", "santa", "snow", "schnee", "noel", "navidad",
@@ -87,6 +98,32 @@ PARTY_LINES = {
     "spill": ["Ups!", "Schade drum!", "Der gute Glühwein!"],
     "gaehn": ["Gähn …", "Hmpf …"],
     "neujahr": ["Frohes Neues!", "Prosit Neujahr!"],
+    "unartig2": ["Schon wieder!", "Noch mehr …", "Seite 2 …"],
+    "unartig3": ["Seite 3 …", "Das wird teuer!", "Kohle statt Geschenke!"],
+    "treffer": ["Hey!", "Aua!", "Foul!"],
+    "erwischt": ["Erwischt!", "Treffer!", "Hihi!"],
+    "leuchte": ["Ich leuchte!", "Festbeleuchtung!", "Bin ich schön?"],
+    "stehtdir": ["Steht dir!", "Mein Weihnachtsbaum!", "Hübsch!"],
+    "engel": ["Ich bleib hier!", "Schön weich …", "Ich bin ein Engel!"],
+    "hoch": ["Hoch mit dir!", "Aufstehen!", "Komm jetzt!"],
+    "socken": ["Socken …", "Schon wieder Socken!", "Die kratzen!"],
+    "gestrickt": ["Die hab ich gestrickt!", "Sind doch schön!", "Warme Füße!"],
+    "bong": ["BONG!", "Wer hat den Baum hier hingestellt?", "Autsch …"],
+    "schatz": ["Schatz?!", "Was machst du da?", "Ich seh's nicht!"],
+    "polonaise": ["Polonäääse!", "Alle mitmachen!", "Hände an die Schultern!"],
+    "gutenacht": ["Gute Nacht!", "Schlaf gut!", "Bring ihn heim!"],
+    "vergessen": ["Hab was vergessen!", "Bin wieder da!", "Ohne mich nicht!"],
+    "ruhe": ["Ruhe da unten!", "Es ist mitten in der Nacht!", "Ich ruf die Polizei!"],
+    "psst2": ["Psst!", "Pschhh!"],
+    "meinstiefel": ["Mein Stiefel!", "Der war neu!", "Gib her!"],
+    "stiefel_da": ["Gefunden!", "Hier, bitte.", "Der lag im Schnee."],
+    "danke": ["Danke!", "Endlich warme Füße!", "Braver Wichtel!"],
+    "muetze": ["Meine Mütze!", "Halt, stehen bleiben!", "Komm zurück!"],
+    "schmilzt": ["Mein Schneemann …", "Nein, nicht schmelzen!", "Tauwetter!"],
+    "lauter": ["Jaaa!", "Lauter!", "Das ist mein Lied!"],
+    "leiser": ["Ooch …", "Spielverderber!", "Lass an!"],
+    "meinlied": ["Das ist mein Lied!", "Oh, das kenn ich!", "Dreh auf!"],
+    "laber": ["Laber nicht, spiel was!", "Musik!", "Weniger reden!"],
 }
 
 
@@ -131,12 +168,15 @@ def party_end_due(ps, length):
     return (ps["pegel"] >= 1.0 and ps["p"] >= 0.6 * limit) or ps["p"] >= limit
 
 
-def party_eligible(ps, name, song=""):
-    """Darf der Gag jetzt kommen? (noch nicht dran gewesen, Pegel, Spuren, Weihnachtslied)"""
+def party_eligible(ps, name, song="", ordered=False):
+    """Darf der Gag jetzt kommen? (noch nicht dran gewesen, Pegel, Spuren, Weihnachtslied, Sturm)
+    ordered = auf Bestellung (OK-Taste): Pegel und „schon dran gewesen“ zählen nicht."""
     gag = PARTY_GAGS[name]
     if gag.get("song"):
-        return party_song_xmas(song) and song != ps["sung"]
-    if name in ps["done"] or ps["pegel"] < gag["min"]:
+        return party_song_xmas(song) and (ordered or song != ps["sung"])
+    if gag.get("storm") and ps.get("weather") != "storm":
+        return False
+    if not ordered and (name in ps["done"] or ps["pegel"] < gag["min"]):
         return False
     if any(p not in ps["props"] for p in gag.get("needs", ())):
         return False
@@ -161,11 +201,13 @@ class XmasParty:
         return {"p": 0.0, "pegel": 0.0, "phase": "open", "cur": None, "done": set(), "props": set(),
                 "next": PARTY_OPEN, "micro": None, "micro_at": PARTY_OPEN, "prost_t": -9.0, "n": 0, "sleep": False,
                 "end_i": -1, "seed": seed, "rng": random.Random(seed), "energy": energy, "sung": sung,
-                "snowman": None}
+                "snowman": None, "weather": None, "warm": False, "sleepy": False, "elf_n": 0}
 
     def _xmas_party_start(self, ps, name, var=None):
         """Gag bzw. Schritt des Schlusses beginnen (auch für Tests und Referenzbilder)."""
         gag = PARTY_GAGS.get(name, {})
+        if var is None and name == "schneemann" and ps.get("warm"):
+            var = "schmilzt"                                            # Tauwetter (Wetterseite)
         if var is None and gag.get("vars"):
             var = ps["rng"].choice(gag["vars"])
         dur = gag.get("dur") or dict(PARTY_END).get(name)
@@ -183,24 +225,34 @@ class XmasParty:
         name = cur["name"]
         ps["cur"] = None
         gain = {"baum": "puddle", "signatur": "sign", "gelb": "spot", "baumcrash": "star_head",
-                "bescherung": "sack"}.get(name)
+                "bescherung": "sack", "rutsch": "noboot", "lichterkette": "wrapped", "schneeengel": "angel"}.get(name)
         if gain:
             ps["props"].add(gain)
+        if name == "stiefel":
+            ps["props"].discard("noboot")
         if name == "schneemann":
-            ps["snowman"] = "nonose" if cur["var"] == "nase" else "fallen"
+            ps["snowman"] = {"nase": "nonose", "gluehwein": "fallen", "schmilzt": "melted"}[cur["var"]]
             if cur["var"] == "nase":
                 ps["props"].add("carrot")
         if name == "groelen":
             ps["sung"] = self.__dict__.get("_vis_song") or ""
+        elif name == "wichtel":
+            ps["elf_n"] = ps.get("elf_n", 0) + 1
+            if ps["elf_n"] >= PARTY_ELF_MAX:
+                ps["done"].add(name)
         elif name in PARTY_GAGS:
             ps["done"].add(name)
         if ps["phase"] == "end":
             ps["end_i"] += 1
+            if ps.get("monday") and name == "morgen":                  # Montag früh: nur Kater
+                ps["end_i"] = [n for n, _d in PARTY_END].index("kater")
             if ps["end_i"] < len(PARTY_END):
                 self._xmas_party_start(ps, PARTY_END[ps["end_i"]][0])
             else:                                                       # neue Runde
                 new = self._party_new(ps["seed"] + 1, ps["energy"], ps["sung"])
-                new["length"] = length
+                new.update(length=length, weather=ps.get("weather"), warm=ps.get("warm", False),
+                           sleepy=ps.get("sleepy", False), monday=ps.get("monday", False), vol=ps.get("vol"),
+                           song_prev=ps.get("song_prev"))
                 ps.clear()
                 ps.update(new)
         else:
@@ -212,30 +264,71 @@ class XmasParty:
         ps["end_i"] = [n for n, _d in PARTY_END].index(at)
         self._xmas_party_start(ps, at)
 
+    def _party_weather(self):
+        """Wetter der Wetterseite: (Art, Temperatur, Wind) – Art rain/snow/… oder None (zwischengespeichert)."""
+        now = time.monotonic()
+        cached = self.__dict__.get("_party_wx")
+        if cached and now - cached[0] < 5:
+            return cached[1]
+        out = (None, None, None)
+        try:
+            data = self.weather.snapshot()[0] if self.weather else None
+            cur = (data or {}).get("current") or {}
+            if cur:
+                kind = WEATHER_CODES.get(int(cur.get("weather_code") or 0), ("", None))[1]
+                out = (kind, cur.get("temperature_2m"), cur.get("wind_speed_10m"))
+        except Exception:                                               # Wetter ist nur Beiwerk
+            pass
+        self._party_wx = (now, out)
+        return out
+
     def _xmas_party(self, st, s, t, dt, o, moving, talk, new_beat, enter):
         """Stand der Feierabend-Runde → Plan P (Ziele, Zustände p_*, Requisiten, Sprechblasen …). None = aus."""
         if not party_active(o):
             st.pop("party", None)
             self.vis_green = False
             return None
+        clock = party_clock()
+        hour, wday = clock.tm_hour, getattr(clock, "tm_wday", 3)
         length = max(120, int(o["party_len"]) if str(o.get("party_len")).isdigit() else 600)
+        if wday in (4, 5):                                              # Freitag/Samstag: länger feiern
+            length = int(length * 1.5)
         ps = st.get("party")
         if ps is None:
             ps = st["party"] = self._party_new(1)
         ps["length"] = length
-        clock = party_clock()
-        hour = clock.tm_hour
         ps["sleepy"] = hour < 5
+        kind, temp, wind = self._party_weather()
+        ps["weather"] = "storm" if (wind or 0) >= 50 else "rain" if kind in ("rain", "drizzle", "thunder") else None
+        ps["warm"] = temp is not None and temp > 2
         song = self.__dict__.get("_vis_song") or ""
         period = max(0.3, min(1.2, s.get("period") or 0.5))
         ps["energy"] += (s.get("level", 0.5) - ps["energy"]) * min(1.0, dt / 3.0)
         mood = party_mood(ps["energy"], period)
+        muted = bool(s.get("muted"))
+        monday = wday == 0 and hour < 12
+        if monday and not ps.get("monday") and not talk:                 # Montag früh: gleich der Kater
+            ps["monday"] = True
+            self._xmas_party_begin_end(ps, "kater")
+        elif not monday and ps.get("monday"):
+            ps["monday"] = False
+        vol = s.get("volume")                                           # Lautstärke geändert?
+        if vol is not None and ps.get("vol") is not None and abs(vol - ps["vol"]) >= 3:
+            ps["volev"] = ("lauter" if vol > ps["vol"] else "leiser", t)
+        if vol is not None:
+            ps["vol"] = vol
+        if song and ps.get("song_prev") not in (None, song):           # neues Lied
+            ps["songev"] = (ps["rng"].choice(("santa", "mrs")), t)
+        ps["song_prev"] = song
+        talk = talk or muted
         if talk:
+            ps["talk_for"] = ps.get("talk_for", 0.0) + dt
             sick = (ps["phase"] == "end" and ps["cur"] and ps["cur"]["name"] in ("gruen", "bescherung", "kater")) \
-                or ps["pegel"] >= 0.85
+                or ps["pegel"] >= 0.85 or muted
             if sick:
                 ps["sleep"] = True
         else:
+            ps["talk_for"] = 0.0
             if ps["sleep"]:
                 ps["sleep"] = False
                 self._xmas_party_begin_end(ps, "morgen")                # aufgewacht: Morgen danach
@@ -245,15 +338,18 @@ class XmasParty:
             cur = ps["cur"]
             if cur and ps["p"] - cur["t0"] >= cur["dur"]:
                 self._xmas_party_finish(ps, length)
+            poke = self.__dict__.pop("_party_poke", False)
             if ps["cur"] is None and ps["phase"] != "end":
-                if ps["phase"] == "open" and ps["p"] >= PARTY_OPEN:
+                if ps["phase"] == "open" and (ps["p"] >= PARTY_OPEN or poke):
                     ps["phase"] = "mid"
-                if party_end_due(ps, length):
+                if party_end_due(ps, length) and not poke:
                     self._xmas_party_begin_end(ps)
-                elif ps["phase"] == "mid" and ps["p"] >= ps["next"]:
-                    names = [n for n in PARTY_GAGS if party_eligible(ps, n, song)]
+                elif ps["phase"] == "mid" and (ps["p"] >= ps["next"] or poke):
+                    names = [n for n in PARTY_GAGS if party_eligible(ps, n, song, ordered=poke)]
                     if names:
-                        weights = [8 if PARTY_GAGS[n].get("song") else 1 for n in names]
+                        loud = (vol or 0) >= 85
+                        weights = [8 if PARTY_GAGS[n].get("song") or PARTY_GAGS[n].get("storm") else
+                                   6 if n == "nachbar" and loud else 1 for n in names]
                         self._xmas_party_start(ps, ps["rng"].choices(names, weights)[0])
                     else:
                         ps["next"] = ps["p"] + 3
@@ -264,7 +360,9 @@ class XmasParty:
              "back": {}, "say": [], "hat": True, "green": 0.0, "mugs": False, "stream": None, "puke": None,
              "flake": None, "cat": None, "zzz": False, "flicker": False, "props": set(ps["props"]),
              "snowman": ps["snowman"], "mood": mood, "pegel": ps["pegel"], "beat_age": t - s.get("beat_t", t),
-             "beats": s.get("beats", 0), "star": "head" if "star_head" in ps["props"] else "tree"}
+             "beats": s.get("beats", 0), "star": "head" if "star_head" in ps["props"] else "tree", "hide": set(),
+             "weather": ps["weather"], "warm": ps["warm"], "elf_n": ps.get("elf_n", 0), "pot": True,
+             "meter": o.get("party_meter", True), "mugs_today": self._party_mug_count()}
         P["lvl"] = {"kater": 1.0 - 0.4 * lt / max(1, P["dur"]), "morgen": 0.5, "noch": 0.4}.get(name, ps["pegel"])
         if ps["phase"] == "end" and name in ("gruen", "bescherung"):
             P["lvl"] = 1.0
@@ -274,18 +372,34 @@ class XmasParty:
             P["schunkel"] = mood == "ruhig"
             self._xmas_party_beats(ps, P, t, new_beat, mood, period, length)
             self._xmas_party_micro(ps, P, t)
+            ev = ps.get("volev")                                        # Jubel bzw. Enttäuschung
+            if ev and t - ev[1] < 2.5:
+                P["cheer"] = ev[0]
+                P["say"].append(("santa" if ev[0] == "lauter" else "mrs", self._party_line(ps, ev[0], ev[1])))
+            ev = ps.get("songev")
+            if ev and t - ev[1] < 2.5:
+                P["say"].append((ev[0], self._party_line(ps, "meinlied", ev[1])))
+            if ps["weather"] == "rain":
+                P["umbrella"] = True
         elif cur:
             getattr(self, "_party_" + cur["name"])(P, lt, cur)
+        if ps["weather"] == "rain":
+            P["rain"] = True
         if talk:
             bench = PARTY_BENCH if ps["sleep"] else {"santa": XMAS_BENCH_X - 18, "mrs": XMAS_BENCH_X + 24}
             P.update(goals=dict(bench), back={}, mugs=False, stream=None, puke=None, flake=None, say=[], hat=True,
-                     flicker=False, schunkel=False, micro=None)
+                     flicker=False, schunkel=False, micro=None, hide=set(), pot=True, cheer=None)
             P["states"] = {"santa": "p_sleep", "mrs": "p_sleep"} if ps["sleep"] else {}
             for k in ("elf", "deer", "mistle", "hearts", "cloud", "boot", "flash", "notes", "shock", "treesnow",
-                      "cat_run", "dark", "offer", "phone", "carrot_move", "tilt"):
+                      "cat_run", "dark", "offer", "phone", "carrot_move", "tilt", "sleigh", "ball", "flyhat",
+                      "gift", "lie", "pot_head", "line", "window", "wire", "melt"):
                 P.pop(k, None)
             if ps["sleep"]:
                 P["zzz"], P["cat"] = True, 1.0
+            elif ps["talk_for"] > 20 and int(ps["talk_for"] / 4) % 3 == 0:  # lange Moderation
+                P["say"].append(("santa", self._party_line(ps, "laber", int(ps["talk_for"] / 12))))
+            if muted:
+                P["instant"] = True                                     # Stumm: sofort eingeschlafen
         if (clock.tm_mon == 12 and clock.tm_mday == 31 and hour >= 23) or (clock.tm_mon == 1 and clock.tm_mday == 1
                                                                             and hour < 1):
             P["fireworks"] = True
@@ -294,6 +408,20 @@ class XmasParty:
         P["carrot"] = "carrot" in P["props"] or P.get("carrot_on", False)
         self.vis_green = P["green"] > 0.5
         return P
+
+    @staticmethod
+    def _party_line(ps, key, salt):
+        lines = PARTY_LINES[key]
+        return lines[(ps["seed"] * 7 + int(salt * 10)) % len(lines)]
+
+    def _party_mug_count(self, add=0):
+        """Becher heute (für den Zähler am Barometer)."""
+        today = time.strftime("%Y-%m-%d")
+        day, n = self.__dict__.get("_party_mugs", (today, 0))
+        if day != today:
+            n = 0
+        self._party_mugs = (today, n + add)
+        return n + add
 
     def _xmas_party_beats(self, ps, P, t, new_beat, mood, period, length):
         """B: auf den Takt prosten (wild alle 8, sonst alle 12 Schläge, ruhig gar nicht); jedes Prosten hebt den
@@ -305,6 +433,7 @@ class XmasParty:
                 ps["prost_t"] = t
                 ps["pegel"] = min(1.0, ps["pegel"] + 12 * period / (party_budget(length) * 0.7))
                 ps["prost_line"] = ps["rng"].choice(PARTY_LINES["prost"])
+                P["mugs_today"] = self._party_mug_count(2)             # zwei Becher je Prosten
         k = t - ps["prost_t"]
         if 0 <= k < 1.8:
             P["prost"] = k
@@ -403,7 +532,7 @@ class XmasParty:
         else:
             P["elf"] = (120 - 136 * (lt - 7.5) / 3.0, -1, "walk", lt)
         if _win(lt, 4.0, 7.2):
-            P["say"].append(("elf", self._line(g, "unartig")))
+            P["say"].append(("elf", self._line(g, ("unartig", "unartig2", "unartig3")[min(2, P["elf_n"])])))
         if _win(lt, 6.8, 9.5):
             self._say(P, g, "santa", "psst")
 
@@ -521,6 +650,12 @@ class XmasParty:
             if _win(lt, 3.6, 6.2):
                 self._say(P, g, "mrs", "lachen")
             return
+        if g["var"] == "schmilzt":
+            P["states"] = {"santa": "p_worry", "mrs": "p_worry"}
+            P["snowman"] = ("melt", min(1.0, max(0.0, (lt - 1.0) / 6.0)))
+            if _win(lt, 3.0, 6.6):
+                self._say(P, g, "santa", "schmilzt")
+            return
         P["states"] = {"santa": "p_offer" if lt < 4.0 else None}
         P["offer"] = lt < 4.0
         if lt >= 2.5:
@@ -539,6 +674,10 @@ class XmasParty:
             P["deer"] = (262, 1, "stand", lt)
         else:
             P["deer"] = (262 + 110 * (lt - 8.5) / 4.5, 1, "stagger", lt)
+        if "noboot" in P["props"]:
+            P["deer_boot"] = True
+            if _win(lt, 5.2, 8.2):
+                self._say(P, g, "santa", "meinstiefel")
         if _win(lt, 2.0, 4.6):
             self._say(P, g, "santa", "meiner")
 
@@ -550,6 +689,159 @@ class XmasParty:
             self._say(P, g, "santa", "sing")
         if _win(lt, 4.0, 7.2):
             self._say(P, g, "mrs", "sing2")
+
+    def _party_schneeball(self, P, lt, g):
+        """Schneeballschlacht: sie trifft ihn (Mütze fliegt), er wirft zurück und trifft den Wichtel."""
+        P["states"] = {"mrs": "p_throw" if _win(lt, 0.3, 1.3) else None,
+                       "santa": "p_throw" if _win(lt, 2.6, 3.6) else "p_pickup" if _win(lt, 4.6, 6.4) else None}
+        P["goals"] = {"santa": 124 if _win(lt, 4.6, 6.4) else 160, "mrs": 226}
+        if _win(lt, 1.0, 1.5):
+            P["ball"] = ("mrs", "santa", (lt - 1.0) / 0.5)
+        if _win(lt, 3.4, 4.0):
+            P["ball"] = ("santa", "elf", (lt - 3.4) / 0.6)
+        if _win(lt, 1.5, 6.4):
+            P["hat"] = False
+            P["flyhat"] = ("fall", min(1.0, (lt - 1.5) / 1.0))
+        if lt < 2.0:
+            pass
+        elif lt < 3.9:
+            P["elf"] = (-16 + 86 * min(1.0, (lt - 2.0) / 1.4), 1, "walk" if lt < 3.4 else "look", lt)
+        elif lt < 6.2:
+            P["elf"] = (70, 1, "hit", lt)
+        else:
+            P["elf"] = (70 - 90 * (lt - 6.2) / 1.8, -1, "walk", lt)
+        if _win(lt, 1.6, 3.4):
+            self._say(P, g, "mrs", "erwischt")
+        if _win(lt, 4.0, 6.0):
+            P["say"].append(("elf", self._line(g, "treffer")))
+
+    def _party_lichterkette(self, P, lt, g):
+        """In der Lichterkette verheddert – danach blinkt er bunt, der Baum bleibt dunkel."""
+        if lt < 2.8:
+            P["goals"] = {"santa": XMAS_TREE_X + 46, "mrs": 226}
+            P["states"] = {"santa": "p_bump"}
+        else:
+            P["states"] = {"santa": "p_proud"}
+        if _win(lt, 1.4, 2.4):
+            P["wire"] = (lt - 1.4) / 1.0
+        if lt >= 1.6:
+            P["props"].add("wrapped")
+        if _win(lt, 3.6, 6.0):
+            self._say(P, g, "santa", "leuchte")
+        if _win(lt, 4.4, 6.8):
+            self._say(P, g, "mrs", "stehtdir")
+
+    def _party_schneeengel(self, P, lt, g):
+        """Schneeengel – er bleibt liegen, sie zieht ihn am Bart wieder hoch."""
+        P["goals"] = {"santa": 196, "mrs": 128 if lt >= 4.6 else 236}
+        if _win(lt, 1.2, 7.2):
+            P["hide"] = {"santa"}
+            P["lie"] = lt - 1.2
+            P["lie_x"] = 196
+            if _win(lt, 2.5, 4.8):
+                P["say"].append(("lie", self._line(g, "engel")))
+        if lt >= 4.0:
+            P["props"].add("angel")
+        P["states"] = {"mrs": "p_tug" if _win(lt, 5.0, 7.2) else None}
+        if _win(lt, 5.0, 7.2):
+            self._say(P, g, "mrs", "hoch")
+
+    def _party_geschenk(self, P, lt, g):
+        """Geschenk heimlich schütteln, auspacken: Socken. Tränchen."""
+        if lt < 7.5:
+            P["goals"] = {"santa": XMAS_TREE_X + 46, "mrs": 170}
+            P["states"] = {"santa": "p_present" if lt < 3.6 else "p_socks", "mrs": "p_worry" if lt >= 5 else None}
+        if _win(lt, 0.8, 3.6):
+            P["gift"] = ("box", 1.0 <= lt < 3.0)
+        elif _win(lt, 3.6, 7.5):
+            P["gift"] = ("socks", False)
+        if _win(lt, 4.0, 8.0):
+            P["tears"] = lt - 4.0
+        if _win(lt, 4.0, 6.8):
+            self._say(P, g, "santa", "socken")
+        if _win(lt, 6.0, 8.6):
+            self._say(P, g, "mrs", "gestrickt")
+
+    def _party_topf(self, P, lt, g):
+        """Topf leer: über den Kopf gestülpt, blind gegen den Baum."""
+        P["goals"] = {"santa": PARTY_POT_X - 24 if lt < 3.4 else XMAS_TREE_X + 46 if lt < 8.6 else 160, "mrs": 226}
+        P["states"] = {"santa": "p_drinkpot" if lt < 3.4 else "p_blind" if lt < 8.6 else None,
+                       "mrs": "p_worry" if _win(lt, 3.6, 8.6) else None}
+        if _win(lt, 2.2, 8.6):
+            P["pot"] = False
+            P["pot_head"] = "up" if lt < 3.4 else "on"
+        if lt >= 6.3:
+            P["star_wobble"] = math.sin((lt - 6.3) * 14) * 16 * math.exp(-(lt - 6.3) * 1.2)
+        if _win(lt, 6.3, 8.4):
+            self._say(P, g, "santa", "bong")
+        if _win(lt, 3.8, 6.0):
+            self._say(P, g, "mrs", "schatz")
+
+    def _party_polonaise(self, P, lt, g):
+        """Polonaise: Wichtel, Rentier, Katze und die beiden ziehen quer durchs Bild."""
+        if lt < 6.0:
+            P["goals"] = {"santa": -132, "mrs": -166}
+        elif lt < 15.1:
+            lead = -40 + 60 * (lt - 6.0)
+            P["goals"] = {"santa": lead - 92, "mrs": lead - 126}
+            P["line"] = lead
+            P["follow"] = True
+            if _win(lt, 8.0, 11.0):
+                P["say"].append(("line", self._line(g, "polonaise")))
+
+    def _party_taxi(self, P, lt, g):
+        """Taxi nach Hause: Das Rentier zieht ihn im Schlitten weg – er kommt aber wieder."""
+        P["goals"] = {"santa": 160 if lt < 2.4 else 124 if lt < 3.6 else 420 if lt < 8.6 else 160, "mrs": 226}
+        if lt < 2.4:
+            P["sleigh"] = (-70 + 190 * lt / 2.4, False)
+        elif lt < 8.6:
+            P["sleigh"] = (None, lt >= 3.2)
+            if lt >= 3.2:
+                P["hide"] = {"santa"}
+        P["states"] = {"mrs": "p_bye" if _win(lt, 3.8, 7.2) else None}
+        if _win(lt, 4.0, 7.0):
+            self._say(P, g, "mrs", "gutenacht")
+        if _win(lt, 9.6, 12.4):
+            self._say(P, g, "santa", "vergessen")
+
+    def _party_nachbar(self, P, lt, g):
+        """Im Haus auf dem Hügel geht ein Fenster auf: „Ruhe da unten!“ – „Psst!“."""
+        if _win(lt, 0.5, 6.5):
+            P["window"] = lt - 0.5
+        if _win(lt, 1.2, 3.4):
+            P["say"].append(("window", self._line(g, "ruhe")))
+        if lt >= 3.2:
+            P["states"] = {"santa": "p_shush", "mrs": "p_shush"}
+        if _win(lt, 3.4, 5.4):
+            self._say(P, g, "santa", "psst2")
+
+    def _party_stiefel(self, P, lt, g):
+        """Der Wichtel bringt den Stiefel zurück."""
+        P["goals"] = {"santa": 150, "mrs": 226}
+        if lt < 2.2:
+            P["elf"] = (-16 + 122 * lt / 2.2, 1, "carry", lt)
+        elif lt < 6.0:
+            P["elf"] = (106, 1, "carry" if lt < 4.0 else "look", lt)
+        else:
+            P["elf"] = (106 - 122 * (lt - 6.0) / 2.2, -1, "walk", lt)
+        if lt >= 4.0:
+            P["props"].discard("noboot")
+        if _win(lt, 2.4, 4.4):
+            P["say"].append(("elf", self._line(g, "stiefel_da")))
+        if _win(lt, 4.6, 7.0):
+            self._say(P, g, "santa", "danke")
+
+    def _party_muetze(self, P, lt, g):
+        """Sturm: Die Mütze fliegt davon, er rennt hinterher."""
+        P["goals"] = {"santa": 380 if _win(lt, 1.0, 4.0) else 160, "mrs": 226}
+        P["states"] = {"mrs": "p_laugh" if _win(lt, 2.0, 4.5) else None}
+        if _win(lt, 0.5, 4.0):
+            P["hat"] = False
+            P["flyhat"] = ("wind", min(1.0, (lt - 0.5) / 1.7))
+        if _win(lt, 0.8, 3.0):
+            self._say(P, g, "santa", "muetze")
+        if _win(lt, 2.0, 4.5):
+            self._say(P, g, "mrs", "lachen")
 
     def _party_gruen(self, P, lt, g):
         P["goals"] = {"santa": 226, "mrs": 176}
@@ -690,6 +982,31 @@ class XmasParty:
             return dict(base, lh=(-32, -12), rh=(14, 22), lf=(-8, 39), rf=(6, 40), lean=-10, head=-10)
         if state == "p_offer":
             return dict(base, lh=(-30, -4), rh=(14, 22), lf=(-8, 39), rf=(6, 40), lean=-8, head=-6)
+        if state == "p_throw":
+            k = (t * 2.2) % 1.0
+            if santa:
+                return dict(base, lh=(-30 + 50 * k, -24 + 30 * k), rh=(14, 22), lean=-6 + 12 * k, head=-8, **feet)
+            return dict(base, lh=(10, 16), rh=(30 - 50 * k, -24 + 30 * k), lean=6 - 12 * k, head=-8, **feet)
+        if state == "p_pickup":
+            return dict(base, lh=(-20, 36), rh=(14, 26), lf=(-8, 38), rf=(8, 38), lean=-18, head=-14, bob=4)
+        if state == "p_tug":
+            return dict(base, lh=(10, 16), rh=(30, 22), lean=-12 + math.sin(t * 6) * 4, head=-8, **feet)
+        if state == "p_present":
+            sh = math.sin(t * 22) * 3
+            return dict(base, lh=(12 + sh, 6), rh=(-12 + sh, 6), lean=0, head=8, **feet)
+        if state == "p_socks":
+            return dict(base, lh=(8, -12), rh=(-8, -12), lean=0, head=12 + math.sin(t * 3) * 4, **feet)
+        if state == "p_drinkpot":
+            return dict(base, lh=(-4, -30), rh=(4, -30), lean=-6, head=-16, **feet)
+        if state == "p_blind":
+            return dict(base, lh=(-30, -2), rh=(-26, 6), lean=-6 + math.sin(t * 3) * 4, head=0, **feet)
+        if state == "p_bye":
+            w = math.sin(t * 10)
+            return dict(MRS_POSES[2], rh=(10 + w * 7, -34), **base)
+        if state == "p_shush":
+            if santa:
+                return dict(base, lh=(21, -12), rh=(-14, 22), lean=0, head=4, **feet)
+            return dict(base, lh=(10, 16), rh=(-14, -9), lean=0, head=-4, **feet)
         if state == "p_hangover":
             return dict(base, lh=(17, -20), rh=(-17, -20), lean=math.sin(t * 1.2) * 4, head=8, **feet)
         return dict(base, lh=(14, 22), rh=(-14, 22), lean=0, head=4, **feet)
@@ -727,6 +1044,16 @@ class XmasParty:
                 else:
                     pose["rh"] = (-14, -10)
                 pose["head"] = -14
+        if P.get("cheer") == "lauter":                                 # lauter gedreht: Jubel
+            pose["lh"], pose["rh"] = (-10, -32), (10, -32)
+            if who == "mrs":
+                pose["lh"], pose["rh"] = (-12, -34), (12, -34)
+            pose["bob"] = pose.get("bob", 0.0) - 3 * abs(math.sin(t * 9))
+        elif P.get("cheer") == "leiser":                               # leiser: enttäuscht
+            pose["head"] = 16 if who == "santa" else -16
+            pose["lean"] = pose.get("lean", 0) * 0.3
+        if who == "santa" and "noboot" in P["props"]:                  # ohne Stiefel: hinkt
+            pose["bob"] = pose.get("bob", 0.0) + 2 * abs(math.sin(t * 4))
         if P["step"] == "morgen" and who == "santa" and P["beat_age"] < 0.15:
             pose["bob"] = pose.get("bob", 0.0) - 3                  # jeder Schlag tut weh
             pose["head"] = pose.get("head", 0) + 10
@@ -737,7 +1064,8 @@ class XmasParty:
         if who == "santa":
             return {"green": P["green"], "red": P["lvl"], "hat": P["hat"], "snore": state == "p_sleep",
                     "shades": P.get("shades", False), "carrot": P.get("carrot", False),
-                    "mouth": state in ("p_sing", "p_burp")}
+                    "mouth": state in ("p_sing", "p_burp"), "sock": "noboot" in P["props"],
+                    "pot": P.get("pot_head") == "on"}
         return {"mouth": state in ("p_tongue", "p_sing"), "asleep": state == "p_sleep"}
 
     # -- Requisiten ---------------------------------------------------------- #
@@ -765,15 +1093,21 @@ class XmasParty:
                 d.ellipse([x - 1.2, y - 1.2, x + 1.2, y + 1.2], fill=c)
 
     def _xmas_party_ground(self, img, d, P, floor, t):
-        """Hinter den Figuren: Glühweintopf, Pfütze, Schrift im Schnee, gelber Fleck, Sack, Schneemann, Rentier."""
+        """Hinter den Figuren: Haus des Nachbarn, Glühweintopf, Pfütze, Schrift im Schnee, gelber Fleck, Sack,
+        Schneeengel, Schneemann, Rentier, er liegend im Schnee."""
+        self._xmas_party_house(img, d, P.get("window"), t)
+        if P.get("meter"):
+            self._xmas_party_meter(img, d, P)
         x = PARTY_POT_X                                             # Topf mit Dampf
         self._blob(img, x, floor + 1, 34, 8, (150, 165, 190), gloss=0)
-        d.rectangle([x - 12, floor - 22, x + 12, floor], fill=(40, 36, 44))
-        d.rectangle([x - 14, floor - 24, x + 14, floor - 20], fill=(70, 64, 78))
-        d.rectangle([x - 10, floor - 16, x + 10, floor - 8], fill=(120, 30, 40))
-        for k in range(3):
-            pts = [(x - 6 + k * 6 + math.sin(t * 2.5 + yy * 0.25 + k) * 2.5, floor - 26 - yy) for yy in range(0, 22, 2)]
-            d.line(pts, fill=(205, 205, 222), width=1)
+        if P.get("pot", True):
+            d.rectangle([x - 12, floor - 22, x + 12, floor], fill=(40, 36, 44))
+            d.rectangle([x - 14, floor - 24, x + 14, floor - 20], fill=(70, 64, 78))
+            d.rectangle([x - 10, floor - 16, x + 10, floor - 8], fill=(120, 30, 40))
+            for k in range(3):
+                pts = [(x - 6 + k * 6 + math.sin(t * 2.5 + yy * 0.25 + k) * 2.5, floor - 26 - yy)
+                       for yy in range(0, 22, 2)]
+                d.line(pts, fill=(205, 205, 222), width=1)
         step, lt, props = P["step"], P["lt"], P["props"]
         grow = 1.0 if "puddle" in props else min(1.0, max(0.0, lt - 2.2) / 4.0) if step == "baum" else 0.0
         if grow > 0:
@@ -793,12 +1127,30 @@ class XmasParty:
             d.line([(sx - 6, floor - 27), (sx + 6, floor - 27)], fill=(220, 40, 50), width=2)
             if "sack" in props or lt >= 1.6:
                 self._blob(img, sx + 2, floor - 30, 12, 5, (130, 175, 70), gloss=0.5)
+        if "angel" in props:                                        # Abdruck des Schneeengels
+            ax = 196
+            self._blob(img, ax, floor + 6, 46, 10, (200, 210, 232), gloss=0)
+            for side in (-1, 1):
+                self._blob(img, ax - 4, floor + 6 + side * 4, 22, 6, (205, 214, 235), ang=side * 25, gloss=0)
         if P.get("snowman"):
             self._xmas_party_snowman(img, d, PARTY_SNOWMAN_X, floor, P["snowman"])
         if P.get("deer"):
-            self._xmas_party_deer(img, d, P["deer"], floor, t, P["beats"])
+            self._xmas_party_deer(img, d, P["deer"], floor, t, P["beats"], P.get("deer_boot"))
+        if P.get("lie") is not None:
+            self._xmas_party_lying(img, d, P["lie_x"], floor, t, P["lie"], P)
 
     def _xmas_party_snowman(self, img, d, x, floor, state):
+        if isinstance(state, tuple) and state[0] == "melt" or state == "melted":
+            k = 1.0 if state == "melted" else state[1]
+            self._blob(img, x, floor + 4, 18 + 26 * k, 4 + 4 * k, (170, 200, 235), gloss=0.8)       # Pfütze
+            sc = 1 - 0.8 * k
+            for h, r in ((0, 11), (19, 8), (33, 6)):
+                r2 = max(1.0, r * sc)
+                self._blob(img, x, floor - 2 - (h * sc + r2), r2 * 2.2, r2 * 2, (244, 246, 252), gloss=0.2)
+            if k > 0.7:                                               # übrig: Karotte und Kohle
+                d.polygon([(x + 8, floor + 2), (x + 8, floor + 5), (x + 18, floor + 4)], fill=(240, 130, 30))
+                d.ellipse([x - 6, floor + 2, x - 4, floor + 4], fill=(30, 30, 36))
+            return
         tilt = 0.0
         if isinstance(state, tuple):
             state, tilt = "stand", state[1]
@@ -824,7 +1176,7 @@ class XmasParty:
             d.line([(bx + side * 6 * math.cos(ang), by), (bx + side * 16 * math.cos(ang), by - 8 + abs(math.sin(ang)) * 8)],
                    fill=(110, 76, 44), width=2)
 
-    def _xmas_party_deer(self, img, d, deer, floor, t, beats):
+    def _xmas_party_deer(self, img, d, deer, floor, t, beats, boot=False):
         """Rentier: Körper, Beine, Kopf mit Geweih; die Nase leuchtet (blinkt im Takt, sobald es getrunken hat)."""
         x, face, mode, lt = deer
         wob = math.sin(t * 3) * 6 if mode == "stagger" else 0
@@ -853,6 +1205,8 @@ class XmasParty:
         if on and drunk:
             self._blob(img, hx + face * 8, hy + 2, 16, 16, (255, 60, 60), alpha=0.45, flat=True)
         self._blob(img, hx + face * 8, hy + 2, 6, 6, nose, gloss=0.9)
+        if boot and mode in ("stand", "stagger"):                   # kaut auf seinem Stiefel
+            self._blob(img, hx + face * 6, hy + 7 + math.sin(t * 8), 14, 8, (34, 26, 24), gloss=0.9)
 
     def _xmas_party_over(self, img, d, P, acts, floor, t):
         """Vor den Figuren: Becher, Requisiten in den Händen, Strahl, Schwall, Flocke, Wolke, Katzen, Wichtel,
@@ -860,7 +1214,7 @@ class XmasParty:
         heads = self.__dict__.get("_xmas_heads", {})
         hands = self.__dict__.get("_xmas_hands", {})
         visible = {w: -XMAS_OFF_MARGIN < acts[w]["x"] < WIDTH + XMAS_OFF_MARGIN and acts[w]["state"] != "p_behind"
-                   for w in acts}
+                   and w not in P["hide"] for w in acts}
         if P["mugs"] or P.get("offer"):
             for who, i in (("santa", 0), ("mrs", 1)):
                 ok_state = acts[who]["state"] in ("dance", "walk") or (who == "santa" and P.get("offer"))
@@ -873,9 +1227,10 @@ class XmasParty:
                         for j in range(4):
                             dy = m[2] * 60 + j * 7
                             d.ellipse([hx - 4 + j * 2, hy + dy - 2, hx - 2 + j * 2, hy + dy + 1], fill=(190, 30, 46))
-        if not P["hat"] and "mrs" in hands:
+        if not P["hat"] and "mrs" in hands and P["step"] == "bescherung":
             hx, hy = hands["mrs"][1]
             self._xmas_party_hat(d, img, hx, hy - 6, t)
+        self._xmas_party_extras(img, d, P, acts, floor, t, heads, hands, visible)
         if P.get("phone") and "mrs" in hands:
             hx, hy = hands["mrs"][1]
             d.rounded_rectangle([hx - 4, hy - 10, hx + 4, hy + 2], radius=2, fill=(30, 32, 40), outline=(140, 150, 170))
@@ -984,6 +1339,12 @@ class XmasParty:
                 if not P.get("elf"):
                     continue
                 x, y = P["elf"][0], floor - 52
+            elif who == "lie":
+                x, y = P.get("lie_x", 196) - 34, floor - 40
+            elif who == "window":
+                x, y = 276, 62
+            elif who == "line":
+                x, y = max(40, min(WIDTH - 40, P.get("line", 160) - 92)), floor - 140
             else:
                 if not visible[who] or who not in heads:
                     continue
@@ -1032,7 +1393,12 @@ class XmasParty:
     def _xmas_party_elf(self, img, d, elf, floor, t):
         """Wichtel: grünes Gewand, Zipfelmütze, spitze Ohren; schaut, schreibt auf seine Liste."""
         x, face, mode, lt = elf
-        step = math.sin(t * 12) * 3 if mode == "walk" else 0
+        if mode == "hit":                                           # getroffen: sitzt im Schnee, Sternchen
+            floor += 8
+            for j in range(3):
+                a = t * 4 + j * 2.1
+                d.text((x - 3 + math.cos(a) * 10, floor - 48 + math.sin(a) * 3), "*", fill=(255, 230, 90))
+        step = math.sin(t * 12) * 3 if mode in ("walk", "carry") else 0
         green, skin = (40, 150, 70), (246, 206, 176)
         for side in (-1, 1):
             d.line([(x + side * 3, floor - 12), (x + side * 3 + step * side, floor - 1)], fill=(40, 90, 50), width=3)
@@ -1047,6 +1413,8 @@ class XmasParty:
         d.polygon([(x + shake - 7, hy - 4), (x + shake + 7, hy - 4), (x + shake - face * 10, hy - 18)], fill=green)
         self._blob(img, x + shake - face * 10, hy - 18, 5, 5, (230, 40, 50), gloss=0.4)
         d.ellipse([x + shake + face * 2 - 1, hy - 1, x + shake + face * 2 + 1, hy + 1], fill=(20, 20, 24))
+        if mode == "carry":                                          # trägt den Stiefel
+            self._blob(img, x + face * 9, floor - 20, 16, 10, (34, 26, 24), gloss=0.9)
         if mode == "write":                                          # Liste und Stift
             px = x + face * 10
             d.rectangle([px - 4, floor - 26, px + 4, floor - 12], fill=(248, 242, 222))
@@ -1078,3 +1446,173 @@ class XmasParty:
         tx = max(bx + 6, min(bx + w - 6, x))
         d.polygon([(tx - 4, by + 16), (tx + 4, by + 16), (tx, by + 23)], fill=(240, 240, 248))
         d.text((bx + 5, by + 2), text, font=font, fill=(40, 40, 60))
+
+    # -- Zusätze (8 Gags der dritten Runde, Wetter, Anzeige) ----------------- #
+    def _xmas_party_extras(self, img, d, P, acts, floor, t, heads, hands, visible):
+        """Schneeball, fliegende Mütze, Lichterkette um ihn, Geschenk/Socken/Tränen, Topf über dem Kopf, Schlitten,
+        Polonaise, Regenschirm, Regen."""
+        if P.get("ball"):
+            src, dst, k = P["ball"]
+            p0 = hands.get(src, [(160, 120)] * 2)[1 if src == "mrs" else 0] if src in hands else (160, 120)
+            if dst == "elf":
+                p1 = (70, floor - 32)
+            else:
+                p1 = heads.get(dst, (160, 90))
+            x = p0[0] + (p1[0] - p0[0]) * k
+            y = p0[1] + (p1[1] - p0[1]) * k - math.sin(k * math.pi) * 24
+            self._blob(img, x, y, 8, 8, (248, 250, 255), gloss=0.4)
+        fh = P.get("flyhat")
+        if fh and "santa" in heads:
+            mode, k = fh
+            hx, hy = heads["santa"]
+            if mode == "fall":                                      # Mütze fliegt nach links in den Schnee
+                x, y = hx + (124 - hx) * k, hy - 14 + (floor - 4 - (hy - 14)) * k - math.sin(k * math.pi) * 30
+            else:                                                   # Sturm: nach rechts davon
+                x, y = hx + (WIDTH + 40 - hx) * k, hy - 14 - math.sin(k * math.pi) * 40
+            self._xmas_party_hat(d, img, x, y, t * 3)
+        wrapped = "wrapped" in P["props"]
+        if (wrapped or P.get("wire") is not None) and "santa" in heads and visible["santa"]:
+            hx, hy = heads["santa"]
+            k = 1.0 if P.get("wire") is None else P["wire"]
+            for j in range(int(3 * k + 0.999)):                    # Kabel in Schlingen um den Bauch
+                cy = hy + 30 + j * 12
+                d.arc([hx - 26, cy - 6, hx + 26, cy + 6], 0, 180, fill=(30, 80, 40), width=2)
+                for i in range(5):
+                    a = math.pi * (i + 0.5) / 5
+                    bx, by = hx + math.cos(a) * 26, cy + math.sin(a) * 6
+                    c = XMAS_LIGHT_COLORS[(i + j + P["beats"]) % len(XMAS_LIGHT_COLORS)]
+                    if wrapped:
+                        self._blob(img, bx, by, 8, 8, c, alpha=0.5, flat=True)
+                    d.ellipse([bx - 2, by - 2, bx + 2, by + 2], fill=c)
+        gift = P.get("gift")
+        if gift and "santa" in hands:
+            (x1, y1), (x2, y2) = hands["santa"]
+            gx, gy = (x1 + x2) / 2, (y1 + y2) / 2
+            if gift[0] == "box":
+                sh = math.sin(t * 22) * 3 if gift[1] else 0
+                d.rectangle([gx - 9 + sh, gy - 14, gx + 9 + sh, gy + 2], fill=(60, 120, 220))
+                d.rectangle([gx - 1 + sh, gy - 14, gx + 1 + sh, gy + 2], fill=(250, 220, 70))
+                d.rectangle([gx - 9 + sh, gy - 7, gx + 9 + sh, gy - 5], fill=(250, 220, 70))
+            else:                                                   # Socken
+                for side in (-1, 1):
+                    sx = gx + side * 7
+                    d.rectangle([sx - 3, gy - 2, sx + 3, gy + 12], fill=(120, 170, 90))
+                    d.rectangle([min(sx - 3, sx + 7 * side), gy + 9, max(sx + 3, sx + 7 * side), gy + 14],
+                                fill=(120, 170, 90))
+                    for k in range(3):
+                        d.line([(sx - 3, gy + 1 + k * 4), (sx + 3, gy + 1 + k * 4)], fill=(230, 80, 80))
+        if P.get("tears") is not None and "santa" in heads:
+            hx, hy = heads["santa"]
+            for side in (-1, 1):
+                for j in range(2):
+                    k = (P["tears"] * 1.4 + j * 0.5) % 1.0
+                    d.ellipse([hx + side * 6 - 1.5, hy - 2 + k * 18 - 2, hx + side * 6 + 1.5, hy - 2 + k * 18 + 2],
+                              fill=(120, 180, 255))
+        if P.get("pot_head") == "up" and "santa" in hands:          # Topf über dem Kopf, letzte Tropfen
+            (x1, y1), (x2, y2) = hands["santa"]
+            px, py = (x1 + x2) / 2, min(y1, y2) - 6
+            d.polygon([(px - 14, py - 10), (px + 12, py - 16), (px + 14, py + 6), (px - 12, py + 12)], fill=(40, 36, 44))
+            for j in range(3):
+                k = (t * 2 + j / 3) % 1.0
+                d.ellipse([px - 2, py + 12 + k * 14, px + 1, py + 15 + k * 14], fill=(170, 30, 46))
+        if P.get("sleigh"):
+            sx, inside = P["sleigh"]
+            if sx is None:
+                sx = acts["santa"]["x"]
+            self._xmas_party_sleigh(img, d, sx, floor, t, inside)
+        if P.get("line") is not None:                               # Polonaise: Wichtel, Rentier, Katze vorneweg
+            lead = P["line"]
+            self._xmas_party_elf(img, d, (lead, 1, "walk", 0.0), floor, t)
+            self._xmas_party_deer(img, d, (lead - 34, 1, "walk", 0.0), floor, t, P["beats"])
+            self._xmas_party_cat(img, d, lead - 62, floor + 6, t * 3, 1.0)
+        if P.get("umbrella") and "mrs" in hands and visible["mrs"] and acts["mrs"]["state"] in ("dance", "walk"):
+            hx, hy = hands["mrs"][1]
+            top = hy - 34
+            d.line([(hx, hy), (hx, top)], fill=(80, 70, 70), width=2)
+            d.pieslice([hx - 24, top - 14, hx + 24, top + 14], 180, 360, fill=(70, 120, 210))
+            for j in range(4):
+                d.line([(hx, top), (hx - 24 + j * 16, top)], fill=(40, 80, 160), width=1)
+        if P.get("rain"):                                           # Regen statt Schnee
+            for j in range(60):
+                x = (j * 53 + t * 140) % (WIDTH + 40) - 20
+                y = (j * 97 + t * 380) % VIS_H
+                d.line([(x, y), (x - 3, y + 9)], fill=(150, 170, 210), width=1)
+
+    def _xmas_party_house(self, img, d, window, t):
+        """Kleines Haus auf dem Hügel rechts; bei „Nachbar“ geht ein Fenster auf."""
+        x0, y0, w, h = 262, 86, 46, 32
+        d.rectangle([x0, y0, x0 + w, y0 + h], fill=(46, 50, 70))
+        d.polygon([(x0 - 6, y0 + 1), (x0 + w / 2, y0 - 20), (x0 + w + 6, y0 + 1)], fill=(36, 38, 54))
+        d.line([(x0 - 6, y0 + 1), (x0 + w / 2, y0 - 20), (x0 + w + 6, y0 + 1)], fill=(230, 236, 250), width=2)
+        for i, wx in enumerate((x0 + 7, x0 + 28)):
+            lit = window is not None and i == 1
+            d.rectangle([wx, y0 + 9, wx + 11, y0 + 22], fill=(250, 220, 120) if lit else (70, 64, 50))
+            if lit:
+                op = min(1.0, window / 0.5)                          # Fensterläden klappen auf
+                d.rectangle([wx - 5 * op, y0 + 9, wx, y0 + 22], fill=(90, 60, 40))
+                d.rectangle([wx + 11, y0 + 9, wx + 11 + 5 * op, y0 + 22], fill=(90, 60, 40))
+                if _win(window, 0.5, 4.6):                          # Nachbar mit Schlafmütze
+                    self._blob(img, wx + 5.5, y0 + 18, 9, 9, (240, 210, 180), gloss=0.2)
+                    d.polygon([(wx + 1, y0 + 15), (wx + 10, y0 + 15), (wx + 14, y0 + 8)], fill=(60, 120, 200))
+
+    def _xmas_party_lying(self, img, d, x, floor, t, k, P):
+        """Er liegt im Schnee (Schneeengel): Kopf links, Arme und Beine wedeln."""
+        flap = math.sin(k * 7) * 0.5 + 0.5 if k < 3.0 else 0.0
+        y = floor - 8
+        for side in (-1, 1):                                        # Beine nach rechts
+            ang = side * (0.15 + 0.35 * flap)
+            fx, fy = x + 22 + math.cos(ang) * 26, y + math.sin(ang) * 18
+            self._limb(img, (x + 18, y + side * 4), (fx, fy), 13, XMAS_RED)
+            self._blob(img, fx + 4, fy, 11, 18, (34, 26, 24), gloss=0.9)
+        for side in (-1, 1):                                        # Arme
+            ang = side * (1.2 + 0.9 * flap)
+            hx, hy = x - 14 + math.cos(ang + math.pi) * -18, y + math.sin(ang) * 22
+            self._limb(img, (x - 12, y + side * 6), (hx, hy), 11, XMAS_RED)
+            self._blob(img, hx, hy, 10, 10, (240, 240, 244), gloss=0.3)
+        self._blob(img, x, y, 50, 34, XMAS_RED, gloss=0.4)          # Bauch
+        self._blob(img, x + 4, y, 9, 30, (30, 24, 22), gloss=0.7)   # Gürtel
+        self._blob(img, x + 4, y, 10, 11, (240, 196, 60), gloss=1.2)
+        skin = _lerp(XMAS_SKIN, PARTY_GREEN, P.get("green", 0.0))
+        self._blob(img, x - 32, y, 26, 26, skin, gloss=0.3)          # Kopf
+        self._blob(img, x - 26, y - 10, 24, 18, XMAS_FUR, gloss=0.15)  # Bart nach oben
+        d.ellipse([x - 38, y - 3, x - 35, y + 0], fill=(30, 30, 40))
+        d.ellipse([x - 38, y + 3, x - 35, y + 6], fill=(30, 30, 40))
+        self._blob(img, x - 31, y + 1, 6, 6, (232, 90, 90), gloss=0.8)
+        tip = (x - 64, y + math.sin(t * 2) * 4)                     # Mütze liegt am Kopf
+        d.polygon([(x - 44, y - 12), (x - 44, y + 12), tip], fill=XMAS_RED)
+        self._blob(img, x - 44, y, 8, 26, XMAS_FUR, gloss=0.1)
+        self._blob(img, tip[0], tip[1], 9, 9, XMAS_FUR, gloss=0.2)
+
+    def _xmas_party_sleigh(self, img, d, x, floor, t, inside):
+        """Schlitten mit Rentier davor (fährt nach rechts); inside = er sitzt drin, nur Kopf und Mütze sichtbar."""
+        self._xmas_party_deer(img, d, (x + 50, 1, "walk", 0.0), floor, t, 0)
+        d.line([(x + 22, floor - 22), (x + 36, floor - 26)], fill=(110, 76, 44), width=2)   # Zugleine
+        if inside:                                                  # Kopf schaut heraus, schläft
+            hy = floor - 40
+            self._blob(img, x, hy, 24, 24, XMAS_SKIN, gloss=0.3)
+            self._blob(img, x, hy + 9, 28, 20, XMAS_FUR, gloss=0.15)
+            d.polygon([(x - 12, hy - 8), (x + 12, hy - 8), (x - 26, hy - 18)], fill=XMAS_RED)
+            self._blob(img, x, hy - 8, 28, 8, XMAS_FUR, gloss=0.1)
+            d.text((x + 12, hy - 22), "z", fill=(220, 220, 240))
+        d.polygon([(x - 26, floor - 30), (x + 22, floor - 30), (x + 26, floor - 10), (x - 22, floor - 10)],
+                  fill=(190, 24, 32))
+        d.line([(x - 26, floor - 30), (x + 22, floor - 30)], fill=(240, 200, 70), width=2)
+        d.line([(x - 28, floor - 2), (x + 28, floor - 2)], fill=(200, 170, 70), width=2)       # Kufen
+        d.arc([x + 20, floor - 10, x + 34, floor + 2], 270, 90, fill=(200, 170, 70), width=2)
+        for lx in (x - 16, x + 14):
+            d.line([(lx, floor - 10), (lx, floor - 2)], fill=(200, 170, 70), width=2)
+
+    def _xmas_party_meter(self, img, d, P):
+        """Glühwein-Barometer (Pegel) mit Becherzähler am rechten Rand."""
+        x, y0, y1 = WIDTH - 11, 20, 50
+        d.rounded_rectangle([x - 4, y0, x + 4, y1], radius=4, fill=(30, 34, 46), outline=(150, 160, 190))
+        lvl = max(0.0, min(1.0, P["pegel"]))
+        if lvl > 0.01:
+            d.rounded_rectangle([x - 2, y1 - 2 - (y1 - y0 - 4) * lvl, x + 2, y1 - 2], radius=2, fill=(220, 40, 60))
+        d.ellipse([x - 7, y1 - 2, x + 7, y1 + 12], fill=(220, 40, 60), outline=(150, 160, 190))
+        font = self.__dict__.setdefault("_party_meter_font", load_font(9, bold=True))
+        text = f"{P['mugs_today']}×"
+        w = d.textlength(text, font=font)
+        d.text((x - w / 2, y1 + 13), text, font=font, fill=(235, 220, 200))
+        d.rectangle([x - 4, y1 + 25, x + 2, y1 + 31], fill=(178, 30, 42))                   # Becher
+        d.arc([x + 1, y1 + 26, x + 5, y1 + 30], 270, 90, fill=(235, 235, 240))

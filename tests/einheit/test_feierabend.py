@@ -1,6 +1,7 @@
 """Visualisierung „Weihnachten“, Option „Feierabend“: Runden mit Pegel und zufälligen Gags (Regeln, je Runde
 einmal, fester Schluss), Prosten je nach Musik (wild/ruhig mit Schunkeln), wechselnde Sprüche, Weihnachtslied im
-Radio, Nacht, Silvester, Zwischengags, Wortbeitrag (nüchtern Bank, spät einschlafen → Morgen danach)."""
+Radio, Nacht, Silvester, Zwischengags, Wortbeitrag (nüchtern Bank, spät einschlafen → Morgen danach); dazu
+Running Gags (Stiefel, Wichtel), Lautstärke, Wetter, Liedwechsel, Wochentag, OK-Taste, Barometer, Stumm."""
 import time
 from common import g, eq, ok, done
 
@@ -32,8 +33,8 @@ def fresh():
 
 
 class Clock:
-    def __init__(self, mon, day, hour, minute=0):
-        self.tm_mon, self.tm_mday, self.tm_hour, self.tm_min = mon, day, hour, minute
+    def __init__(self, mon, day, hour, minute=0, wday=3):
+        self.tm_mon, self.tm_mday, self.tm_hour, self.tm_min, self.tm_wday = mon, day, hour, minute, wday
 
 
 real_clock = g.party_clock
@@ -87,13 +88,14 @@ ms = (time.perf_counter() - t0) / max(1, n) * 1000
 eq(len(rounds), 3, "Drei Runden durchgelaufen")
 names = [[x[0] for x in rd] for rd in rounds]
 ok(all(rd[-len(END):] == END for rd in names), "Jede Runde endet mit grün → Bescherung → Kater → Morgen → noch")
-ok(all(len(set(rd)) == len(rd) for rd in names), "Kein Gag zweimal in einer Runde")
+ok(all(len(set(x for x in rd if x != "wichtel")) == len([x for x in rd if x != "wichtel"]) for rd in names)
+   and all(rd.count("wichtel") <= g.PARTY_ELF_MAX for rd in names), "Kein Gag zweimal je Runde (Wichtel bis zu 3×)")
 mids = [rd[:-len(END)] for rd in names]
 ok(all(len(m) >= 4 for m in mids), f"Je Runde mehrere Gags ({[len(m) for m in mids]})")
 ok(len({tuple(m) for m in mids}) == 3, "Reihenfolge ist je Runde anders")
 allg = set(x for m in mids for x in m)
 ok(len(allg) >= 10, f"Viele verschiedene Gags ({len(allg)}): {sorted(allg)}")
-ok("groelen" not in allg, "Ohne Weihnachtslied kein Grölen")
+ok("groelen" not in allg and "muetze" not in allg, "Ohne Weihnachtslied kein Grölen, ohne Sturm keine Mütze")
 
 
 def before(rd, a, need):
@@ -103,6 +105,7 @@ def before(rd, a, need):
 ok(all(before(rd, "rentier", ("baum",)) and before(rd, "rutsch", ("baum",)) for rd in rounds),
    "Ausrede und Ausrutschen erst nach dem Baum")
 ok(all(before(rd, "wichtel", ("baum", "signatur")) for rd in rounds), "Wichtel erst nach Pfütze oder Signatur")
+ok(all(before(rd, "stiefel", ("rutsch",)) for rd in rounds), "Stiefel kommt erst zurück, wenn er ihn verloren hat")
 ok(greens <= {"gruen", "bescherung", "kater"} and "bescherung" in greens, "Tastatur grün nur, solange ihm schlecht ist")
 ok(ms < 5, f"Zeichenzeit je Bild {ms:.2f} ms")
 
@@ -188,5 +191,143 @@ eq((st["acts"]["santa"]["state"], st["acts"]["mrs"]["state"], party()["sleep"]),
    "Spät: beide schlafen auf der Bank")
 frame()
 eq(party()["cur"]["name"], "morgen", "Nach dem Wortbeitrag: Der Morgen danach")
+
+
+def force(name, var=None, props=(), pegel=0.7):
+    fresh()
+    for _ in range(FPS * 5):
+        frame()
+    p = party()
+    p.update(p=40.0, pegel=pegel, phase="mid", next=1e9, micro_at=1e9)
+    p["props"].update(props)
+    r._xmas_party_start(p, name, var)
+
+
+def run(seconds, **kw):
+    for _ in range(int(seconds * FPS)):
+        st = frame(**kw)
+    return st
+
+
+# Running Gags: Stiefel verloren → hinkt mit Socke; Wichtel bringt ihn; Rentier kaut darauf
+force("rutsch", props={"puddle"})
+run(9)
+ok("noboot" in party()["props"], "Ausgerutscht: Stiefel ist weg")
+P = r._xmas_party(r._vis_states["xmas"], dict(g.demo_snapshot(5000 + T[0]), active=True), T[0], 0.1, OPTS,
+                  True, False, False, False)
+ok(r._xmas_party_look(P, "santa", "dance")["sock"], "… er tanzt mit Socke")
+ok(g.party_eligible(party(), "stiefel"), "Stiefel-Gag jetzt möglich")
+r._xmas_party_start(party(), "stiefel")
+run(10)
+ok("noboot" not in party()["props"], "Wichtel hat den Stiefel zurückgebracht")
+force("rentierbesuch", props={"noboot"})
+st = run(6)
+P = r._xmas_party(st, dict(g.demo_snapshot(5000 + T[0]), active=True), T[0], 0.1, OPTS, True, False, False, False)
+ok(P.get("deer_boot"), "Rentier kaut auf dem Stiefel")
+fresh()
+p = party()
+p.update(pegel=0.7, phase="mid", p=40.0)
+p["props"].add("puddle")
+for i in range(g.PARTY_ELF_MAX):
+    ok(g.party_eligible(p, "wichtel"), f"Wichtel kommt ({i + 1}.)")
+    r._xmas_party_start(p, "wichtel")
+    p["p"] += 12
+    r._xmas_party_finish(p, 600)
+ok(not g.party_eligible(p, "wichtel"), f"Nach {g.PARTY_ELF_MAX} Besuchen ist Schluss")
+
+# Neue Gags: Verlauf (Schlitten nimmt ihn mit, er kommt wieder; Polonaise; Topf; Schneeengel; Nachbar)
+force("taxi")
+hidden = []
+for _ in range(14 * FPS):
+    st = frame()
+    hidden.append(st["acts"]["santa"]["x"])
+ok(max(hidden) > 380 and abs(hidden[-1] - 160) < 1, "Taxi: er fährt aus dem Bild und kommt zurück")
+force("polonaise")
+xs = []
+for _ in range(20 * FPS):
+    st = frame()
+    xs.append(st["acts"]["mrs"]["x"])
+ok(min(xs) < -100 and max(xs) > 360 and abs(xs[-1] - 226) < 1, "Polonaise: einmal quer durchs Bild und zurück")
+force("schneeengel")
+run(10.5)
+ok("angel" in party()["props"], "Schneeengel bleibt als Abdruck")
+force("lichterkette")
+run(7.5)
+ok("wrapped" in party()["props"], "Lichterkette hängt jetzt an ihm")
+
+# Wetter: Sturm → Mütze, Regen → Schirm, Tauwetter → Schneemann schmilzt
+r._party_wx = (time.monotonic() + 1e6, ("cloud", 5.0, 70.0))
+fresh()
+run(1)
+ok(party()["weather"] == "storm" and g.party_eligible(party(), "muetze"), "Sturm: Mütze kann davonfliegen")
+r._xmas_party_start(party(), "schneemann")
+eq(party()["cur"]["var"], "schmilzt", "Tauwetter: der Schneemann schmilzt")
+r._party_wx = (time.monotonic() + 1e6, ("rain", 1.0, 10.0))
+fresh()
+run(1)
+P = r._xmas_party(r._vis_states["xmas"], dict(g.demo_snapshot(5000 + T[0]), active=True), T[0], 0.1, OPTS,
+                  True, False, False, False)
+ok(P.get("rain") and P.get("umbrella"), "Regen: Regen und Schirm")
+r._party_wx = (time.monotonic() + 1e6, (None, None, None))
+
+# Lautstärke: lauter → Jubel, leiser → enttäuscht
+fresh()
+st = r._vis_states["xmas"]
+base = dict(g.demo_snapshot(5000.0), active=True, volume=50)
+r._xmas_party(st, base, 5000.0, 0.1, OPTS, True, False, False, False)
+P = r._xmas_party(st, dict(base, volume=60), 5000.1, 0.1, OPTS, True, False, False, False)
+eq(P.get("cheer"), "lauter", "Lauter gedreht: Jubel")
+P = r._xmas_party(st, dict(base, volume=40), 5000.2, 0.1, OPTS, True, False, False, False)
+eq(P.get("cheer"), "leiser", "Leiser gedreht: enttäuscht")
+
+# Liedwechsel und lange Moderation
+fresh()
+r._vis_song = "AC/DC – Thunderstruck"
+run(1)
+r._vis_song = "Queen – Bohemian Rhapsody"
+st = r._vis_states["xmas"]
+P = r._xmas_party(st, dict(g.demo_snapshot(5000 + T[0]), active=True), T[0], 0.1, OPTS, True, False, False, False)
+ok(any(t in g.PARTY_LINES["meinlied"] for _w, t in P["say"]), "Neues Lied: „Das ist mein Lied!“")
+r._vis_song = ""
+talked = False
+for _ in range(30 * FPS):
+    st = frame(talk=True)
+    P = r._xmas_party(st, dict(g.demo_snapshot(5000 + T[0]), active=True), T[0], 0.0, OPTS, True, True, False, False)
+    talked = talked or any(t in g.PARTY_LINES["laber"] for _w, t in P["say"])
+ok(talked, "Lange Moderation: „Laber nicht, spiel was!“")
+
+# Wochentag: Freitag länger, Montag früh nur Kater
+g.party_clock = lambda: Clock(11, 20, 21, wday=4)
+fresh()
+eq(party()["length"], 900, "Freitag: Runde 1,5× so lang")
+g.party_clock = lambda: Clock(11, 23, 9, wday=0)
+fresh()
+seen = set()
+for _ in range(90 * FPS):
+    frame()
+    seen.add(party()["cur"]["name"] if party()["cur"] else None)
+ok(seen <= {"kater", "morgen"} and "morgen" in seen, f"Montag früh: nur Kater ({sorted(map(str, seen))})")
+g.party_clock = lambda: Clock(11, 20, 21)
+
+# OK-Taste: Gag auf Bestellung, auch im Auftakt und ohne Pegel
+fresh()
+r._party_poke = True
+frame()
+ok(party()["cur"] is not None and party()["cur"]["name"] in g.PARTY_GAGS, "OK: sofort ein Gag")
+
+# Barometer und Becherzähler
+fresh()
+n0 = r._party_mug_count()
+run(40)
+ok(r._party_mug_count() > n0, f"Becher heute gezählt ({r._party_mug_count()})")
+
+# Stumm: Standbild zeigt beide schlafend auf der Bank
+fresh()
+snap = g.demo_snapshot(0.0, amp=0.22)
+snap.update(idle=True, muted=True, t=5000 + T[0])
+g.VISUAL_RENDERERS["xmas"](r, snap, OPTS, (255, 255, 255))
+a = r._vis_states["xmas"]["acts"]
+eq((a["santa"]["state"], a["mrs"]["state"], a["santa"]["x"]), ("p_sleep", "p_sleep", g.PARTY_BENCH["santa"]),
+   "Stumm: sofort eingeschlafen")
 g.party_clock = real_clock
 done()

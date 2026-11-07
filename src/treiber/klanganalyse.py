@@ -39,7 +39,7 @@ def _band_edges():
 def _empty_snapshot(t=0.0):
     return {"t": t, "bands": np.zeros(AUDIO_BANDS), "left": 0.0, "right": 0.0, "level": 0.0, "bass": 0.0,
             "mid": 0.0, "treble": 0.0, "wave": np.zeros(640), "wave_l": np.zeros(256), "wave_r": np.zeros(256),
-            "beats": 0, "beat_t": -10.0, "period": 0.5, "active": False, "error": None, "demo": False, "muted": False,
+            "beats": 0, "beat_t": -10.0, "period": 0.5, "active": False, "error": None, "demo": False, "muted": False, "volume": None,
             "talk": False, "talk_t": 0.0}
 
 
@@ -88,6 +88,7 @@ class SoundAnalyzer:
         self._snap = _empty_snapshot()
         self._error_logged = None
         self.muted, self.mute_checked = False, 0.0
+        self.volume = None                  # Lautstärke in Prozent (Weihnachten/Feierabend reagiert darauf)
         self.reset()
 
     def reset(self):
@@ -156,6 +157,7 @@ class SoundAnalyzer:
                 self.mute_checked = time.monotonic()
                 vol = change_volume("get", env=self.env_func())
                 self.muted = bool(vol and (vol[1] or vol[0] == 0))
+                self.volume = vol[0] if vol else None
             if self.proc is None or self.proc.poll() is not None:
                 if self.proc is not None:
                     self._set_error("Aufnahmeprogramm hat sich beendet – neuer Versuch in 5 s")
@@ -237,7 +239,7 @@ class SoundAnalyzer:
                 "wave_l": left[-256:].copy() * 3.0, "wave_r": right[-256:].copy() * 3.0,
                 "beats": self.beats, "beat_t": self.beat_t, "period": period, "active": active, "error": None, "demo": False,
                 "talk": self.talk, "talk_t": self.talk_t,
-                "muted": self.muted}
+                "muted": self.muted, "volume": self.volume}
         with self.lock:
             self._snap = snap
 

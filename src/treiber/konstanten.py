@@ -219,6 +219,8 @@ VISUAL_OPTIONS = {
          "choices": [["off", "Aus"], ["on", "An"], ["evening", "Nur abends (20 bis 4 Uhr)"]]},
         {"key": "party_len", "label": "Dauer einer Feierabend-Runde", "type": "choice", "default": "600",
          "choices": [["300", "5 Minuten"], ["600", "10 Minuten"], ["900", "15 Minuten"], ["1200", "20 Minuten"]]},
+        {"key": "party_meter", "label": "Feierabend: Glühwein-Barometer und Becherzähler", "type": "bool",
+         "default": True},
     ],
 }
 OLD_CLOCK_PAGES = {"clock_chrono": "chrono", "clock_steampunk": "steampunk",      # Version 2026.09.28-8/-9

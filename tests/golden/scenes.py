@@ -205,13 +205,16 @@ scenes["vis_weihnachten_geht"] = lambda r: _xmas_steps(r, [(5.0, "pair"), (2.0, 
 
 class _PartyClock:
     """Feste Uhrzeit für den Feierabend (Abend, Silvester); sonst hinge das Bild von der Uhrzeit ab."""
-    def __init__(self, mon=11, day=20, hour=21, minute=0):
-        self.tm_mon, self.tm_mday, self.tm_hour, self.tm_min = mon, day, hour, minute
+    def __init__(self, mon=11, day=19, hour=21, minute=0, wday=3):
+        self.tm_mon, self.tm_mday, self.tm_hour, self.tm_min, self.tm_wday = mon, day, hour, minute, wday
 
 
-def _xmas_party(r, gag, at, var=None, clock=None):
+def _xmas_party(r, gag, at, var=None, clock=None, weather=(None, None, None), props=()):
     """Weihnachten mit „Feierabend“ live: gag (None = Auftakt mit Prosten) erzwingen und at Sekunden spielen."""
+    import time as _t
     g.party_clock = lambda: clock or _PartyClock()
+    r._party_wx = (_t.monotonic() + 1e9, weather)                 # Wetter fest (nicht von der Wetterseite)
+    r._party_mugs = (_t.strftime("%Y-%m-%d"), 14)                 # Becherzähler fest
     r.visual_style, r.visual = "xmas", _Live()
     r.settings = json.loads(json.dumps(settings))
     r.settings.setdefault("visual", json.loads(json.dumps(g.DEFAULT_SETTINGS["visual"])))
@@ -223,7 +226,7 @@ def _xmas_party(r, gag, at, var=None, clock=None):
             r.visual.t += 1 / 15
             r.render(g.PAGE_IDS.index("visual"), "M2", macros)
         ps.update(p=40.0, pegel=0.7, phase="mid", next=1e9, micro_at=1e9)
-        ps["props"].update({"puddle", "sign"})
+        ps["props"].update({"puddle", "sign"} | set(props))
         if gag in [n for n, _d in g.PARTY_END]:
             r._xmas_party_begin_end(ps, gag)
         else:
@@ -246,6 +249,17 @@ for _name, _gag, _at, _var in (
         ("rentier_besuch", "rentierbesuch", 7.0, None), ("groelen", "groelen", 2.0, None)):
     scenes[f"vis_feierabend_{_name}"] = lambda r, gag=_gag, at=_at, var=_var: _xmas_party(r, gag, at, var)
 scenes["vis_feierabend_silvester"] = lambda r: _xmas_party(r, None, 3.0, clock=_PartyClock(12, 31, 23, 30))
+for _name, _gag, _at, _kw in (
+        ("schneeball", "schneeball", 4.6, {}), ("lichterkette", "lichterkette", 4.0, {}),
+        ("schneeengel", "schneeengel", 2.6, {}), ("schneeengel_hoch", "schneeengel", 6.0, {}),
+        ("geschenk", "geschenk", 5.0, {}), ("topf", "topf", 5.0, {}), ("polonaise", "polonaise", 9.5, {}),
+        ("taxi", "taxi", 5.0, {}), ("nachbar", "nachbar", 2.2, {}),
+        ("stiefel", "stiefel", 3.0, {"props": ("noboot",)}),
+        ("rentier_stiefel", "rentierbesuch", 7.0, {"props": ("noboot",)}),
+        ("sturm", "muetze", 1.5, {"weather": ("cloud", 0.0, 70.0)}),
+        ("tauwetter", "schneemann", 6.0, {"weather": ("cloud", 6.0, 10.0)}),
+        ("regen", None, 3.0, {"weather": ("rain", 4.0, 10.0)})):
+    scenes[f"vis_feierabend_{_name}"] = lambda r, gag=_gag, at=_at, kw=_kw: _xmas_party(r, gag, at, **kw)
 
 
 def _face_opt(r, face, opts):

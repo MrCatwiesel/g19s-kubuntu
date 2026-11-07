@@ -131,7 +131,10 @@ class XmasVisual:
                 knee, foot = _ik(hj, (hj[0] + f[0], hj[1] + f[1]), 20, 21, -side)
             self._limb(img, hj, knee, 15, XMAS_RED)
             self._limb(img, knee, foot, 13, XMAS_RED)
-            self._blob(img, foot[0] + side * 4, foot[1] + 1, 19, 11, (34, 26, 24), gloss=0.9)  # Stiefel
+            if side > 0 and look.get("sock"):                                     # Stiefel verloren: Socke
+                self._blob(img, foot[0] + side * 3, foot[1] + 1, 15, 8, (200, 200, 212), gloss=0.2)
+            else:
+                self._blob(img, foot[0] + side * 4, foot[1] + 1, 19, 11, (34, 26, 24), gloss=0.9)  # Stiefel
         lean = pose.get("lean", 0)
         body = (hip[0] + math.sin(math.radians(lean)) * 22, hip[1] - 22)
         self._blob(img, body[0], body[1], 52, 54, XMAS_RED, gloss=0.4)              # Bauch
@@ -178,6 +181,13 @@ class XmasVisual:
             d.line([(head[0] - 1, head[1] - 5), (head[0] + 1, head[1] - 5)], fill=(14, 14, 20), width=1)
         if look.get("mouth"):                                                       # Mund auf (singen, rülpsen)
             d.ellipse([head[0] - 3, head[1] + 5, head[0] + 3, head[1] + 10], fill=(90, 30, 40))
+        if look.get("pot"):                                                         # Glühweintopf auf dem Kopf
+            d.rectangle([head[0] - 15, head[1] - 22, head[0] + 15, head[1] + 1], fill=(40, 36, 44))
+            d.rectangle([head[0] - 17, head[1] - 1, head[0] + 17, head[1] + 3], fill=(70, 64, 78))
+            for side in (-1, 1):
+                d.line([(head[0] + side * 15, head[1] - 14), (head[0] + side * 20, head[1] - 14)], fill=(70, 64, 78), width=2)
+            d.line([(head[0] - 6, head[1] + 3), (head[0] - 6, head[1] + 7)], fill=(160, 30, 46), width=2)   # Tropfen
+            return hands
         if not look.get("hat", True):                                               # Mütze hält sie gerade
             self._blob(img, head[0], head[1] - 9, 26, 10, skin, gloss=0.3)
             return hands
@@ -380,6 +390,12 @@ class XmasVisual:
             self._xmas_party_sky(img, d, party, t)
         if party:
             mode = "pair"                                                           # Feierabend: immer zu zweit
+            if party.get("instant") and st.get("acts"):                             # stumm: sofort auf der Bank
+                for w, a in st["acts"].items():
+                    a["x"], a["pose"] = party["goals"][w], None
+                st["bench"] = 1.0
+            if party["weather"] == "storm":
+                st["gust"] = max(st["gust"], 1.4)
         acts = self._xmas_actors(st, t, dt, mode, talk, enter, period, party)
         floor = XMAS_FLOOR
         energy = 0.35 + 0.65 * s["level"] if moving else 0.25
@@ -409,12 +425,12 @@ class XmasVisual:
                 a["pose"] = _mix_pose_spin(a["pose"], pose, 1 - math.exp(-dt * 12))
         if party and any(a["state"] == "p_behind" for a in acts.values()):          # hinter dem Baum
             for who in ("santa", "mrs"):
-                if acts[who]["state"] == "p_behind":
+                if acts[who]["state"] == "p_behind" and who not in party["hide"]:
                     self._xmas_draw(img, d, who, acts[who], floor, t, party)
             img.paste(bg, (0, 0), self._xmas_tree_mask)
         # Lichterkette und Stern
         flicker = party and party["flicker"]
-        dark = party and party.get("dark")
+        dark = party and (party.get("dark") or "wrapped" in party["props"])        # Kette hängt jetzt an ihm
         for i, (lx, ly, lc) in enumerate(lights):
             on = (not o["lights"]) or ((i * 7 + s["beats"] * 3) % 5 != 0)
             if (flicker and (i * 13 + int(t * 9)) % 3 == 0) or dark:
@@ -449,7 +465,7 @@ class XmasVisual:
         if party:
             self._xmas_party_ground(img, d, party, floor, t)
         for who in ("santa", "mrs"):
-            if acts[who]["state"] != "p_behind":
+            if acts[who]["state"] != "p_behind" and not (party and who in party["hide"]):
                 self._xmas_draw(img, d, who, acts[who], floor, t, party)
         if party:
             self._xmas_party_over(img, d, party, acts, floor, t)
@@ -512,6 +528,9 @@ class XmasVisual:
         leaving = {w: on[w] and goals[w] == XMAS_OFF[w] and a["goal"] != goals[w] for w, a in acts.items()}
         for who, a in acts.items():
             if goals[who] == a["goal"]:
+                continue
+            if party and party.get("follow"):                                       # wanderndes Ziel (Polonaise)
+                a["goal"] = goals[who]
                 continue
             a["goal"], a["came"] = goals[who], not on[who]
             other = "mrs" if who == "santa" else "santa"

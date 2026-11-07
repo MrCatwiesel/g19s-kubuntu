@@ -173,7 +173,9 @@ class VisualPage:
         key = (style, profile, text, id(last))
         cached = self.__dict__.get("_vis_still_img")
         if cached is None or cached[0] != key:
-            if last and last[0] == style and last[1] == profile:
+            if style == "xmas" and snap.get("muted") and party_active(visual_options(self.settings, style)):
+                base = VISUAL_RENDERERS[style](self, snap, visual_options(self.settings, style), color)  # schlafen
+            elif last and last[0] == style and last[1] == profile:
                 base = last[2]
             else:                                           # noch kein Bild mit Ton: ruhiges Standbild
                 base = VISUAL_RENDERERS[style](self, snap, visual_options(self.settings, style), color)
@@ -741,10 +743,16 @@ class VisualPage:
 
 @page_keys("visual")
 def keys_visual(app, pressed):
-    """MENU (wie SETTINGS kurz) öffnet die Auswahl des Stils; sonst blättern die Pfeiltasten."""
+    """MENU (wie SETTINGS kurz) öffnet die Auswahl des Stils; OK löst bei Weihnachten/Feierabend sofort einen Gag
+    aus; sonst blättern die Pfeiltasten."""
     if pressed & LKEY_BITS["MENU"]:
         app.menu = VisualMenu(app)
         app.flash = None
+        app.next_draw = 0
+        return True
+    if pressed & LKEY_BITS["OK"] and app.visual_style() == "xmas" and \
+            party_active(visual_options(app.settings(), "xmas")):
+        app.renderer._party_poke = True                     # Feierabend: Gag auf Bestellung
         app.next_draw = 0
         return True
     return False
