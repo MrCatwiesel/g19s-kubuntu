@@ -150,6 +150,14 @@ class App(AppCore, KeyHandling, TimedTasks):
             base = (255, 20, 10) if snap["beats"] % 2 else (20, 220, 40)
             if self.renderer.vis_green:                                     # Feierabend: ihm ist schlecht
                 base = (20, 220, 40)
+        if self.visual_style() == "dancer" and not quiet:                   # Tänzerin: Tastatur nach Wahl
+            keys = visual_options(s, "dancer").get("keys", "bass")
+            if self.renderer.vis_listen:                                    # sie hört zu: Tastatur atmet
+                k = round((0.25 + 0.35 * (1 + math.sin(now * 2.4)) / 2) * 20) / 20
+            elif keys == "hats":
+                k = round((0.15 + 0.85 * math.exp(-max(0.0, snap["t"] - snap.get("hat_t", -9)) * 9)) * 20) / 20
+            if keys == "stage" and self.renderer.vis_stage_color and not self.renderer.vis_listen:
+                base = self.renderer.vis_stage_color
         color = tuple(int(c * k) for c in base)
         strobe = False
         if self.visual_style() in ("lights", "dancer") and not quiet:     # Stroboskop: Tastatur blitzt mit

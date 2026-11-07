@@ -260,6 +260,10 @@ class VisualPage:
         st = self._vstate("lights", dict)
         self._vis_dt(st, t)
         beams = self._lights_beams(s, t, n, Image.new("RGB", (WIDTH, VIS_H), (5, 4, 10)))
+        fx = set(FX_LIGHTS.get(o.get("fx", "classic"), ()))
+        if fx:                                              # Zusätze: Moving Heads, Laser, Nebel, Lauflicht, Blinder
+            self._fx_update(st, s, t, 1 / 15, fx)
+            beams = self._fx_back(beams, s, st, fx, t, (WIDTH / 2, VIS_H - 60), VIS_H - 4, VIS_H - 5)
         since = t - s["beat_t"]
         if o["flash"] and 0 <= since < 0.15 and s["bass"] > 0.6 and t - st.get("flash", -9) > 0.5:
             st["flash"] = s["beat_t"]
@@ -271,6 +275,8 @@ class VisualPage:
         img = Image.new("RGB", (WIDTH, HEIGHT), (5, 4, 10))
         img.paste(beams, (0, 0))
         self._lights_ball(ImageDraw.Draw(img), t, WIDTH // 2, 12, 11)
+        if fx:
+            img = self._fx_front(img, s, st, fx, t, (WIDTH / 2, VIS_H - 60))
         return img
 
     def _lights_beams(self, s, t, n, beams, dots=40):

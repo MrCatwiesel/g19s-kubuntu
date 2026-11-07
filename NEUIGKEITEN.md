@@ -3,6 +3,16 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.07-12
+- **Neue Lichteffekte** für die Tänzerin, wählbar im Optionsmenü unter „Lichtprogramm“:
+  - **Ballett:** Verfolgerspot auf der Tänzerin, Farben nach Stimmung (ruhig blau/violett, wild rot), leichter Nebel; bei ruhigen Stellen steht sie als Silhouette im farbigen Gegenlicht.
+  - **Clubnacht:** Moving Heads, die Figuren fahren (Fächer, Kreuz, Kreis, auf die Tänzerin), Laserfächer, Nebel, Schwarzlicht mit neonleuchtendem Rocksaum, Lauflicht am Boden, Spiegelkugel mit wandernden Lichtpunkten.
+  - **Show:** Verfolgerspot, Moving Heads, Laser, Nebel, Lauflicht, Stimmungsfarben, Spiegelkugel – und beim Höhepunkt warme Blinder (sanfter Lichtstoß, kein Stroboskop).
+  - **Eigene Auswahl:** jeder Effekt einzeln an- und abschaltbar.
+  - Scheinwerfer und Disco wie bisher.
+- Tastaturbeleuchtung der Tänzerin wählbar: pulsiert mit dem Bass (wie bisher), übernimmt die **Farbe des Bühnenlichts** oder **blitzt auf hohe Schläge**. Während sie nach einem Liedwechsel zuhört, „atmet“ die Tastatur.
+- Lichtshow: neue Option „Zusätzliche Effekte“ – Moving Heads im Nebel, Laser mit Nebel und Lauflicht oder die ganze Show mit Blindern.
+
 ## 2026.11.07-11
 - Tänzerin an der Stange: Nach einem **Liedwechsel** (neuer Titel, Musik nach einer Pause oder nach einem Wortbeitrag) hört sie erst zu – sie steht an der Stange, nickt und tippt mit dem Fuß auf die Schläge. Sobald fünf Schläge gleichmäßig gekommen sind, beginnt sie im gefundenen Tempo zu tanzen; ist kein klarer Takt zu hören, spätestens nach 8 Sekunden.
 

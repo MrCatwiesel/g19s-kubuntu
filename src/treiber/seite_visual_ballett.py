@@ -430,6 +430,11 @@ class BalletVisual:
         leo = tuple(o["color"]) if o.get("color") else BAL_LEO
         img = self._bal_studio(s, o, bool(bored))
         show = o.get("show", "off") if not bored else "off"       # Lichtshow (im Wortbeitrag ruhig)
+        fx = fx_set(o) if not bored else set()
+        f = self._fx_update(st, s, t, dt, fx)
+        self.vis_listen = bool(st.get("listen"))
+        if show == "custom" and "beams" in fx:
+            show = "beams"
         if show in ("beams", "club"):
             if show == "club":                                    # Disco: Raum abgedunkelt
                 img = Image.blend(img, Image.new("RGB", img.size, (4, 3, 10)), 0.6)
@@ -439,6 +444,9 @@ class BalletVisual:
             if show == "beams":
                 beams = beams.point(lambda v: v * 0.55)
             img.paste(ImageChops.add(img.crop((0, 0, WIDTH, VIS_H)), beams), (0, 0))
+        if fx:
+            img = self._fx_back(img, s, st, fx, t, (hip[0], hip[1] - 20), BAL_FLOOR, BAL_FLOOR - 55)
+        self.vis_stage_color = f["color"] if (fx or show != "off") else None
         fig = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
         fd = ImageDraw.Draw(fig)
         shadow_x = hip[0]
@@ -451,6 +459,7 @@ class BalletVisual:
         head, hands, _feet = self._bal_figure(fig, fd, hip, pose, t, hem, leo, BAL_POLE_X, hair)
         if behind:
             self._bal_pole(fig, fd, BAL_POLE_X)
+        fig = self._fx_figure(fig, st)                            # Silhouette im Gegenlicht
         x0, y0, x1, y1 = BAL_MIRROR                               # Spiegelbild: kleiner, gespiegelt, gedämpft
         sc = 0.72
         small = fig.resize((int(WIDTH * sc), int(HEIGHT * sc)), Image.BILINEAR).transpose(Image.FLIP_LEFT_RIGHT)
@@ -467,8 +476,10 @@ class BalletVisual:
         mirror.putalpha(ImageChops.multiply(mirror.getchannel("A"), clip))
         img.paste(mirror, (0, 0), mirror)
         img.paste(fig, (0, 0), fig)
-        if show == "club":
+        if show == "club" and "ball" not in fx:
             self._lights_ball(ImageDraw.Draw(img), t, BAL_POLE_X + 96, 12, 10)
+        if fx:
+            img = self._fx_front(img, s, st, fx, t, hip, hem, ball=(BAL_POLE_X + 96, 12))
         img = self._lights_strobe_apply(img, self._lights_strobe(st.setdefault("strobe", {}), s, o, t), s, leo)
         if bored in ("yawn", "sit"):
             self._bal_bubble(ImageDraw.Draw(img), head, "Gähn …" if bored == "yawn" else None, t)

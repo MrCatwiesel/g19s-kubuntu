@@ -144,6 +144,10 @@ for name, style, opts in (("eq_gespiegelt", "eq", {"mirror": True, "colors": "ra
                           ("taenzerin_disco", "dancer", {"show": "club", "beams": "7"}),
                           ("taenzerin_scheinwerfer", "dancer", {"show": "beams"}),
                           ("taenzerin_blond", "dancer", {"hair": "blond"}),
+                          ("taenzerin_ballett", "dancer", {"show": "ballet"}),
+                          ("taenzerin_clubnacht", "dancer", {"show": "night"}),
+                          ("taenzerin_show", "dancer", {"show": "gala"}),
+                          ("lichtshow_show", "lights", {"fx": "show"}),
                           ("oszi_stereo", "scope", {"mode": "xy", "color": [255, 200, 0]}),
                           ("vu_dunkel", "vu", {"dial": "dark"}), ("spektrogramm_eis", "spectro", {"palette": "ice"}),
                           ("weihnachtsmann", "xmas", {"dance": "santa", "snow": "heavy"}),
@@ -250,6 +254,30 @@ def _listen(r):
 
 
 scenes["vis_taenzerin_zuhoeren"] = _listen
+
+
+class _Quiet(_Live):
+    """Wie _Live, aber leise, ruhige Musik."""
+    def snapshot(self):
+        d = g.demo_snapshot(self.t, amp=0.3)
+        d.update(active=True, demo=False, talk=False, talk_t=4990.0)
+        return d
+
+
+def _silhouette(r):
+    """Tänzerin, Programm „Ballett“, ruhige Stelle: Silhouette im Gegenlicht unter dem Verfolgerspot."""
+    r.visual_style, r.visual = "dancer", _Quiet()
+    r.settings = json.loads(json.dumps(settings))
+    r.settings.setdefault("visual", json.loads(json.dumps(g.DEFAULT_SETTINGS["visual"])))
+    r.settings["visual"]["dancer"] = dict(g.DEFAULT_SETTINGS["visual"]["dancer"], show="ballet")
+    img = None
+    for _ in range(6 * 15):
+        img = r.render(g.PAGE_IDS.index("visual"), "M2", macros)
+        r.visual.t += 1 / 15
+    return img
+
+
+scenes["vis_taenzerin_silhouette"] = _silhouette
 
 
 for _m, _f in (("fireman", 0.5), ("climb", 0.5), ("hook", 0.5), ("split", 0.5)):

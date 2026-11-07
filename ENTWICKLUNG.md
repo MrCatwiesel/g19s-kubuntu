@@ -36,6 +36,8 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
       seite_visual            Seite „Visualisierung“, 8 Stile (@vis_style), Optionen VISUAL_OPTIONS
       seite_visual_xmas       Stil „Weihnachten“: schattierte Figuren (_blob/_limb, IK _ik), Baum, Schnee,
                               Auftritte (_xmas_actors: Ziel/Zustand je Figur, Seite neu = _vis_enter)
+      seite_visual_licht      Bühnenlicht-Effekte (Mixin StageFx): FX_ALL, Programme FX_PROGRAMS (Tänzerin) und
+                              FX_LIGHTS (Lichtshow), _fx_update/_fx_back/_fx_figure/_fx_front, vis_stage_color
       seite_visual_ballett    Stil „Tänzerin“ (dancer, Mixin BalletVisual): Studio, Figur aus _blob/_ik, Haltungen
                               BAL_POSES/BAL_CHOREO, Langeweile BAL_BORED, Rock mit Feder/Dämpfung (_bal_skirt)
       seite_visual_feier      Weihnachten, Option „Feierabend“ (Mixin XmasParty): Runde mit Pegel (Prosten),
