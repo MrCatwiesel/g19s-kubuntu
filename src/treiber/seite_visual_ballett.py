@@ -66,6 +66,12 @@ BAL_MOVES = {
     "split": (3.0, "split", 0.0, 0.85, 0),
 }
 BAL_MOVE_ORDER = ["fireman", "pirouette", "hook", "chair", "climb", "wave", "split", "pirouette"]
+# Nach einem Liedwechsel (Titel neu, Musik nach Pause oder Wortbeitrag) erst zuhören: tanzen, sobald so viele Schläge
+# gleichmäßig kommen (Abweichung ≤ 12 %), spätestens nach BAL_LISTEN_MAX Sekunden
+BAL_LISTEN_BEATS = 5
+BAL_LISTEN_MAX = 8.0
+BAL_POSES["listen"] = {"lh": (-30, 6), "lp": 1, "rh": (-6, 28), "rp": 0, "lf": (-4, 66), "lb": 1, "rf": (10, 66),
+                       "rb": -1, "lean": 3, "head": 6, "rise": 0, "dip": 0, "hx": 0}
 BAL_HAIR_COLORS = {
     "dark": (38, 24, 18), "black": (14, 12, 14), "brown": (92, 56, 30), "auburn": (130, 52, 24), "red": (176, 50, 30),
     "blond": (214, 176, 102), "platinum": (232, 222, 196), "silver": (184, 186, 196), "pink": (232, 104, 168),
@@ -239,6 +245,32 @@ class BalletVisual:
             mid = (thick[0] + (thin[0] - thick[0]) * 0.6, thick[1] + (thin[1] - thick[1]) * 0.6)
             self._limb(img, thick, mid, wk, color, gloss=0.25)
 
+    @staticmethod
+    def _bal_listen_start(st, s, t):
+        st["listen"] = {"t": t, "beats": [], "last": s["beats"]}
+        st["move"] = None
+
+    @staticmethod
+    def _bal_listen(st, s, t):
+        """Schläge sammeln; True, sobald BAL_LISTEN_BEATS gleichmäßig kommen (Tempo → st["tempo"]) oder die
+        Wartezeit um ist. Dann endet das Zuhören."""
+        li = st["listen"]
+        if s["beats"] != li["last"]:
+            li["last"] = s["beats"]
+            li["beats"].append(s.get("beat_t", t))
+        b = li["beats"][-BAL_LISTEN_BEATS:]
+        if len(b) >= BAL_LISTEN_BEATS:
+            gaps = sorted(y - x for x, y in zip(b, b[1:]))
+            m = gaps[len(gaps) // 2]
+            if 0.25 <= m <= 1.2 and all(abs(gp - m) <= 0.12 * m for gp in gaps):
+                st["tempo"] = m
+                st.pop("listen")
+                return True
+        if t - li["t"] >= BAL_LISTEN_MAX:
+            st.pop("listen")
+            return True
+        return False
+
     # -- Rock: Saum mit Trägheit -------------------------------------------- #
     def _bal_skirt(self, st, hip, lean, dt, flare, swirl, sitting):
         """Saumpunkte (links → rechts) mit Feder und Dämpfung; folgen der Taille mit Verzögerung."""
@@ -285,16 +317,36 @@ class BalletVisual:
             cur = _bal_mix(st["from"], st["to"], _smooth((t - st["t0"]) / st["dur"]))
             st.update({"from": cur, "to": pose, "t0": t, "dur": dur})
 
+        if not s.get("demo"):                                     # Liedwechsel? Dann erst den Takt hören
+            song = self.__dict__.get("_vis_song") or ""
+            changed = st.get("song") not in (None, song) and bool(song)
+            st["song"] = song
+            gap = t - st.get("seen", t) > 1.5                     # Musik setzt nach einer Pause wieder ein
+            st["seen"] = t
+            if (changed or gap) and not bored:
+                self._bal_listen_start(st, s, t)
         if bored:                                                 # Wortbeitrag: Langeweile an der Stange
             if st.get("bored") != bored:
                 go(BAL_BORED[bored], 0.7)
                 st["bored"] = bored
             st["beats"] = s["beats"]
+            st.pop("listen", None)
             energy = 0.0
+        elif st.get("listen"):                                    # zuhören: nicken und mit dem Fuß tippen
+            if st.pop("bored", None) or st["to"] is not BAL_POSES["listen"]:
+                go(BAL_POSES["listen"], 0.5)
+            self._bal_listen(st, s, t)                            # Takt gefunden → ab dem nächsten Schlag tanzen
+            st["beats"] = s["beats"]
+            energy = 0.2
+            period = st.get("tempo") or period
         else:
             if st.pop("bored", None):
-                go(BAL_POSES[BAL_CHOREO[st["k"] % len(BAL_CHOREO)]], 0.35)
-            if s["beats"] != st["beats"] or (moving and t - st["t0"] > period * 2.2):
+                if not s.get("demo"):
+                    self._bal_listen_start(st, s, t)             # nach dem Wortbeitrag: erst zuhören
+                else:
+                    go(BAL_POSES[BAL_CHOREO[st["k"] % len(BAL_CHOREO)]], 0.35)
+            period = st.get("tempo") or period
+            if not st.get("listen") and (s["beats"] != st["beats"] or (moving and t - st["t0"] > period * 2.2)):
                 st["beats"] = s["beats"]
                 st["k"] += 1
                 go(BAL_POSES[BAL_CHOREO[st["k"] % len(BAL_CHOREO)]], min(0.4, period * 0.6))
@@ -313,7 +365,11 @@ class BalletVisual:
         st["avg"] = s["level"] if avg is None else avg + (s["level"] - avg) * min(1.0, dt / 6)     # langsam (≈ 6 s)
         fast = st.get("fast")
         st["fast"] = fast = s["level"] if fast is None else fast + (s["level"] - fast) * min(1.0, dt / 0.6)
-        if not bored and moving and avg is not None and fast > avg * 1.25 + 0.05 and t - st["spin_t"] > 8:
+        listening = bool(st.get("listen"))
+        if listening:
+            st["move"] = None
+        if not bored and not listening and moving and avg is not None and fast > avg * 1.25 + 0.05 \
+                and t - st["spin_t"] > 8:
             st["spin_t"] = t
             st["move"] = ("spin", t)                                 # Höhepunkt: Drehung um die Stange
         pose = _bal_mix(st["from"], st["to"], _smooth((t - st["t0"]) / st["dur"]))
@@ -342,7 +398,11 @@ class BalletVisual:
             else:
                 st["move"] = None
         pose = dict(pose)
-        if not bored:                                             # Atmen, Port de bras, Akzent
+        if listening:                                             # nickt im Takt, Fuß tippt
+            nod = math.exp(-max(0.0, t - s.get("beat_t", -9)) * 8)
+            pose["head"] += 12 * nod
+            pose["rf"] = (pose["rf"][0], pose["rf"][1] - 6 * nod)
+        elif not bored:                                           # Atmen, Port de bras, Akzent
             a = st["accent"]
             pose["rh"] = (pose["rh"][0], pose["rh"][1] - 7 * a + math.sin(t * 2.2) * 3 * energy)
             pose["head"] += 10 * a + math.sin(t * 1.7) * 4 * energy

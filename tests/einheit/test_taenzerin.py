@@ -64,9 +64,51 @@ for _ in range(FPS * 2):
     st = frame(talk=True, talk_t=5000.0)
 eq(st.get("bored"), "sit", "Nach 30 s: sitzt an der Stange")
 k = st["k"]
-for _ in range(FPS * 2):
+st = frame()
+ok(st.get("bored") is None and st.get("listen"), "Musik zurück: erst zuhören")
+for _ in range(FPS * 4):
     st = frame()
-ok(st.get("bored") is None and st["k"] > k, "Musik zurück: tanzt weiter")
+ok(not st.get("listen") and st["k"] > k, "… dann tanzt sie weiter")
+
+# Liedwechsel: erst den Takt hören (5 gleichmäßige Schläge), dann im gefundenen Tempo tanzen
+r._vis_states = {}
+r._vis_song = "AC/DC – Thunderstruck"
+for _ in range(FPS * 3):
+    st = frame()
+k = st["k"]
+r._vis_song = "Queen – Bohemian Rhapsody"
+st = frame()
+ok(st.get("listen"), "Neues Lied: sie hört zu")
+listen_frames = 0
+while st.get("listen") and listen_frames < FPS * 10:
+    st = frame()
+    listen_frames += 1
+eq(st["k"], k, "Beim Zuhören keine neuen Schritte")
+ok(1.8 <= listen_frames / FPS <= 3.0, f"Takt nach {listen_frames / FPS:.1f} s gefunden (5 Schläge bei 120/min)")
+ok(abs(st.get("tempo", 0) - 0.5) < 0.03, f"Tempo erkannt: {st.get('tempo')}")
+for _ in range(FPS):
+    st = frame()
+ok(st["k"] > k, "Danach tanzt sie im Takt")
+
+# Unregelmäßige Schläge: spätestens nach 8 s geht es trotzdem los
+r._vis_states = {}
+r._vis_song = "A"
+frame()
+r._vis_song = "B"
+import random
+rnd = random.Random(3)
+bt, beats, n = 5000.0, 0, 0
+while True:
+    t = 5000 + T[0]
+    if t >= bt:
+        beats += 1
+        bt = t + rnd.uniform(0.3, 0.9)
+    st = frame(beats=beats, beat_t=t)
+    n += 1
+    if not st.get("listen") or n > FPS * 12:
+        break
+ok(7.5 <= n / FPS <= 8.5, f"Ohne klaren Takt: Start nach {n / FPS:.1f} s")
+r._vis_song = ""
 
 # Lichtshow aus dem Optionsmenü
 eq((O["show"], O["strobe"]), ("off", "off"), "Standard: Studio ohne Lichtshow, kein Stroboskop")

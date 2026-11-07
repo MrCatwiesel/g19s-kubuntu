@@ -3,6 +3,9 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.07-11
+- Tänzerin an der Stange: Nach einem **Liedwechsel** (neuer Titel, Musik nach einer Pause oder nach einem Wortbeitrag) hört sie erst zu – sie steht an der Stange, nickt und tippt mit dem Fuß auf die Schläge. Sobald fünf Schläge gleichmäßig gekommen sind, beginnt sie im gefundenen Tempo zu tanzen; ist kein klarer Takt zu hören, spätestens nach 8 Sekunden.
+
 ## 2026.11.07-10
 - Tänzerin an der Stange: natürlichere Proportionen – längere Beine, schmalere Taille, längerer Hals, etwas kleinerer Kopf; Ober- und Unterschenkel sowie Arme verjüngen sich (Knie, Fesseln, Handgelenke schlank, Wade leicht gerundet), keine sichtbaren „Gelenkkugeln“ mehr. Trikot, Rock, Haltungen und Figuren bleiben.
 

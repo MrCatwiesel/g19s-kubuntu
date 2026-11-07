@@ -237,6 +237,21 @@ def _pole_move(r, move, frac):
     return img
 
 
+def _listen(r):
+    """Tänzerin live: Musik setzt nach einer Pause wieder ein – sie hört zu und nickt im Takt."""
+    r.visual_style, r.visual = "dancer", _Live()
+    r.settings = json.loads(json.dumps(settings))
+    img = r.render(g.PAGE_IDS.index("visual"), "M2", macros)
+    r.visual.t += 3.0                                        # Pause → nächstes Bild beginnt das Zuhören
+    for _ in range(int(1.55 * 15)):
+        img = r.render(g.PAGE_IDS.index("visual"), "M2", macros)
+        r.visual.t += 1 / 15
+    return img
+
+
+scenes["vis_taenzerin_zuhoeren"] = _listen
+
+
 for _m, _f in (("fireman", 0.5), ("climb", 0.5), ("hook", 0.5), ("split", 0.5)):
     scenes[f"vis_taenzerin_{_m}"] = lambda r, m=_m, f=_f: _pole_move(r, m, f)
 
