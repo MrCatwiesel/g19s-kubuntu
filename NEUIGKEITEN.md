@@ -3,6 +3,10 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.07-2
+- Verwaltung: Der Knopf „Änderungen speichern“ steht jetzt zusätzlich oben neben den Reitern und bleibt beim Scrollen sichtbar. Bisher gab es ihn nur in der Leiste am unteren Fensterrand – war das Fenster höher als der freie Platz, lag diese Leiste unsichtbar hinter der Taskleiste.
+- Die Verwaltung öffnet ihr Fenster nur noch so groß, wie der Bildschirm Platz hat (mit Raum für Taskleiste und Titelleiste).
+
 ## 2026.11.07-1
 - Visualisierung „Weihnachten“: neue Option **„Feierabend“** (derber Humor, Standard aus; An oder nur abends von 20 bis 4 Uhr). Weihnachtsmann und Weihnachtsfrau trinken Glühwein über den Durst – eine Runde dauert 5, 10, 15 oder 20 Minuten Musik und läuft so ab:
   - Sie prosten sich im Takt zu, tanzen immer wackliger, seine Nase wird röter, Schluckauf („Hicks!“) auf den Schlag.

@@ -49,7 +49,12 @@ with sync_playwright() as p:
     pg.select_option("#clkFace", "radar"); pg.wait_for_timeout(300)
     ok("keine Einstellungen" in pg.inner_text("#clkOpts"), "Radaruhr ohne Einstellungen")
     pg.screenshot(path=ROOT + "/shots/uhr_karte.png", full_page=True)
-    pg.click("#saveSettings"); pg.wait_for_timeout(600)
+    ok(pg.is_visible("#saveTop") and pg.is_visible("#saveSettings"), "Speichern oben und unten sichtbar")
+    pg.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+    box = pg.locator("#saveTop").bounding_box()
+    ok(box is not None and 0 <= box["y"] < 80, f"Speichern oben bleibt beim Scrollen im Bild ({box})")
+    pg.click("#saveTop"); pg.wait_for_timeout(600)
+    ok(not pg.is_visible("#saveTop") and not pg.is_visible("#saveSettings"), "Nach dem Speichern beide ausgeblendet")
     c = cfg()["clock"]
     ok(c["binary"]["color_h"] == [255, 48, 48] and c["binary"]["mode"] == "binary" and c["binary"]["digits"] is False,
        "Binäruhr gespeichert: " + json.dumps(c["binary"]))

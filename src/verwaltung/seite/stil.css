@@ -25,7 +25,12 @@ header .sub { color: var(--muted); font-size: 13px; }
   font-size: 12.5px; background: var(--panel2); border: 1px solid var(--line); white-space: nowrap; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
 .dot.ok { background: var(--ok); } .dot.bad { background: var(--danger); } .dot.warn { background: var(--warn); }
-nav { display: flex; gap: 4px; padding: 12px 22px 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
+nav { display: flex; gap: 4px; padding: 12px 22px 0; border-bottom: 1px solid var(--line); overflow-x: auto;
+  position: sticky; top: 0; z-index: 6; background: var(--bg); }
+/* Speichern auch oben (die Leiste unten kann hinter einer Taskleiste liegen, wenn das Fenster zu hoch ist) */
+nav button.navsave { display: none; margin: 0 0 6px auto; align-self: center; border: 1px solid var(--accent);
+  white-space: nowrap; }
+nav button.navsave.show { display: inline-flex; }
 nav button { background: none; border: 0; padding: 9px 14px; border-bottom: 2px solid transparent;
   color: var(--muted); cursor: pointer; font-weight: 550; white-space: nowrap; }
 nav button.active { color: var(--text); border-bottom-color: var(--accent); }

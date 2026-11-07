@@ -4,6 +4,56 @@
 # --------------------------------------------------------------------------- #
 # Start
 # --------------------------------------------------------------------------- #
+WINDOW_SIZE = (1200, 860)       # Wunschgröße des Fensters; kleiner, wenn der Bildschirm nicht reicht
+
+
+def parse_kscreen(text):
+    """Logische Größe (Breite, Höhe) des Hauptbildschirms aus `kscreen-doctor -j` (Skalierung eingerechnet)."""
+    outs = [o for o in (json.loads(text).get("outputs") or []) if o.get("enabled") and o.get("connected", True)]
+    if not outs:
+        return None
+    o = min(outs, key=lambda o: o.get("priority") or 99)
+    size = o.get("size") or {}
+    mode = next((m for m in o.get("modes") or [] if str(m.get("id")) == str(o.get("currentModeId"))), None)
+    if mode and mode.get("size"):
+        size = mode["size"]
+    w, h = size.get("width"), size.get("height")
+    if not w or not h:
+        return None
+    if o.get("rotation") in (2, 8):                     # hochkant gedreht
+        w, h = h, w
+    scale = float(o.get("scale") or 1) or 1.0
+    return int(w / scale), int(h / scale)
+
+
+def parse_xrandr(text):
+    m = re.search(r"current (\d+) x (\d+)", text)
+    return (int(m.group(1)), int(m.group(2))) if m else None
+
+
+def screen_size():
+    """Größe des Bildschirms (KDE: kscreen-doctor, sonst xrandr); None = unbekannt."""
+    for cmd, parse in ((["kscreen-doctor", "-j"], parse_kscreen), (["xrandr", "--current"], parse_xrandr)):
+        if not shutil.which(cmd[0]):
+            continue
+        try:
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
+            size = parse(r.stdout)
+            if size:
+                return size
+        except (OSError, subprocess.SubprocessError, ValueError, AttributeError, TypeError):
+            continue
+    return None
+
+
+def window_size(screen):
+    """Fenstergröße: höchstens WINDOW_SIZE, aber mit Platz für Taskleiste und Titelleiste (unten/oben 140 Pixel)."""
+    w, h = WINDOW_SIZE
+    if screen:
+        w, h = min(w, screen[0] - 40), min(h, screen[1] - 140)
+    return max(640, w), max(420, h)
+
+
 def open_window(url, browser=None):
     if browser:
         cmd = shlex.split(browser) + [url]
@@ -12,7 +62,8 @@ def open_window(url, browser=None):
         for b in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser",
                   "brave-browser", "microsoft-edge"):
             if shutil.which(b):
-                cmd = [b, f"--app={url}", "--window-size=1200,860"]
+                w, h = window_size(screen_size())
+                cmd = [b, f"--app={url}", f"--window-size={w},{h}"]
                 break
         if cmd is None:
             cmd = ["xdg-open", url]

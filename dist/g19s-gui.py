@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.07-1"
+VERSION = "2026.11.07-2"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -1238,6 +1238,56 @@ class Handler(ApiKeys, ApiRadio, ApiInfo, ApiSlides, ApiService, http.server.Bas
 # --------------------------------------------------------------------------- #
 # Start
 # --------------------------------------------------------------------------- #
+WINDOW_SIZE = (1200, 860)       # Wunschgröße des Fensters; kleiner, wenn der Bildschirm nicht reicht
+
+
+def parse_kscreen(text):
+    """Logische Größe (Breite, Höhe) des Hauptbildschirms aus `kscreen-doctor -j` (Skalierung eingerechnet)."""
+    outs = [o for o in (json.loads(text).get("outputs") or []) if o.get("enabled") and o.get("connected", True)]
+    if not outs:
+        return None
+    o = min(outs, key=lambda o: o.get("priority") or 99)
+    size = o.get("size") or {}
+    mode = next((m for m in o.get("modes") or [] if str(m.get("id")) == str(o.get("currentModeId"))), None)
+    if mode and mode.get("size"):
+        size = mode["size"]
+    w, h = size.get("width"), size.get("height")
+    if not w or not h:
+        return None
+    if o.get("rotation") in (2, 8):                     # hochkant gedreht
+        w, h = h, w
+    scale = float(o.get("scale") or 1) or 1.0
+    return int(w / scale), int(h / scale)
+
+
+def parse_xrandr(text):
+    m = re.search(r"current (\d+) x (\d+)", text)
+    return (int(m.group(1)), int(m.group(2))) if m else None
+
+
+def screen_size():
+    """Größe des Bildschirms (KDE: kscreen-doctor, sonst xrandr); None = unbekannt."""
+    for cmd, parse in ((["kscreen-doctor", "-j"], parse_kscreen), (["xrandr", "--current"], parse_xrandr)):
+        if not shutil.which(cmd[0]):
+            continue
+        try:
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
+            size = parse(r.stdout)
+            if size:
+                return size
+        except (OSError, subprocess.SubprocessError, ValueError, AttributeError, TypeError):
+            continue
+    return None
+
+
+def window_size(screen):
+    """Fenstergröße: höchstens WINDOW_SIZE, aber mit Platz für Taskleiste und Titelleiste (unten/oben 140 Pixel)."""
+    w, h = WINDOW_SIZE
+    if screen:
+        w, h = min(w, screen[0] - 40), min(h, screen[1] - 140)
+    return max(640, w), max(420, h)
+
+
 def open_window(url, browser=None):
     if browser:
         cmd = shlex.split(browser) + [url]
@@ -1246,7 +1296,8 @@ def open_window(url, browser=None):
         for b in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser",
                   "brave-browser", "microsoft-edge"):
             if shutil.which(b):
-                cmd = [b, f"--app={url}", "--window-size=1200,860"]
+                w, h = window_size(screen_size())
+                cmd = [b, f"--app={url}", f"--window-size={w},{h}"]
                 break
         if cmd is None:
             cmd = ["xdg-open", url]
@@ -1461,7 +1512,12 @@ header .sub { color: var(--muted); font-size: 13px; }
   font-size: 12.5px; background: var(--panel2); border: 1px solid var(--line); white-space: nowrap; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
 .dot.ok { background: var(--ok); } .dot.bad { background: var(--danger); } .dot.warn { background: var(--warn); }
-nav { display: flex; gap: 4px; padding: 12px 22px 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
+nav { display: flex; gap: 4px; padding: 12px 22px 0; border-bottom: 1px solid var(--line); overflow-x: auto;
+  position: sticky; top: 0; z-index: 6; background: var(--bg); }
+/* Speichern auch oben (die Leiste unten kann hinter einer Taskleiste liegen, wenn das Fenster zu hoch ist) */
+nav button.navsave { display: none; margin: 0 0 6px auto; align-self: center; border: 1px solid var(--accent);
+  white-space: nowrap; }
+nav button.navsave.show { display: inline-flex; }
 nav button { background: none; border: 0; padding: 9px 14px; border-bottom: 2px solid transparent;
   color: var(--muted); cursor: pointer; font-weight: 550; white-space: nowrap; }
 nav button.active { color: var(--text); border-bottom-color: var(--accent); }
@@ -1669,6 +1725,7 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
   <button data-tab="slides">Diashow<span class="badge"></span></button>
   <button data-tab="info">Infoseiten<span class="badge"></span></button>
   <button data-tab="service">Dienst & Sicherung</button>
+  <button class="btn primary small navsave" id="saveTop" title="Wie „Änderungen speichern“ unten">Änderungen speichern</button>
 </nav>
 <main>
   <div class="warnbox banner row" id="extBanner">
@@ -3476,7 +3533,9 @@ $("#hwRefresh").addEventListener("click", refreshHardware);
 function renderSavebar() {
   const show = UI.sDirty && ["radio", "snippets", "settings", "slides", "info", "service"].includes(UI.tab);
   $("#savebar").classList.toggle("show", show);
+  $("#saveTop").classList.toggle("show", show);
 }
+$("#saveTop").addEventListener("click", () => $("#saveSettings").click());
 $("#saveSettings").addEventListener("click", async () => {
   const bad = UI.sdraft.stations.find(s => s.url && !/^https?:\/\//i.test(s.url));
   if (bad) { toast(`Die Stream-Adresse von „${bad.name || bad.url}“ muss mit http:// oder https:// beginnen.`, true); return; }

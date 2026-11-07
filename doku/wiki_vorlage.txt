@@ -218,7 +218,7 @@ Start über das Anwendungsmenü: '''G19s-Verwaltung''' (oder im Terminal <code>p
 
 Das Programm startet einen kleinen Server, der nur auf diesem Rechner erreichbar ist (<code>127.0.0.1</code>, mit Zugangsschlüssel), und öffnet die Oberfläche im Browser. Ist Chrome oder Chromium installiert, erscheint sie als eigenes App-Fenster, sonst als Tab im Standardbrowser. Nach dem Schließen des Fensters beendet sich das Programm nach etwa 45 Sekunden selbst. Ein erneuter Start öffnet das vorhandene Fenster wieder.
 
-Alle Änderungen übernimmt der laufende Treiber sofort, ein Neustart ist nicht nötig.
+Geänderte Einstellungen (alle Reiter außer „Tasten“) speichert '''Änderungen speichern''' – der Knopf erscheint oben neben den Reitern und in der Leiste am unteren Fensterrand, sobald etwas geändert ist. Das Fenster öffnet sich höchstens so groß, wie der Bildschirm Platz hat. Alle Änderungen übernimmt der laufende Treiber sofort, ein Neustart ist nicht nötig.
 
 {| class="wikitable"
 ! Reiter !! Inhalt

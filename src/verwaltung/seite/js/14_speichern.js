@@ -2,7 +2,9 @@
 function renderSavebar() {
   const show = UI.sDirty && ["radio", "snippets", "settings", "slides", "info", "service"].includes(UI.tab);
   $("#savebar").classList.toggle("show", show);
+  $("#saveTop").classList.toggle("show", show);
 }
+$("#saveTop").addEventListener("click", () => $("#saveSettings").click());
 $("#saveSettings").addEventListener("click", async () => {
   const bad = UI.sdraft.stations.find(s => s.url && !/^https?:\/\//i.test(s.url));
   if (bad) { toast(`Die Stream-Adresse von „${bad.name || bad.url}“ muss mit http:// oder https:// beginnen.`, true); return; }
