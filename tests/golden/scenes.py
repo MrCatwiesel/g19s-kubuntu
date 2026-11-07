@@ -143,6 +143,7 @@ for name, style, opts in (("eq_gespiegelt", "eq", {"mirror": True, "colors": "ra
                           ("taenzerin_ohne_buehne", "dancer", {"stage": False, "color": [255, 80, 180]}),
                           ("taenzerin_disco", "dancer", {"show": "club", "beams": "7"}),
                           ("taenzerin_scheinwerfer", "dancer", {"show": "beams"}),
+                          ("taenzerin_blond", "dancer", {"hair": "blond"}),
                           ("oszi_stereo", "scope", {"mode": "xy", "color": [255, 200, 0]}),
                           ("vu_dunkel", "vu", {"dial": "dark"}), ("spektrogramm_eis", "spectro", {"palette": "ice"}),
                           ("weihnachtsmann", "xmas", {"dance": "santa", "snow": "heavy"}),
@@ -222,6 +223,22 @@ def _strobe(r):
 
 
 scenes["vis_lichtshow_strobo"] = _strobe
+
+
+def _pole_move(r, move, frac):
+    """Tänzerin live: Figur an der Stange move erzwingen und bis frac ihrer Dauer spielen."""
+    r.visual_style, r.visual = "dancer", _Live()
+    r.settings = json.loads(json.dumps(settings))
+    img = r.render(g.PAGE_IDS.index("visual"), "M2", macros)
+    r._vis_states["dancer"]["move"] = (move, r.visual.t)
+    for _ in range(int(g.BAL_MOVES[move][0] * frac * 15)):
+        r.visual.t += 1 / 15
+        img = r.render(g.PAGE_IDS.index("visual"), "M2", macros)
+    return img
+
+
+for _m, _f in (("fireman", 0.5), ("climb", 0.5), ("hook", 0.5), ("split", 0.5)):
+    scenes[f"vis_taenzerin_{_m}"] = lambda r, m=_m, f=_f: _pole_move(r, m, f)
 
 
 class _PartyClock:

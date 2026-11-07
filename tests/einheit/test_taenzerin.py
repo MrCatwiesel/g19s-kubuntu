@@ -1,6 +1,7 @@
 """Stil „Tänzerin an der Stange“: Haltung wechselt auf Bassschläge, hohe Schläge geben Akzente, Höhepunkt löst eine
 Drehung um die Stange aus, Wortbeitrag → Langeweile an der Stange (nach 30 s sitzt sie), Rock schwingt nach;
-Lichtshow (Scheinwerfer, Disco mit Spiegelkugel) und Stroboskop über das Optionsmenü."""
+Lichtshow (Scheinwerfer, Disco mit Spiegelkugel) und Stroboskop über das Optionsmenü; Figuren an der Stange
+(alle 8 Schläge die nächste), Haarfarbe."""
 import time
 import numpy as np
 from common import g, eq, ok, done
@@ -38,15 +39,17 @@ st = frame(hats=st["hats"] + 1, hat=0.1)
 st2 = frame(hats=st["hats"] + 1, hat=0.1)
 ok(st2["accent"] < 0.5, "Ganz leiser hoher Schlag: kein neuer Akzent")
 
-# Höhepunkt → Drehung um die Stange (Hüfte wechselt die Seite der Stange)
+# Höhepunkt → Drehung um die Stange (zusätzlich zu den Figuren alle 8 Schläge)
 r._vis_states = {}
-xs = []
+spins = []
 for i in range(FPS * 12):
     st = frame(amp=0.62 if i < FPS * 8 else 1.0)
-    xs.append(st["hip_x"])
-quiet, loud = xs[:FPS * 8], xs[FPS * 8:]
-ok(min(quiet) > g.BAL_POLE_X and min(loud) < g.BAL_POLE_X - 10, "Höhepunkt: Drehung um die Stange")
-ok(xs[-1] > g.BAL_POLE_X, "Nach der Drehung wieder an ihrem Platz")
+    if st.get("move") and st["move"][0] == "spin":
+        spins.append(i / FPS)
+ok(spins and min(spins) >= 8.0, f"Höhepunkt: Drehung um die Stange erst, als es lauter wird ({spins[:1]})")
+for _ in range(FPS * 4):
+    st = frame()
+ok(st["hip_x"] > g.BAL_POLE_X, "Nach der Drehung wieder an ihrem Platz")
 hem = st["hem"]
 ok(len(hem) == 9 and all(len(p) == 4 for p in hem), "Rock: Saumpunkte mit Geschwindigkeit (Nachschwingen)")
 
@@ -100,4 +103,35 @@ for i in range(FPS * 10):
         flashes.append(i / FPS)
 gaps = [b - a for a, b in zip(flashes, flashes[1:])]
 ok(len(flashes) >= 10 and min(gaps) >= 1 / 3 - 1e-6, f"Stroboskop bei der Tänzerin: {len(flashes)} Blitze, ≤ 3 je Sekunde")
+
+# Figuren an der Stange: alle 8 Schläge die nächste, alle kommen vor
+r._vis_states = {}
+T[0] = 0.0
+seen = set()
+for _ in range(FPS * 40):
+    st = frame()
+    mv = st.get("move")
+    if mv:
+        seen.add(mv[0])
+eq(seen >= set(g.BAL_MOVE_ORDER), True, f"Alle Figuren an der Stange in 40 s: {sorted(seen)}")
+ok(all(m in g.BAL_MOVES for m in g.BAL_MOVE_ORDER) and all(p[1] in g.BAL_POSES for p in g.BAL_MOVES.values()),
+   "Jede Figur hat eine Haltung")
+
+# Klettern: sie ist ein gutes Stück über dem Boden
+r._vis_states = {}
+frame()
+r._vis_states["dancer"]["move"] = ("climb", 5000 + T[0])
+low = 999
+for _ in range(int(FPS * 2.1)):
+    st = frame()
+    low = min(low, min(p[1] for p in st["hem"]))
+ok(low < 132, f"Klettern: Rocksaum hoch über dem Boden ({low:.0f})")
+
+# Haarfarbe
+dark = img_with({})
+blond = img_with({"hair": "blond"})
+diff = np.abs(dark - blond).sum(axis=2) > 60
+ys, xs = np.nonzero(diff[:g.VIS_H])
+ok(diff.sum() > 20 and ys.mean() < 110, f"Haarfarbe ändert nur den Kopf ({diff.sum()} Pixel)")
+eq(O["hair"], "dark", "Standard: dunkles Haar")
 done()

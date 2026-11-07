@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.11.07-8)
+| 28.09.2026 (Version 2026.11.07-9)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -182,7 +182,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.07-8"
+VERSION = "2026.11.07-9"
 
 # Weitere Importe der Module
 import select
@@ -394,6 +394,10 @@ VISUAL_OPTIONS = {
         {"key": "color", "label": "Farbe des Trikots", "type": "color", "default": None,
          "none_label": "Weinrot (Standard)"},
         {"key": "stage", "label": "Bühnenlicht", "type": "bool", "default": True},
+        {"key": "hair", "label": "Haarfarbe", "type": "choice", "default": "dark",
+         "choices": [["dark", "Dunkelbraun"], ["black", "Schwarz"], ["brown", "Braun"], ["auburn", "Kupfer"],
+                     ["red", "Rot"], ["blond", "Blond"], ["platinum", "Platinblond"], ["silver", "Silbergrau"],
+                     ["pink", "Pink"], ["blue", "Blau"]]},
         {"key": "show", "label": "Lichtshow", "type": "choice", "default": "off",
          "choices": [["off", "Aus (Studio)"], ["beams", "Scheinwerfer"],
                      ["club", "Disco (abgedunkelt, Scheinwerfer, Spiegelkugel, Lichtpunkte)"]]},
@@ -12562,6 +12566,37 @@ BAL_POSES = {
              "lean": 8, "head": 14, "rise": 1, "dip": 0, "hx": 0},
 }
 BAL_CHOREO = ["passe", "fifth", "arabesque", "plie", "battement", "passe", "port", "attitude", "lean", "fifth"]
+# Haltungen für Figuren an der Stange (BAL_MOVES)
+BAL_POSES.update({
+    "fireman": {"lh": (-30, -36), "lp": 1, "rh": (-30, -14), "rp": 1, "lf": (14, 26), "lb": -1, "rf": (20, 24), "rb": -1,
+                "lean": -10, "head": -14, "rise": 1, "dip": 0, "hx": 0},
+    "chair": {"lh": (-30, -32), "lp": 1, "rh": (32, -18), "rp": 0, "lf": (30, 22), "lb": -1, "rf": (36, 20), "rb": -1,
+              "lean": -8, "head": 10, "rise": 1, "dip": 0, "hx": 0},
+    "hook": {"lh": (-30, -22), "lp": 1, "rh": (40, -8), "rp": 0, "lf": (-46, 16), "lb": 1, "rf": (34, 40), "rb": -1,
+             "lean": 22, "head": 22, "rise": 1, "dip": 0, "hx": 0},
+    "polesit": {"lh": (-14, -40), "lp": 1, "rh": (-20, -18), "rp": 1, "lf": (-26, 28), "lb": 1, "rf": (-10, 40),
+                "rb": 1, "lean": -12, "head": -10, "rise": 1, "dip": 0, "hx": 0},
+    "split": {"lh": (-30, -30), "lp": 1, "rh": (8, -40), "rp": 0, "lf": (2, 66), "lb": 1, "rf": (26, -56), "rb": -1,
+              "lean": -20, "head": -14, "rise": 1, "dip": 0, "hx": -2},           # Seitspagat im Stand
+})
+# Figuren an der Stange: Dauer (s), Haltung, Umlauf um die Stange (Anteil Kreis), Abstand zur Stange (Anteil),
+# Hub (Pixel nach oben). Alle 8 Schläge kommt die nächste; „spin“ zusätzlich, wenn die Musik deutlich lauter wird.
+BAL_MOVES = {
+    "spin": (2.6, "attitude", 1.0, 1.0, 0),
+    "fireman": (2.6, "fireman", 1.0, 0.75, 16),
+    "chair": (2.6, "chair", 1.0, 0.8, 12),
+    "hook": (2.4, "hook", 0.45, 0.7, 4),
+    "climb": (4.2, "polesit", 0.0, 0.45, 36),
+    "wave": (2.6, "lean", 0.0, 0.7, 0),
+    "pirouette": (1.6, "fifth", 0.0, 1.0, 0),
+    "split": (3.0, "split", 0.0, 0.85, 0),
+}
+BAL_MOVE_ORDER = ["fireman", "pirouette", "hook", "chair", "climb", "wave", "split", "pirouette"]
+BAL_HAIR_COLORS = {
+    "dark": (38, 24, 18), "black": (14, 12, 14), "brown": (92, 56, 30), "auburn": (130, 52, 24), "red": (176, 50, 30),
+    "blond": (214, 176, 102), "platinum": (232, 222, 196), "silver": (184, 186, 196), "pink": (232, 104, 168),
+    "blue": (60, 110, 220),
+}
 # Langeweile bei Wortbeiträgen (Namen wie _bored_pose: cross, yawn, hips = dehnen, watch, sit)
 BAL_BORED = {
     "cross": {"lh": (12, 18), "lp": 0, "rh": (-12, 18), "rp": 0, "lf": (-12, 66), "lb": 1, "rf": (4, 66), "rb": -1,
@@ -12643,7 +12678,7 @@ class BalletVisual:
         self._blob(img, x, bottom + 1, 26, 6, (180, 184, 194), gloss=1.0)
 
     # -- Figur --------------------------------------------------------------- #
-    def _bal_figure(self, img, d, hip, pose, t, skirt, leo, pole_x):
+    def _bal_figure(self, img, d, hip, pose, t, skirt, leo, pole_x, hair=BAL_HAIR):
         """Ballerina zeichnen: Rock (hinten), Beine, Rumpf mit Trikot, Arme, Kopf. Gibt Kopf und Hände zurück."""
         hx, hy = hip
         lean = math.radians(pose["lean"])
@@ -12710,8 +12745,8 @@ class BalletVisual:
         hd = math.radians(pose["head"] + pose["lean"])
         head = (neck[0] + math.sin(hd) * 10, neck[1] - 13)
         self._blob(img, head[0], head[1], 17, 21, BAL_SKIN, gloss=0.4)
-        self._blob(img, head[0] - math.sin(hd) * 2, head[1] - 7, 18, 11, BAL_HAIR, gloss=0.7)     # Haar
-        self._blob(img, head[0] - math.sin(hd) * 4 - 2, head[1] - 12, 10, 9, BAL_HAIR, gloss=0.8)  # Dutt
+        self._blob(img, head[0] - math.sin(hd) * 2, head[1] - 7, 18, 11, hair, gloss=0.7)     # Haar
+        self._blob(img, head[0] - math.sin(hd) * 4 - 2, head[1] - 12, 10, 9, hair, gloss=0.8)  # Dutt
         ex = head[0] + math.sin(hd) * 3
         for side in (-1, 1):
             d.line([(ex + side * 3 - 1, head[1] - 1), (ex + side * 3 + 1, head[1] - 1)], fill=(40, 24, 20))
@@ -12777,6 +12812,10 @@ class BalletVisual:
                 st["beats"] = s["beats"]
                 st["k"] += 1
                 go(BAL_POSES[BAL_CHOREO[st["k"] % len(BAL_CHOREO)]], min(0.4, period * 0.6))
+                mv = st.get("move")
+                if st["k"] % 8 == 4 and moving and (mv is None or t - mv[1] > BAL_MOVES[mv[0]][0]):
+                    st["mi"] = st.get("mi", -1) + 1                  # nächste Figur an der Stange
+                    st["move"] = (BAL_MOVE_ORDER[st["mi"] % len(BAL_MOVE_ORDER)], t)
             energy = 0.35 + 0.65 * s["level"] if moving else 0.2
         hats = s.get("hats", 0)                                   # hoher Schlag: Akzent
         if hats != st["hats"]:
@@ -12790,11 +12829,32 @@ class BalletVisual:
         st["fast"] = fast = s["level"] if fast is None else fast + (s["level"] - fast) * min(1.0, dt / 0.6)
         if not bored and moving and avg is not None and fast > avg * 1.25 + 0.05 and t - st["spin_t"] > 8:
             st["spin_t"] = t
+            st["move"] = ("spin", t)                                 # Höhepunkt: Drehung um die Stange
         pose = _bal_mix(st["from"], st["to"], _smooth((t - st["t0"]) / st["dur"]))
-        spin_k = (t - st["spin_t"]) / BAL_SPIN
-        spinning = 0 <= spin_k < 1 and not bored
-        if spinning:                                              # in der Drehung: Attitude
-            pose = _bal_mix(pose, BAL_POSES["attitude"], min(1.0, spin_k * 6, (1 - spin_k) * 6))
+        mv = st.get("move")
+        ang, radius, lift, turn = 0.0, 1.0, 0.0, False
+        spinning = False
+        if mv and not bored:
+            dur, mpose, circle, radius, hub = BAL_MOVES[mv[0]]
+            mk = (t - mv[1]) / dur
+            if 0 <= mk < 1:
+                spinning = True
+                w = min(1.0, mk * 6, (1 - mk) * 6)
+                target = dict(BAL_POSES[mpose])
+                if mv[0] == "wave":                                  # Körperwelle an der Stange
+                    target["lean"] = 10 + 16 * math.sin(mk * 4 * math.pi)
+                    target["dip"] = 6 * max(0.0, math.sin(mk * 4 * math.pi + 1))
+                if mv[0] == "hook":                                  # hinausschwingen und zurück
+                    ang = math.sin(mk * math.pi) * circle * 2 * math.pi
+                else:
+                    ang = _smooth(mk) * circle * 2 * math.pi
+                pose = _bal_mix(pose, target, w)
+                radius = 1 + (radius - 1) * w
+                lift = hub * math.sin(mk * math.pi) ** (0.6 if mv[0] == "climb" else 1)
+                turn = mv[0] == "pirouette" and 0.25 <= mk < 0.75   # Pirouette: halbe Zeit von hinten/anders herum
+                spin_k = mk
+            else:
+                st["move"] = None
         pose = dict(pose)
         if not bored:                                             # Atmen, Port de bras, Akzent
             a = st["accent"]
@@ -12802,14 +12862,13 @@ class BalletVisual:
             pose["head"] += 10 * a + math.sin(t * 1.7) * 4 * energy
             phase = ((t - st["t0"]) / period) % 1.0
             pose["dip"] += (1 - pose["rise"]) * math.cos(2 * math.pi * phase) * 3 * energy
-        ang = _smooth(spin_k) * 2 * math.pi if spinning else 0.0
-        orbit = BAL_HIP_DX * math.cos(ang)
+        orbit = BAL_HIP_DX * radius * math.cos(ang)
         depth = math.sin(ang)                                     # > 0: hinter der Stange
         sitting = pose["dip"] > 40
         rise = 6 * pose["rise"]
         hip = (BAL_POLE_X + orbit + pose["hx"] * (1 if orbit >= 0 else -1),
-               BAL_FLOOR - BAL_TH - BAL_SH - 1 - rise + pose["dip"])
-        flip = orbit < 0
+               BAL_FLOOR - BAL_TH - BAL_SH - 1 - rise + pose["dip"] - lift)
+        flip = (orbit < 0) != turn
         if flip:                                                  # auf der anderen Seite: gespiegelte Haltung
             pose = {**pose, "lean": -pose["lean"], "head": -pose["head"],
                     "lh": (-pose["rh"][0], pose["rh"][1]), "rh": (-pose["lh"][0], pose["lh"][1]),
@@ -12820,7 +12879,7 @@ class BalletVisual:
         swirl = max(-1.0, min(1.0, -dx / max(dt, 1e-3) / 120)) if dt > 0 else 0.0
         flare = (0.15 + 0.6 * s["bass"] * energy) if not bored else 0.05
         if spinning:
-            flare += 0.5 * math.sin(spin_k * math.pi)
+            flare += 0.5 * math.sin(spin_k * math.pi) * (1.0 if ang or turn else 0.4)
         hem = self._bal_skirt(st, hip, pose["lean"], dt, flare, swirl, sitting)
         leo = tuple(o["color"]) if o.get("color") else BAL_LEO
         img = self._bal_studio(s, o, bool(bored))
@@ -12837,11 +12896,13 @@ class BalletVisual:
         fig = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
         fd = ImageDraw.Draw(fig)
         shadow_x = hip[0]
-        self._blob(fig, shadow_x, BAL_FLOOR + 3, 56 if not sitting else 70, 8, (30, 18, 12), gloss=0, alpha=0.6, flat=True)
+        sw = (56 if not sitting else 70) * (1 - min(0.4, lift / 120))     # Schatten wird kleiner, wenn sie klettert
+        self._blob(fig, shadow_x, BAL_FLOOR + 3, sw, 8, (30, 18, 12), gloss=0, alpha=0.6, flat=True)
         behind = depth > 0.15 and spinning
         if not behind:
             self._bal_pole(fig, fd, BAL_POLE_X)
-        head, hands, _feet = self._bal_figure(fig, fd, hip, pose, t, hem, leo, BAL_POLE_X)
+        hair = BAL_HAIR_COLORS.get(o.get("hair"), BAL_HAIR)
+        head, hands, _feet = self._bal_figure(fig, fd, hip, pose, t, hem, leo, BAL_POLE_X, hair)
         if behind:
             self._bal_pole(fig, fd, BAL_POLE_X)
         x0, y0, x1, y1 = BAL_MIRROR                               # Spiegelbild: kleiner, gespiegelt, gedämpft
@@ -15366,7 +15427,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.07-8"
+VERSION = "2026.11.07-9"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -19562,7 +19623,7 @@ Die Seite '''Visualisierung''' bewegt sich zu allem, was der Rechner gerade absp
 |-
 | Grafik-Equalizer || LED-Balken mit fallenden Spitzenmarken || Anzahl der Balken (16–48), Farben (Grün-Gelb-Rot, Regenbogen, Farbe der Ebene), gespiegelt, Spitzenmarken
 |-
-| Tänzerin an der Stange || Ballerina im Tanzstudio (Spiegelwand mit Spiegelbild, Holzboden, Stange), räumlich gezeichnet, weinrotes Samttrikot, schwarzer Chiffonrock, der nachschwingt und mit dem Bass aufbläht, Spitzenschuhe. Auf jeden Bassschlag eine neue Haltung (Passé, 5. Position, Arabesque, Plié, Battement, Port de bras, Attitude, Lehnen an der Stange), hohe Schläge (Hi-Hat, Snare) geben Akzente mit Hand und Kopf, bei einem Höhepunkt dreht sie sich um die Stange. Bei '''Wortbeiträgen''' (siehe unten) langweilt sie sich an der Stange || Farbe des Trikots, Bühnenlicht, Lichtshow (aus, Scheinwerfer, Disco mit Spiegelkugel), Anzahl der Scheinwerfer, Stroboskop wie bei der Lichtshow
+| Tänzerin an der Stange || Ballerina im Tanzstudio (Spiegelwand mit Spiegelbild, Holzboden, Stange), räumlich gezeichnet, weinrotes Samttrikot, schwarzer Chiffonrock, der nachschwingt und mit dem Bass aufbläht, Spitzenschuhe. Auf jeden Bassschlag eine neue Haltung (Passé, 5. Position, Arabesque, Plié, Battement, Port de bras, Attitude, Lehnen an der Stange), hohe Schläge (Hi-Hat, Snare) geben Akzente mit Hand und Kopf, alle 8 Schläge eine Figur an der Stange (Fireman Spin, Pirouette, Hook, Chair Spin, Klettern mit Pole Sit, Körperwelle, Seitspagat), bei einem Höhepunkt dreht sie sich um die Stange. Bei '''Wortbeiträgen''' (siehe unten) langweilt sie sich an der Stange || Farbe des Trikots, Haarfarbe, Bühnenlicht, Lichtshow (aus, Scheinwerfer, Disco mit Spiegelkugel), Anzahl der Scheinwerfer, Stroboskop wie bei der Lichtshow
 |-
 | Lichtshow || Scheinwerfer schwenken, Farben pulsieren mit dem Bass, Spiegelkugel, Lichtpunkte; auf Wunsch Stroboskop || Anzahl der Scheinwerfer, sanfter Blitz bei kräftigen Schlägen, Stroboskop (aus, auf hohe Schläge wie Hi-Hat und Snare – nicht auf den Bass –, Salven bei Höhepunkten, beides; höchstens 1, 2 oder 3 Blitze je Sekunde; Farbe weiß, Scheinwerfer oder Ebene; Tastaturbeleuchtung blitzt mit). '''Vorsicht:''' Stroboskoplicht kann bei lichtempfindlichen Menschen Anfälle auslösen – deshalb ab Werk aus und nie mehr als 3 Blitze je Sekunde.
 |-
