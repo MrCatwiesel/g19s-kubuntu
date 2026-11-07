@@ -111,8 +111,15 @@ class XmasVisual:
                    math.degrees(math.atan2(dy, dx)), gloss)
 
     # -- Figuren ------------------------------------------------------------- #
-    def _santa(self, img, d, x, floor, pose, t, sitting=False, scroll=False):
-        """Weihnachtsmann: roter Mantel mit Fell, Gürtel, Stiefel, Bart, Mütze mit Bommel."""
+    def _santa(self, img, d, x, floor, pose, t, sitting=False, scroll=False, look=None):
+        """Weihnachtsmann: roter Mantel mit Fell, Gürtel, Stiefel, Bart, Mütze mit Bommel.
+        look (Feierabend): green = Gesicht grün (0–1), red = rote Nase (Pegel), hat = Mütze auf, snore = schnarcht."""
+        look = look or {}
+        skin, nose = XMAS_SKIN, (226, 110, 100)
+        if look.get("red"):
+            nose = _lerp(nose, (240, 40, 50), look["red"])
+        if look.get("green"):
+            skin, nose = _lerp(skin, PARTY_GREEN, look["green"]), _lerp(nose, (110, 170, 80), look["green"])
         hip = (x, floor - (22 if sitting else 44) + pose.get("bob", 0))
         self._blob(img, x, floor + 2, 62, 10, (150, 165, 190), gloss=0)              # Schatten
         for side in (-1, 1):                                                        # Beine
@@ -152,13 +159,19 @@ class XmasVisual:
                 d.line([(min(x1, x2) + 3, yy), (max(x1, x2) - 3 - (k % 3) * 3, yy)], fill=(120, 110, 140))
         hd = pose.get("head", 0)
         head = (neck[0] + math.sin(math.radians(lean + hd)) * 14, neck[1] - 13)
-        self._blob(img, head[0], head[1], 28, 28, XMAS_SKIN, gloss=0.3)             # Kopf
-        self._blob(img, head[0], head[1] + 11, 32, 26, XMAS_FUR, gloss=0.15)        # Bart
+        self.__dict__.setdefault("_xmas_heads", {})["santa"] = head
+        self.__dict__.setdefault("_xmas_hands", {})["santa"] = hands
+        self._blob(img, head[0], head[1], 28, 28, skin, gloss=0.3)                  # Kopf
+        beard = 26 + (math.sin(t * 9) * 2 if look.get("snore") else 0)
+        self._blob(img, head[0], head[1] + 11, 32, beard, XMAS_FUR, gloss=0.15)     # Bart
         for side in (-1, 1):
             self._blob(img, head[0] + side * 5, head[1] + 3, 12, 6, XMAS_FUR, gloss=0.2)   # Schnurrbart
             d.ellipse([head[0] + side * 5 - 2, head[1] - 5, head[0] + side * 5 + 2, head[1] - 1], fill=(30, 30, 40))
             d.line([(head[0] + side * 3, head[1] - 8), (head[0] + side * 8, head[1] - 9)], fill=XMAS_FUR, width=2)
-        self._blob(img, head[0], head[1] + 0, 7, 6, (226, 110, 100), gloss=0.8)    # Nase
+        self._blob(img, head[0], head[1] + 0, 7, 6, nose, gloss=0.8)                # Nase
+        if not look.get("hat", True):                                               # Mütze hält sie gerade
+            self._blob(img, head[0], head[1] - 9, 26, 10, skin, gloss=0.3)
+            return hands
         tip_ang = math.radians(-60 + math.sin(t * 3.0) * 25 + hd)                   # Mütze, Spitze schwingt
         base_l, base_r = (head[0] - 14, head[1] - 9), (head[0] + 14, head[1] - 9)
         tip = (head[0] + math.cos(tip_ang) * 30, head[1] - 12 + math.sin(tip_ang) * 30)
@@ -168,9 +181,11 @@ class XmasVisual:
         self._blob(img, tip[0], tip[1], 10, 10, XMAS_FUR, gloss=0.2)                # Bommel
         return hands
 
-    def _mrs(self, img, d, x, floor, pose, t, spin=0.0, sitting=False, mug=False):
+    def _mrs(self, img, d, x, floor, pose, t, spin=0.0, sitting=False, mug=False, look=None):
         """Weihnachtsfrau: rotes Kleid mit weißer Schürze und Fellsaum, silbernes Haar mit Knoten, Brille.
-        spin = Drehung um die eigene Achse (Grad); von hinten sieht man nur Haar und Kleid."""
+        spin = Drehung um die eigene Achse (Grad); von hinten sieht man nur Haar und Kleid.
+        look (Feierabend): mouth = Mund offen mit Zunge (Schneeflocken fangen)."""
+        look = look or {}
         sx = math.cos(math.radians(spin))
         front = sx >= 0
         w = max(0.35, abs(sx))
@@ -214,6 +229,8 @@ class XmasVisual:
                 d.line(pts, fill=(200, 205, 220), width=1)
         hd = pose.get("head", 0)
         head = (neck[0] + math.sin(math.radians(lean + hd)) * 12, neck[1] - 11)
+        self.__dict__.setdefault("_xmas_heads", {})["mrs"] = head
+        self.__dict__.setdefault("_xmas_hands", {})["mrs"] = hands
         hair = (200, 200, 212)
         if not front:
             self._blob(img, head[0], head[1], 26 * w + 2, 26, hair, gloss=0.5)
@@ -229,7 +246,11 @@ class XmasVisual:
             d.ellipse([ex - 4, head[1] - 4, ex + 4, head[1] + 3], outline=(90, 70, 60))   # Brille
             d.ellipse([ex - 1, head[1] - 1, ex + 1, head[1] + 1], fill=(40, 40, 50))
             self._blob(img, head[0] + side * 7 * w, head[1] + 5, 6, 4, (240, 150, 150), gloss=0)  # Wangen
-        d.arc([head[0] - 4, head[1] + 3, head[0] + 4, head[1] + 9], 20, 160, fill=(170, 60, 60), width=1)
+        if look.get("mouth"):                                                       # Mund auf, Zunge raus
+            d.ellipse([head[0] - 3, head[1] + 5, head[0] + 3, head[1] + 10], fill=(90, 30, 40))
+            self._blob(img, head[0], head[1] + 11, 5, 5, (230, 90, 110), gloss=0.6)
+        else:
+            d.arc([head[0] - 4, head[1] + 3, head[0] + 4, head[1] + 9], 20, 160, fill=(170, 60, 60), width=1)
         return hands
 
     # -- Szene --------------------------------------------------------------- #
@@ -256,8 +277,12 @@ class XmasVisual:
         x0 = XMAS_TREE_X                                                            # Baum
         self._blob(img, x0, XMAS_FLOOR - 4, 70, 10, (160, 172, 200), gloss=0)
         d.rectangle([x0 - 5, XMAS_FLOOR - 22, x0 + 5, XMAS_FLOOR - 4], fill=(96, 60, 36))
+        mask = Image.new("L", (WIDTH, HEIGHT), 0)                                   # Baum vor Figuren dahinter
+        md = ImageDraw.Draw(mask)
+        md.rectangle([x0 - 5, XMAS_FLOOR - 22, x0 + 5, XMAS_FLOOR - 4], fill=255)
         tiers = [(XMAS_FLOOR - 20, 46, 40), (XMAS_FLOOR - 50, 38, 36), (XMAS_FLOOR - 78, 28, 32), (XMAS_FLOOR - 102, 18, 26)]
         for base, half, height in tiers:
+            md.polygon([(x0 - half, base + 1), (x0 + half, base + 1), (x0, base - height)], fill=255)
             d.polygon([(x0 - half, base), (x0 + half, base), (x0, base - height)], fill=(24, 110, 52))
             d.polygon([(x0, base), (x0 + half, base), (x0, base - height)], fill=(14, 78, 38))
             for k in range(-half + 4, half - 2, 7):                                 # Schnee auf den Zweigen
@@ -277,6 +302,7 @@ class XmasVisual:
                 f = (k + 0.5) / 5
                 lights.append((x0 + (f * 2 - 1) * half * 0.85, base - 6 - rng.uniform(0, height * 0.35),
                                XMAS_LIGHT_COLORS[len(lights) % len(XMAS_LIGHT_COLORS)]))
+        self._xmas_tree_mask = mask
         self._xmas_bg = (img, lights, (x0, tiers[-1][0] - tiers[-1][2] - 2))
         return self._xmas_bg
 
@@ -335,9 +361,49 @@ class XmasVisual:
                 st["gust"] = (1 if st["k"] % 2 else -1) * 1.0
         st["gust"] *= max(0.0, 1 - dt * 2.5)
         self._xmas_snow(st, s, dt, img, o, front=False)
+        mode = o["dance"]
+        if mode == "auto":
+            every = int(o["every"]) if str(o.get("every")).isdigit() else 60          # Wechsel alle … Sekunden
+            mode = ("pair", "santa", "mrs")[int((t - st["start"]) // max(10, every)) % 3]
+        enter = self.__dict__.pop("_vis_enter", False) and not s.get("demo")
+        party = self._xmas_party(st, t, dt, o, moving, talk, new_beat, enter)
+        if party:
+            mode = "pair"                                                           # Feierabend: immer zu zweit
+        acts = self._xmas_actors(st, t, dt, mode, talk, enter, period, party)
+        floor = XMAS_FLOOR
+        energy = 0.35 + 0.65 * s["level"] if moving else 0.25
+        phase = ((t - st["t0"]) / period) % 1.0
+        bob = (1 + math.cos(2 * math.pi * phase)) / 2 * (2 + 6 * energy)
+        sway = math.sin(math.pi * (st["k"] + phase)) * energy
+        k = _smooth((t - st["t0"]) / (0.18 + (0.3 * party["lvl"] if party else 0)))   # betrunken: hinterher
+        spin_k = (t - st["spin_t"]) / (period * 2)
+        spin = 360 * _smooth(spin_k) if 0 <= spin_k < 1 else 0.0
+        if party:
+            spin = 0.0                                                              # keine Pirouetten mehr
+        poses = self._xmas_dance_poses(st, t, floor, mode, acts, bob, sway, k, spin, energy)
+        for who in ("santa", "mrs"):
+            a = acts[who]
+            if a["state"].startswith("p_"):
+                pose = self._xmas_party_pose(who, a["state"], t, party["lt"])
+            else:
+                pose = self._xmas_target(who, a, st, t, poses[who])
+            if party:
+                pose = self._xmas_party_mods(party, who, dict(pose), t)
+            if a["pose"] is None or t - a["state_t"] > 0.35:
+                a["pose"] = pose
+            else:                                                                   # Haltungswechsel weich
+                a["pose"] = _mix_pose_spin(a["pose"], pose, 1 - math.exp(-dt * 12))
+        if party and any(a["state"] == "p_behind" for a in acts.values()):          # hinter dem Baum
+            for who in ("santa", "mrs"):
+                if acts[who]["state"] == "p_behind":
+                    self._xmas_draw(img, d, who, acts[who], floor, t, party)
+            img.paste(bg, (0, 0), self._xmas_tree_mask)
         # Lichterkette und Stern
+        flicker = party and party["flicker"]
         for i, (lx, ly, lc) in enumerate(lights):
             on = (not o["lights"]) or ((i * 7 + s["beats"] * 3) % 5 != 0)
+            if flicker and (i * 13 + int(t * 9)) % 3 == 0:
+                on = False                                                          # da flackert was
             k = (0.55 + 0.45 * s["level"]) if on else 0.18
             c = tuple(int(x * k) for x in lc)
             if on:
@@ -351,14 +417,7 @@ class XmasVisual:
             rr = 9 if k % 2 == 0 else 4
             pts.append((star[0] + math.cos(a) * rr, star[1] + math.sin(a) * rr))
         d.polygon(pts, fill=(255, 220, 70))
-        mode = o["dance"]
-        if mode == "auto":
-            every = int(o["every"]) if str(o.get("every")).isdigit() else 60          # Wechsel alle … Sekunden
-            mode = ("pair", "santa", "mrs")[int((t - st["start"]) // max(10, every)) % 3]
-        enter = self.__dict__.pop("_vis_enter", False) and not s.get("demo")
-        acts = self._xmas_actors(st, t, dt, mode, talk, enter, period)
-        floor = XMAS_FLOOR
-        bench_on = talk or any(a["state"] == "sit" for a in acts.values())
+        bench_on = talk or any(a["state"] in ("sit", "p_sleep") for a in acts.values())
         st["bench"] = max(0.0, min(1.0, st["bench"] + (dt if bench_on else -dt) / 0.5))
         if st["bench"] > 0:                                                         # Bank blendet weich ein/aus
             if st["bench"] >= 1:
@@ -368,35 +427,33 @@ class XmasVisual:
                 self._xmas_bench(benched, ImageDraw.Draw(benched), XMAS_BENCH_X, floor)
                 img = Image.blend(img, benched, st["bench"])
                 d = ImageDraw.Draw(img)
-        energy = 0.35 + 0.65 * s["level"] if moving else 0.25
-        phase = ((t - st["t0"]) / period) % 1.0
-        bob = (1 + math.cos(2 * math.pi * phase)) / 2 * (2 + 6 * energy)
-        sway = math.sin(math.pi * (st["k"] + phase)) * energy
-        k = _smooth((t - st["t0"]) / 0.18)
-        spin_k = (t - st["spin_t"]) / (period * 2)
-        spin = 360 * _smooth(spin_k) if 0 <= spin_k < 1 else 0.0
-        poses = self._xmas_dance_poses(st, t, floor, mode, acts, bob, sway, k, spin, energy)
+        if party:
+            self._xmas_party_ground(img, d, party, floor, t)
         for who in ("santa", "mrs"):
-            a = acts[who]
-            pose = self._xmas_target(who, a, st, t, poses[who])
-            if a["pose"] is None or t - a["state_t"] > 0.35:
-                a["pose"] = pose
-            else:                                                                   # Haltungswechsel weich
-                a["pose"] = _mix_pose_spin(a["pose"], pose, 1 - math.exp(-dt * 12))
-            x = a["x"] + a["pose"]["dx"]
-            if not -XMAS_OFF_MARGIN < x < WIDTH + XMAS_OFF_MARGIN:
-                continue                                                            # ganz außerhalb des Bildes
-            p = dict(a["pose"])
-            p.pop("dx")
-            sp = p.pop("spin")
-            sitting = a["state"] == "sit"
-            if who == "santa":
-                self._santa(img, d, x, floor - 20 if sitting else floor, p, t * 0.3 if sitting else t,
-                            sitting=sitting, scroll=sitting)
-            else:
-                self._mrs(img, d, x, floor - 20 if sitting else floor, p, t, spin=sp, sitting=sitting, mug=sitting)
+            if acts[who]["state"] != "p_behind":
+                self._xmas_draw(img, d, who, acts[who], floor, t, party)
+        if party:
+            self._xmas_party_over(img, d, party, acts, floor, t)
         self._xmas_snow(st, s, dt, img, o, front=True)
         return img
+
+    def _xmas_draw(self, img, d, who, a, floor, t, party):
+        """Eine Figur an ihrer Stelle zeichnen (ganz außerhalb des Bildes: nichts)."""
+        x = a["x"] + a["pose"]["dx"]
+        if not -XMAS_OFF_MARGIN < x < WIDTH + XMAS_OFF_MARGIN:
+            return
+        p = dict(a["pose"])
+        p.pop("dx")
+        sp = p.pop("spin")
+        sitting = a["state"] in ("sit", "p_sleep")
+        look = self._xmas_party_look(party, who, a["state"]) if party else None
+        plain = a["state"] == "sit"                                                 # Wunschliste und Kakao
+        if who == "santa":
+            self._santa(img, d, x, floor - 20 if sitting else floor, p, t * 0.3 if sitting else t,
+                        sitting=sitting, scroll=plain, look=look)
+        else:
+            self._mrs(img, d, x, floor - 20 if sitting else floor, p, t, spin=sp, sitting=sitting, mug=plain,
+                      look=look)
 
     @staticmethod
     def _xmas_wave(pose, t, energy):
@@ -416,10 +473,11 @@ class XmasVisual:
         return {"pair": {"santa": 160, "mrs": 226}, "santa": {"santa": 190, "mrs": XMAS_OFF["mrs"]},
                 "mrs": {"santa": XMAS_OFF["santa"], "mrs": 190}}[mode]
 
-    def _xmas_actors(self, st, t, dt, mode, talk, enter, period):
+    def _xmas_actors(self, st, t, dt, mode, talk, enter, period, party=None):
         """Position und Zustand (dance/wave/walk/sit) beider Figuren. Wer gehen soll, winkt erst zum Abschied;
-        wer neu hereinkommt, wartet, bis der andere sich verabschiedet hat, und winkt beim Ankommen."""
-        goals = self._xmas_goals(mode, talk)
+        wer neu hereinkommt, wartet, bis der andere sich verabschiedet hat, und winkt beim Ankommen.
+        party (Feierabend): Ziele, Zustände p_* am Ziel und Rückwärtsgehen geben die Gags vor."""
+        goals = party["goals"] if party else self._xmas_goals(mode, talk)
         acts = st.get("acts")
         if acts is None or enter:
             acts = st["acts"] = {}
@@ -455,7 +513,10 @@ class XmasVisual:
                         a["wave_t"] = t + 0.8                                       # „Hallo!“
                     a["came"] = False
             at_goal = a["x"] == a["goal"]
-            state = "walk" if walking else "wave" if t < a["wave_t"] else "sit" if talk and at_goal else "dance"
+            gag = party["states"].get(who) if party and at_goal else None
+            a["back"] = bool(party and party["back"].get(who))
+            state = "walk" if walking else "wave" if t < a["wave_t"] else gag if gag else \
+                "sit" if talk and at_goal else "dance"
             if state != a["state"]:
                 a["state"], a["state_t"] = state, t
         together = mode == "pair" and not talk and all(a["state"] == "dance" and a["x"] == a["goal"]
@@ -501,7 +562,7 @@ class XmasVisual:
             if who == "santa":
                 return dict(SANTA_POSES[2], rh=(22 + w * 6, -26), bob=0.0, dx=0.0, spin=0.0)
             return dict(MRS_POSES[2], rh=(10 + w * 7, -34), bob=0.0, dx=0.0, spin=0.0)
-        g, dr = st["gait"], a["dir"]                                                # gehen
+        g, dr = st["gait"], -a["dir"] if a.get("back") else a["dir"]               # gehen (auch rückwärts)
         sg = math.sin(g)
         lift_l, lift_r = max(0.0, sg), max(0.0, -sg)
         bob = 2.5 * abs(math.cos(g))

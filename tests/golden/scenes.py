@@ -203,6 +203,33 @@ scenes["vis_weihnachten_abschied"] = lambda r: _xmas_steps(r, [(5.0, "pair"), (0
 scenes["vis_weihnachten_geht"] = lambda r: _xmas_steps(r, [(5.0, "pair"), (2.0, "santa")])      # sie geht
 
 
+def _xmas_party(r, step, at, talk=False):
+    """Weihnachten mit „Feierabend“ (Runde 5 min) live: ab Beginn des vorigen Gags bis Sekunde at von step."""
+    r.visual_style, r.visual = "xmas", _Live()
+    r.settings = json.loads(json.dumps(settings))
+    r.settings.setdefault("visual", json.loads(json.dumps(g.DEFAULT_SETTINGS["visual"])))
+    r.settings["visual"]["xmas"] = dict(g.DEFAULT_SETTINGS["visual"]["xmas"], party="on", party_len="300")
+    tl = g.party_timeline(300)
+    names = [n for n, _s, _d in tl]
+    i = names.index(step)
+    img = r.render(g.PAGE_IDS.index("visual"), "M2", macros)
+    st = r._vis_states["xmas"]
+    st["party"]["p"] = tl[i - 1][1] if i else 0.0
+    end = tl[i][1] + at
+    while st["party"]["p"] < end:
+        r.visual.talk = talk and st["party"]["p"] >= tl[i][1]
+        img = r.render(g.PAGE_IDS.index("visual"), "M2", macros)
+        r.visual.t += 1 / 15
+    return img
+
+
+for _name, _step, _at in (("prost", "prost", 10.3), ("pipi", "pipi", 6.5), ("baum", "baum", 5.0),
+                          ("rentier", "rentier", 4.2), ("schnee", "signatur", 6.0), ("gelb", "gelb", 4.0),
+                          ("gruen", "gruen", 4.5), ("bescherung", "bescherung", 2.0), ("kater", "kater", 6.0),
+                          ("noch_einen", "noch", 2.6)):
+    scenes[f"vis_feierabend_{_name}"] = lambda r, step=_step, at=_at: _xmas_party(r, step, at)
+
+
 def _face_opt(r, face, opts):
     r.settings = json.loads(json.dumps(settings))
     r.settings.setdefault("clock", json.loads(json.dumps(g.DEFAULT_SETTINGS["clock"])))

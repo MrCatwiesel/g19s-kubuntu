@@ -148,6 +148,8 @@ class App(AppCore, KeyHandling, TimedTasks):
         if self.visual_style() == "xmas" and not quiet and \
                 visual_options(s, "xmas")["keys"] == "redgreen":    # Weihnachten: rot und grün im Wechsel
             base = (255, 20, 10) if snap["beats"] % 2 else (20, 220, 40)
+            if self.renderer.vis_green:                                     # Feierabend: ihm ist schlecht
+                base = (20, 220, 40)
         color = tuple(int(c * k) for c in base)
         if color != self._vis_light and now - self._vis_light_t >= 0.1:     # höchstens 10× je Sekunde
             self._vis_light, self._vis_light_t = color, now

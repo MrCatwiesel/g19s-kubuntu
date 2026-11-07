@@ -3,6 +3,15 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.07-1
+- Visualisierung „Weihnachten“: neue Option **„Feierabend“** (derber Humor, Standard aus; An oder nur abends von 20 bis 4 Uhr). Weihnachtsmann und Weihnachtsfrau trinken Glühwein über den Durst – eine Runde dauert 5, 10, 15 oder 20 Minuten Musik und läuft so ab:
+  - Sie prosten sich im Takt zu, tanzen immer wackliger, seine Nase wird röter, Schluckauf („Hicks!“) auf den Schlag.
+  - Pipi-Tanz – sie hält es für einen neuen Schritt und macht ihn nach.
+  - Er verschwindet hinter dem Baum (die Lichterkette flackert), sie tippt ungeduldig mit dem Fuß, dann ist sie dran. Vor der Pfütze: „Wer war das?!“ – „War das Rentier!“
+  - „HO HO H“ im Schnee, der gelbe Schnee (er reißt sie gerade noch weg), sein Gesicht wird grün, „Na, schöne Bescherung!“ in den Geschenkesack – sie hält ihm dabei die Mütze.
+  - Danach schlafen beide auf der Bank, ein Kater setzt sich dazu. Zum Schluss will er „Nur noch einen …“, sie zieht ihn zurück – und alles beginnt von vorn.
+- Bei Wortbeiträgen gehen sie wie gewohnt zur Bank; ist ihm schon schlecht geworden, schlafen beide dort ein. Ohne Musik pausiert die Runde. Während ihm schlecht ist, leuchtet die Tastatur („Rot und Grün im Takt“) nur grün.
+
 ## 2026.11.05-16
 - Visualisierung „Weihnachten“: Wie oft beim Tanz „Abwechselnd“ gewechselt wird, ist jetzt einstellbar – alle 30 Sekunden, jede Minute (wie bisher), alle 2, 5 oder 10 Minuten. Am Display im Optionsmenü des Stils oder in der Verwaltung unter „Beleuchtung & Display → Visualisierung“.
 

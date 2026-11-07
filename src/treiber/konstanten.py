@@ -215,6 +215,10 @@ VISUAL_OPTIONS = {
         {"key": "lights", "label": "Lichterkette blinkt im Takt", "type": "bool", "default": True},
         {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "redgreen",
          "choices": [["redgreen", "Rot und Grün im Takt"], ["layer", "Farbe der Ebene"]]},
+        {"key": "party", "label": "Feierabend: Glühwein-Gags (derber Humor)", "type": "choice", "default": "off",
+         "choices": [["off", "Aus"], ["on", "An"], ["evening", "Nur abends (20 bis 4 Uhr)"]]},
+        {"key": "party_len", "label": "Dauer einer Feierabend-Runde", "type": "choice", "default": "600",
+         "choices": [["300", "5 Minuten"], ["600", "10 Minuten"], ["900", "15 Minuten"], ["1200", "20 Minuten"]]},
     ],
 }
 OLD_CLOCK_PAGES = {"clock_chrono": "chrono", "clock_steampunk": "steampunk",      # Version 2026.09.28-8/-9

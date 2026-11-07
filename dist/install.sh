@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# G19s-Treiber für Linux – Installer (Version 2026.11.05-16)
+# G19s-Treiber für Linux – Installer (Version 2026.11.07-1)
 #
 #   Installieren/Aktualisieren:  bash install.sh
 #   ohne Rückfragen:             bash install.sh --ja
@@ -14,7 +14,7 @@
 # udev-Regel (Zugriff auf die Tastatur) und die Gruppe „input“ (Makroaufnahme).
 set -euo pipefail
 
-VERSION="2026.11.05-16"
+VERSION="2026.11.07-1"
 REPO="MrCatwiesel/g19s-kubuntu"
 BIN="$HOME/.local/bin"
 CONF="${XDG_CONFIG_HOME:-$HOME/.config}"
