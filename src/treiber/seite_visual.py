@@ -105,6 +105,7 @@ class VisualPage:
     visual = None                      # SoundAnalyzer (setzt die App) oder None = künstliche Werte
     visual_style = "eq"
     vis_talk = False                   # gerade Wortbeitrag (Klang oder Stichwort) – Tastatur pulsiert dann nicht
+    vis_strobe_t = -99.0               # Zeit des letzten Stroboskop-Blitzes der Lichtshow (Tastaturbeleuchtung)
 
     # -- Grundlagen ---------------------------------------------------------- #
     def _vstate(self, style, make):
@@ -466,6 +467,16 @@ class VisualPage:
         if 0 <= fl < 0.15:
             f = 1 - fl / 0.15                               # sanft, kein hartes Stroboskop
             beams = beams.point(lambda v: min(255, int(v * (1 + 0.7 * f) + 22 * f)))
+        strobe = self._lights_strobe(st, s, o, t)
+        if strobe:                                          # Stroboskop: harter Blitz, ein bis zwei Bilder lang
+            k, col = strobe
+            if col == "beam":
+                col = _hue(s["beats"] * 0.13, 0.5, 1.0)
+            elif col == "layer":
+                col = tuple(color)
+            else:
+                col = (255, 255, 255)
+            beams = Image.blend(beams, Image.new("RGB", beams.size, col), 0.9 * k)
         img = Image.new("RGB", (WIDTH, HEIGHT), (5, 4, 10))
         img.paste(beams, (0, 0))
         d = ImageDraw.Draw(img)
@@ -477,6 +488,35 @@ class VisualPage:
                     v = 110 + int(120 * (0.5 + 0.5 * math.sin(t * 6 + gx * 0.7 + gy * 1.3)))
                     d.rectangle([cx + gx, cy + gy, cx + gx + 2, cy + gy + 2], fill=(v, v, min(255, v + 20)))
         return img
+
+    def _lights_strobe(self, st, s, o, t):
+        """Stroboskop der Lichtshow: Blitz auf kräftige Schläge und/oder Salven, wenn die Musik deutlich lauter wird
+        (Höhepunkt). Höchstens strobe_rate (≤ 3) Blitze je Sekunde – mehr gilt als riskant für Lichtempfindliche.
+        Gibt (Stärke 0…1, Farbwahl) zurück oder None; vis_strobe_t merkt sich den Blitz (für die Tastatur)."""
+        mode = o.get("strobe", "off")
+        if mode not in ("beat", "drop", "both") or not s.get("active", s.get("demo")):
+            return None
+        rate = min(3, max(1, int(o["strobe_rate"]) if str(o.get("strobe_rate")).isdigit() else 2))
+        gap = 1.0 / rate
+        avg = st.get("avg")                                 # gleitendes Mittel des Pegels (≈ 4 s)
+        st["avg"] = s["level"] if avg is None else avg + (s["level"] - avg) * min(1.0, (t - st.get("avg_t", t)) / 4)
+        st["avg_t"] = t
+        if mode in ("drop", "both") and avg is not None and s["level"] > avg * 1.3 + 0.05 and s["bass"] > 0.7 \
+                and t - st.get("burst_end", -99) > 6:
+            st["burst_end"] = t + 2.0                         # Salve: 2 s lang so schnell wie erlaubt
+        burst = t < st.get("burst_end", -99)
+        last = st.get("strobe", -99)
+        beat = mode in ("beat", "both") and 0 <= t - s["beat_t"] < 0.12 and s["bass"] > 0.55
+        if t - last >= gap and (beat or burst):
+            st["strobe"] = last = t
+            self.vis_strobe_t = t
+        age = t - last
+        frame = 1.0 / max(1, int((self.settings or {}).get("visual", {}).get("fps") or VISUAL_FPS))
+        if 0 <= age < frame * 0.99:
+            return 1.0, o.get("strobe_color", "white")
+        if age < frame * 1.99:
+            return 0.25, o.get("strobe_color", "white")      # kurzes Nachglühen im nächsten Bild
+        return None
 
     # -- 4. Oszilloskop ------------------------------------------------------ #
     def _scope_bg(self):

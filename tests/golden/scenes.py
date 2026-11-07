@@ -203,6 +203,25 @@ scenes["vis_weihnachten_abschied"] = lambda r: _xmas_steps(r, [(5.0, "pair"), (0
 scenes["vis_weihnachten_geht"] = lambda r: _xmas_steps(r, [(5.0, "pair"), (2.0, "santa")])      # sie geht
 
 
+def _strobe(r):
+    """Lichtshow live mit Stroboskop (Farbe der Scheinwerfer): das erste Blitzbild."""
+    r.visual_style, r.visual = "lights", _Live()
+    r.settings = json.loads(json.dumps(settings))
+    r.settings.setdefault("visual", json.loads(json.dumps(g.DEFAULT_SETTINGS["visual"])))
+    r.settings["visual"]["lights"] = dict(g.DEFAULT_SETTINGS["visual"]["lights"], strobe="beat", strobe_color="beam")
+    r.vis_strobe_t = -99.0
+    img = None
+    for _ in range(60):
+        img = r.render(g.PAGE_IDS.index("visual"), "M2", macros)
+        if r.vis_strobe_t == r.visual.t:
+            break
+        r.visual.t += 1 / 15
+    return img
+
+
+scenes["vis_lichtshow_strobo"] = _strobe
+
+
 class _PartyClock:
     """Feste Uhrzeit für den Feierabend (Abend, Silvester); sonst hinge das Bild von der Uhrzeit ab."""
     def __init__(self, mon=11, day=19, hour=21, minute=0, wday=3):

@@ -506,7 +506,7 @@ Die Seite '''Visualisierung''' bewegt sich zu allem, was der Rechner gerade absp
 |-
 | Tanzendes Mädchen || eine Tänzerin wechselt auf jedem Schlag die Pose, geht im Takt in die Knie, wiegt sich von Seite zu Seite (auch wenn ein Schlag nicht erkannt wird, im erkannten Tempo); Bewegungen und Rock wachsen mit der Lautstärke. Bei '''Wortbeiträgen''' (siehe unten) langweilt sie sich || Farbe, Bühnenlicht
 |-
-| Lichtshow || Scheinwerfer schwenken, Farben pulsieren mit dem Bass, Spiegelkugel, Lichtpunkte || Anzahl der Scheinwerfer, sanfter Blitz bei kräftigen Schlägen (kein Stroboskop)
+| Lichtshow || Scheinwerfer schwenken, Farben pulsieren mit dem Bass, Spiegelkugel, Lichtpunkte; auf Wunsch Stroboskop || Anzahl der Scheinwerfer, sanfter Blitz bei kräftigen Schlägen, Stroboskop (aus, auf kräftige Schläge, Salven bei Höhepunkten, beides; höchstens 1, 2 oder 3 Blitze je Sekunde; Farbe weiß, Scheinwerfer oder Ebene; Tastaturbeleuchtung blitzt mit). '''Vorsicht:''' Stroboskoplicht kann bei lichtempfindlichen Menschen Anfälle auslösen – deshalb ab Werk aus und nie mehr als 3 Blitze je Sekunde.
 |-
 | Oszilloskop || die Schwingung als leuchtende Linie auf einem Raster || Schwingung oder Stereo-Figur (links/rechts), Farbe, Nachleuchten
 |-

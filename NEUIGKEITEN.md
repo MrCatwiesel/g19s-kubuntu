@@ -3,6 +3,9 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.07-5
+- Visualisierung „Lichtshow“: neuer **Stroboskop** (ab Werk aus). Wahlweise auf kräftige Schläge, als Salve, wenn die Musik deutlich lauter wird (Höhepunkt), oder beides. Höchstens 1, 2 oder 3 Blitze je Sekunde – mehr lässt der Treiber bewusst nicht zu, weil schnelleres Flackern für lichtempfindliche Menschen gefährlich sein kann. Farbe: weiß, wie die Scheinwerfer oder die Farbe der Ebene; auf Wunsch blitzt die Tastaturbeleuchtung mit.
+
 ## 2026.11.07-4
 - Visualisierung „Weihnachten“, Feierabend – noch mehr Gags:
   - Schneeballschlacht (sie trifft ihn, die Mütze fliegt; er trifft den Wichtel), in der Lichterkette verheddert (danach blinkt er bunt, der Baum bleibt dunkel), Schneeengel (sie zieht ihn am Bart hoch), heimlich ein Geschenk ausgepackt: Socken, Glühweintopf über den Kopf gestülpt und blind gegen den Baum, Polonaise mit Wichtel, Rentier und Katze, „Taxi nach Hause“ im Rentierschlitten (er kommt wieder), der Nachbar im Haus auf dem Hügel ruft „Ruhe da unten!“.

@@ -151,7 +151,13 @@ class App(AppCore, KeyHandling, TimedTasks):
             if self.renderer.vis_green:                                     # Feierabend: ihm ist schlecht
                 base = (20, 220, 40)
         color = tuple(int(c * k) for c in base)
-        if color != self._vis_light and now - self._vis_light_t >= 0.1:     # höchstens 10× je Sekunde
+        strobe = False
+        if self.visual_style() == "lights" and not quiet:                   # Stroboskop: Tastatur blitzt mit
+            lo = visual_options(s, "lights")
+            if lo.get("strobe", "off") != "off" and lo.get("strobe_keys") and \
+                    0 <= snap["t"] - self.renderer.vis_strobe_t < 0.12:
+                color, strobe = (255, 255, 255), True
+        if color != self._vis_light and (strobe or now - self._vis_light_t >= 0.1):  # sonst höchstens 10×/s
             self._vis_light, self._vis_light_t = color, now
             try:
                 self.g19.set_backlight(*color)
