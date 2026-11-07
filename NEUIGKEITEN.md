@@ -3,6 +3,13 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.07-7
+- Visualisierung: Das „Tanzende Mädchen“ ist jetzt eine **Tänzerin an der Stange** im Ballettstudio – Spiegelwand mit ihrem Spiegelbild, Holzboden, verchromte Stange. Sie ist räumlich gezeichnet (Licht, Glanz, Schatten) und trägt ein weinrotes Samttrikot mit Glitzersteinen, einen schwarzen Chiffonrock, der bei Drehungen nachschwingt und vom Bass aufgebläht wird, und Spitzenschuhe.
+  - Auf jeden Bassschlag eine neue Haltung: Passé an der Stange, 5. Position, Arabesque, Plié, Battement, Port de bras, Attitude, zurückgelehnt an der Stange.
+  - Hohe Schläge (Hi-Hat, Snare) geben kleine Akzente mit Hand und Kopf; wird die Musik deutlich lauter, dreht sie sich einmal um die Stange.
+  - Bei Wortbeiträgen langweilt sie sich an der Stange (lehnt, gähnt, dehnt sich, schaut auf die Uhr) und setzt sich nach 30 Sekunden.
+  - Die Option „Farbe“ heißt jetzt „Farbe des Trikots“ (Standard Weinrot); „Bühnenlicht“ schaltet den warmen Lichtkegel.
+
 ## 2026.11.07-6
 - Lichtshow-Stroboskop reagiert jetzt wie ein echtes auf **hohe Schläge** – Hi-Hat, Snare, Klatschen – statt auf den Bass. Die Klanganalyse erkennt dafür eigens kurze Anstiege in den Höhen (ab etwa 2,5 kHz); ein reiner Bass-Kick oder Musik ohne Schlagzeug lösen keinen Blitz aus. Salven bei Höhepunkten folgen ebenfalls den hohen Schlägen. Bei Wortbeiträgen blitzt nichts. Die Grenze von höchstens 3 Blitzen je Sekunde bleibt.
 

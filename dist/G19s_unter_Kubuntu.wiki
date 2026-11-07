@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.11.07-6)
+| 28.09.2026 (Version 2026.11.07-7)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -32,7 +32,7 @@ Für die G19s gibt es unter Linux keinen offiziellen Treiber. Die normalen Taste
 * '''Terminerinnerung''' vor Terminbeginn, '''Radiowecker''' und '''Einschlaftimer''', '''Song merken''' (Radiotitel in eine Liste), '''Lieblingsbilder''' in der Diashow, '''Mikrofon stumm''' per G-Taste (MR-Leuchte als Anzeige).
 * Displayseiten je Ebene '''und''' je Profil einstellbar, '''automatische Sicherung''' in einen Ordner.
 * '''25 Zifferblätter''' für die Uhr (u. a. Chronometer, Bahnhofsuhr, Pendel- und Kuckucksuhr, Astro- und Sonnenuhr, Weltzeituhr, Nixie-Röhren, Wortuhr) – Auswahl am Display mit MENU oder SETTINGS (kurz) je Profil und Ebene, Aussehen in der Verwaltung einstellbar.
-* '''Visualisierung''' zur laufenden Musik in acht Stilen: Grafik-Equalizer, Tanzendes Mädchen, Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm, Feuerwerk – die Tastaturbeleuchtung pulsiert auf Wunsch im Takt.
+* '''Visualisierung''' zur laufenden Musik in acht Stilen: Grafik-Equalizer, Tänzerin an der Stange, Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm, Feuerwerk – die Tastaturbeleuchtung pulsiert auf Wunsch im Takt.
 * Weitere Seiten: '''Nachrichten''' (RSS/Atom), '''Unwetter''' (amtliche DWD-Warnungen), '''Netzwerk''' (Erreichbarkeit von Router, NAS …), '''Updates''' (Paket- und Flatpak-Updates, Neustart nötig).
 * '''Display''' mit sieben Standardseiten: Uhr, Musik (inkl. Internetradio), Wetter, Termine, Hardware (Auslastung, Temperaturen, Arbeitsspeicher, Lüfter, Netz, Datenträger), Makro-Übersicht, Bilder. Welche Seiten in welcher Reihenfolge erscheinen, ist frei wählbar.
 * '''Diashow''' mit Bildern aus Piwigo-Alben (auch private Alben) oder aus einem Ordner auf dem Rechner – auf Wunsch als '''Bildschirmschoner'''.
@@ -182,7 +182,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.07-6"
+VERSION = "2026.11.07-7"
 
 # Weitere Importe der Module
 import select
@@ -362,7 +362,7 @@ CLOCK_COLOR_CHOICES = [
 ]
 # Stile der Seite „Visualisierung“ (Auswahl am Display mit MENU, gespeichert in settings.json → "visual")
 VISUAL_STYLES = {
-    "eq": "Grafik-Equalizer", "dancer": "Tanzendes Mädchen", "lights": "Lichtshow", "scope": "Oszilloskop",
+    "eq": "Grafik-Equalizer", "dancer": "Tänzerin an der Stange", "lights": "Lichtshow", "scope": "Oszilloskop",
     "ring": "Kreis-Spektrum", "vu": "VU-Meter", "spectro": "Spektrogramm", "fireworks": "Feuerwerk",
     "xmas": "Weihnachten",
 }
@@ -380,7 +380,8 @@ VISUAL_OPTIONS = {
         {"key": "peaks", "label": "Spitzenmarken", "type": "bool", "default": True},
     ],
     "dancer": [
-        {"key": "color", "label": "Farbe der Tänzerin", "type": "color", "default": None, "none_label": _LAYER},
+        {"key": "color", "label": "Farbe des Trikots", "type": "color", "default": None,
+         "none_label": "Weinrot (Standard)"},
         {"key": "stage", "label": "Bühnenlicht", "type": "bool", "default": True},
     ],
     "lights": [
@@ -9663,29 +9664,8 @@ def _smooth(k):
     return k * k * (3 - 2 * k)
 
 
-# Tanzposen: Oberarm/Unterarm links und rechts, Oberschenkel/Unterschenkel links und rechts,
-# Neigung des Oberkörpers, Neigung des Kopfes (Winkel wie _vec, absolut)
-DANCE_POSES = [
-    (-130, -145, 130, 145, -14, -6, 14, 6, 0, 0),         # Arme hoch (V)
-    (-40, 40, 145, 150, -20, 0, 15, 25, 6, -8),           # Disco: rechts nach oben zeigen, links Hand an der Hüfte
-    (-95, -70, 95, 70, -8, -8, 25, -10, -4, 6),           # Arme zur Seite, Knie angewinkelt
-    (-35, 35, 35, -35, -5, -5, 30, -10, 0, 10),           # Hände an den Hüften
-    (-120, -150, 60, 100, -6, -6, 80, 95, -8, -6),        # Kick nach rechts
-    (-155, 160, 155, -160, -15, -15, 15, 15, 0, 0),       # Klatschen über dem Kopf
-    (-100, -130, 80, 50, -10, 5, 10, -5, 4, 8),           # Welle
-    (-60, -120, 60, 120, -25, -5, 10, 30, -6, -10),       # Twist
-]
-
-
-# Langeweile bei Wortbeiträgen (gleicher Aufbau wie DANCE_POSES): Arme verschränkt, Hände an den Hüften,
-# gähnen (Hand vor dem Mund), auf die Uhr schauen, auf dem Bühnenrand sitzen
-BORED_POSES = {
-    "cross": (-20, 95, 20, -95, -6, -4, 10, 6, 0, 8),
-    "hips": (-35, 35, 35, -35, -6, -4, 14, 4, 3, -6),
-    "yawn": (-20, 95, 125, -92, -6, -4, 10, 6, -3, -12),
-    "watch": (-70, 60, 35, -35, -6, -4, 12, 4, 2, 14),
-    "sit": (-15, 40, 15, -40, -18, 0, 18, 0, 4, 15),
-}
+# Langeweile bei Wortbeiträgen (Stil „Tänzerin“, Haltungen in seite_visual_ballett.BAL_BORED): an die Stange
+# lehnen, gähnen, dehnen, auf die Uhr schauen, nach BORED_SIT_AFTER Sekunden hinsetzen
 BORED_CYCLE = [(5, "cross"), (2, "yawn"), (3, "hips"), (2.5, "watch")]     # Sekunden je Haltung, im Kreis
 BORED_SIT_AFTER = 30.0                 # so lange Wortbeitrag, dann setzt sie sich auf den Bühnenrand
 
@@ -9887,163 +9867,7 @@ class VisualPage:
                     d.rectangle([x0, y, x1 - 1, y + 1], fill=(235, 238, 245))
         return img
 
-    # -- 2. Tanzendes Mädchen ------------------------------------------------- #
-    @vis_style("dancer")
-    def vis_dancer(self, s, o, color):
-        S = 2                                               # doppelt zeichnen, dann verkleinern (glatte Kanten)
-        W, H = WIDTH * S, HEIGHT * S
-        t = s["t"]
-        period = max(0.3, min(1.2, s.get("period") or 0.5))
-        moving = s.get("active") or (s.get("demo") and not s.get("idle"))
-        st = self._vstate("dancer", lambda: {"from": DANCE_POSES[0], "to": DANCE_POSES[0], "t0": t,
-                                              "beats": s["beats"], "k": 0})
-
-        def step():                                         # nächste Pose (schnell überblendet)
-            st["k"] += 1
-            k = st["k"]
-            st.update({"from": self._dance_pose(st, t), "to": DANCE_POSES[(k * 3 + k // 4) % len(DANCE_POSES)], "t0": t})
-
-        bored = _bored_pose(t - s.get("talk_t", t)) if s.get("talk") else None
-        thigh = 34
-        floor = (VIS_H - 26) * S
-        if bored:                                           # Wortbeitrag: gelangweilt
-            if st.get("bored") != bored:
-                st.update({"from": self._dance_pose(st, t), "to": BORED_POSES[bored], "t0": t, "bored": bored, "dur": 0.6})
-            st["beats"] = s["beats"]
-            pose = list(self._dance_pose(st, t))
-            pose[8] += math.sin(t * 0.7) * 3                # langsames Gewichtverlagern
-            if bored != "sit":
-                pose[7] += max(0.0, math.sin(t * 2 * math.pi * 1.4)) * 14     # Fuß tippt ungeduldig
-                hip = (WIDTH / 2 * S + math.sin(t * 0.7) * 5 * S, floor - 72 * S)
-            else:                                           # sitzt auf dem Bühnenrand, Beine baumeln
-                thigh = 12
-                pose[5] += math.sin(t * 1.3) * 10
-                pose[7] -= math.sin(t * 1.3 + 1) * 10
-                hip = (WIDTH / 2 * S, floor - 14 * S)
-            energy = 0.0
-        else:
-            if st.pop("bored", None):                       # Musik ist zurück: aufspringen
-                st["dur"] = 0.15
-                step()
-            if s["beats"] != st["beats"]:
-                st["beats"] = s["beats"]
-                step()
-            elif moving and t - st["t0"] > period * 1.6:
-                step()                                      # Schlag nicht erkannt: im Tempo weitertanzen
-            energy = 0.35 + 0.65 * s["level"] if moving else 0.25
-            phase = ((t - st["t0"]) / period) % 1.0         # 0 = Schlag, 1 = nächster Schlag
-            pose = list(self._dance_pose(st, t))
-            wig = math.sin(2 * math.pi * phase * 2) * (20 + 30 * (s["mid"] + s["treble"])) * energy
-            pose[1] += wig                                  # Unterarme schwingen im Takt
-            pose[3] -= wig
-            sway = math.sin(math.pi * (st["k"] + phase))    # Gewicht wechselt bei jedem Schlag die Seite
-            pose[8] += sway * 9 * energy
-            pose[9] += math.sin(2 * math.pi * phase) * 12 * energy
-            dip = (1 + math.cos(2 * math.pi * phase)) / 2 * (4 + 12 * energy)   # in die Knie auf dem Schlag
-            hip = (WIDTH / 2 * S + sway * 14 * energy * S, floor - 72 * S + dip * S)
-        body = tuple(o["color"]) if o.get("color") else color
-        stage = self._dance_stage(s, o, dim=bool(bored))
-        fig = Image.new("RGBA", (W, H), body + (0,))       # nur die Figur doppelt groß, dann verkleinert
-        d = ImageDraw.Draw(fig)
-        body = body + (255,)
-        lu, lf, ru, rf, lt, ls, rt, rs, lean, head = pose
-
-        def at(p, ang, length):
-            dx, dy = _vec(ang, length * S)
-            return p[0] + dx, p[1] + dy
-
-        def limb(a, b, w):
-            d.line([a, b], fill=body, width=int(w * S))
-            r = w * S / 2
-            d.ellipse([b[0] - r, b[1] - r, b[0] + r, b[1] + r], fill=body)
-
-        neck = at(hip, 180 - lean, 52)
-        if bored != "sit":                                  # Schatten direkt auf die Bühne
-            hx, fy = hip[0] / S, floor / S
-            ImageDraw.Draw(stage).ellipse([hx - 60, fy - 5, hx + 60, fy + 7], fill=(12, 10, 18))
-        for side, (t_ang, s_ang) in ((-1, (lt, ls)), (1, (rt, rs))):           # Beine
-            hj = (hip[0] + side * 8 * S, hip[1])
-            knee = at(hj, t_ang, thigh)
-            foot = at(knee, s_ang, 34)
-            limb(hj, knee, 9)
-            limb(knee, foot, 8)
-            d.line([foot, (foot[0] + side * 7 * S, foot[1] + 1 * S)], fill=body, width=5 * S)
-        flare = 1 + s["level"] * 0.45 * (0 if bored else 1)  # Rock schwingt mit der Lautstärke
-        waist = at(hip, 180 - lean, 16)
-        hem_y = hip[1] + 14 * S
-        d.polygon([(waist[0] - 8 * S, waist[1]), (waist[0] + 8 * S, waist[1]),
-                   (hip[0] + 24 * S * flare, hem_y), (hip[0] - 24 * S * flare, hem_y)], fill=body)
-        sl = at(neck, 180 - lean - 90, 13)
-        sr = at(neck, 180 - lean + 90, 13)
-        d.polygon([sl, sr, (waist[0] + 8 * S, waist[1]), (waist[0] - 8 * S, waist[1])], fill=body)
-        for sh, (u, f) in ((sl, (lu, lf)), (sr, (ru, rf))):                     # Arme
-            elbow = at(sh, u, 27)
-            hand = at(elbow, f, 25)
-            limb(sh, elbow, 7)
-            limb(elbow, hand, 6)
-        hc = at(neck, 180 - lean - head, 17)
-        d.line([neck, hc], fill=body, width=7 * S)
-        r = 13 * S
-        d.ellipse([hc[0] - r, hc[1] - r, hc[0] + r, hc[1] + r], fill=body)
-        tail = (175 + math.sin(t * 1.2) * 4 if bored else
-                150 + math.sin(t * 5.5) * 18 + s["bass"] * 25) - lean           # Pferdeschwanz schwingt
-        base = at(hc, -125 - head, 11)
-        tip = at(base, tail + 180, 26)
-        mid = at(base, tail + 165, 14)
-        d.polygon([at(base, tail + 90, 5), mid, tip, at(base, tail - 90, 5)], fill=body)
-        if bored in ("yawn", "sit"):
-            self._dance_bubble(d, hc, S, "Gähn …" if bored == "yawn" else None, t)
-        small = fig.reduce(S)
-        stage.paste(small, (0, 0), small)
-        return stage
-
-    def _dance_bubble(self, d, head, S, text, t):
-        """Sprechblase „Gähn …“ bzw. aufsteigende „Z“ neben dem Kopf."""
-        font = self.__dict__.setdefault("_bubble_font", load_font(14 * S, bold=True))
-        x, y = head[0] + 22 * S, head[1] - 38 * S
-        if text:
-            w = d.textlength(text, font=font)
-            d.rounded_rectangle([x, y, x + w + 16 * S, y + 24 * S], radius=10 * S, fill=(235, 235, 245, 255))
-            d.polygon([(x + 8 * S, y + 22 * S), (x + 18 * S, y + 22 * S), (x, y + 34 * S)], fill=(235, 235, 245, 255))
-            d.text((x + 8 * S, y + 4 * S), text, font=font, fill=(40, 40, 60, 255))
-            return
-        for i in range(3):                                  # Zzz steigen auf und verblassen
-            k = (t * 0.5 + i / 3) % 1.0
-            v = int(220 * (1 - k))
-            size = int((10 + 6 * i) * S)
-            f = self.__dict__.setdefault(f"_z_font{size}", load_font(size, bold=True))
-            d.text((x + (k * 18 + i * 10) * S, y - k * 40 * S + 20 * S), "Z", font=f, fill=(v, v, min(255, v + 30), 255))
-
-    def _dance_pose(self, st, t):
-        k = _smooth((t - st["t0"]) / st.get("dur", 0.15))
-        return tuple(a + (b - a) * k for a, b in zip(st["from"], st["to"]))
-
-    def _dance_stage(self, s, o, dim=False):
-        """Bühne in Displaygröße: Verlauf, Boden, zwei Lichtkegel in wechselnden Farben (dim: Wortbeitrag,
-        Licht gedimmt). Nur Bildoperationen in C – kostet weniger als 1 ms."""
-        bg = self.__dict__.get("_dance_bg")
-        if bg is None:
-            ys = np.linspace(0, 1, HEIGHT)[:, None, None]
-            top, bot = np.array([26, 10, 40], np.float32), np.array([4, 3, 8], np.float32)
-            arr = np.broadcast_to(top * (1 - ys) + bot * ys, (HEIGHT, WIDTH, 3)).copy()
-            floor = VIS_H - 26
-            arr[floor:, :] = np.array([18, 14, 26], np.float32) * np.linspace(1, 0.4, HEIGHT - floor)[:, None, None]
-            bg = self._dance_bg = Image.fromarray(arr.astype(np.uint8), "RGB")
-        img = bg.copy()
-        if o["stage"]:
-            hue = (s["beats"] % 6) / 6
-            bright = 0.08 if dim else 0.25 + 0.5 * s["bass"]
-            for i, x in enumerate((0.18, 0.82)):
-                mask = Image.new("L", (WIDTH, HEIGHT), 0)
-                cx = WIDTH / 2 + math.sin(s["t"] * 0.8 + i * 2.1) * 30
-                ImageDraw.Draw(mask).polygon([(x * WIDTH - 6, 0), (x * WIDTH + 6, 0), (cx + 70, VIS_H - 22),
-                                              (cx - 70, VIS_H - 22)], fill=int(120 * bright))
-                img.paste(_hue(hue + i * 0.33, 0.8, 1.0), (0, 0, WIDTH, HEIGHT), mask)
-            floor = VIS_H - 26
-            spot = Image.new("L", (WIDTH, HEIGHT), 0)
-            ImageDraw.Draw(spot).ellipse([WIDTH / 2 - 80, floor - 6, WIDTH / 2 + 80, floor + 14], fill=int(90 * bright + 40))
-            img.paste(_hue(hue, 0.4, 1.0), (0, 0, WIDTH, HEIGHT), spot)
-        return img
+    # -- 2. Tänzerin: in seite_visual_ballett.py (BalletVisual) ----------------- #
 
     # -- 3. Lichtshow -------------------------------------------------------- #
     @vis_style("lights")
@@ -12674,6 +12498,360 @@ class XmasParty:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Modul seite_visual_ballett
+#   Visualisierung „Tänzerin“ (Stil-ID dancer): eine Ballerina an der Stange im Tanzstudio – Spiegelwand mit
+#   Spiegelbild, Schallschutz-Paneele, Holzboden. Die Figur ist räumlich schattiert wie die Weihnachtsfiguren
+#   (_blob/_limb, Arme und Beine über Zielpunkte mit _ik): weinrotes Samttrikot mit Glitzersteinen, schwarzer
+#   Chiffonrock, der mit Trägheit nachschwingt (Bass bläht ihn auf), Spitzenschuhe.
+#   Musik: Bassschlag → nächste Haltung der Choreografie (BAL_CHOREO), hoher Schlag (Hi-Hat/Snare) → kleiner Akzent mit
+#   Hand und Kopf, Höhepunkt (Musik deutlich lauter) → Drehung um die Stange. Wortbeitrag → sie langweilt sich an der
+#   Stange (lehnt, gähnt, dehnt sich, schaut auf die Uhr, setzt sich nach 30 s) – Ablauf aus _bored_pose (seite_visual).
+# ═══════════════════════════════════════════════════════════════════════════
+
+BAL_POLE_X = 112
+BAL_FLOOR = VIS_H - 12                  # Fußpunkt der Tänzerin
+BAL_HIP_DX = 46                         # Abstand Hüfte – Stange
+BAL_SKIN = (172, 114, 84)
+BAL_LEO = (128, 16, 40)                 # Samttrikot (Option color ersetzt es)
+BAL_SKIRT = (16, 14, 20)
+BAL_SHOE = (212, 158, 126)
+BAL_HAIR = (38, 24, 18)
+BAL_TORSO, BAL_UA, BAL_FA, BAL_TH, BAL_SH = 38, 22, 21, 33, 33
+BAL_MIRROR = (6, 14, 232, BAL_FLOOR - 58)   # Spiegelwand x0, y0, x1, y1
+BAL_SPIN = 2.6                          # Sekunden für eine Drehung um die Stange
+# Haltungen: Hände relativ zur Schulter (lp/rp = Anteil „Hand an der Stange“), Füße relativ zum Hüftgelenk,
+# lb/rb = Richtung der Kniebeuge, lean = Neigung des Oberkörpers (+ nach rechts), head = Kopfneigung,
+# rise = auf der Spitze (0/1), dip = Hüfte tiefer (Plié), hx = Hüfte seitlich
+BAL_POSES = {
+    "passe": {"lh": (-30, 6), "lp": 1, "rh": (-14, -38), "rp": 0, "lf": (-8, 25), "lb": 1, "rf": (1, 66), "rb": -1,
+              "lean": -2, "head": -10, "rise": 1, "dip": 0, "hx": 0},
+    "fifth": {"lh": (10, -40), "lp": 0, "rh": (-10, -40), "rp": 0, "lf": (5, 66), "lb": 1, "rf": (-5, 66), "rb": -1,
+              "lean": 0, "head": 8, "rise": 1, "dip": 0, "hx": 0},
+    "arabesque": {"lh": (-30, 4), "lp": 1, "rh": (30, -26), "rp": 0, "lf": (2, 66), "lb": 1, "rf": (56, -8), "rb": 1,
+                  "lean": -16, "head": -6, "rise": 1, "dip": 0, "hx": -4},
+    "attitude": {"lh": (-30, 4), "lp": 1, "rh": (-6, -40), "rp": 0, "lf": (2, 66), "lb": 1, "rf": (40, 6), "rb": 1,
+                 "lean": -12, "head": 10, "rise": 1, "dip": 0, "hx": -2},
+    "battement": {"lh": (-30, 4), "lp": 1, "rh": (32, -6), "rp": 0, "lf": (2, 66), "lb": 1, "rf": (52, -30), "rb": -1,
+                  "lean": -14, "head": -12, "rise": 1, "dip": 0, "hx": -4},
+    "plie": {"lh": (-30, 6), "lp": 1, "rh": (34, 4), "rp": 0, "lf": (-16, 52), "lb": 1, "rf": (16, 52), "rb": -1,
+             "lean": 0, "head": 6, "rise": 0, "dip": 12, "hx": 0},
+    "lean": {"lh": (-30, -18), "lp": 1, "rh": (-40, 12), "rp": 0.6, "lf": (-30, 52), "lb": 1, "rf": (6, 66), "rb": -1,
+             "lean": 18, "head": 16, "rise": 1, "dip": 0, "hx": 6},
+    "port": {"lh": (-30, 4), "lp": 1, "rh": (26, -30), "rp": 0, "lf": (3, 66), "lb": 1, "rf": (-4, 66), "rb": -1,
+             "lean": 8, "head": 14, "rise": 1, "dip": 0, "hx": 0},
+}
+BAL_CHOREO = ["passe", "fifth", "arabesque", "plie", "battement", "passe", "port", "attitude", "lean", "fifth"]
+# Langeweile bei Wortbeiträgen (Namen wie _bored_pose: cross, yawn, hips = dehnen, watch, sit)
+BAL_BORED = {
+    "cross": {"lh": (12, 18), "lp": 0, "rh": (-12, 18), "rp": 0, "lf": (-12, 66), "lb": 1, "rf": (4, 66), "rb": -1,
+              "lean": -8, "head": 8, "rise": 0, "dip": 0, "hx": -16},
+    "yawn": {"lh": (12, 18), "lp": 0, "rh": (-14, -16), "rp": 0, "lf": (-12, 66), "lb": 1, "rf": (4, 66), "rb": -1,
+             "lean": -8, "head": -12, "rise": 0, "dip": 0, "hx": -16},
+    "hips": {"lh": (-34, -6), "lp": 1, "rh": (-38, -2), "rp": 0, "lf": (-52, -6), "lb": -1, "rf": (2, 66), "rb": -1,
+             "lean": -26, "head": -10, "rise": 0, "dip": 0, "hx": 4},
+    "watch": {"lh": (-30, 6), "lp": 1, "rh": (-16, -6), "rp": 0, "lf": (-2, 66), "lb": 1, "rf": (6, 66), "rb": -1,
+              "lean": 2, "head": 14, "rise": 0, "dip": 0, "hx": -6},
+    "sit": {"lh": (-20, 20), "lp": 0, "rh": (18, 24), "rp": 0, "lf": (40, 4), "lb": -1, "rf": (52, 2), "rb": -1,
+            "lean": -10, "head": 18, "rise": 0, "dip": 54, "hx": -18},
+}
+
+
+def _bal_mix(a, b, k):
+    out = {}
+    for key, va in a.items():
+        vb = b[key]
+        out[key] = tuple(x + (y - x) * k for x, y in zip(va, vb)) if isinstance(va, tuple) else va + (vb - va) * k
+    return out
+
+
+class BalletVisual:
+    # -- Studio -------------------------------------------------------------- #
+    def _bal_studio(self, s, o, dim):
+        """Wand mit Paneelen, Spiegelwand, Holzboden (zwischengespeichert) und auf Wunsch warmes Bühnenlicht."""
+        bg = self.__dict__.get("_bal_bg")
+        if bg is None:
+            ys = np.linspace(0, 1, HEIGHT)[:, None, None]
+            arr = np.broadcast_to(np.array([70, 64, 62], np.float32) * (1 - ys) + np.array([46, 42, 42], np.float32) * ys,
+                                  (HEIGHT, WIDTH, 3)).copy()
+            img = Image.fromarray(arr.astype(np.uint8), "RGB")
+            d = ImageDraw.Draw(img)
+            for x in range(-20, WIDTH, 58):                      # Schallschutz-Paneele
+                d.rounded_rectangle([x + 4, 6, x + 52, 70], radius=3, fill=(84, 78, 74), outline=(58, 54, 52))
+                d.rounded_rectangle([x + 4, 76, x + 52, BAL_FLOOR - 62], radius=3, fill=(80, 74, 70), outline=(58, 54, 52))
+            x0, y0, x1, y1 = BAL_MIRROR                          # Spiegel: dunkler, kühler Raum dahinter
+            m = np.broadcast_to(np.array([34, 36, 44], np.float32) * (1 - np.linspace(0, 1, y1 - y0)[:, None, None] * 0.3),
+                                (y1 - y0, x1 - x0, 3)).astype(np.uint8)
+            img.paste(Image.fromarray(np.ascontiguousarray(m), "RGB"), (x0, y0))
+            for k in range(3):                                   # Spiegelbild der Paneele, schwach
+                px = x0 + 20 + k * 74
+                d.rectangle([px, y0 + 8, px + 40, y0 + 56], fill=(42, 44, 52))
+            d.rectangle([x0, y1 - 26, x1, y1], fill=(40, 30, 26))   # Boden im Spiegel
+            d.rectangle([x0 - 2, y0 - 2, x1 + 2, y1 + 2], outline=(150, 150, 158), width=2)
+            for k in range(2):                                   # Lichtreflexe auf dem Glas
+                gx = x0 + 60 + k * 90
+                d.line([(gx, y0 + 4), (gx + 24, y1 - 30)], fill=(58, 62, 74), width=6)
+            top = BAL_FLOOR - 56                                 # Holzboden mit Dielen und Glanz
+            fl = np.zeros((HEIGHT - top, WIDTH, 3), np.float32)
+            fl[:] = np.array([92, 54, 32], np.float32) * np.linspace(0.7, 1.05, HEIGHT - top)[:, None, None]
+            img.paste(Image.fromarray(fl.astype(np.uint8), "RGB"), (0, top))
+            d.line([(0, top), (WIDTH, top)], fill=(140, 136, 132), width=2)     # Sockelleiste
+            for j in range(1, 7):
+                y = top + int((j / 7) ** 1.6 * (HEIGHT - top))
+                d.line([(0, y), (WIDTH, y)], fill=(70, 40, 24))
+            for j in range(-8, 9):                               # Dielenfugen in Fluchtperspektive
+                d.line([(WIDTH / 2 + j * 22, top), (WIDTH / 2 + j * 60, HEIGHT)], fill=(76, 44, 26))
+            bg = self._bal_bg = img
+        img = bg.copy()
+        if o.get("stage", True):                                 # warmer Lichtkegel, pulsiert mit dem Bass
+            k = 0.25 if dim else 0.55 + 0.45 * s["bass"]
+            mask = Image.new("L", (WIDTH, HEIGHT), 0)
+            md = ImageDraw.Draw(mask)
+            cx = BAL_POLE_X + BAL_HIP_DX - 6
+            md.polygon([(cx - 10, 0), (cx + 10, 0), (cx + 80, BAL_FLOOR + 6), (cx - 80, BAL_FLOOR + 6)], fill=int(34 * k))
+            md.ellipse([cx - 82, BAL_FLOOR - 12, cx + 82, BAL_FLOOR + 14], fill=int(80 * k))
+            img.paste((255, 214, 160), (0, 0, WIDTH, HEIGHT), mask)
+            hue = (s["beats"] % 8) / 8                           # farbiges Streiflicht an der Wand, weich
+            self._blob(img, WIDTH - 30, 70, 150, 150, _hue(hue, 0.7, 1.0), alpha=round(0.3 * k, 2), flat=True)
+        return img
+
+    def _bal_pole(self, img, d, x, top=0, bottom=BAL_FLOOR + 2):
+        """Verchromte Stange mit Fußplatte."""
+        for dx, c in ((-3, (110, 114, 124)), (-2, (170, 174, 184)), (-1, (235, 238, 245)), (0, (200, 204, 214)),
+                      (1, (150, 154, 164)), (2, (96, 100, 110)), (3, (70, 72, 80))):
+            d.line([(x + dx, top), (x + dx, bottom)], fill=c)
+        self._blob(img, x, bottom + 1, 26, 6, (180, 184, 194), gloss=1.0)
+
+    # -- Figur --------------------------------------------------------------- #
+    def _bal_figure(self, img, d, hip, pose, t, skirt, leo, pole_x):
+        """Ballerina zeichnen: Rock (hinten), Beine, Rumpf mit Trikot, Arme, Kopf. Gibt Kopf und Hände zurück."""
+        hx, hy = hip
+        lean = math.radians(pose["lean"])
+        sitting = pose["dip"] > 40
+        if skirt:                                                 # Chiffonrock: schwebt hinter den Beinen
+            layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
+            ld = ImageDraw.Draw(layer)
+            waist = (hx + math.sin(lean) * 12, hy - 12)
+            top = [(waist[0] - 13, waist[1]), (waist[0] + 13, waist[1])]
+            hem = skirt
+            ld.polygon([top[0]] + hem + [top[1]], fill=BAL_SKIRT + (180,))
+            for i in range(1, len(hem) - 1, 2):                   # Falten
+                ld.line([(waist[0] - 12 + 24 * i / (len(hem) - 1), waist[1] + 2), hem[i]], fill=(64, 60, 72, 150))
+            ld.line(hem, fill=(84, 80, 92, 200), width=1)
+            img.alpha_composite(layer) if img.mode == "RGBA" else img.paste(layer, (0, 0), layer)
+        feet = []
+        for side, f, b in ((-1, "lf", "lb"), (1, "rf", "rb")):    # Beine mit Spitzenschuhen
+            hj = (hx + side * 7, hy + 2)
+            tx, ty = pose[f]
+            knee, foot = _ik(hj, (hj[0] + tx, hj[1] + ty), BAL_TH, BAL_SH, pose[b])
+            self._limb(img, hj, knee, 12, BAL_SKIN, gloss=0.5)
+            self._limb(img, knee, foot, 10, BAL_SKIN, gloss=0.5)
+            dx, dy = foot[0] - knee[0], foot[1] - knee[1]
+            n = math.hypot(dx, dy) or 1
+            point = pose["rise"] > 0.5 or sitting or ty < 40      # auf der Spitze: Fuß verlängert das Bein
+            tip = (foot[0] + dx / n * 9, foot[1] + dy / n * 9) if point else (foot[0] + side * 8, foot[1] + 2)
+            self._limb(img, foot, tip, 7, BAL_SHOE, gloss=0.9)
+            d.line([(foot[0] - 3, foot[1] - 4), (foot[0] + 3, foot[1] - 1)], fill=(236, 190, 160))   # Bänder
+            feet.append(tip)
+        self._blob(img, hx, hy - 2, 26, 18, leo, gloss=0.6)         # Becken im Trikot
+        chest = (hx + math.sin(lean) * 22, hy - 24)
+        neck = (hx + math.sin(lean) * BAL_TORSO, hy - BAL_TORSO * math.cos(lean))
+        self._blob(img, (hx + chest[0]) / 2, (hy + chest[1]) / 2, 17, 22, leo, ang=math.degrees(lean), gloss=0.6)
+        self._blob(img, chest[0], chest[1], 23, 28, leo, ang=math.degrees(lean), gloss=0.7)     # Brustkorb
+        d.polygon([(neck[0] - 7, neck[1] + 3), (neck[0] + 7, neck[1] + 3), (chest[0], chest[1] + 8)],
+                  fill=tuple(int(c * 0.8) for c in BAL_SKIN))       # transparenter V-Einsatz
+        for k in range(6):                                          # Glitzersteine: V-Ausschnitt und Gürtel
+            f = k / 5
+            for side in (-1, 1):
+                x = neck[0] + side * 7 * (1 - f) + (chest[0] - neck[0]) * f
+                y = neck[1] + 3 + (chest[1] + 8 - neck[1] - 3) * f
+                d.point((x, y), fill=(255, 240, 250))
+        wy = hy - 12
+        wx = hx + math.sin(lean) * 12
+        for k in range(-6, 7):
+            d.point((wx + k * 2, wy + (k % 2)), fill=(255, 236, 246) if k % 2 else (220, 180, 200))
+        hands = []
+        for side, h, p in ((-1, "lh", "lp"), (1, "rh", "rp")):     # Arme
+            sh = (neck[0] + side * 13, neck[1] + 5)
+            rx, ry = pose[h]
+            tgt = (sh[0] + rx, sh[1] + ry)
+            if pose[p] > 0:                                         # Hand an der Stange
+                tgt = (tgt[0] + (pole_x + 3 - tgt[0]) * pose[p], tgt[1])
+            elbow, hand = _ik(sh, tgt, BAL_UA, BAL_FA, side)
+            self._blob(img, sh[0], sh[1], 9, 9, BAL_SKIN, gloss=0.5)     # Schulter (Trikot ärmellos)
+            self._limb(img, sh, elbow, 8, BAL_SKIN, gloss=0.5)
+            self._limb(img, elbow, hand, 7, BAL_SKIN, gloss=0.5)
+            self._blob(img, hand[0], hand[1], 7, 7, BAL_SKIN, gloss=0.4)
+            hands.append(hand)
+        self._limb(img, (neck[0], neck[1] + 4), (neck[0], neck[1] - 6), 8, BAL_SKIN, gloss=0.4)
+        d.line([(neck[0] - 5, neck[1] - 1), (neck[0] + 5, neck[1] - 1)], fill=leo, width=3)   # Halsband
+        for k in range(-2, 3):
+            d.point((neck[0] + k * 2, neck[1] - 1), fill=(255, 240, 250))
+        hd = math.radians(pose["head"] + pose["lean"])
+        head = (neck[0] + math.sin(hd) * 10, neck[1] - 13)
+        self._blob(img, head[0], head[1], 17, 21, BAL_SKIN, gloss=0.4)
+        self._blob(img, head[0] - math.sin(hd) * 2, head[1] - 7, 18, 11, BAL_HAIR, gloss=0.7)     # Haar
+        self._blob(img, head[0] - math.sin(hd) * 4 - 2, head[1] - 12, 10, 9, BAL_HAIR, gloss=0.8)  # Dutt
+        ex = head[0] + math.sin(hd) * 3
+        for side in (-1, 1):
+            d.line([(ex + side * 3 - 1, head[1] - 1), (ex + side * 3 + 1, head[1] - 1)], fill=(40, 24, 20))
+        d.point((ex, head[1] + 5), fill=(150, 60, 60))
+        return head, hands, feet
+
+    # -- Rock: Saum mit Trägheit -------------------------------------------- #
+    def _bal_skirt(self, st, hip, lean, dt, flare, swirl, sitting):
+        """Saumpunkte (links → rechts) mit Feder und Dämpfung; folgen der Taille mit Verzögerung."""
+        n = 9
+        waist = (hip[0] + math.sin(math.radians(lean)) * 12, hip[1] - 12)
+        length = 40 if sitting else 66
+        rest = []
+        for i in range(n):
+            u = i / (n - 1) * 2 - 1                                 # −1 … 1
+            spread = 18 + 30 * flare
+            side = 1.25 if u > 0 else 0.85                          # wie im Studio: mehr Stoff nach rechts
+            x = waist[0] + u * spread * side + swirl * 34 * (1 - abs(u)) + 10 * u * abs(u)
+            y = waist[1] + length * (0.92 + 0.08 * math.cos(u * 3)) - 22 * flare * abs(u) - abs(swirl) * 18 * abs(u)
+            rest.append((x, y))
+        pts = st.get("hem")
+        if pts is None or len(pts) != n:
+            st["hem"] = [list(p) + [0.0, 0.0] for p in rest]
+            pts = st["hem"]
+        steps = max(1, int(dt / 0.02))
+        h = dt / steps
+        for _ in range(steps):
+            for p, r in zip(pts, rest):
+                ax = (r[0] - p[0]) * 90 - p[2] * 9
+                ay = (r[1] - p[1]) * 90 - p[3] * 9
+                p[2] += ax * h
+                p[3] += ay * h
+                p[0] += p[2] * h
+                p[1] += p[3] * h
+        return [(p[0], p[1]) for p in pts]
+
+    # -- Stil ---------------------------------------------------------------- #
+    @vis_style("dancer")
+    def vis_dancer(self, s, o, color):
+        t = s["t"]
+        st = self._vstate("dancer", lambda: {"k": 0, "beats": s["beats"], "hats": s.get("hats", 0), "t0": t,
+                                              "from": BAL_POSES["passe"], "to": BAL_POSES["passe"], "dur": 0.25,
+                                              "accent": 0.0, "spin_t": -99.0, "avg": None})
+        dt = self._vis_dt(st, t)
+        period = max(0.3, min(1.2, s.get("period") or 0.5))
+        moving = s.get("active") or (s.get("demo") and not s.get("idle"))
+        bored = _bored_pose(t - s.get("talk_t", t)) if s.get("talk") else None
+
+        def go(pose, dur):
+            cur = _bal_mix(st["from"], st["to"], _smooth((t - st["t0"]) / st["dur"]))
+            st.update({"from": cur, "to": pose, "t0": t, "dur": dur})
+
+        if bored:                                                 # Wortbeitrag: Langeweile an der Stange
+            if st.get("bored") != bored:
+                go(BAL_BORED[bored], 0.7)
+                st["bored"] = bored
+            st["beats"] = s["beats"]
+            energy = 0.0
+        else:
+            if st.pop("bored", None):
+                go(BAL_POSES[BAL_CHOREO[st["k"] % len(BAL_CHOREO)]], 0.35)
+            if s["beats"] != st["beats"] or (moving and t - st["t0"] > period * 2.2):
+                st["beats"] = s["beats"]
+                st["k"] += 1
+                go(BAL_POSES[BAL_CHOREO[st["k"] % len(BAL_CHOREO)]], min(0.4, period * 0.6))
+            energy = 0.35 + 0.65 * s["level"] if moving else 0.2
+        hats = s.get("hats", 0)                                   # hoher Schlag: Akzent
+        if hats != st["hats"]:
+            st["hats"] = hats
+            if not bored and s.get("hat", 0) >= 0.3:
+                st["accent"] = 1.0
+        st["accent"] *= math.exp(-dt * 9)
+        avg = st["avg"]                                           # Höhepunkt: Drehung um die Stange
+        st["avg"] = s["level"] if avg is None else avg + (s["level"] - avg) * min(1.0, dt / 6)     # langsam (≈ 6 s)
+        fast = st.get("fast")
+        st["fast"] = fast = s["level"] if fast is None else fast + (s["level"] - fast) * min(1.0, dt / 0.6)
+        if not bored and moving and avg is not None and fast > avg * 1.25 + 0.05 and t - st["spin_t"] > 8:
+            st["spin_t"] = t
+        pose = _bal_mix(st["from"], st["to"], _smooth((t - st["t0"]) / st["dur"]))
+        spin_k = (t - st["spin_t"]) / BAL_SPIN
+        spinning = 0 <= spin_k < 1 and not bored
+        if spinning:                                              # in der Drehung: Attitude
+            pose = _bal_mix(pose, BAL_POSES["attitude"], min(1.0, spin_k * 6, (1 - spin_k) * 6))
+        pose = dict(pose)
+        if not bored:                                             # Atmen, Port de bras, Akzent
+            a = st["accent"]
+            pose["rh"] = (pose["rh"][0], pose["rh"][1] - 7 * a + math.sin(t * 2.2) * 3 * energy)
+            pose["head"] += 10 * a + math.sin(t * 1.7) * 4 * energy
+            phase = ((t - st["t0"]) / period) % 1.0
+            pose["dip"] += (1 - pose["rise"]) * math.cos(2 * math.pi * phase) * 3 * energy
+        ang = _smooth(spin_k) * 2 * math.pi if spinning else 0.0
+        orbit = BAL_HIP_DX * math.cos(ang)
+        depth = math.sin(ang)                                     # > 0: hinter der Stange
+        sitting = pose["dip"] > 40
+        rise = 6 * pose["rise"]
+        hip = (BAL_POLE_X + orbit + pose["hx"] * (1 if orbit >= 0 else -1),
+               BAL_FLOOR - BAL_TH - BAL_SH - 1 - rise + pose["dip"])
+        flip = orbit < 0
+        if flip:                                                  # auf der anderen Seite: gespiegelte Haltung
+            pose = {**pose, "lean": -pose["lean"], "head": -pose["head"],
+                    "lh": (-pose["rh"][0], pose["rh"][1]), "rh": (-pose["lh"][0], pose["lh"][1]),
+                    "lp": pose["rp"], "rp": pose["lp"], "lf": (-pose["rf"][0], pose["rf"][1]),
+                    "rf": (-pose["lf"][0], pose["lf"][1]), "lb": -pose["rb"], "rb": -pose["lb"]}
+        dx = hip[0] - st.get("hip_x", hip[0])                     # Rock: Fliehkraft und Nachschwingen
+        st["hip_x"] = hip[0]
+        swirl = max(-1.0, min(1.0, -dx / max(dt, 1e-3) / 120)) if dt > 0 else 0.0
+        flare = (0.15 + 0.6 * s["bass"] * energy) if not bored else 0.05
+        if spinning:
+            flare += 0.5 * math.sin(spin_k * math.pi)
+        hem = self._bal_skirt(st, hip, pose["lean"], dt, flare, swirl, sitting)
+        leo = tuple(o["color"]) if o.get("color") else BAL_LEO
+        img = self._bal_studio(s, o, bool(bored))
+        fig = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
+        fd = ImageDraw.Draw(fig)
+        shadow_x = hip[0]
+        self._blob(fig, shadow_x, BAL_FLOOR + 3, 56 if not sitting else 70, 8, (30, 18, 12), gloss=0, alpha=0.6, flat=True)
+        behind = depth > 0.15 and spinning
+        if not behind:
+            self._bal_pole(fig, fd, BAL_POLE_X)
+        head, hands, _feet = self._bal_figure(fig, fd, hip, pose, t, hem, leo, BAL_POLE_X)
+        if behind:
+            self._bal_pole(fig, fd, BAL_POLE_X)
+        x0, y0, x1, y1 = BAL_MIRROR                               # Spiegelbild: kleiner, gespiegelt, gedämpft
+        sc = 0.72
+        small = fig.resize((int(WIDTH * sc), int(HEIGHT * sc)), Image.BILINEAR).transpose(Image.FLIP_LEFT_RIGHT)
+        r, g_, b, a = small.split()
+        a = a.point(lambda v: v * 0.55)
+        small = Image.merge("RGBA", (r.point(lambda v: v * 0.8), g_.point(lambda v: v * 0.82),
+                                     b.point(lambda v: v * 0.95), a))
+        mx = int(x0 + (x1 - x0) * 0.42 - (WIDTH - BAL_POLE_X) * sc)
+        my = int(y1 - 4 - BAL_FLOOR * sc)
+        mirror = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
+        mirror.paste(small, (mx, my))
+        clip = Image.new("L", (WIDTH, HEIGHT), 0)
+        ImageDraw.Draw(clip).rectangle([x0, y0, x1, y1], fill=255)
+        mirror.putalpha(ImageChops.multiply(mirror.getchannel("A"), clip))
+        img.paste(mirror, (0, 0), mirror)
+        img.paste(fig, (0, 0), fig)
+        if bored in ("yawn", "sit"):
+            self._bal_bubble(ImageDraw.Draw(img), head, "Gähn …" if bored == "yawn" else None, t)
+        return img
+
+    def _bal_bubble(self, d, head, text, t):
+        """Sprechblase „Gähn …“ bzw. aufsteigende „Z“ neben dem Kopf."""
+        font = self.__dict__.setdefault("_bal_bubble_font", load_font(12, bold=True))
+        x, y = head[0] + 14, head[1] - 34
+        if text:
+            w = d.textlength(text, font=font)
+            d.rounded_rectangle([x, y, x + w + 12, y + 19], radius=8, fill=(235, 235, 245))
+            d.polygon([(x + 6, y + 18), (x + 14, y + 18), (x, y + 27)], fill=(235, 235, 245))
+            d.text((x + 6, y + 3), text, font=font, fill=(40, 40, 60))
+            return
+        for i in range(3):                                        # Zzz steigen auf und verblassen
+            k = (t * 0.5 + i / 3) % 1.0
+            v = int(220 * (1 - k))
+            size = 9 + 4 * i
+            f = self.__dict__.setdefault(f"_bal_z{size}", load_font(size, bold=True))
+            d.text((x + k * 12 + i * 6, y - k * 26 + 14), "Z", font=f, fill=(v, v, min(255, v + 30)))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Modul menues
 #   Auswahllisten auf dem Display: Profile, Kalender, Alben und allgemeine Listen (Sender, Textbausteine).
 # ═══════════════════════════════════════════════════════════════════════════
@@ -13085,7 +13263,7 @@ class OverlayViews:
 class Renderer(RendererBase,
                ClockPage, ClockBase, StandardFaces, MechanicalFaces, SkyFaces, DisplayFaces, InfoFaces,
                MacrosPage, MusicPage, SlidesPage, WeatherPage, CalendarPage, HardwarePage,
-               NewsPage, WarningsPage, NetworkPage, UpdatesPage, VisualPage, XmasVisual, XmasParty,
+               NewsPage, WarningsPage, NetworkPage, UpdatesPage, VisualPage, XmasVisual, XmasParty, BalletVisual,
                MenuViews, OverlayViews):
     PAGES = len(PAGE_IDS)
     MUSIC_PAGE = PAGE_IDS.index("music")
@@ -15154,7 +15332,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.07-6"
+VERSION = "2026.11.07-7"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -19350,7 +19528,7 @@ Die Seite '''Visualisierung''' bewegt sich zu allem, was der Rechner gerade absp
 |-
 | Grafik-Equalizer || LED-Balken mit fallenden Spitzenmarken || Anzahl der Balken (16–48), Farben (Grün-Gelb-Rot, Regenbogen, Farbe der Ebene), gespiegelt, Spitzenmarken
 |-
-| Tanzendes Mädchen || eine Tänzerin wechselt auf jedem Schlag die Pose, geht im Takt in die Knie, wiegt sich von Seite zu Seite (auch wenn ein Schlag nicht erkannt wird, im erkannten Tempo); Bewegungen und Rock wachsen mit der Lautstärke. Bei '''Wortbeiträgen''' (siehe unten) langweilt sie sich || Farbe, Bühnenlicht
+| Tänzerin an der Stange || Ballerina im Tanzstudio (Spiegelwand mit Spiegelbild, Holzboden, Stange), räumlich gezeichnet, weinrotes Samttrikot, schwarzer Chiffonrock, der nachschwingt und mit dem Bass aufbläht, Spitzenschuhe. Auf jeden Bassschlag eine neue Haltung (Passé, 5. Position, Arabesque, Plié, Battement, Port de bras, Attitude, Lehnen an der Stange), hohe Schläge (Hi-Hat, Snare) geben Akzente mit Hand und Kopf, bei einem Höhepunkt dreht sie sich um die Stange. Bei '''Wortbeiträgen''' (siehe unten) langweilt sie sich an der Stange || Farbe des Trikots, Bühnenlicht
 |-
 | Lichtshow || Scheinwerfer schwenken, Farben pulsieren mit dem Bass, Spiegelkugel, Lichtpunkte; auf Wunsch Stroboskop || Anzahl der Scheinwerfer, sanfter Blitz bei kräftigen Schlägen, Stroboskop (aus, auf hohe Schläge wie Hi-Hat und Snare – nicht auf den Bass –, Salven bei Höhepunkten, beides; höchstens 1, 2 oder 3 Blitze je Sekunde; Farbe weiß, Scheinwerfer oder Ebene; Tastaturbeleuchtung blitzt mit). '''Vorsicht:''' Stroboskoplicht kann bei lichtempfindlichen Menschen Anfälle auslösen – deshalb ab Werk aus und nie mehr als 3 Blitze je Sekunde.
 |-

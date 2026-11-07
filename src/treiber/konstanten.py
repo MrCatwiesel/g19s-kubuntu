@@ -156,7 +156,7 @@ CLOCK_COLOR_CHOICES = [
 ]
 # Stile der Seite „Visualisierung“ (Auswahl am Display mit MENU, gespeichert in settings.json → "visual")
 VISUAL_STYLES = {
-    "eq": "Grafik-Equalizer", "dancer": "Tanzendes Mädchen", "lights": "Lichtshow", "scope": "Oszilloskop",
+    "eq": "Grafik-Equalizer", "dancer": "Tänzerin an der Stange", "lights": "Lichtshow", "scope": "Oszilloskop",
     "ring": "Kreis-Spektrum", "vu": "VU-Meter", "spectro": "Spektrogramm", "fireworks": "Feuerwerk",
     "xmas": "Weihnachten",
 }
@@ -174,7 +174,8 @@ VISUAL_OPTIONS = {
         {"key": "peaks", "label": "Spitzenmarken", "type": "bool", "default": True},
     ],
     "dancer": [
-        {"key": "color", "label": "Farbe der Tänzerin", "type": "color", "default": None, "none_label": _LAYER},
+        {"key": "color", "label": "Farbe des Trikots", "type": "color", "default": None,
+         "none_label": "Weinrot (Standard)"},
         {"key": "stage", "label": "Bühnenlicht", "type": "bool", "default": True},
     ],
     "lights": [

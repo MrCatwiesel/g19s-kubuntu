@@ -1,4 +1,4 @@
-"""Visualisierung „Tanzendes Mädchen“: Sprache statt Musik (Nachrichten, Moderation) → Wortbeitrag, die Tänzerin
+"""Visualisierung „Tänzerin an der Stange“: Sprache statt Musik (Nachrichten, Moderation) → Wortbeitrag, die Tänzerin
 langweilt sich, die Tastatur pulsiert nicht; Musik zurück → tanzt wieder; Stichwort im Sendertitel → ebenfalls gelangweilt."""
 import os
 import time

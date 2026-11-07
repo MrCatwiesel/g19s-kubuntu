@@ -32,7 +32,7 @@ Für die G19s gibt es unter Linux keinen offiziellen Treiber. Die normalen Taste
 * '''Terminerinnerung''' vor Terminbeginn, '''Radiowecker''' und '''Einschlaftimer''', '''Song merken''' (Radiotitel in eine Liste), '''Lieblingsbilder''' in der Diashow, '''Mikrofon stumm''' per G-Taste (MR-Leuchte als Anzeige).
 * Displayseiten je Ebene '''und''' je Profil einstellbar, '''automatische Sicherung''' in einen Ordner.
 * '''25 Zifferblätter''' für die Uhr (u. a. Chronometer, Bahnhofsuhr, Pendel- und Kuckucksuhr, Astro- und Sonnenuhr, Weltzeituhr, Nixie-Röhren, Wortuhr) – Auswahl am Display mit MENU oder SETTINGS (kurz) je Profil und Ebene, Aussehen in der Verwaltung einstellbar.
-* '''Visualisierung''' zur laufenden Musik in acht Stilen: Grafik-Equalizer, Tanzendes Mädchen, Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm, Feuerwerk – die Tastaturbeleuchtung pulsiert auf Wunsch im Takt.
+* '''Visualisierung''' zur laufenden Musik in acht Stilen: Grafik-Equalizer, Tänzerin an der Stange, Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm, Feuerwerk – die Tastaturbeleuchtung pulsiert auf Wunsch im Takt.
 * Weitere Seiten: '''Nachrichten''' (RSS/Atom), '''Unwetter''' (amtliche DWD-Warnungen), '''Netzwerk''' (Erreichbarkeit von Router, NAS …), '''Updates''' (Paket- und Flatpak-Updates, Neustart nötig).
 * '''Display''' mit sieben Standardseiten: Uhr, Musik (inkl. Internetradio), Wetter, Termine, Hardware (Auslastung, Temperaturen, Arbeitsspeicher, Lüfter, Netz, Datenträger), Makro-Übersicht, Bilder. Welche Seiten in welcher Reihenfolge erscheinen, ist frei wählbar.
 * '''Diashow''' mit Bildern aus Piwigo-Alben (auch private Alben) oder aus einem Ordner auf dem Rechner – auf Wunsch als '''Bildschirmschoner'''.
@@ -504,7 +504,7 @@ Die Seite '''Visualisierung''' bewegt sich zu allem, was der Rechner gerade absp
 |-
 | Grafik-Equalizer || LED-Balken mit fallenden Spitzenmarken || Anzahl der Balken (16–48), Farben (Grün-Gelb-Rot, Regenbogen, Farbe der Ebene), gespiegelt, Spitzenmarken
 |-
-| Tanzendes Mädchen || eine Tänzerin wechselt auf jedem Schlag die Pose, geht im Takt in die Knie, wiegt sich von Seite zu Seite (auch wenn ein Schlag nicht erkannt wird, im erkannten Tempo); Bewegungen und Rock wachsen mit der Lautstärke. Bei '''Wortbeiträgen''' (siehe unten) langweilt sie sich || Farbe, Bühnenlicht
+| Tänzerin an der Stange || Ballerina im Tanzstudio (Spiegelwand mit Spiegelbild, Holzboden, Stange), räumlich gezeichnet, weinrotes Samttrikot, schwarzer Chiffonrock, der nachschwingt und mit dem Bass aufbläht, Spitzenschuhe. Auf jeden Bassschlag eine neue Haltung (Passé, 5. Position, Arabesque, Plié, Battement, Port de bras, Attitude, Lehnen an der Stange), hohe Schläge (Hi-Hat, Snare) geben Akzente mit Hand und Kopf, bei einem Höhepunkt dreht sie sich um die Stange. Bei '''Wortbeiträgen''' (siehe unten) langweilt sie sich an der Stange || Farbe des Trikots, Bühnenlicht
 |-
 | Lichtshow || Scheinwerfer schwenken, Farben pulsieren mit dem Bass, Spiegelkugel, Lichtpunkte; auf Wunsch Stroboskop || Anzahl der Scheinwerfer, sanfter Blitz bei kräftigen Schlägen, Stroboskop (aus, auf hohe Schläge wie Hi-Hat und Snare – nicht auf den Bass –, Salven bei Höhepunkten, beides; höchstens 1, 2 oder 3 Blitze je Sekunde; Farbe weiß, Scheinwerfer oder Ebene; Tastaturbeleuchtung blitzt mit). '''Vorsicht:''' Stroboskoplicht kann bei lichtempfindlichen Menschen Anfälle auslösen – deshalb ab Werk aus und nie mehr als 3 Blitze je Sekunde.
 |-

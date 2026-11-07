@@ -49,7 +49,7 @@ def running(sim):
 
 s.key(1.0, "RIGHT")                                                   # → Visualisierung
 s.call(2.8, lambda sim: sim.summary.update(laeuft=running(sim)))
-s.key(3.0, "MENU"); s.key(3.4, "DOWN"); s.key(3.8, "RIGHT")            # Stile → Tanzendes Mädchen → Optionen
+s.key(3.0, "MENU"); s.key(3.4, "DOWN"); s.key(3.8, "RIGHT")            # Stile → Tänzerin an der Stange → Optionen
 s.key(4.2, "DOWN"); s.key(4.6, "RIGHT"); s.key(5.0, "BACK"); s.key(5.4, "OK")   # Bühnenlicht aus, übernehmen
 s.key(6.0, "SETTINGS"); s.key(6.4, "BACK")                             # SETTINGS kurz = Stile
 s.call(6.8, lambda sim: open(os.path.join(S, "sinkmute"), "w").close())         # Ausgang stumm (Musik läuft weiter)
