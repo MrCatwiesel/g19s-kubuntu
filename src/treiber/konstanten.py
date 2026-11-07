@@ -163,6 +163,17 @@ VISUAL_STYLES = {
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 # Stichwörter im Titel des Senders, die einen Wortbeitrag anzeigen (Tänzerin langweilt sich); änderbar
 TALK_WORDS = "Nachrichten, News, Werbung, Werbepause, Verkehr, Wetter"
+# Stroboskop (Lichtshow und Tänzerin): höchstens 3 Blitze je Sekunde – mehr gilt als riskant für Lichtempfindliche
+_STROBE_OPTIONS = [
+    {"key": "strobe", "label": "Stroboskop (Vorsicht bei Lichtempfindlichkeit)", "type": "choice", "default": "off",
+     "choices": [["off", "Aus"], ["beat", "Auf hohe Schläge (Hi-Hat, Snare)"], ["drop", "Salven bei Höhepunkten"],
+                 ["both", "Hohe Schläge und Salven"]]},
+    {"key": "strobe_rate", "label": "Stroboskop: höchstens … Blitze je Sekunde", "type": "choice", "default": "2",
+     "choices": [["1", "1"], ["2", "2"], ["3", "3"]]},
+    {"key": "strobe_color", "label": "Stroboskop: Farbe", "type": "choice", "default": "white",
+     "choices": [["white", "Weiß"], ["beam", "Farbe der Scheinwerfer"], ["layer", "Farbe der Ebene"]]},
+    {"key": "strobe_keys", "label": "Stroboskop: Tastaturbeleuchtung blitzt mit", "type": "bool", "default": False},
+]
 # Einstellungen je Stil (Verwaltung → Beleuchtung & Display → Visualisierung, am Display ►), wie CLOCK_OPTIONS
 VISUAL_OPTIONS = {
     "eq": [
@@ -177,20 +188,17 @@ VISUAL_OPTIONS = {
         {"key": "color", "label": "Farbe des Trikots", "type": "color", "default": None,
          "none_label": "Weinrot (Standard)"},
         {"key": "stage", "label": "Bühnenlicht", "type": "bool", "default": True},
-    ],
+        {"key": "show", "label": "Lichtshow", "type": "choice", "default": "off",
+         "choices": [["off", "Aus (Studio)"], ["beams", "Scheinwerfer"],
+                     ["club", "Disco (abgedunkelt, Scheinwerfer, Spiegelkugel, Lichtpunkte)"]]},
+        {"key": "beams", "label": "Lichtshow: Scheinwerfer", "type": "choice", "default": "5",
+         "choices": [["3", "3"], ["5", "5"], ["7", "7"]]},
+    ] + _STROBE_OPTIONS,
     "lights": [
         {"key": "beams", "label": "Scheinwerfer", "type": "choice", "default": "5",
          "choices": [["3", "3"], ["5", "5"], ["7", "7"]]},
         {"key": "flash", "label": "Sanfter Blitz bei kräftigen Schlägen", "type": "bool", "default": True},
-        {"key": "strobe", "label": "Stroboskop (Vorsicht bei Lichtempfindlichkeit)", "type": "choice", "default": "off",
-         "choices": [["off", "Aus"], ["beat", "Auf hohe Schläge (Hi-Hat, Snare)"], ["drop", "Salven bei Höhepunkten"],
-                     ["both", "Hohe Schläge und Salven"]]},
-        {"key": "strobe_rate", "label": "Stroboskop: höchstens … Blitze je Sekunde", "type": "choice", "default": "2",
-         "choices": [["1", "1"], ["2", "2"], ["3", "3"]]},
-        {"key": "strobe_color", "label": "Stroboskop: Farbe", "type": "choice", "default": "white",
-         "choices": [["white", "Weiß"], ["beam", "Farbe der Scheinwerfer"], ["layer", "Farbe der Ebene"]]},
-        {"key": "strobe_keys", "label": "Stroboskop: Tastaturbeleuchtung blitzt mit", "type": "bool", "default": False},
-    ],
+    ] + _STROBE_OPTIONS,
     "scope": [
         {"key": "mode", "label": "Darstellung", "type": "choice", "default": "line",
          "choices": [["line", "Schwingung"], ["xy", "Stereo-Figur (links/rechts)"]]},

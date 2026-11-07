@@ -1,6 +1,8 @@
 """Stil „Tänzerin an der Stange“: Haltung wechselt auf Bassschläge, hohe Schläge geben Akzente, Höhepunkt löst eine
-Drehung um die Stange aus, Wortbeitrag → Langeweile an der Stange (nach 30 s sitzt sie), Rock schwingt nach."""
+Drehung um die Stange aus, Wortbeitrag → Langeweile an der Stange (nach 30 s sitzt sie), Rock schwingt nach;
+Lichtshow (Scheinwerfer, Disco mit Spiegelkugel) und Stroboskop über das Optionsmenü."""
 import time
+import numpy as np
 from common import g, eq, ok, done
 
 r = g.Renderer()
@@ -62,4 +64,40 @@ k = st["k"]
 for _ in range(FPS * 2):
     st = frame()
 ok(st.get("bored") is None and st["k"] > k, "Musik zurück: tanzt weiter")
+
+# Lichtshow aus dem Optionsmenü
+eq((O["show"], O["strobe"]), ("off", "off"), "Standard: Studio ohne Lichtshow, kein Stroboskop")
+ok({"show", "beams", "strobe", "strobe_rate", "strobe_color", "strobe_keys"} <= {x["key"] for x in g.VISUAL_OPTIONS["dancer"]},
+   "Optionen: Lichtshow, Scheinwerfer, Stroboskop")
+
+
+def img_with(opts, talk=False, at=1.0):
+    r._vis_states = {}
+    img = None
+    for i in range(int(at * FPS)):
+        t = 5000 + i / FPS
+        s = g.demo_snapshot(t)
+        s.update(active=True, demo=False, t=t, talk=talk, talk_t=4990.0)
+        img = g.VISUAL_RENDERERS["dancer"](r, s, dict(O, **opts), (0, 255, 90))
+    return np.asarray(img).astype(int)
+
+
+studio, club = img_with({}), img_with({"show": "club"})
+ok(np.abs(studio - club).mean() > 10, "Disco: Raum und Licht sichtbar anders")
+ball = club[2:22, g.BAL_POLE_X + 86:g.BAL_POLE_X + 106]
+ok(ball.max() > 150, "Disco: Spiegelkugel funkelt")
+ok(club[:g.VIS_H, :, :].mean() < studio[:g.VIS_H, :, :].mean(), "Disco: abgedunkelt")
+ok(np.abs(img_with({}, talk=True) - img_with({"show": "club"}, talk=True)).mean() < 1,
+   "Wortbeitrag: Lichtshow ruht")
+r._vis_states = {}
+flashes = []
+for i in range(FPS * 10):
+    t = 5000 + i / FPS
+    s = g.demo_snapshot(t)
+    s.update(active=True, demo=False, t=t)
+    im = g.VISUAL_RENDERERS["dancer"](r, s, dict(O, show="club", strobe="beat", strobe_rate="3"), (0, 255, 90))
+    if np.asarray(im)[:g.VIS_H].mean() > 150:
+        flashes.append(i / FPS)
+gaps = [b - a for a, b in zip(flashes, flashes[1:])]
+ok(len(flashes) >= 10 and min(gaps) >= 1 / 3 - 1e-6, f"Stroboskop bei der Tänzerin: {len(flashes)} Blitze, ≤ 3 je Sekunde")
 done()

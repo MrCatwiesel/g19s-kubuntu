@@ -141,6 +141,8 @@ for style in g.VISUAL_STYLES:
     scenes[f"vis_{style}"] = lambda r, style=style: _visual(r, style)
 for name, style, opts in (("eq_gespiegelt", "eq", {"mirror": True, "colors": "rainbow", "bars": "48"}),
                           ("taenzerin_ohne_buehne", "dancer", {"stage": False, "color": [255, 80, 180]}),
+                          ("taenzerin_disco", "dancer", {"show": "club", "beams": "7"}),
+                          ("taenzerin_scheinwerfer", "dancer", {"show": "beams"}),
                           ("oszi_stereo", "scope", {"mode": "xy", "color": [255, 200, 0]}),
                           ("vu_dunkel", "vu", {"dial": "dark"}), ("spektrogramm_eis", "spectro", {"palette": "ice"}),
                           ("weihnachtsmann", "xmas", {"dance": "santa", "snow": "heavy"}),

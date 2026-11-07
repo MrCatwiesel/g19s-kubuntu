@@ -259,11 +259,27 @@ class VisualPage:
         t, n = s["t"], int(o["beams"])
         st = self._vstate("lights", dict)
         self._vis_dt(st, t)
+        beams = self._lights_beams(s, t, n, Image.new("RGB", (WIDTH, VIS_H), (5, 4, 10)))
+        since = t - s["beat_t"]
+        if o["flash"] and 0 <= since < 0.15 and s["bass"] > 0.6 and t - st.get("flash", -9) > 0.5:
+            st["flash"] = s["beat_t"]
+        fl = t - st.get("flash", -9)
+        if 0 <= fl < 0.15:
+            f = 1 - fl / 0.15                               # sanft, kein hartes Stroboskop
+            beams = beams.point(lambda v: min(255, int(v * (1 + 0.7 * f) + 22 * f)))
+        beams = self._lights_strobe_apply(beams, self._lights_strobe(st, s, o, t), s, color)
+        img = Image.new("RGB", (WIDTH, HEIGHT), (5, 4, 10))
+        img.paste(beams, (0, 0))
+        self._lights_ball(ImageDraw.Draw(img), t, WIDTH // 2, 12, 11)
+        return img
+
+    def _lights_beams(self, s, t, n, beams, dots=40):
+        """Scheinwerferkegel (n Stück, schwenken, Farbe wechselt mit dem Takt) und Lichtpunkte auf das Bild beams
+        (WIDTH × VIS_H) addieren – auch für die Lichtshow der Tänzerin."""
         fall = self.__dict__.get("_lights_fall")
         if fall is None:                                    # Kegel werden nach unten schwächer
             fall = self._lights_fall = Image.fromarray(
                 np.broadcast_to(np.linspace(255, 89, VIS_H)[:, None], (VIS_H, WIDTH)).astype(np.uint8), "L")
-        beams = Image.new("RGB", (WIDTH, VIS_H), (5, 4, 10))
         bright = 0.35 + 0.65 * s["bass"]
         for i in range(n):
             ox = 30 + i * (WIDTH - 60) / max(1, n - 1)
@@ -278,39 +294,36 @@ class VisualPage:
             beams = ImageChops.add(beams, ImageChops.multiply(Image.new("RGB", beams.size, c), mask.convert("RGB")))
         d = ImageDraw.Draw(beams)
         rng = random.Random(s["beats"])                     # Lichtpunkte, neu bei jedem Schlag
-        for _ in range(40):
+        for _ in range(dots):
             x, y = rng.randrange(WIDTH), rng.randrange(30, VIS_H)
             tw = 0.5 + 0.5 * math.sin(t * rng.uniform(4, 9) + rng.uniform(0, 6))
             c = _hue(rng.random(), 0.5, tw * (0.4 + 0.6 * s["level"]))
             d.rectangle([x, y, x + 1, y + 1], fill=c)
-        since = t - s["beat_t"]
-        if o["flash"] and 0 <= since < 0.15 and s["bass"] > 0.6 and t - st.get("flash", -9) > 0.5:
-            st["flash"] = s["beat_t"]
-        fl = t - st.get("flash", -9)
-        if 0 <= fl < 0.15:
-            f = 1 - fl / 0.15                               # sanft, kein hartes Stroboskop
-            beams = beams.point(lambda v: min(255, int(v * (1 + 0.7 * f) + 22 * f)))
-        strobe = self._lights_strobe(st, s, o, t)
-        if strobe:                                          # Stroboskop: harter Blitz, ein bis zwei Bilder lang
-            k, col = strobe
-            if col == "beam":
-                col = _hue(s["beats"] * 0.13, 0.5, 1.0)
-            elif col == "layer":
-                col = tuple(color)
-            else:
-                col = (255, 255, 255)
-            beams = Image.blend(beams, Image.new("RGB", beams.size, col), 0.9 * k)
-        img = Image.new("RGB", (WIDTH, HEIGHT), (5, 4, 10))
-        img.paste(beams, (0, 0))
-        d = ImageDraw.Draw(img)
-        cx, cy, r = WIDTH // 2, 12, 11                      # Spiegelkugel
+        return beams
+
+    @staticmethod
+    def _lights_strobe_apply(img, strobe, s, color):
+        """Stroboskop: harter Blitz, ein bis zwei Bilder lang (strobe aus _lights_strobe oder None)."""
+        if not strobe:
+            return img
+        k, col = strobe
+        if col == "beam":
+            col = _hue(s["beats"] * 0.13, 0.5, 1.0)
+        elif col == "layer":
+            col = tuple(color)
+        else:
+            col = (255, 255, 255)
+        return Image.blend(img, Image.new("RGB", img.size, col), 0.9 * k)
+
+    @staticmethod
+    def _lights_ball(d, t, cx, cy, r):
+        """Spiegelkugel mit funkelnden Facetten."""
         d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(70, 70, 80))
         for gx in range(-r, r, 4):
             for gy in range(-r, r, 4):
                 if gx * gx + gy * gy < r * r:
                     v = 110 + int(120 * (0.5 + 0.5 * math.sin(t * 6 + gx * 0.7 + gy * 1.3)))
                     d.rectangle([cx + gx, cy + gy, cx + gx + 2, cy + gy + 2], fill=(v, v, min(255, v + 20)))
-        return img
 
     def _lights_strobe(self, st, s, o, t):
         """Stroboskop der Lichtshow: Blitz auf hohe Schläge (Hi-Hat, Snare, Klatschen – wie ein echtes Stroboskop

@@ -152,8 +152,8 @@ class App(AppCore, KeyHandling, TimedTasks):
                 base = (20, 220, 40)
         color = tuple(int(c * k) for c in base)
         strobe = False
-        if self.visual_style() == "lights" and not quiet:                   # Stroboskop: Tastatur blitzt mit
-            lo = visual_options(s, "lights")
+        if self.visual_style() in ("lights", "dancer") and not quiet:     # Stroboskop: Tastatur blitzt mit
+            lo = visual_options(s, self.visual_style())
             if lo.get("strobe", "off") != "off" and lo.get("strobe_keys") and \
                     0 <= snap["t"] - self.renderer.vis_strobe_t < 0.12:
                 color, strobe = (255, 255, 255), True

@@ -3,6 +3,9 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.07-8
+- Tänzerin an der Stange mit **Lichtshow**: im Optionsmenü des Stils (am Display ►, in der Verwaltung unter „Visualisierung“) wählbar – „Scheinwerfer“ (bunte Kegel schwenken über das Studio) oder „Disco“ (Raum abgedunkelt, Scheinwerfer, Spiegelkugel, Lichtpunkte), Anzahl der Scheinwerfer 3, 5 oder 7. Dazu das **Stroboskop** wie bei der Lichtshow (auf hohe Schläge und/oder Salven, höchstens 1–3 Blitze je Sekunde, Farbe, Tastatur blitzt auf Wunsch mit). Ab Werk bleibt es beim ruhigen Studio; bei Wortbeiträgen ruht die Lichtshow.
+
 ## 2026.11.07-7
 - Visualisierung: Das „Tanzende Mädchen“ ist jetzt eine **Tänzerin an der Stange** im Ballettstudio – Spiegelwand mit ihrem Spiegelbild, Holzboden, verchromte Stange. Sie ist räumlich gezeichnet (Licht, Glanz, Schatten) und trägt ein weinrotes Samttrikot mit Glitzersteinen, einen schwarzen Chiffonrock, der bei Drehungen nachschwingt und vom Bass aufgebläht wird, und Spitzenschuhe.
   - Auf jeden Bassschlag eine neue Haltung: Passé an der Stange, 5. Position, Arabesque, Plié, Battement, Port de bras, Attitude, zurückgelehnt an der Stange.

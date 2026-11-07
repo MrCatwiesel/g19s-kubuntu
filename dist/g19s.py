@@ -40,7 +40,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.07-7"
+VERSION = "2026.11.07-8"
 
 # Weitere Importe der Module
 import select
@@ -227,6 +227,17 @@ VISUAL_STYLES = {
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 # Stichwörter im Titel des Senders, die einen Wortbeitrag anzeigen (Tänzerin langweilt sich); änderbar
 TALK_WORDS = "Nachrichten, News, Werbung, Werbepause, Verkehr, Wetter"
+# Stroboskop (Lichtshow und Tänzerin): höchstens 3 Blitze je Sekunde – mehr gilt als riskant für Lichtempfindliche
+_STROBE_OPTIONS = [
+    {"key": "strobe", "label": "Stroboskop (Vorsicht bei Lichtempfindlichkeit)", "type": "choice", "default": "off",
+     "choices": [["off", "Aus"], ["beat", "Auf hohe Schläge (Hi-Hat, Snare)"], ["drop", "Salven bei Höhepunkten"],
+                 ["both", "Hohe Schläge und Salven"]]},
+    {"key": "strobe_rate", "label": "Stroboskop: höchstens … Blitze je Sekunde", "type": "choice", "default": "2",
+     "choices": [["1", "1"], ["2", "2"], ["3", "3"]]},
+    {"key": "strobe_color", "label": "Stroboskop: Farbe", "type": "choice", "default": "white",
+     "choices": [["white", "Weiß"], ["beam", "Farbe der Scheinwerfer"], ["layer", "Farbe der Ebene"]]},
+    {"key": "strobe_keys", "label": "Stroboskop: Tastaturbeleuchtung blitzt mit", "type": "bool", "default": False},
+]
 # Einstellungen je Stil (Verwaltung → Beleuchtung & Display → Visualisierung, am Display ►), wie CLOCK_OPTIONS
 VISUAL_OPTIONS = {
     "eq": [
@@ -241,20 +252,17 @@ VISUAL_OPTIONS = {
         {"key": "color", "label": "Farbe des Trikots", "type": "color", "default": None,
          "none_label": "Weinrot (Standard)"},
         {"key": "stage", "label": "Bühnenlicht", "type": "bool", "default": True},
-    ],
+        {"key": "show", "label": "Lichtshow", "type": "choice", "default": "off",
+         "choices": [["off", "Aus (Studio)"], ["beams", "Scheinwerfer"],
+                     ["club", "Disco (abgedunkelt, Scheinwerfer, Spiegelkugel, Lichtpunkte)"]]},
+        {"key": "beams", "label": "Lichtshow: Scheinwerfer", "type": "choice", "default": "5",
+         "choices": [["3", "3"], ["5", "5"], ["7", "7"]]},
+    ] + _STROBE_OPTIONS,
     "lights": [
         {"key": "beams", "label": "Scheinwerfer", "type": "choice", "default": "5",
          "choices": [["3", "3"], ["5", "5"], ["7", "7"]]},
         {"key": "flash", "label": "Sanfter Blitz bei kräftigen Schlägen", "type": "bool", "default": True},
-        {"key": "strobe", "label": "Stroboskop (Vorsicht bei Lichtempfindlichkeit)", "type": "choice", "default": "off",
-         "choices": [["off", "Aus"], ["beat", "Auf hohe Schläge (Hi-Hat, Snare)"], ["drop", "Salven bei Höhepunkten"],
-                     ["both", "Hohe Schläge und Salven"]]},
-        {"key": "strobe_rate", "label": "Stroboskop: höchstens … Blitze je Sekunde", "type": "choice", "default": "2",
-         "choices": [["1", "1"], ["2", "2"], ["3", "3"]]},
-        {"key": "strobe_color", "label": "Stroboskop: Farbe", "type": "choice", "default": "white",
-         "choices": [["white", "Weiß"], ["beam", "Farbe der Scheinwerfer"], ["layer", "Farbe der Ebene"]]},
-        {"key": "strobe_keys", "label": "Stroboskop: Tastaturbeleuchtung blitzt mit", "type": "bool", "default": False},
-    ],
+    ] + _STROBE_OPTIONS,
     "scope": [
         {"key": "mode", "label": "Darstellung", "type": "choice", "default": "line",
          "choices": [["line", "Schwingung"], ["xy", "Stereo-Figur (links/rechts)"]]},
@@ -9733,11 +9741,27 @@ class VisualPage:
         t, n = s["t"], int(o["beams"])
         st = self._vstate("lights", dict)
         self._vis_dt(st, t)
+        beams = self._lights_beams(s, t, n, Image.new("RGB", (WIDTH, VIS_H), (5, 4, 10)))
+        since = t - s["beat_t"]
+        if o["flash"] and 0 <= since < 0.15 and s["bass"] > 0.6 and t - st.get("flash", -9) > 0.5:
+            st["flash"] = s["beat_t"]
+        fl = t - st.get("flash", -9)
+        if 0 <= fl < 0.15:
+            f = 1 - fl / 0.15                               # sanft, kein hartes Stroboskop
+            beams = beams.point(lambda v: min(255, int(v * (1 + 0.7 * f) + 22 * f)))
+        beams = self._lights_strobe_apply(beams, self._lights_strobe(st, s, o, t), s, color)
+        img = Image.new("RGB", (WIDTH, HEIGHT), (5, 4, 10))
+        img.paste(beams, (0, 0))
+        self._lights_ball(ImageDraw.Draw(img), t, WIDTH // 2, 12, 11)
+        return img
+
+    def _lights_beams(self, s, t, n, beams, dots=40):
+        """Scheinwerferkegel (n Stück, schwenken, Farbe wechselt mit dem Takt) und Lichtpunkte auf das Bild beams
+        (WIDTH × VIS_H) addieren – auch für die Lichtshow der Tänzerin."""
         fall = self.__dict__.get("_lights_fall")
         if fall is None:                                    # Kegel werden nach unten schwächer
             fall = self._lights_fall = Image.fromarray(
                 np.broadcast_to(np.linspace(255, 89, VIS_H)[:, None], (VIS_H, WIDTH)).astype(np.uint8), "L")
-        beams = Image.new("RGB", (WIDTH, VIS_H), (5, 4, 10))
         bright = 0.35 + 0.65 * s["bass"]
         for i in range(n):
             ox = 30 + i * (WIDTH - 60) / max(1, n - 1)
@@ -9752,39 +9776,36 @@ class VisualPage:
             beams = ImageChops.add(beams, ImageChops.multiply(Image.new("RGB", beams.size, c), mask.convert("RGB")))
         d = ImageDraw.Draw(beams)
         rng = random.Random(s["beats"])                     # Lichtpunkte, neu bei jedem Schlag
-        for _ in range(40):
+        for _ in range(dots):
             x, y = rng.randrange(WIDTH), rng.randrange(30, VIS_H)
             tw = 0.5 + 0.5 * math.sin(t * rng.uniform(4, 9) + rng.uniform(0, 6))
             c = _hue(rng.random(), 0.5, tw * (0.4 + 0.6 * s["level"]))
             d.rectangle([x, y, x + 1, y + 1], fill=c)
-        since = t - s["beat_t"]
-        if o["flash"] and 0 <= since < 0.15 and s["bass"] > 0.6 and t - st.get("flash", -9) > 0.5:
-            st["flash"] = s["beat_t"]
-        fl = t - st.get("flash", -9)
-        if 0 <= fl < 0.15:
-            f = 1 - fl / 0.15                               # sanft, kein hartes Stroboskop
-            beams = beams.point(lambda v: min(255, int(v * (1 + 0.7 * f) + 22 * f)))
-        strobe = self._lights_strobe(st, s, o, t)
-        if strobe:                                          # Stroboskop: harter Blitz, ein bis zwei Bilder lang
-            k, col = strobe
-            if col == "beam":
-                col = _hue(s["beats"] * 0.13, 0.5, 1.0)
-            elif col == "layer":
-                col = tuple(color)
-            else:
-                col = (255, 255, 255)
-            beams = Image.blend(beams, Image.new("RGB", beams.size, col), 0.9 * k)
-        img = Image.new("RGB", (WIDTH, HEIGHT), (5, 4, 10))
-        img.paste(beams, (0, 0))
-        d = ImageDraw.Draw(img)
-        cx, cy, r = WIDTH // 2, 12, 11                      # Spiegelkugel
+        return beams
+
+    @staticmethod
+    def _lights_strobe_apply(img, strobe, s, color):
+        """Stroboskop: harter Blitz, ein bis zwei Bilder lang (strobe aus _lights_strobe oder None)."""
+        if not strobe:
+            return img
+        k, col = strobe
+        if col == "beam":
+            col = _hue(s["beats"] * 0.13, 0.5, 1.0)
+        elif col == "layer":
+            col = tuple(color)
+        else:
+            col = (255, 255, 255)
+        return Image.blend(img, Image.new("RGB", img.size, col), 0.9 * k)
+
+    @staticmethod
+    def _lights_ball(d, t, cx, cy, r):
+        """Spiegelkugel mit funkelnden Facetten."""
         d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(70, 70, 80))
         for gx in range(-r, r, 4):
             for gy in range(-r, r, 4):
                 if gx * gx + gy * gy < r * r:
                     v = 110 + int(120 * (0.5 + 0.5 * math.sin(t * 6 + gx * 0.7 + gy * 1.3)))
                     d.rectangle([cx + gx, cy + gy, cx + gx + 2, cy + gy + 2], fill=(v, v, min(255, v + 20)))
-        return img
 
     def _lights_strobe(self, st, s, o, t):
         """Stroboskop der Lichtshow: Blitz auf hohe Schläge (Hi-Hat, Snare, Klatschen – wie ein echtes Stroboskop
@@ -12661,6 +12682,16 @@ class BalletVisual:
         hem = self._bal_skirt(st, hip, pose["lean"], dt, flare, swirl, sitting)
         leo = tuple(o["color"]) if o.get("color") else BAL_LEO
         img = self._bal_studio(s, o, bool(bored))
+        show = o.get("show", "off") if not bored else "off"       # Lichtshow (im Wortbeitrag ruhig)
+        if show in ("beams", "club"):
+            if show == "club":                                    # Disco: Raum abgedunkelt
+                img = Image.blend(img, Image.new("RGB", img.size, (4, 3, 10)), 0.6)
+            n = int(o["beams"]) if str(o.get("beams")).isdigit() else 5
+            beams = self._lights_beams(s, t, n, Image.new("RGB", (WIDTH, VIS_H), (0, 0, 0)),
+                                       dots=40 if show == "club" else 0)
+            if show == "beams":
+                beams = beams.point(lambda v: v * 0.55)
+            img.paste(ImageChops.add(img.crop((0, 0, WIDTH, VIS_H)), beams), (0, 0))
         fig = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
         fd = ImageDraw.Draw(fig)
         shadow_x = hip[0]
@@ -12687,6 +12718,9 @@ class BalletVisual:
         mirror.putalpha(ImageChops.multiply(mirror.getchannel("A"), clip))
         img.paste(mirror, (0, 0), mirror)
         img.paste(fig, (0, 0), fig)
+        if show == "club":
+            self._lights_ball(ImageDraw.Draw(img), t, BAL_POLE_X + 96, 12, 10)
+        img = self._lights_strobe_apply(img, self._lights_strobe(st.setdefault("strobe", {}), s, o, t), s, leo)
         if bored in ("yawn", "sit"):
             self._bal_bubble(ImageDraw.Draw(img), head, "Gähn …" if bored == "yawn" else None, t)
         return img
@@ -15010,8 +15044,8 @@ class App(AppCore, KeyHandling, TimedTasks):
                 base = (20, 220, 40)
         color = tuple(int(c * k) for c in base)
         strobe = False
-        if self.visual_style() == "lights" and not quiet:                   # Stroboskop: Tastatur blitzt mit
-            lo = visual_options(s, "lights")
+        if self.visual_style() in ("lights", "dancer") and not quiet:     # Stroboskop: Tastatur blitzt mit
+            lo = visual_options(s, self.visual_style())
             if lo.get("strobe", "off") != "off" and lo.get("strobe_keys") and \
                     0 <= snap["t"] - self.renderer.vis_strobe_t < 0.12:
                 color, strobe = (255, 255, 255), True

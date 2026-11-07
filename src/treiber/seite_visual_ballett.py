@@ -302,6 +302,16 @@ class BalletVisual:
         hem = self._bal_skirt(st, hip, pose["lean"], dt, flare, swirl, sitting)
         leo = tuple(o["color"]) if o.get("color") else BAL_LEO
         img = self._bal_studio(s, o, bool(bored))
+        show = o.get("show", "off") if not bored else "off"       # Lichtshow (im Wortbeitrag ruhig)
+        if show in ("beams", "club"):
+            if show == "club":                                    # Disco: Raum abgedunkelt
+                img = Image.blend(img, Image.new("RGB", img.size, (4, 3, 10)), 0.6)
+            n = int(o["beams"]) if str(o.get("beams")).isdigit() else 5
+            beams = self._lights_beams(s, t, n, Image.new("RGB", (WIDTH, VIS_H), (0, 0, 0)),
+                                       dots=40 if show == "club" else 0)
+            if show == "beams":
+                beams = beams.point(lambda v: v * 0.55)
+            img.paste(ImageChops.add(img.crop((0, 0, WIDTH, VIS_H)), beams), (0, 0))
         fig = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
         fd = ImageDraw.Draw(fig)
         shadow_x = hip[0]
@@ -328,6 +338,9 @@ class BalletVisual:
         mirror.putalpha(ImageChops.multiply(mirror.getchannel("A"), clip))
         img.paste(mirror, (0, 0), mirror)
         img.paste(fig, (0, 0), fig)
+        if show == "club":
+            self._lights_ball(ImageDraw.Draw(img), t, BAL_POLE_X + 96, 12, 10)
+        img = self._lights_strobe_apply(img, self._lights_strobe(st.setdefault("strobe", {}), s, o, t), s, leo)
         if bored in ("yawn", "sit"):
             self._bal_bubble(ImageDraw.Draw(img), head, "Gähn …" if bored == "yawn" else None, t)
         return img
