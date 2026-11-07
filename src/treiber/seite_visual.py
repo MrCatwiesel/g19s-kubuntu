@@ -155,6 +155,7 @@ class VisualPage:
         else:
             self._title_talk_t = None
         self.vis_talk = bool(snap.get("talk"))
+        self._vis_song = " – ".join(x for x in (info.get("artist"), info.get("title")) if x) if info else ""
         img = VISUAL_RENDERERS[style](self, snap, visual_options(self.settings, style), color)
         self._vis_last = (style, profile, img.copy())      # für das Standbild, wenn der Ton aufhört
         d = ImageDraw.Draw(img)

@@ -36,8 +36,9 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
       seite_visual            Seite „Visualisierung“, 8 Stile (@vis_style), Optionen VISUAL_OPTIONS
       seite_visual_xmas       Stil „Weihnachten“: schattierte Figuren (_blob/_limb, IK _ik), Baum, Schnee,
                               Auftritte (_xmas_actors: Ziel/Zustand je Figur, Seite neu = _vis_enter)
-      seite_visual_feier      Weihnachten, Option „Feierabend“: Runde aus PARTY_STEPS (party_timeline), je Schritt
-                              _party_<name> mit Zielen/Zuständen p_*, Requisiten und Sprechblasen (Mixin XmasParty)
+      seite_visual_feier      Weihnachten, Option „Feierabend“ (Mixin XmasParty): Runde mit Pegel (Prosten),
+                              zufälligen Gags PARTY_GAGS (party_eligible), Schluss PARTY_END, Sprüche PARTY_LINES;
+                              je Gag _party_<name> (Ziele/Zustände p_*, Requisiten); Uhrzeit über party_clock()
       menues, einblendungen   Zeichnen von Menüs und Einblendungen
       menue_logik             Menü-Klassen (Tasten + draw)
       aktionen                G-Tasten-Aktionen (@gkey_action)

@@ -1,6 +1,6 @@
 """Visualisierung „Weihnachten“ mit Option „Feierabend“: die Runde läuft im echten Treiber (Klang vom Fake-
 pw-record), Gags folgen aufeinander; solange dem Weihnachtsmann schlecht ist, leuchtet die Tastatur nur grün
-statt rot und grün im Takt. Die Runde ist für den Test auf wenige Sekunden verkürzt."""
+statt rot und grün im Takt. Die Runde ist für den Test verkürzt (Schluss nach 3 s)."""
 import os
 import time
 from harness import Sim, ROOT
@@ -13,8 +13,8 @@ s = Sim("s27_feierabend", macros={"profiles": [{"name": "P", "keys": {}}]},
                   "layer_pages": {"M1": ["visual"], "M2": ["visual"], "M3": ["visual"]},
                   "visual": {"style": "xmas", "xmas_auto": False, "xmas": {"party": "on"}}})
 g = s.g
-STEPS = [("prost", 0.0, 2.0), ("pipi", 2.0, 1.0), ("gruen", 3.0, 4.0), ("noch", 7.0, 20.0)]   # grün ab 5 s
-g.party_timeline = lambda length: STEPS                # verkürzte Runde
+g.party_end_due = lambda ps, length: ps["p"] >= 3.0       # verkürzte Runde: nach 3 s Musik wird ihm schlecht
+g.party_clock = lambda: time.struct_time((2026, 11, 20, 21, 0, 0, 4, 324, 0))      # gewöhnlicher Abend
 seen = []
 orig = g.VISUAL_RENDERERS["xmas"]
 

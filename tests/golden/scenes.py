@@ -203,31 +203,49 @@ scenes["vis_weihnachten_abschied"] = lambda r: _xmas_steps(r, [(5.0, "pair"), (0
 scenes["vis_weihnachten_geht"] = lambda r: _xmas_steps(r, [(5.0, "pair"), (2.0, "santa")])      # sie geht
 
 
-def _xmas_party(r, step, at, talk=False):
-    """Weihnachten mit „Feierabend“ (Runde 5 min) live: ab Beginn des vorigen Gags bis Sekunde at von step."""
+class _PartyClock:
+    """Feste Uhrzeit für den Feierabend (Abend, Silvester); sonst hinge das Bild von der Uhrzeit ab."""
+    def __init__(self, mon=11, day=20, hour=21, minute=0):
+        self.tm_mon, self.tm_mday, self.tm_hour, self.tm_min = mon, day, hour, minute
+
+
+def _xmas_party(r, gag, at, var=None, clock=None):
+    """Weihnachten mit „Feierabend“ live: gag (None = Auftakt mit Prosten) erzwingen und at Sekunden spielen."""
+    g.party_clock = lambda: clock or _PartyClock()
     r.visual_style, r.visual = "xmas", _Live()
     r.settings = json.loads(json.dumps(settings))
     r.settings.setdefault("visual", json.loads(json.dumps(g.DEFAULT_SETTINGS["visual"])))
-    r.settings["visual"]["xmas"] = dict(g.DEFAULT_SETTINGS["visual"]["xmas"], party="on", party_len="300")
-    tl = g.party_timeline(300)
-    names = [n for n, _s, _d in tl]
-    i = names.index(step)
+    r.settings["visual"]["xmas"] = dict(g.DEFAULT_SETTINGS["visual"]["xmas"], party="on", party_len="600")
     img = r.render(g.PAGE_IDS.index("visual"), "M2", macros)
-    st = r._vis_states["xmas"]
-    st["party"]["p"] = tl[i - 1][1] if i else 0.0
-    end = tl[i][1] + at
-    while st["party"]["p"] < end:
-        r.visual.talk = talk and st["party"]["p"] >= tl[i][1]
-        img = r.render(g.PAGE_IDS.index("visual"), "M2", macros)
+    ps = r._vis_states["xmas"]["party"]
+    if gag:
+        for _ in range(5 * 15):                                 # erst ins Bild kommen
+            r.visual.t += 1 / 15
+            r.render(g.PAGE_IDS.index("visual"), "M2", macros)
+        ps.update(p=40.0, pegel=0.7, phase="mid", next=1e9, micro_at=1e9)
+        ps["props"].update({"puddle", "sign"})
+        if gag in [n for n, _d in g.PARTY_END]:
+            r._xmas_party_begin_end(ps, gag)
+        else:
+            r._xmas_party_start(ps, gag, var)
+    for _ in range(int(round(at * 15))):
         r.visual.t += 1 / 15
+        img = r.render(g.PAGE_IDS.index("visual"), "M2", macros)
     return img
 
 
-for _name, _step, _at in (("prost", "prost", 10.3), ("pipi", "pipi", 6.5), ("baum", "baum", 5.0),
-                          ("rentier", "rentier", 4.2), ("schnee", "signatur", 6.0), ("gelb", "gelb", 4.0),
-                          ("gruen", "gruen", 4.5), ("bescherung", "bescherung", 2.0), ("kater", "kater", 6.0),
-                          ("noch_einen", "noch", 2.6)):
-    scenes[f"vis_feierabend_{_name}"] = lambda r, step=_step, at=_at: _xmas_party(r, step, at)
+for _name, _gag, _at, _var in (
+        ("prost", None, 10.3, None), ("pipi", "pipi", 6.5, None), ("baum", "baum", 5.0, None),
+        ("rentier", "rentier", 4.2, None), ("schnee", "signatur", 6.0, None), ("gelb", "gelb", 4.0, None),
+        ("gruen", "gruen", 4.5, None), ("bescherung", "bescherung", 2.0, None), ("kater", "kater", 6.0, None),
+        ("morgen", "morgen", 2.0, None), ("noch_einen", "noch", 2.6, None), ("wichtel", "wichtel", 5.0, None),
+        ("ruelps", "ruelps", 1.6, None), ("pups", "pups", 1.8, None), ("rutsch", "rutsch", 1.8, None),
+        ("stern", "baumcrash", 6.0, None), ("mistel", "mistel", 2.4, None), ("mistel_baum", "mistel", 6.0, None),
+        ("bank_tanz", "sietanzt", 3.0, "bank"), ("singt", "sietanzt", 4.0, "singt"), ("handy", "handy", 3.6, None),
+        ("schneemann_nase", "schneemann", 4.0, "nase"), ("schneemann_kippt", "schneemann", 5.0, "gluehwein"),
+        ("rentier_besuch", "rentierbesuch", 7.0, None), ("groelen", "groelen", 2.0, None)):
+    scenes[f"vis_feierabend_{_name}"] = lambda r, gag=_gag, at=_at, var=_var: _xmas_party(r, gag, at, var)
+scenes["vis_feierabend_silvester"] = lambda r: _xmas_party(r, None, 3.0, clock=_PartyClock(12, 31, 23, 30))
 
 
 def _face_opt(r, face, opts):

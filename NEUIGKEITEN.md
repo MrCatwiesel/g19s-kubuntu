@@ -3,6 +3,14 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.07-3
+- Visualisierung „Weihnachten“, Feierabend: viel mehr Gags und jede Runde anders.
+  - **Neue Gags:** ein Wichtel schreibt den Weihnachtsmann auf die Unartig-Liste; ein Rülpser lässt den Schnee vom Baum rieseln; eine Pupswolke (Lichter aus, eine Katze flüchtet); Ausrutschen auf der gefrorenen Pfütze (ein Stiefel fliegt); er rempelt den Baum an und trägt danach den Stern auf dem Kopf; Mistelzweig (sie weicht aus, er küsst den Baum); sie tanzt auf der Bank oder singt schief; sie filmt ihn mit Blitz für die Familiengruppe; ein Schneemann (Karottennase geklaut oder umgekippt nach Glühwein); ein Rentier trinkt aus dem Topf und torkelt mit blinkender Nase davon; „Der Morgen danach“ mit Sonnenbrille.
+  - **Pegel statt Stoppuhr:** Jedes Prosten hebt den Pegel; bei lauter, schneller Musik trinken sie öfter, bei ruhiger schunkeln sie nur. Wildere Gags kommen erst später, und je höher der Pegel, desto öfter.
+  - **Zufällige Reihenfolge:** Nur Anfang und Schluss sind fest, dazwischen kommen die Gags gemischt (mit Sinn: die Ausrede erst nach der Pfütze …). Die Sprüche in den Sprechblasen wechseln.
+  - **Zwischendurch:** stolpern, Becher verschütten, Takt verpassen, Schluckauf – und nach Mitternacht wird gegähnt.
+  - **Radio und Kalender:** Läuft ein Weihnachtslied (am Titel erkannt), grölen beide schief mit. An Silvester ab 23 Uhr gibt es Feuerwerk, nach Mitternacht „Frohes Neues!“.
+
 ## 2026.11.07-2
 - Verwaltung: Der Knopf „Änderungen speichern“ steht jetzt zusätzlich oben neben den Reitern und bleibt beim Scrollen sichtbar. Bisher gab es ihn nur in der Leiste am unteren Fensterrand – war das Fenster höher als der freie Platz, lag diese Leiste unsichtbar hinter der Taskleiste.
 - Die Verwaltung öffnet ihr Fenster nur noch so groß, wie der Bildschirm Platz hat (mit Raum für Taskleiste und Titelleiste).
