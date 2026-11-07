@@ -15,7 +15,7 @@ BAL_LEO = (128, 16, 40)                 # Samttrikot (Option color ersetzt es)
 BAL_SKIRT = (16, 14, 20)
 BAL_SHOE = (212, 158, 126)
 BAL_HAIR = (38, 24, 18)
-BAL_TORSO, BAL_UA, BAL_FA, BAL_TH, BAL_SH = 38, 22, 21, 33, 33
+BAL_TORSO, BAL_UA, BAL_FA, BAL_TH, BAL_SH = 37, 22, 21, 35, 34    # ≈ 7,5 Kopflängen, lange Beine
 BAL_MIRROR = (6, 14, 232, BAL_FLOOR - 58)   # Spiegelwand x0, y0, x1, y1
 BAL_SPIN = 2.6                          # Sekunden für eine Drehung um die Stange
 # Haltungen: Hände relativ zur Schulter (lp/rp = Anteil „Hand an der Stange“), Füße relativ zum Hüftgelenk,
@@ -173,8 +173,10 @@ class BalletVisual:
             hj = (hx + side * 7, hy + 2)
             tx, ty = pose[f]
             knee, foot = _ik(hj, (hj[0] + tx, hj[1] + ty), BAL_TH, BAL_SH, pose[b])
-            self._limb(img, hj, knee, 12, BAL_SKIN, gloss=0.5)
-            self._limb(img, knee, foot, 10, BAL_SKIN, gloss=0.5)
+            self._taper(img, hj, knee, 12, 8, BAL_SKIN)               # Oberschenkel verjüngt sich zum Knie
+            calf = (knee[0] + (foot[0] - knee[0]) * 0.32, knee[1] + (foot[1] - knee[1]) * 0.32)
+            self._taper(img, knee, calf, 8, 9, BAL_SKIN)              # Wade leicht gerundet
+            self._taper(img, calf, foot, 9, 5, BAL_SKIN)              # schlanke Fessel
             dx, dy = foot[0] - knee[0], foot[1] - knee[1]
             n = math.hypot(dx, dy) or 1
             point = pose["rise"] > 0.5 or sitting or ty < 40      # auf der Spitze: Fuß verlängert das Bein
@@ -182,11 +184,11 @@ class BalletVisual:
             self._limb(img, foot, tip, 7, BAL_SHOE, gloss=0.9)
             d.line([(foot[0] - 3, foot[1] - 4), (foot[0] + 3, foot[1] - 1)], fill=(236, 190, 160))   # Bänder
             feet.append(tip)
-        self._blob(img, hx, hy - 2, 26, 18, leo, gloss=0.6)         # Becken im Trikot
+        self._blob(img, hx, hy - 2, 24, 17, leo, gloss=0.6)         # Becken im Trikot
         chest = (hx + math.sin(lean) * 22, hy - 24)
         neck = (hx + math.sin(lean) * BAL_TORSO, hy - BAL_TORSO * math.cos(lean))
-        self._blob(img, (hx + chest[0]) / 2, (hy + chest[1]) / 2, 17, 22, leo, ang=math.degrees(lean), gloss=0.6)
-        self._blob(img, chest[0], chest[1], 23, 28, leo, ang=math.degrees(lean), gloss=0.7)     # Brustkorb
+        self._blob(img, (hx + chest[0]) / 2, (hy + chest[1]) / 2, 14, 20, leo, ang=math.degrees(lean), gloss=0.6)  # Taille
+        self._blob(img, chest[0], chest[1], 22, 27, leo, ang=math.degrees(lean), gloss=0.7)     # Brustkorb
         d.polygon([(neck[0] - 7, neck[1] + 3), (neck[0] + 7, neck[1] + 3), (chest[0], chest[1] + 8)],
                   fill=tuple(int(c * 0.8) for c in BAL_SKIN))       # transparenter V-Einsatz
         for k in range(6):                                          # Glitzersteine: V-Ausschnitt und Gürtel
@@ -207,18 +209,18 @@ class BalletVisual:
             if pose[p] > 0:                                         # Hand an der Stange
                 tgt = (tgt[0] + (pole_x + 3 - tgt[0]) * pose[p], tgt[1])
             elbow, hand = _ik(sh, tgt, BAL_UA, BAL_FA, side)
-            self._blob(img, sh[0], sh[1], 9, 9, BAL_SKIN, gloss=0.5)     # Schulter (Trikot ärmellos)
-            self._limb(img, sh, elbow, 8, BAL_SKIN, gloss=0.5)
-            self._limb(img, elbow, hand, 7, BAL_SKIN, gloss=0.5)
-            self._blob(img, hand[0], hand[1], 7, 7, BAL_SKIN, gloss=0.4)
+            self._blob(img, sh[0], sh[1], 8, 8, BAL_SKIN, gloss=0.5)     # Schulter (Trikot ärmellos)
+            self._taper(img, sh, elbow, 7, 5.5, BAL_SKIN)             # Oberarm
+            self._taper(img, elbow, hand, 5.5, 4, BAL_SKIN)           # Unterarm, zartes Handgelenk
+            self._blob(img, hand[0], hand[1], 6, 6, BAL_SKIN, gloss=0.4)
             hands.append(hand)
-        self._limb(img, (neck[0], neck[1] + 4), (neck[0], neck[1] - 6), 8, BAL_SKIN, gloss=0.4)
+        self._taper(img, (neck[0], neck[1] + 4), (neck[0], neck[1] - 9), 7, 5.5, BAL_SKIN)        # langer Hals
         d.line([(neck[0] - 5, neck[1] - 1), (neck[0] + 5, neck[1] - 1)], fill=leo, width=3)   # Halsband
         for k in range(-2, 3):
             d.point((neck[0] + k * 2, neck[1] - 1), fill=(255, 240, 250))
         hd = math.radians(pose["head"] + pose["lean"])
-        head = (neck[0] + math.sin(hd) * 10, neck[1] - 13)
-        self._blob(img, head[0], head[1], 17, 21, BAL_SKIN, gloss=0.4)
+        head = (neck[0] + math.sin(hd) * 11, neck[1] - 15)
+        self._blob(img, head[0], head[1], 15, 19, BAL_SKIN, gloss=0.4)
         self._blob(img, head[0] - math.sin(hd) * 2, head[1] - 7, 18, 11, hair, gloss=0.7)     # Haar
         self._blob(img, head[0] - math.sin(hd) * 4 - 2, head[1] - 12, 10, 9, hair, gloss=0.8)  # Dutt
         ex = head[0] + math.sin(hd) * 3
@@ -226,6 +228,16 @@ class BalletVisual:
             d.line([(ex + side * 3 - 1, head[1] - 1), (ex + side * 3 + 1, head[1] - 1)], fill=(40, 24, 20))
         d.point((ex, head[1] + 5), fill=(150, 60, 60))
         return head, hands, feet
+
+    def _taper(self, img, p1, p2, w1, w2, color):
+        """Glied, das sich von Breite w1 auf w2 verjüngt: das ganze Glied in der schmalen Breite, darüber der kräftige
+        Teil zur dicken Seite hin (weit überlappend, wenig Glanz – keine sichtbaren Streifen)."""
+        thin, thick = (p2, p1) if w1 >= w2 else (p1, p2)
+        wt, wk = min(w1, w2), max(w1, w2)
+        self._limb(img, p1, p2, wt, color, gloss=0.25)
+        if wk - wt > 0.6:
+            mid = (thick[0] + (thin[0] - thick[0]) * 0.6, thick[1] + (thin[1] - thick[1]) * 0.6)
+            self._limb(img, thick, mid, wk, color, gloss=0.25)
 
     # -- Rock: Saum mit Trägheit -------------------------------------------- #
     def _bal_skirt(self, st, hip, lean, dt, flare, swirl, sitting):

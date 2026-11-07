@@ -3,6 +3,9 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.07-10
+- Tänzerin an der Stange: natürlichere Proportionen – längere Beine, schmalere Taille, längerer Hals, etwas kleinerer Kopf; Ober- und Unterschenkel sowie Arme verjüngen sich (Knie, Fesseln, Handgelenke schlank, Wade leicht gerundet), keine sichtbaren „Gelenkkugeln“ mehr. Trikot, Rock, Haltungen und Figuren bleiben.
+
 ## 2026.11.07-9
 - Tänzerin an der Stange: **mehr Figuren an der Stange** – alle 8 Schläge kommt die nächste: Fireman Spin (mit angezogenen Beinen um die Stange), Pirouette, Hook (Bein um die Stange gehakt, hinausschwingen), Chair Spin, Klettern mit Pole Sit, Körperwelle an der Stange, Seitspagat im Stand; wird die Musik deutlich lauter, zusätzlich die Drehung um die Stange.
 - **Haarfarbe** im Optionsmenü wählbar: Dunkelbraun, Schwarz, Braun, Kupfer, Rot, Blond, Platinblond, Silbergrau, Pink, Blau.
