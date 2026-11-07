@@ -3,6 +3,9 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.07-6
+- Lichtshow-Stroboskop reagiert jetzt wie ein echtes auf **hohe Schläge** – Hi-Hat, Snare, Klatschen – statt auf den Bass. Die Klanganalyse erkennt dafür eigens kurze Anstiege in den Höhen (ab etwa 2,5 kHz); ein reiner Bass-Kick oder Musik ohne Schlagzeug lösen keinen Blitz aus. Salven bei Höhepunkten folgen ebenfalls den hohen Schlägen. Bei Wortbeiträgen blitzt nichts. Die Grenze von höchstens 3 Blitzen je Sekunde bleibt.
+
 ## 2026.11.07-5
 - Visualisierung „Lichtshow“: neuer **Stroboskop** (ab Werk aus). Wahlweise auf kräftige Schläge, als Salve, wenn die Musik deutlich lauter wird (Höhepunkt), oder beides. Höchstens 1, 2 oder 3 Blitze je Sekunde – mehr lässt der Treiber bewusst nicht zu, weil schnelleres Flackern für lichtempfindliche Menschen gefährlich sein kann. Farbe: weiß, wie die Scheinwerfer oder die Farbe der Ebene; auf Wunsch blitzt die Tastaturbeleuchtung mit.
 

@@ -490,23 +490,28 @@ class VisualPage:
         return img
 
     def _lights_strobe(self, st, s, o, t):
-        """Stroboskop der Lichtshow: Blitz auf kräftige Schläge und/oder Salven, wenn die Musik deutlich lauter wird
-        (Höhepunkt). Höchstens strobe_rate (≤ 3) Blitze je Sekunde – mehr gilt als riskant für Lichtempfindliche.
-        Gibt (Stärke 0…1, Farbwahl) zurück oder None; vis_strobe_t merkt sich den Blitz (für die Tastatur)."""
+        """Stroboskop der Lichtshow: Blitz auf hohe Schläge (Hi-Hat, Snare, Klatschen – wie ein echtes Stroboskop
+        am Mischpult, nicht auf den Bass) und/oder Salven, wenn die Musik deutlich lauter und heller wird (Höhepunkt).
+        Höchstens strobe_rate (≤ 3) Blitze je Sekunde – mehr gilt als riskant für Lichtempfindliche. Bei
+        Wortbeiträgen blitzt nichts. Gibt (Stärke 0…1, Farbwahl) zurück oder None; vis_strobe_t merkt sich den
+        Blitz (für die Tastatur)."""
         mode = o.get("strobe", "off")
-        if mode not in ("beat", "drop", "both") or not s.get("active", s.get("demo")):
+        if mode not in ("beat", "drop", "both") or not s.get("active", s.get("demo")) or s.get("talk"):
             return None
         rate = min(3, max(1, int(o["strobe_rate"]) if str(o.get("strobe_rate")).isdigit() else 2))
         gap = 1.0 / rate
         avg = st.get("avg")                                 # gleitendes Mittel des Pegels (≈ 4 s)
         st["avg"] = s["level"] if avg is None else avg + (s["level"] - avg) * min(1.0, (t - st.get("avg_t", t)) / 4)
         st["avg_t"] = t
-        if mode in ("drop", "both") and avg is not None and s["level"] > avg * 1.3 + 0.05 and s["bass"] > 0.7 \
-                and t - st.get("burst_end", -99) > 6:
+        if mode in ("drop", "both") and avg is not None and s["level"] > avg * 1.3 + 0.05 \
+                and s.get("treble", 0) > 0.3 and t - st.get("burst_end", -99) > 6:
             st["burst_end"] = t + 2.0                         # Salve: 2 s lang so schnell wie erlaubt
         burst = t < st.get("burst_end", -99)
         last = st.get("strobe", -99)
-        beat = mode in ("beat", "both") and 0 <= t - s["beat_t"] < 0.12 and s["bass"] > 0.55
+        hit = 0 <= t - s.get("hat_t", -99) < 0.12          # gerade ein hoher Schlag
+        beat = mode in ("beat", "both") and hit and s.get("hat", 0) >= 0.4
+        if burst and not hit and t - max(last, s.get("hat_t", -99)) < gap * 1.5:
+            burst = False                                   # Salve folgt den hohen Schlägen, sonst im Takt der Rate
         if t - last >= gap and (beat or burst):
             st["strobe"] = last = t
             self.vis_strobe_t = t

@@ -8,7 +8,7 @@ nach 2 s Musik wieder nicht. Werbung mit Musik darunter erkennt nur der Titel de
 Der Monitor bekommt Stummschalten und Lautstärke des Ausgangs nicht mit – deshalb wird jede Sekunde
 nachgefragt (change_volume "get"); ist der Ausgang stumm oder auf 0 %, gilt das wie Stille.
 Es wird nichts gespeichert, das Mikrofon wird nicht benutzt. snapshot() liefert Bänder (0…1),
-Pegel links/rechts, Bass/Mitten/Höhen, Wellenform und einen Taktzähler für die Zeichenfunktionen.
+Pegel links/rechts, Bass/Mitten/Höhen, Wellenform und einen Taktzähler (Bass) sowie hohe Schläge (Hi-Hat, Snare: hats/hat_t/hat) für die Zeichenfunktionen.
 demo_snapshot() erzeugt dieselben Werte künstlich (Vorschau der Verwaltung, Leerlauf, Tests).
 """
 import select
@@ -16,6 +16,7 @@ import select
 AUDIO_RATE = 22050
 AUDIO_FFT = 2048
 AUDIO_BANDS = 64
+AUDIO_HAT_BAND = 47                     # ab hier (≈ 2,5 kHz) zählen Hi-Hat, Snare, Klatschen als „hohe Schläge“
 AUDIO_CMDS = [
     ["pw-record", "--rate", str(AUDIO_RATE), "--channels", "2", "--format", "s16",
      "-P", '{ stream.capture.sink = true node.name = "g19s-visualisierung" media.name = "G19s Visualisierung" }', "-"],
@@ -40,7 +41,7 @@ def _empty_snapshot(t=0.0):
     return {"t": t, "bands": np.zeros(AUDIO_BANDS), "left": 0.0, "right": 0.0, "level": 0.0, "bass": 0.0,
             "mid": 0.0, "treble": 0.0, "wave": np.zeros(640), "wave_l": np.zeros(256), "wave_r": np.zeros(256),
             "beats": 0, "beat_t": -10.0, "period": 0.5, "active": False, "error": None, "demo": False, "muted": False, "volume": None,
-            "talk": False, "talk_t": 0.0}
+            "talk": False, "talk_t": 0.0, "hats": 0, "hat_t": -10.0, "hat": 0.0}
 
 
 def demo_snapshot(t, amp=1.0):
@@ -65,7 +66,9 @@ def demo_snapshot(t, amp=1.0):
                 right=float(np.clip(level * (0.9 + 0.08 * math.cos(t * 1.1)), 0, 1)),
                 bass=float(np.clip((0.35 + 0.65 * kick) * amp, 0, 1)), mid=float(np.mean(bands[16:40])),
                 treble=float(np.mean(bands[40:])), beats=int(t * 2.0), beat_t=math.floor(t * 2.0) / 2.0, period=0.5,
-                active=amp > 0.5, demo=True)
+                active=amp > 0.5, demo=True,
+                hats=int(t * 4.0), hat_t=math.floor(t * 4.0) / 4.0,     # Hi-Hat in Achteln, Snare auf 2 und 4
+                hat=(1.0 if int(t * 4.0) % 4 == 2 else 0.55) * min(1.0, amp * 1.2))
     return snap
 
 
@@ -84,6 +87,7 @@ class SoundAnalyzer:
         self.edges = _band_edges()
         self.edge_lo = np.array([lo for lo, _ in self.edges])
         self.edge_hi = np.array([hi for _, hi in self.edges])
+        self.edge_hat = AUDIO_HAT_BAND
         self.window = np.hanning(AUDIO_FFT)
         self._snap = _empty_snapshot()
         self._error_logged = None
@@ -98,6 +102,8 @@ class SoundAnalyzer:
         self.bass_hist, self.flux_hist, self.intervals = [], [], []
         self.prev_log = None
         self.beats, self.beat_t = 0, -10.0
+        self.prev_hi, self.hats, self.hat_t, self.hat = None, 0, -10.0, 0.0
+        self.hat_hist = []                  # Höhen-Fluss der letzten ≈ 0,7 s
         self.env_rms, self.env_bass = [], []        # je Block (≈ 4 s): Lautstärke, Bassanteil
         self.talk, self.talk_t, self.talk_votes = False, 0.0, 0
         self.talk_feat = (0.0, 0.0, 0.0)
@@ -228,6 +234,11 @@ class SoundAnalyzer:
             self.vu[i] += (target - self.vu[i]) * (0.5 if target > self.vu[i] else 0.15)
             levels.append(self.vu[i])
         self._detect_beat(float(np.mean(raw[:10] ** 2)), active, now)    # Bass bis ≈ 160 Hz
+        hi = raw[self.edge_hat:]                                        # Höhen ab ≈ 2,5 kHz
+        hi_flux = float(np.maximum(0.0, hi - self.prev_hi).sum() / (raw.sum() + 1e-9)) \
+            if self.prev_hi is not None else 0.0                       # Anstieg im Verhältnis zum ganzen Klang
+        self.prev_hi = hi
+        self._detect_hat(hi_flux, active, now)
         if not self.muted:                  # auch stille Blöcke zählen (Sprechpausen)
             power = raw ** 2
             self._detect_talk(rms, float(power[:8].sum() / (power.sum() + 1e-12)), now)
@@ -239,7 +250,8 @@ class SoundAnalyzer:
                 "wave_l": left[-256:].copy() * 3.0, "wave_r": right[-256:].copy() * 3.0,
                 "beats": self.beats, "beat_t": self.beat_t, "period": period, "active": active, "error": None, "demo": False,
                 "talk": self.talk, "talk_t": self.talk_t,
-                "muted": self.muted, "volume": self.volume}
+                "muted": self.muted, "volume": self.volume,
+                "hats": self.hats, "hat_t": self.hat_t, "hat": self.hat}
         with self.lock:
             self._snap = snap
 
@@ -267,6 +279,21 @@ class SoundAnalyzer:
         if len(hist) > 43:
             hist.pop(0)
             fh.pop(0)
+
+    def _detect_hat(self, flux, active, now):
+        """Hoher Schlag (Hi-Hat, Snare, Klatschen): die Höhen ab ≈ 2,5 kHz springen deutlich nach oben – Fluss über
+        Mittel + 1,5 Standardabweichungen der letzten ≈ 0,7 s; höchstens alle 70 ms. hat = Stärke 0…1."""
+        hist = self.hat_hist
+        if active and len(hist) > 12 and now - self.hat_t > 0.07:
+            m = sum(hist) / len(hist)
+            sd = math.sqrt(sum((f - m) ** 2 for f in hist) / len(hist))
+            if flux > m + 1.5 * sd and flux > 0.004:
+                self.hats += 1
+                self.hat_t = now
+                self.hat = float(min(1.0, (flux - m) / (4.0 * sd + 0.004)))
+        hist.append(flux)
+        if len(hist) > 30:
+            hist.pop(0)
 
     TALK_WINDOW = 172                   # Blöcke ≈ 4 s
     TALK_ON, TALK_OFF = 2.0, 2.0        # so lange muss Sprache bzw. Musik nach vollem Fenster anhalten (s)
