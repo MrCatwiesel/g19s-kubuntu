@@ -42,6 +42,22 @@ def fest_today():
     return _dt.date.today()
 
 
+def fest_now():
+    """Aktuelle Uhrzeit für Countdown-Anzeigen (in Tests ersetzbar)."""
+    import datetime as _dt
+    return _dt.datetime.now()
+
+
+def oktoberfest_days(year):
+    """Oktoberfest: vom Samstag nach dem 15. September bis zum ersten Sonntag im Oktober (mindestens bis 3.10.)."""
+    import datetime as _dt
+    start = _dt.date(year, 9, 16)
+    start += _dt.timedelta(days=(5 - start.weekday()) % 7)
+    end = _dt.date(year, 10, 1)
+    end += _dt.timedelta(days=(6 - end.weekday()) % 7)
+    return start, max(end, _dt.date(year, 10, 3))
+
+
 def birthdays_today(birthdays, day=None):
     """Wer hat heute Geburtstag? Liste von (Name, Alter oder None). Am 29.2. Geborene feiern in Nicht-Schaltjahren
     am 28.2."""
@@ -100,12 +116,17 @@ def easter_sunday(year):
 
 
 def fest_days(day):
-    """Festtage des Kalenders an diesem Tag: [(Stil, Anlass)] – Ostern (Gründonnerstag bis Ostermontag), Halloween
-    (25.10.–1.11.), Muttertag (2. Sonntag im Mai), Männertag (Christi Himmelfahrt). Mehrtägige Anlässe haben einen
-    Schlüssel je Jahr (eine Abwahl am Display gilt für den ganzen Zeitraum)."""
+    """Festtage des Kalenders an diesem Tag: [(Stil, Anlass)] – Fasching (Weiberfastnacht bis Faschingsdienstag),
+    Valentinstag (14.2.), Ostern (Gründonnerstag bis Ostermontag), Männertag (Christi Himmelfahrt), Muttertag
+    (2. Sonntag im Mai), Oktoberfest, Halloween (25.10.–1.11.), St. Martin (11.11.), Silvester (31.12.).
+    Mehrtägige Anlässe haben einen Schlüssel je Jahr (eine Abwahl am Display gilt für den ganzen Zeitraum)."""
     import datetime as _dt
     out = []
     easter = easter_sunday(day.year)
+    if easter - _dt.timedelta(days=52) <= day <= easter - _dt.timedelta(days=47):
+        out.append(("carnival", f"fasching:{day.year}"))
+    if day.month == 2 and day.day == 14:
+        out.append(("valentine", f"valentin:{day.year}"))
     if easter - _dt.timedelta(days=3) <= day <= easter + _dt.timedelta(days=1):
         out.append(("easter", f"ostern:{day.year}"))
     if day == easter + _dt.timedelta(days=39):
@@ -114,6 +135,13 @@ def fest_days(day):
         out.append(("halloween", f"halloween:{day.year}"))
     if day.month == 5 and day.weekday() == 6 and 8 <= day.day <= 14:
         out.append(("mother", f"mutter:{day.isoformat()}"))
+    wiesn = oktoberfest_days(day.year)
+    if wiesn[0] <= day <= wiesn[1]:
+        out.append(("oktoberfest", f"wiesn:{day.year}"))
+    if day.month == 11 and day.day == 11:
+        out.append(("martin", f"martin:{day.year}"))
+    if day.month == 12 and day.day == 31:
+        out.append(("newyear", f"silvester:{day.year}"))
     return out
 
 

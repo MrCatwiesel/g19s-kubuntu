@@ -526,6 +526,9 @@ for _gag, _at in (("schornstein", 4.0), ("plaetzchen", 3.0), ("geschenketurm", 6
 for _gag, _at in (("nachschub", 7.4), ("karaoke", 5.0), ("wichtelbar", 9.0), ("panik", 5.0)):
     scenes[f"vis_feierabend_{_gag}"] = lambda r, gag=_gag, at=_at: _xmas_party(r, gag, at)
 
+g.fest_now = lambda: __import__('datetime').datetime(2026, 11, 16, 20, 15)
+
+
 def _fest(r, style, seconds, setup=None, opts=None, talk=False, weather=(None, None, None)):
     """Überraschungsparty bzw. Kellertreppe live: Seite öffnen, setup(Zustand, t) aufrufen (Phase/Gag erzwingen)
     und seconds Sekunden mit 15 Bildern je Sekunde spielen."""
@@ -648,6 +651,16 @@ scenes["vis_maennertag_flambiert"] = lambda r: _fest(r, "father", 1.4, _mt_boom)
 scenes["vis_maennertag_karte"] = lambda r: _fest(r, "father", 1.0, _mt_gag(None), talk=True)
 for _gag, _at in (("ballett", 2.0), ("tour", 7.0), ("regen", 4.0), ("zollstock", 5.0)):
     scenes[f"vis_maennertag_{_gag}"] = lambda r, gag=_gag, at=_at: _fest(r, "father", at, _mt_gag(gag))
+scenes["vis_silvester"] = lambda r: _fest(r, "newyear", 6.0, _mt_gag(None))
+scenes["vis_silvester_countdown"] = lambda r: _fest(r, "newyear", 1.4, _mt_boom)
+scenes["vis_silvester_toast"] = lambda r: _fest(r, "newyear", 1.0, _mt_gag(None), talk=True)
+for _gag, _at in (("wachs", 7.0), ("vorsaetze", 6.0), ("wunderkerze", 4.0), ("rakete", 3.4)):
+    scenes[f"vis_silvester_{_gag}"] = lambda r, gag=_gag, at=_at: _fest(r, "newyear", at, _mt_gag(gag))
+scenes["vis_fasching"] = lambda r: _fest(r, "carnival", 6.0, _mt_gag(None))
+scenes["vis_fasching_polonaise"] = lambda r: _fest(r, "carnival", 2.4, _mt_boom, {"call": "alaaf"})
+scenes["vis_fasching_buett"] = lambda r: _fest(r, "carnival", 1.0, _mt_gag(None), talk=True)
+for _gag, _at in (("pferd", 4.6), ("orden", 5.0), ("schirm", 6.0)):
+    scenes[f"vis_fasching_{_gag}"] = lambda r, gag=_gag, at=_at: _fest(r, "carnival", at, _mt_gag(gag))
 scenes["vis_keller_gewitter"] = lambda r: _fest(r, "cellar", 4.07, weather=("thunder", 12.0, 10.0))
 
 

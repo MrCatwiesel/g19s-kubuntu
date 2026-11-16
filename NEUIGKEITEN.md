@@ -3,6 +3,15 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.16-12
+- **Neuer Stil „Silvester“:** Party auf der Dachterrasse über der Stadt – Raketen steigen auf den Bass, hohe Schläge lassen Sterne platzen, Sektkorken knallen. Die Anzeigetafel zählt am 31. Dezember die echte Zeit bis Mitternacht herunter (die letzten zehn Sekunden riesig), danach „Frohes neues Jahr“.
+  - Höhepunkt: Countdown 3-2-1 – PROSIT! – mit großem Feuerwerk. Wortbeitrag: ein Trinkspruch („… und aufs alte!“).
+  - Gags: Wachsgießen mit Deutung („Ein Toaster? Wärme im neuen Jahr!“), gute Vorsätze, die sofort durchgestrichen werden („Ab morgen. Ganz bestimmt.“), die Wunderkerze schreibt die Jahreszahl in die Luft, eine Rakete fliegt waagerecht über die Terrasse („Andersrum!!“).
+- **Neuer Stil „Fasching“:** Rosenmontagszug in der Altstadt – der Umzugswagen mit riesigem Narrenkopf nickt im Takt, Kamelle fliegen auf den Bass, die Funkengarde tanzt mit Beinwurf, vorn jubelt das kostümierte Publikum.
+  - Höhepunkt: Polonaise quer durchs Bild – mit „Helau!“ oder „Alaaf!“ (einstellbar). Wortbeitrag: Büttenrede mit Tusch.
+  - Gags: Pferdekostüm, dessen Hälften auseinanderlaufen, ein Riesenorden, unter dem der Geehrte umkippt, ein umgedrehter Regenschirm voller Kamelle.
+- **Festkalender:** Silvester (31.12.) und Fasching (Weiberfastnacht bis Faschingsdienstag) erscheinen automatisch. Oktoberfest, St. Martin und Valentinstag sind vorgemerkt und folgen mit ihren Stilen. Der Hinweis am Schalter „Festtage automatisch“ ist wieder richtig formatiert.
+
 ## 2026.11.16-11
 - **Neuer Stil „Männertag“ – Rast auf der Bollerwagentour:** Der Grillmeister (Schürze „CHEF“) wendet die Würstchen im Takt – sie hüpfen auf dem Rost und werden langsam braun, die Glut glüht mit dem Bass. Zwei Kumpels schunkeln, auf dem Bollerwagen pumpt die Musikbox.
   - Höhepunkt: Der Grill flambiert, die Würstchen fliegen, der Strohhut qualmt („Medium!“).

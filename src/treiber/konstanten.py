@@ -163,6 +163,8 @@ VISUAL_STYLES = {
     "metal": "Mittelalter-Metal", "easter": "Ostern",
     "halloween": "Halloween", "horror": "Horror",
     "birthday": "Geburtstag", "mother": "Muttertag", "father": "Männertag",
+    "newyear": "Silvester",
+    "carnival": "Fasching",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 VISUAL_FPS_QUIET = 8        # anpassende Bildrate (visual.adaptive): bei Stille/Wortbeitrag …
@@ -339,6 +341,16 @@ VISUAL_OPTIONS = {
          "default": True},
         {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "ember",
          "choices": [["ember", "Grillglut im Bass"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "newyear": [
+        {"key": "countdown", "label": "Anzeigetafel (am 31.12. Countdown bis Mitternacht)", "type": "bool", "default": True},
+        {"key": "gags", "label": "Gags (Wachsgießen, Vorsätze, Wunderkerze, Rakete)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "burst", "choices": [["burst", "Farbe der letzten Rakete"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "carnival": [
+        {"key": "call", "label": "Narrenruf", "type": "choice", "default": "helau", "choices": [["helau", "Helau!"], ["alaaf", "Alaaf!"]]},
+        {"key": "gags", "label": "Gags (Pferdekostüm, Orden, Regenschirm)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "bunt", "choices": [["bunt", "Bunt im Takt"], ["layer", "Farbe der Ebene"]]},
     ],
 }
 

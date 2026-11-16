@@ -53,6 +53,9 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
       seite_visual_geburtstag Stil „Geburtstag“ (birthday, Mixin BirthdayVisual): lebende Torte, _bd_person(Altersstufe), BD_GAGS
       seite_visual_muttertag  Stil „Muttertag“ (mother, Mixin MotherVisual): Küche, Arme je Lautstärke (st["extra"]), MO_GAGS
       seite_visual_maennertag Stil „Männertag“ (father, Mixin FatherVisual): Grill, Bollerwagen (_fa_cart), FA_GAGS
+      seite_visual_figur      FigureKit: _fig (Person mit Pose, Hut, Mund), fig_dance_pose, Feuerwerk _fx_burst/_fx_step/_fx_draw
+      seite_visual_silvester  Stil „Silvester“ (newyear): Tafel mit Countdown (fest_now), Raketen, NY_GAGS
+      seite_visual_fasching   Stil „Fasching“ (carnival): Umzugswagen, Funkengarde, Kamelle, CV_GAGS
       seite_visual_szenen     Szenen der bewegten Vorschau (vis_scenes, vis_force; Server: vorschau.render_scene)
       seite_visual_party      Stil „Überraschungsparty“ (party, Mixin PartyVisual): Phasen hide/surprise/party
                               (_pt_new_round), Gags PT_GAGS, Gäste _pt_guest, Hund, Torte, Kastenteufel, Konfetti

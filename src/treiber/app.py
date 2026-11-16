@@ -224,6 +224,12 @@ class App(AppCore, KeyHandling, TimedTasks):
         if style == "father" and not quiet and visual_options(s, "father").get("keys", "ember") == "ember" \
                 and self.renderer.vis_ember:                        # Grillglut
             base = self.renderer.vis_ember
+        if style == "newyear" and not quiet and visual_options(s, "newyear").get("keys", "burst") == "burst" \
+                and self.renderer.vis_ny:
+            base = self.renderer.vis_ny
+        if style == "carnival" and not quiet and visual_options(s, "carnival").get("keys", "bunt") == "bunt" \
+                and self.renderer.vis_cv:
+            base = self.renderer.vis_cv
         if style == "metal" and visual_options(s, "metal").get("keys", "fire") == "fire":   # Feuerkörbe
             k, base = round(max(0.12, self.renderer.vis_fire) * 20) / 20, (255, 100, 16)
         color = tuple(int(c * k) for c in base)

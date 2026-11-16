@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.11.16-11)
+| 28.09.2026 (Version 2026.11.16-12)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -32,7 +32,7 @@ Für die G19s gibt es unter Linux keinen offiziellen Treiber. Die normalen Taste
 * '''Terminerinnerung''' vor Terminbeginn, '''Radiowecker''' und '''Einschlaftimer''', '''Song merken''' (Radiotitel in eine Liste), '''Lieblingsbilder''' in der Diashow, '''Mikrofon stumm''' per G-Taste (MR-Leuchte als Anzeige).
 * Displayseiten je Ebene '''und''' je Profil einstellbar, '''automatische Sicherung''' in einen Ordner.
 * '''25 Zifferblätter''' für die Uhr (u. a. Chronometer, Bahnhofsuhr, Pendel- und Kuckucksuhr, Astro- und Sonnenuhr, Weltzeituhr, Nixie-Röhren, Wortuhr) – Auswahl am Display mit MENU oder SETTINGS (kurz) je Profil und Ebene, Aussehen in der Verwaltung einstellbar.
-* '''Visualisierung''' zur laufenden Musik in achtzehn Stilen: Grafik-Equalizer, Tänzerin an der Stange, Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm, Feuerwerk, Weihnachten, Überraschungsparty, Kellertreppe, Mittelalter-Metal, Ostern, Halloween, Horror, Geburtstag, Muttertag, Männertag – die Tastaturbeleuchtung pulsiert auf Wunsch im Takt.
+* '''Visualisierung''' zur laufenden Musik in zwanzig Stilen: Grafik-Equalizer, Tänzerin an der Stange, Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm, Feuerwerk, Weihnachten, Überraschungsparty, Kellertreppe, Mittelalter-Metal, Ostern, Halloween, Horror, Geburtstag, Muttertag, Männertag, Silvester, Fasching – die Tastaturbeleuchtung pulsiert auf Wunsch im Takt.
 * Weitere Seiten: '''Nachrichten''' (RSS/Atom), '''Unwetter''' (amtliche DWD-Warnungen), '''Netzwerk''' (Erreichbarkeit von Router, NAS …), '''Updates''' (Paket- und Flatpak-Updates, Neustart nötig).
 * '''Display''' mit sieben Standardseiten: Uhr, Musik (inkl. Internetradio), Wetter, Termine, Hardware (Auslastung, Temperaturen, Arbeitsspeicher, Lüfter, Netz, Datenträger), Makro-Übersicht, Bilder. Welche Seiten in welcher Reihenfolge erscheinen, ist frei wählbar.
 * '''Diashow''' mit Bildern aus Piwigo-Alben (auch private Alben) oder aus einem Ordner auf dem Rechner – auf Wunsch als '''Bildschirmschoner'''.
@@ -182,7 +182,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.16-11"
+VERSION = "2026.11.16-12"
 
 # Weitere Importe der Module
 import select
@@ -369,6 +369,8 @@ VISUAL_STYLES = {
     "metal": "Mittelalter-Metal", "easter": "Ostern",
     "halloween": "Halloween", "horror": "Horror",
     "birthday": "Geburtstag", "mother": "Muttertag", "father": "Männertag",
+    "newyear": "Silvester",
+    "carnival": "Fasching",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 VISUAL_FPS_QUIET = 8        # anpassende Bildrate (visual.adaptive): bei Stille/Wortbeitrag …
@@ -545,6 +547,16 @@ VISUAL_OPTIONS = {
          "default": True},
         {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "ember",
          "choices": [["ember", "Grillglut im Bass"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "newyear": [
+        {"key": "countdown", "label": "Anzeigetafel (am 31.12. Countdown bis Mitternacht)", "type": "bool", "default": True},
+        {"key": "gags", "label": "Gags (Wachsgießen, Vorsätze, Wunderkerze, Rakete)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "burst", "choices": [["burst", "Farbe der letzten Rakete"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "carnival": [
+        {"key": "call", "label": "Narrenruf", "type": "choice", "default": "helau", "choices": [["helau", "Helau!"], ["alaaf", "Alaaf!"]]},
+        {"key": "gags", "label": "Gags (Pferdekostüm, Orden, Regenschirm)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "bunt", "choices": [["bunt", "Bunt im Takt"], ["layer", "Farbe der Ebene"]]},
     ],
 }
 
@@ -1145,6 +1157,22 @@ def fest_today():
     return _dt.date.today()
 
 
+def fest_now():
+    """Aktuelle Uhrzeit für Countdown-Anzeigen (in Tests ersetzbar)."""
+    import datetime as _dt
+    return _dt.datetime.now()
+
+
+def oktoberfest_days(year):
+    """Oktoberfest: vom Samstag nach dem 15. September bis zum ersten Sonntag im Oktober (mindestens bis 3.10.)."""
+    import datetime as _dt
+    start = _dt.date(year, 9, 16)
+    start += _dt.timedelta(days=(5 - start.weekday()) % 7)
+    end = _dt.date(year, 10, 1)
+    end += _dt.timedelta(days=(6 - end.weekday()) % 7)
+    return start, max(end, _dt.date(year, 10, 3))
+
+
 def birthdays_today(birthdays, day=None):
     """Wer hat heute Geburtstag? Liste von (Name, Alter oder None). Am 29.2. Geborene feiern in Nicht-Schaltjahren
     am 28.2."""
@@ -1203,12 +1231,17 @@ def easter_sunday(year):
 
 
 def fest_days(day):
-    """Festtage des Kalenders an diesem Tag: [(Stil, Anlass)] – Ostern (Gründonnerstag bis Ostermontag), Halloween
-    (25.10.–1.11.), Muttertag (2. Sonntag im Mai), Männertag (Christi Himmelfahrt). Mehrtägige Anlässe haben einen
-    Schlüssel je Jahr (eine Abwahl am Display gilt für den ganzen Zeitraum)."""
+    """Festtage des Kalenders an diesem Tag: [(Stil, Anlass)] – Fasching (Weiberfastnacht bis Faschingsdienstag),
+    Valentinstag (14.2.), Ostern (Gründonnerstag bis Ostermontag), Männertag (Christi Himmelfahrt), Muttertag
+    (2. Sonntag im Mai), Oktoberfest, Halloween (25.10.–1.11.), St. Martin (11.11.), Silvester (31.12.).
+    Mehrtägige Anlässe haben einen Schlüssel je Jahr (eine Abwahl am Display gilt für den ganzen Zeitraum)."""
     import datetime as _dt
     out = []
     easter = easter_sunday(day.year)
+    if easter - _dt.timedelta(days=52) <= day <= easter - _dt.timedelta(days=47):
+        out.append(("carnival", f"fasching:{day.year}"))
+    if day.month == 2 and day.day == 14:
+        out.append(("valentine", f"valentin:{day.year}"))
     if easter - _dt.timedelta(days=3) <= day <= easter + _dt.timedelta(days=1):
         out.append(("easter", f"ostern:{day.year}"))
     if day == easter + _dt.timedelta(days=39):
@@ -1217,6 +1250,13 @@ def fest_days(day):
         out.append(("halloween", f"halloween:{day.year}"))
     if day.month == 5 and day.weekday() == 6 and 8 <= day.day <= 14:
         out.append(("mother", f"mutter:{day.isoformat()}"))
+    wiesn = oktoberfest_days(day.year)
+    if wiesn[0] <= day <= wiesn[1]:
+        out.append(("oktoberfest", f"wiesn:{day.year}"))
+    if day.month == 11 and day.day == 11:
+        out.append(("martin", f"martin:{day.year}"))
+    if day.month == 12 and day.day == 31:
+        out.append(("newyear", f"silvester:{day.year}"))
     return out
 
 
@@ -19306,6 +19346,755 @@ class FatherVisual:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Modul seite_visual_figur
+#   Figurenbaukasten für die Themen-Stile (Mixin FigureKit): eine Person mit Pose, Hut und Mund sowie kleine Helfer
+#   (Feuerwerk-Partikel, Sterne). Pose: {"lh", "rh"} Handziel relativ zur Schulter, {"lf", "rf"} Fußziel relativ zur
+#   Hüfte. Hüte: None, "party", "jester", "top", "cowboy", "tracht", "crown", "beanie", "helmet".
+# ═══════════════════════════════════════════════════════════════════════════
+
+FIG_POSE_STAND = {"lh": (-6, 22), "rh": (6, 22), "lf": (-6, 34), "rf": (6, 34)}
+
+
+def fig_dance_pose(k, up=True, sway=0.0):
+    """Einfache Tanzposen im Wechsel (k = Schlagzähler)."""
+    p = k % 4
+    arm = -18 if up else 12
+    return [{"lh": (-14, arm), "rh": (12, 14), "lf": (-6 + sway * 3, 34), "rf": (8 + sway * 3, 30)},
+            {"lh": (-12, 14), "rh": (14, arm), "lf": (-8 + sway * 3, 30), "rf": (6 + sway * 3, 34)},
+            {"lh": (-14, arm), "rh": (14, arm), "lf": (-7, 34), "rf": (7, 34)},
+            {"lh": (-8, 18), "rh": (8, 18), "lf": (-5, 34), "rf": (5, 34)}][p]
+
+
+class FigureKit:
+    def _fig(self, img, d, x, y, t, shirt, pose=None, h=1.0, skin=(240, 200, 170), legs=(60, 62, 90),
+             hair=(100, 66, 40), hat=None, hat_col=None, mouth=0.0, lean=0.0, sit=False, dress=None, face=0,
+             beard=None, eyes="dot"):
+        """Person; y = Fußpunkt, h = Maßstab (1,0 ≈ 74 px). Gibt (Kopfmitte, [linke Hand, rechte Hand]) zurück."""
+        pose = pose or FIG_POSE_STAND
+        s = h
+        hip = (x + lean * 8 * s, y - (20 if sit else 34) * s)
+        for side, key in ((-1, "lf"), (1, "rf")):
+            hj = (hip[0] + side * 4 * s, hip[1])
+            if sit:
+                knee, foot = (hj[0] + 14 * s, hj[1] + 1), (hj[0] + 14 * s, y)
+            else:
+                f = pose.get(key, (side * 6, 34))
+                knee, foot = _ik(hj, (hj[0] + f[0] * s, hj[1] + f[1] * s), 17 * s, 17 * s, side)
+            self._limb(img, hj, knee, 6 * s, legs)
+            self._limb(img, knee, foot, 5 * s, legs)
+            d.ellipse([foot[0] - 5 * s, foot[1] - 3 * s, foot[0] + 5 * s, foot[1] + 1], fill=(50, 40, 36))
+        neck = (hip[0] + lean * 10 * s, hip[1] - 30 * s)
+        if dress:
+            d.polygon([(hip[0] - 13 * s, hip[1] + 8 * s), (hip[0] + 13 * s, hip[1] + 8 * s),
+                       (neck[0] + 7 * s, neck[1] + 6 * s), (neck[0] - 7 * s, neck[1] + 6 * s)], fill=dress)
+        self._blob(img, (hip[0] + neck[0]) / 2, (hip[1] + neck[1]) / 2 + 2 * s, 20 * s, 34 * s, shirt, gloss=0.3,
+                   ang=lean * 0.3)
+        hands = []
+        for side, key in ((-1, "lh"), (1, "rh")):
+            sh = (neck[0] + side * 9 * s, neck[1] + 4 * s)
+            hh = pose.get(key, (side * 6, 22))
+            elbow, hand = _ik(sh, (sh[0] + hh[0] * s, sh[1] + hh[1] * s), 13 * s, 13 * s, -side)
+            self._limb(img, sh, elbow, 5 * s, shirt)
+            self._limb(img, elbow, hand, 4 * s, skin)
+            self._blob(img, hand[0], hand[1], 5 * s, 5 * s, skin, gloss=0.2)
+            hands.append(hand)
+        hc = (neck[0] + face * 1.5, neck[1] - 9 * s)
+        if hair and hat not in ("helmet",):
+            self._blob(img, hc[0], hc[1] - 2 * s, 20 * s, 18 * s, hair, gloss=0.3)
+        self._blob(img, hc[0], hc[1] + 1 * s, 17 * s, 18 * s, skin, gloss=0.3)
+        for side in (-1, 1):
+            ex = hc[0] + side * 3.5 * s + face * 1.5
+            if eyes == "closed":
+                d.line([(ex - 1.5, hc[1]), (ex + 1.5, hc[1])], fill=(30, 24, 24))
+            elif eyes == "big":
+                d.ellipse([ex - 2.5, hc[1] - 3, ex + 2.5, hc[1] + 2], fill=(250, 250, 250), outline=(30, 24, 24))
+                d.ellipse([ex - 1, hc[1] - 1.5, ex + 1, hc[1] + 0.5], fill=(30, 24, 24))
+            else:
+                d.ellipse([ex - 1.3, hc[1] - 1.5, ex + 1.3, hc[1] + 1], fill=(30, 24, 24))
+        if beard:
+            d.chord([hc[0] - 8 * s, hc[1] - 2 * s, hc[0] + 8 * s, hc[1] + 12 * s], 0, 180, fill=beard)
+        my = hc[1] + 5 * s
+        if mouth > 0.15:
+            d.ellipse([hc[0] - 2.5 * s, my - 1, hc[0] + 2.5 * s, my + 1 + mouth * 4 * s], fill=(120, 40, 50))
+        else:
+            d.arc([hc[0] - 3 * s, my - 3, hc[0] + 3 * s, my + 1], 20, 160, fill=(150, 60, 60))
+        self._fig_hat(img, d, hc, s, hat, hat_col, t)
+        return hc, hands
+
+    def _fig_hat(self, img, d, hc, s, hat, col, t):
+        if not hat:
+            return
+        top = hc[1] - 8 * s
+        if hat == "party":
+            col = col or (230, 60, 120)
+            d.polygon([(hc[0] - 6 * s, top + 2), (hc[0] + 6 * s, top + 2), (hc[0] + 1, top - 14 * s)], fill=col)
+            self._blob(img, hc[0] + 1, top - 14 * s, 4 * s, 4 * s, (250, 220, 60), gloss=0.3)
+        elif hat == "jester":
+            cols = col or ((220, 40, 60), (250, 200, 40))
+            for i, side in enumerate((-1, 1)):
+                tip = (hc[0] + side * 14 * s, top - 6 * s + math.sin(t * 6 + i) * 2)
+                d.polygon([(hc[0] - (4 if side < 0 else -4) * s, top + 3), (hc[0], top - 4 * s), tip],
+                          fill=cols[i % 2])
+                self._blob(img, tip[0], tip[1] + 2, 4 * s, 4 * s, cols[(i + 1) % 2], gloss=0.4)
+            d.rectangle([hc[0] - 9 * s, top + 1, hc[0] + 9 * s, top + 4 * s], fill=cols[1])
+        elif hat == "top":
+            col = col or (30, 30, 34)
+            d.rectangle([hc[0] - 6 * s, top - 12 * s, hc[0] + 6 * s, top + 2], fill=col)
+            d.rectangle([hc[0] - 10 * s, top + 1, hc[0] + 10 * s, top + 3 * s], fill=col)
+            d.rectangle([hc[0] - 6 * s, top - 2 * s, hc[0] + 6 * s, top], fill=(200, 40, 50))
+        elif hat == "cowboy":
+            col = col or (150, 100, 56)
+            d.ellipse([hc[0] - 14 * s, top - 1, hc[0] + 14 * s, top + 5 * s], fill=col)
+            d.chord([hc[0] - 7 * s, top - 11 * s, hc[0] + 7 * s, top + 4 * s], 180, 360, fill=col)
+            d.line([(hc[0] - 7 * s, top), (hc[0] + 7 * s, top)], fill=(90, 60, 30), width=2)
+        elif hat == "tracht":
+            col = col or (60, 80, 50)
+            d.ellipse([hc[0] - 10 * s, top - 1, hc[0] + 10 * s, top + 4 * s], fill=col)
+            d.chord([hc[0] - 6 * s, top - 9 * s, hc[0] + 6 * s, top + 4 * s], 180, 360, fill=col)
+            d.line([(hc[0] + 4 * s, top - 4 * s), (hc[0] + 9 * s, top - 14 * s)], fill=(250, 250, 250), width=2)
+        elif hat == "crown":
+            col = col or (250, 210, 60)
+            d.polygon([(hc[0] - 7 * s, top + 2), (hc[0] + 7 * s, top + 2), (hc[0] + 7 * s, top - 6 * s),
+                       (hc[0] + 3.5 * s, top - 2 * s), (hc[0], top - 8 * s), (hc[0] - 3.5 * s, top - 2 * s),
+                       (hc[0] - 7 * s, top - 6 * s)], fill=col)
+        elif hat == "beanie":
+            col = col or (200, 60, 60)
+            d.chord([hc[0] - 9 * s, top - 6 * s, hc[0] + 9 * s, top + 8 * s], 180, 360, fill=col)
+            self._blob(img, hc[0], top - 7 * s, 5 * s, 5 * s, (250, 250, 250), gloss=0.3)
+        elif hat == "helmet":
+            col = col or (230, 230, 240)
+            d.ellipse([hc[0] - 13 * s, hc[1] - 13 * s, hc[0] + 13 * s, hc[1] + 13 * s], outline=col, width=3)
+            self._blob(img, hc[0] + 4 * s, hc[1] - 5 * s, 6 * s, 4 * s, (255, 255, 255), alpha=0.6, flat=True)
+
+    # -- Feuerwerk (Silvester, Oktoberfest-Abschluss …) ----------------------------------- #
+    @staticmethod
+    def _fx_burst(parts, x, y, col, rng, n=22, speed=60.0):
+        for k in range(n):
+            a = k / n * 6.283 + rng.uniform(-0.1, 0.1)
+            v = speed * rng.uniform(0.6, 1.0)
+            parts.append([x, y, math.cos(a) * v, math.sin(a) * v, 1.0, col])
+
+    @staticmethod
+    def _fx_step(parts, dt, grav=40.0, fade=0.7, cap=400):
+        for p in parts:
+            p[0] += p[2] * dt
+            p[1] += p[3] * dt
+            p[3] += grav * dt
+            p[2] *= 1 - dt * 0.6
+            p[4] -= dt * fade
+        parts[:] = [p for p in parts if p[4] > 0][-cap:]
+
+    @staticmethod
+    def _fx_draw(d, parts):
+        for x, y, vx, vy, life, col in parts:
+            c = tuple(int(v * min(1.0, life * 1.4)) for v in col)
+            d.line([(x, y), (x - vx * 0.03, y - vy * 0.03)], fill=c, width=2 if life > 0.5 else 1)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Modul seite_visual_silvester
+#   Visualisierung „Silvester“ (newyear, Mixin NewYearVisual): Party auf der Dachterrasse über der Stadt. Raketen
+#   steigen auf den Bass, hohe Schläge lassen kleine Sterne platzen, Sektkorken knallen. Die Anzeigetafel zählt am
+#   31. Dezember die echte Zeit bis Mitternacht herunter (die letzten zehn Sekunden groß), danach „Frohes neues Jahr“.
+#   Höhepunkt: Countdown 3-2-1 mit großem Feuerwerk. Wortbeitrag: ein Trinkspruch. Gags: Wachsgießen mit Deutung,
+#   Vorsätze (sofort durchgestrichen), Wunderkerze schreibt die Jahreszahl, eine Rakete fliegt waagerecht über die Terrasse.
+# ═══════════════════════════════════════════════════════════════════════════
+
+NY_FLOOR = VIS_H - 22
+NY_PEOPLE = [(118, (200, 40, 60), "party"), (156, (60, 90, 200), "top"), (226, (240, 200, 60), None)]
+NY_TABLE = 270
+NY_GAGS = {"wachs": 10.0, "vorsaetze": 8.0, "wunderkerze": 8.0, "rakete": 8.0}
+NY_GAG_FIRST, NY_GAG_PAUSE = 8.0, (12.0, 20.0)
+NY_BOOM = 6.0
+NY_COLORS = [(255, 80, 80), (255, 210, 60), (90, 200, 255), (120, 255, 140), (230, 120, 255), (255, 255, 255)]
+NY_WAX = [("Ein Schiff", "Du gehst auf Reisen!"), ("Ein Toaster?", "Wärme im neuen Jahr!"),
+          ("Ein Herz", "Die Liebe klopft an!"), ("Ein Klumpen", "Bedeutet … Überraschung!"),
+          ("Ein Schwein", "Glück, viel Glück!")]
+
+
+def _ny_year(day):
+    """Das kommende Jahr (am Neujahrstag das gerade begonnene)."""
+    return day.year if (day.month, day.day) == (1, 1) else day.year + 1
+
+
+class NewYearVisual:
+    vis_ny = None
+
+    def _ny_scene(self):
+        if "_ny_bg" in self.__dict__:
+            return self._ny_bg
+        ys = np.linspace(0, 1, HEIGHT)[:, None, None]
+        top, bot = np.array([6, 8, 30], np.float32), np.array([40, 30, 70], np.float32)
+        img = Image.fromarray(np.clip(np.broadcast_to(top + (bot - top) * ys, (HEIGHT, WIDTH, 3)), 0, 255)
+                              .astype(np.uint8), "RGB")
+        d = ImageDraw.Draw(img)
+        rng = random.Random(3)
+        for _ in range(50):
+            d.point((rng.uniform(0, WIDTH), rng.uniform(0, 110)), fill=(190, 190, 220))
+        x = 0
+        while x < WIDTH:                                                            # Skyline
+            w, h = rng.randint(16, 34), rng.randint(30, 80)
+            d.rectangle([x, NY_FLOOR - 24 - h, x + w, NY_FLOOR], fill=(22, 22, 36))
+            if rng.random() < 0.3:
+                d.line([(x + w / 2, NY_FLOOR - 24 - h), (x + w / 2, NY_FLOOR - 34 - h)], fill=(22, 22, 36), width=2)
+            for wy in range(NY_FLOOR - 20 - h, NY_FLOOR - 26, 7):
+                for wx in range(x + 3, x + w - 3, 6):
+                    if rng.random() < 0.35:
+                        d.rectangle([wx, wy, wx + 2, wy + 3], fill=(250, 220, 120))
+            x += w + rng.randint(0, 4)
+        d.rectangle([0, NY_FLOOR - 26, WIDTH, NY_FLOOR - 22], fill=(150, 150, 160))   # Geländer
+        for x in range(0, WIDTH, 10):
+            d.line([(x, NY_FLOOR - 22), (x, NY_FLOOR)], fill=(110, 110, 120), width=2)
+        d.rectangle([0, NY_FLOOR, WIDTH, HEIGHT], fill=(70, 60, 64))
+        for x in range(0, WIDTH, 20):
+            d.line([(x, NY_FLOOR), (x - 8, HEIGHT)], fill=(56, 48, 52))
+        for k in range(14):                                                         # Lichterkette
+            lx = 6 + k * 23
+            ly = 64 + 8 * math.sin(k * 0.9)
+            d.ellipse([lx - 2, ly - 2, lx + 2, ly + 2], fill=NY_COLORS[k % 5])
+        tx = NY_TABLE                                                               # Stehtisch
+        d.ellipse([tx - 22, NY_FLOOR - 42, tx + 22, NY_FLOOR - 36], fill=(240, 240, 245))
+        d.line([(tx, NY_FLOOR - 38), (tx, NY_FLOOR)], fill=(160, 160, 170), width=3)
+        d.line([(tx - 12, NY_FLOOR), (tx + 12, NY_FLOOR)], fill=(160, 160, 170), width=3)
+        self._ny_bg = img
+        return img
+
+    def _ny_board(self, d, t, st, s):
+        """Anzeigetafel oben links: echter Countdown am 31.12., sonst die Uhrzeit mit Jahreszahl."""
+        now = fest_now()
+        day = fest_today()
+        year = _ny_year(day)
+        d.rounded_rectangle([6, 20, 134, 46], radius=4, fill=(10, 10, 14), outline=(80, 80, 90))
+        big = None
+        if day.month == 12 and day.day == 31:
+            left = max(0, int((24 * 3600) - (now.hour * 3600 + now.minute * 60 + now.second)))
+            txt = f"{left // 3600:02d}:{left // 60 % 60:02d}:{left % 60:02d}"
+            if left <= 10:
+                big = str(left) if left > 0 else None
+        elif day.month == 1 and day.day == 1 and now.hour == 0 and now.minute < 15:
+            txt = f"Prosit {day.year}!"
+        else:
+            txt = f"{now.hour:02d}:{now.minute:02d} → {year}"
+        d.text((12, 22), txt, font=self.f_mid, fill=(255, 90, 60))
+        return big, (day.month == 1 and day.day == 1 and now.hour == 0 and now.minute < 15)
+
+    @vis_style("newyear")
+    def vis_newyear(self, s, o, color):
+        t = s["t"]
+        img = self._ny_scene().copy()
+        d = ImageDraw.Draw(img)
+        demo = bool(s.get("demo"))
+        talk = bool(s.get("talk"))
+        st = self._vstate("newyear", lambda: {"beats": s["beats"], "hats": s.get("hats", 0), "slow": s["level"],
+                                               "fast": s["level"], "boom": -99.0, "gag": None, "order": [], "k": 0,
+                                               "next_gag": t + NY_GAG_FIRST, "rng": random.Random(71), "start": t,
+                                               "rockets": [], "parts": [], "cork": -9.0, "wax": 0})
+        dt = self._vis_dt(st, t)
+        new_beat = s["beats"] != st["beats"]
+        st["beats"] = s["beats"]
+        new_hat = s.get("hats", 0) != st["hats"]
+        st["hats"] = s.get("hats", 0)
+        playing = (s.get("active") or demo) and not talk
+        period = max(0.3, min(1.2, s.get("period") or 0.5))
+        bang = math.sin(math.pi * min(1.0, (t - s.get("beat_t", t)) / (period * 0.6))) if playing else 0.0
+        level = s["level"] if playing else 0.0
+        st["slow"] += (s["level"] - st["slow"]) * min(1.0, dt / 6)
+        st["fast"] += (s["level"] - st["fast"]) * min(1.0, dt / 0.4)
+        if not demo and playing and st["fast"] > st["slow"] * 1.2 + 0.04 and t - st["boom"] > 15 \
+                and t - st["start"] > 5 and st["gag"] is None:
+            st["boom"] = t
+        bt = t - st["boom"]
+        boom = 0 <= bt < NY_BOOM
+        gag = st["gag"]
+        if gag and t - gag[1] >= NY_GAGS[gag[0]]:
+            st["gag"] = gag = None
+            st["next_gag"] = t + st["rng"].uniform(*NY_GAG_PAUSE)
+        if not demo and o.get("gags", True) and gag is None and playing and not boom and t >= st["next_gag"]:
+            if not st["order"]:
+                st["order"] = st["rng"].sample(list(NY_GAGS), len(NY_GAGS))
+            st["gag"] = gag = (st["order"].pop(0), t)
+            if gag[0] == "wachs":
+                st["wax"] = st["rng"].randrange(len(NY_WAX))
+        gname = gag[0] if gag else None
+        gl = t - gag[1] if gag else 0.0
+        say = []
+        big, newyear = self._ny_board(d, t, st, s) if o.get("countdown", True) else (None, False)
+        rng = st["rng"]
+        # Raketen: Bass startet eine, oben platzt sie
+        if playing and new_beat:
+            st["k"] += 1
+            if s["bass"] > 0.45 and len(st["rockets"]) < 6:
+                st["rockets"].append([rng.uniform(20, 300), NY_FLOOR - 30, rng.uniform(-10, 10),
+                                      -rng.uniform(150, 200), rng.choice(NY_COLORS)])
+            if s["bass"] > 0.6 and rng.random() < 0.3:
+                st["cork"] = t
+        if playing and new_hat and rng.random() < 0.5:
+            self._fx_burst(st["parts"], rng.uniform(30, 290), rng.uniform(30, 100), rng.choice(NY_COLORS), rng, 10, 30)
+        if (boom and 3.0 <= bt < 5.5 and int(bt * 6) != int((bt - dt) * 6)) or (newyear and rng.random() < 0.2):
+            self._fx_burst(st["parts"], rng.uniform(40, 280), rng.uniform(30, 90), rng.choice(NY_COLORS), rng, 30, 80)
+        for r in list(st["rockets"]):
+            r[0] += r[2] * dt
+            r[1] += r[3] * dt
+            r[3] += 60 * dt
+            if r[3] > -40 or r[1] < 30:
+                st["rockets"].remove(r)
+                self._fx_burst(st["parts"], r[0], r[1], r[4], rng, 22, 60)
+                self.vis_ny = r[4]
+                continue
+            d.line([(r[0], r[1]), (r[0] - r[2] * 0.05, r[1] + 8)], fill=(255, 230, 150), width=2)
+        self._fx_step(st["parts"], dt)
+        self._fx_draw(d, st["parts"])
+        # Sekt auf dem Tisch, Korken knallt
+        tx = NY_TABLE
+        d.rectangle([tx + 6, NY_FLOOR - 62, tx + 14, NY_FLOOR - 42], fill=(40, 90, 50))
+        d.rectangle([tx + 8, NY_FLOOR - 70, tx + 12, NY_FLOOR - 62], fill=(40, 90, 50))
+        d.rectangle([tx + 7, NY_FLOOR - 70, tx + 13, NY_FLOOR - 66], fill=(230, 200, 80))
+        ck = (t - st["cork"]) / 0.8
+        if 0 <= ck < 1:
+            cx, cy = tx + 10 - ck * 60, NY_FLOOR - 72 - math.sin(ck * math.pi) * 60
+            d.rectangle([cx - 2, cy - 3, cx + 2, cy + 3], fill=(200, 160, 100))
+            if ck < 0.3:
+                d.text((tx - 6, NY_FLOOR - 92), "PLOPP", font=self.f_tiny, fill=(255, 240, 200))
+                for k in range(5):
+                    d.point((tx + 10 + k - 2, NY_FLOOR - 72 - k * 2), fill=(250, 250, 220))
+        d.ellipse([tx - 18, NY_FLOOR - 46, tx - 6, NY_FLOOR - 42], fill=(250, 240, 200))   # Schüssel (Wachs)
+        d.line([(tx - 2, NY_FLOOR - 50), (tx - 2, NY_FLOOR - 42)], fill=(250, 250, 240), width=3)   # Kerze
+        d.polygon([(tx - 4, NY_FLOOR - 51), (tx, NY_FLOOR - 51), (tx - 2, NY_FLOOR - 57)], fill=(255, 190, 60))
+        # Leute
+        sway = math.sin(t * math.pi / period) if playing else 0.0
+        heads = []
+        for i, (px, shirt, hat) in enumerate(NY_PEOPLE):
+            pose = fig_dance_pose(st["k"] + i, level > 0.4, sway) if playing else dict(FIG_POSE_STAND)
+            if i < 2 and (playing or talk):
+                pose = dict(pose, rh=(14, -8) if i == 0 else pose["rh"], lh=(-14, -8) if i == 1 else pose["lh"])
+            duck = 0.0
+            if gname == "rakete" and 2.0 <= gl < 4.6:
+                pose = {"lh": (-10, -16), "rh": (10, -16), "lf": (-10, 22), "rf": (10, 22)}
+                duck = 1.0
+            if gname == "wachs" and i == 2 and gl < 4.0:
+                pose = {"lh": (-6, 20), "rh": (18, 0)}
+            if gname in ("vorsaetze", "wunderkerze") and i == 2:
+                pose = {"lh": (-8, 16), "rh": (16, -18 if gname == "wunderkerze" else 4)}
+            hc, hands = self._fig(img, d, px + sway * 2, NY_FLOOR + duck * 0, t, shirt, pose, h=1.0 - 0.15 * duck,
+                                  hat=hat, mouth=level if playing else 0.0, eyes="big" if duck else "dot")
+            heads.append((hc, hands))
+            if i < 2 and (playing or talk):                                         # Sektgläser
+                hx, hy = hands[1] if i == 0 else hands[0]
+                d.polygon([(hx - 3, hy - 9), (hx + 3, hy - 9), (hx + 1, hy - 2), (hx - 1, hy - 2)],
+                          fill=(250, 230, 140))
+                d.line([(hx, hy - 2), (hx, hy + 3)], fill=(220, 220, 230))
+        if playing and t - s.get("beat_t", -9) < 0.12 and st["k"] % 4 == 0:
+            d.text((134, NY_FLOOR - 104), "kling!", font=self.f_tiny, fill=(255, 240, 180))
+        if talk:
+            tl = t - s.get("talk_t", t)
+            if tl < 3.0:
+                say.append((heads[1][0][0], heads[1][0][1] - 28, "Ein Toast aufs neue Jahr!"))
+            elif tl < 6.0:
+                say.append((heads[0][0][0], heads[0][0][1] - 28, "… und aufs alte!"))
+        # Höhepunkt: Countdown 3-2-1
+        if boom:
+            n = 3 - int(bt)
+            font = load_font(64, bold=True)
+            txt = str(n) if n > 0 else "PROSIT!"
+            f2 = font if n > 0 else load_font(40, bold=True)
+            w = d.textlength(txt, font=f2)
+            d.text(((WIDTH - w) / 2 + 2, 52), txt, font=f2, fill=(80, 20, 20))
+            d.text(((WIDTH - w) / 2, 50), txt, font=f2, fill=(255, 220, 80))
+        if big:
+            f2 = load_font(80, bold=True)
+            w = d.textlength(big, font=f2)
+            d.text(((WIDTH - w) / 2, 40), big, font=f2, fill=(255, 240, 200))
+        if newyear:
+            f2 = load_font(24, bold=True)
+            txt = f"Frohes neues Jahr {fest_today().year}!"
+            w = d.textlength(txt, font=f2)
+            d.text(((WIDTH - w) / 2, 50), txt, font=f2, fill=(255, 230, 120))
+        # Gags
+        if gname == "wachs":
+            self._ny_gag_wax(img, d, gl, t, say, heads[2], st)
+        elif gname == "vorsaetze":
+            self._ny_gag_resolutions(img, d, gl, t, say, heads[2])
+        elif gname == "wunderkerze":
+            self._ny_gag_sparkler(img, d, gl, t, say, heads[2], st)
+        elif gname == "rakete":
+            self._ny_gag_rocket(img, d, gl, t, say, st)
+        for x, y, text in say:
+            self._xmas_party_say(d, x, y, text)
+        return img
+
+    # -- Gags ------------------------------------------------------------------------------------- #
+    def _ny_gag_wax(self, img, d, gl, t, say, who, st):
+        """Wachsgießen: Löffel über der Kerze, ins Wasser, Figur hochhalten und deuten."""
+        hc, hands = who
+        hx, hy = hands[1]
+        shape, meaning = NY_WAX[st["wax"] % len(NY_WAX)]
+        if gl < 4.0:
+            d.line([(hx, hy), (hx + 14, hy + 6)], fill=(200, 200, 210), width=2)
+            d.ellipse([hx + 12, hy + 3, hx + 20, hy + 9], fill=(200, 200, 210))
+            if gl < 3.0:
+                d.ellipse([hx + 14, hy + 4, hx + 18, hy + 7], fill=(250, 200, 80))
+            else:
+                d.line([(hx + 16, hy + 8), (hx + 16, NY_FLOOR - 44)], fill=(250, 200, 80), width=2)
+                d.text((hx + 20, hy - 6), "zisch!", font=self.f_tiny, fill=(220, 230, 250))
+            if gl < 2.0:
+                say.append((hc[0], hc[1] - 28, "Wachs, nicht Blei – Blei ist verboten!"))
+            return
+        cx, cy, r = 58, 82, 30                                                      # Lupe mit der Figur
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(250, 250, 240), outline=(140, 120, 80), width=4)
+        d.line([(cx + r * 0.7, cy + r * 0.7), (cx + r * 1.2, cy + r * 1.2)], fill=(140, 120, 80), width=6)
+        c = (230, 190, 80)
+        if shape.endswith("Schiff"):
+            d.polygon([(cx - 20, cy + 4), (cx + 20, cy + 4), (cx + 12, cy + 16), (cx - 12, cy + 16)], fill=c)
+            d.polygon([(cx - 2, cy + 4), (cx - 2, cy - 20), (cx + 14, cy + 2)], fill=c)
+        elif shape.endswith("Toaster?"):
+            d.rounded_rectangle([cx - 18, cy - 10, cx + 18, cy + 14], radius=5, fill=c)
+            for k in (-7, 5):
+                d.rectangle([cx + k - 1, cy - 9, cx + k + 3, cy - 4], fill=(150, 110, 40))
+        elif shape.endswith("Herz"):
+            d.ellipse([cx - 16, cy - 14, cx, cy + 2], fill=c)
+            d.ellipse([cx, cy - 14, cx + 16, cy + 2], fill=c)
+            d.polygon([(cx - 16, cy - 4), (cx + 16, cy - 4), (cx, cy + 18)], fill=c)
+        elif shape.endswith("Schwein"):
+            self._blob(img, cx, cy + 2, 34, 22, c, gloss=0.5)
+            self._blob(img, cx + 16, cy - 2, 12, 10, c, gloss=0.5)
+            for k in (-10, 8):
+                d.line([(cx + k, cy + 10), (cx + k, cy + 18)], fill=c, width=3)
+        else:
+            for k in range(5):
+                self._blob(img, cx - 10 + k * 5, cy - 4 + (k % 2) * 8, 14, 12, c, gloss=0.5)
+        if 4.4 <= gl < 6.6:
+            say.append((cx, cy - r - 8, shape))
+        elif gl >= 6.6:
+            say.append((hc[0] - 20, hc[1] - 28, meaning))
+
+    def _ny_gag_resolutions(self, img, d, gl, t, say, who):
+        hc, hands = who
+        hx, hy = hands[1]
+        items = ["Mehr Sport", "Weniger Chips", "Früher ins Bett", "Keller aufräumen"]
+        ln = min(1.0, gl / 1.2)
+        x0, y0 = 222, 40
+        d.line([(hx, hy), (x0 + 30, y0 + 66 * ln)], fill=(250, 246, 230))
+        d.rectangle([x0, y0, x0 + 94, y0 + 8 + 60 * ln], fill=(250, 246, 230), outline=(180, 170, 140))
+        for i, it in enumerate(items):
+            yy = y0 + 4 + i * 14
+            if yy > y0 + 60 * ln:
+                break
+            d.text((x0 + 3, yy), it, font=self.f_tiny, fill=(40, 40, 60))
+            if gl > 3.0 + i * 0.6:
+                d.line([(x0 + 2, yy + 7), (x0 + 92, yy + 7)], fill=(220, 40, 40), width=2)
+        if 1.2 <= gl < 3.0:
+            say.append((hc[0], hc[1] - 28, "Dieses Jahr wird alles anders!"))
+        elif gl >= 5.6:
+            say.append((hc[0], hc[1] - 28, "Ab morgen. Ganz bestimmt."))
+
+    def _ny_gag_sparkler(self, img, d, gl, t, say, who, st):
+        """Die Wunderkerze schreibt die Jahreszahl in die Luft."""
+        hc, hands = who
+        year = str(_ny_year(fest_today()))
+        font = load_font(34, bold=True)
+        k = min(1.0, gl / 5.0)
+        x0, y0 = 150, 60
+        mask = Image.new("L", (130, 44), 0)
+        ImageDraw.Draw(mask).text((2, 0), year, font=font, fill=255)
+        w = int(130 * k)
+        if w > 0:
+            glow = Image.new("RGB", (w, 44), (255, 230, 140))
+            img.paste(glow, (x0, y0), mask.crop((0, 0, w, 44)))
+        hx, hy = hands[1]
+        tip = (x0 + w, y0 + 20 + math.sin(gl * 9) * 10)
+        d.line([(hx, hy), tip], fill=(130, 130, 140), width=1)
+        for kk in range(10):
+            a = gl * 30 + kk * 0.63
+            r = 2 + (gl * 50 + kk * 5) % 8
+            d.point((tip[0] + math.cos(a) * r, tip[1] + math.sin(a) * r), fill=(255, 250, 200))
+        if gl > 5.6:
+            say.append((hc[0], hc[1] - 28, "Schön, oder?"))
+
+    def _ny_gag_rocket(self, img, d, gl, t, say, st):
+        """Eine Rakete in der Flasche kippt um und saust waagerecht über die Terrasse."""
+        bx, by = 40, NY_FLOOR - 26
+        tip = 0.0 if gl < 2.0 else min(1.0, (gl - 2.0) / 0.3)
+        a = -math.pi / 2 + tip * math.pi / 2
+        d.polygon([(bx - 4, by), (bx + 4, by), (bx + 3, by - 14), (bx - 3, by - 14)], fill=(50, 110, 60))
+        if gl < 2.2:
+            rx, ry = bx + math.cos(a) * 16, by - 14 + math.sin(a) * 16 + 14
+            d.line([(bx, by - 14), (rx, ry - 6)], fill=(200, 60, 60), width=3)
+            for k in range(4):
+                d.point((bx + st["rng"].uniform(-3, 3), by - 14 + st["rng"].uniform(-3, 3)), fill=(255, 220, 120))
+            if gl < 1.6:
+                say.append((bx + 10, by - 40, "Zündschnur brennt …"))
+        elif gl < 4.6:
+            f = (gl - 2.2) / 2.4
+            rx = bx + f * 320
+            ry = NY_FLOOR - 50 + math.sin(f * 20) * 12
+            d.line([(rx - 14, ry), (rx, ry)], fill=(200, 60, 60), width=3)
+            for k in range(8):
+                d.point((rx - 16 - k * 4, ry + st["rng"].uniform(-3, 3)), fill=(255, 200, 80))
+            say.append((160, NY_FLOOR - 120, "Andersrum!!"))
+        elif gl < 5.2:
+            img.paste((255, 250, 230), (0, 0, WIDTH, VIS_H), Image.new("L", (WIDTH, VIS_H), int(120 * (5.2 - gl))))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Modul seite_visual_fasching
+#   Visualisierung „Fasching“ (carnival, Mixin CarnivalVisual): Rosenmontagszug in der Altstadt. Ein Umzugswagen mit
+#   riesigem Narrenkopf (nickt im Takt) rollt durchs Bild, vom Wagen fliegen Kamelle auf den Bass, vorn tanzt die
+#   Funkengarde mit Beinwurf, ganz vorn jubelt das Publikum. Höhepunkt: Polonaise quer durchs Bild („Helau!“ oder
+#   „Alaaf!“). Wortbeitrag: Büttenrede mit Tusch. Gags: Pferdekostüm (die Hälften laufen auseinander), ein riesiger Orden,
+#   der umgedrehte Regenschirm füllt sich mit Kamelle.
+# ═══════════════════════════════════════════════════════════════════════════
+
+CV_FLOOR = VIS_H - 30
+CV_GARDE = (96, 160, 224)
+CV_GAGS = {"pferd": 8.0, "orden": 7.0, "schirm": 8.0}
+CV_GAG_FIRST, CV_GAG_PAUSE = 8.0, (12.0, 20.0)
+CV_BOOM = 6.0
+CV_FLOAT_PERIOD = 28.0
+CV_COLORS = [(230, 50, 60), (250, 200, 40), (60, 140, 230), (90, 190, 90), (220, 100, 200), (250, 140, 40)]
+
+
+class CarnivalVisual:
+    vis_cv = None
+
+    def _cv_scene(self):
+        if "_cv_bg" in self.__dict__:
+            return self._cv_bg
+        img = Image.new("RGB", (WIDTH, HEIGHT), (150, 200, 245))
+        d = ImageDraw.Draw(img)
+        rng = random.Random(12)
+        x = -6
+        while x < WIDTH:                                                            # Fachwerk-Häuser
+            w = rng.randint(40, 56)
+            h = rng.randint(70, 100)
+            col = rng.choice([(240, 220, 180), (230, 190, 170), (210, 220, 200), (240, 240, 230)])
+            d.rectangle([x, CV_FLOOR - 20 - h, x + w, CV_FLOOR], fill=col, outline=(110, 80, 60))
+            d.polygon([(x - 3, CV_FLOOR - 20 - h), (x + w + 3, CV_FLOOR - 20 - h), (x + w / 2, CV_FLOOR - 46 - h)],
+                      fill=(170, 70, 50))
+            for k in range(1, 4):
+                d.line([(x, CV_FLOOR - 20 - h + k * h / 4), (x + w, CV_FLOOR - 20 - h + k * h / 4)],
+                       fill=(110, 80, 60), width=2)
+            d.line([(x, CV_FLOOR - 20 - h), (x + w, CV_FLOOR - 20)], fill=(110, 80, 60), width=2)
+            for wy in (CV_FLOOR - 14 - h + 8, CV_FLOOR - 14 - h * 0.5):
+                for wx in (x + 8, x + w - 18):
+                    d.rectangle([wx, wy, wx + 10, wy + 12], fill=(120, 160, 200), outline=(250, 250, 250))
+            x += w
+        d.rectangle([0, CV_FLOOR - 20, WIDTH, HEIGHT], fill=(150, 146, 140))         # Straße
+        for y in range(CV_FLOOR - 16, HEIGHT, 6):
+            for xx in range((y // 6 % 2) * 6, WIDTH, 12):
+                d.rectangle([xx, y, xx + 10, y + 4], outline=(130, 126, 120))
+        for row, y0 in enumerate((22, 40)):                                         # Wimpelketten
+            pts = [(k * 20 - 4, y0 + 6 * math.sin(k * 0.8 + row)) for k in range(18)]
+            d.line(pts, fill=(80, 70, 60))
+            for k, (px, py) in enumerate(pts[:-1]):
+                d.polygon([(px, py), (px + 12, py), (px + 6, py + 10)], fill=CV_COLORS[(k + row) % 6])
+        self._cv_bg = img
+        return img
+
+    def _cv_float(self, img, d, x, t, bang, mouth, ouch=0.0):
+        """Umzugswagen mit Narrenkopf; x = Mitte."""
+        y = CV_FLOOR - 16
+        d.rectangle([x - 50, y - 26, x + 50, y], fill=(60, 140, 230))
+        for k in range(10):
+            d.polygon([(x - 50 + k * 10, y), (x - 40 + k * 10, y), (x - 45 + k * 10, y + 6)], fill=CV_COLORS[k % 6])
+        for wx in (-34, 34):
+            d.ellipse([x + wx - 9, y - 4, x + wx + 9, y + 14], fill=(40, 40, 44))
+        hx, hy = x, y - 58 + bang * 3
+        self._blob(img, hx, hy, 58, 54, (250, 214, 180), gloss=0.4, ang=math.sin(t * 2) * 0.05)
+        for side, c in ((-1, (230, 50, 60)), (1, (250, 200, 40))):                  # Kappe
+            tip = (hx + side * 40, hy - 40 + math.sin(t * 4 + side) * 4)
+            d.polygon([(hx - 24 * (side < 0) + 2 * (side > 0), hy - 18), (hx + 24 * (side > 0) - 2 * (side < 0), hy - 18),
+                       tip], fill=c)
+            self._blob(img, tip[0], tip[1] + 3, 9, 9, (250, 250, 250), gloss=0.4)
+        d.rectangle([hx - 28, hy - 22, hx + 28, hy - 14], fill=(90, 190, 90))
+        for side in (-1, 1):
+            d.ellipse([hx + side * 11 - 6, hy - 10, hx + side * 11 + 6, hy + 2], fill=(255, 255, 255))
+            d.ellipse([hx + side * 11 - 2.5, hy - 6, hx + side * 11 + 2.5, hy - 1], fill=(30, 30, 40))
+            self._blob(img, hx + side * 18, hy + 8, 10, 8, (240, 120, 130), gloss=0.2)
+        self._blob(img, hx, hy + 2, 12 + 4 * ouch, 11 + 4 * ouch, (230, 40, 50), gloss=0.6)
+        d.chord([hx - 14, hy + 6 - mouth * 4, hx + 14, hy + 18 + mouth * 6], 0, 180, fill=(120, 30, 40))
+        return (hx, hy)
+
+    @vis_style("carnival")
+    def vis_carnival(self, s, o, color):
+        t = s["t"]
+        img = self._cv_scene().copy()
+        d = ImageDraw.Draw(img)
+        demo = bool(s.get("demo"))
+        talk = bool(s.get("talk"))
+        call = "Alaaf!" if o.get("call", "helau") == "alaaf" else "Helau!"
+        st = self._vstate("carnival", lambda: {"beats": s["beats"], "slow": s["level"], "fast": s["level"],
+                                                "boom": -99.0, "gag": None, "order": [], "k": 0, "candy": [],
+                                                "next_gag": t + CV_GAG_FIRST, "rng": random.Random(81), "start": t,
+                                                "conf": [], "fill": 0})
+        dt = self._vis_dt(st, t)
+        new_beat = s["beats"] != st["beats"]
+        st["beats"] = s["beats"]
+        playing = (s.get("active") or demo) and not talk
+        period = max(0.3, min(1.2, s.get("period") or 0.5))
+        bang = math.sin(math.pi * min(1.0, (t - s.get("beat_t", t)) / (period * 0.6))) if playing else 0.0
+        level = s["level"] if playing else 0.0
+        st["slow"] += (s["level"] - st["slow"]) * min(1.0, dt / 6)
+        st["fast"] += (s["level"] - st["fast"]) * min(1.0, dt / 0.4)
+        if not demo and playing and st["fast"] > st["slow"] * 1.2 + 0.04 and t - st["boom"] > 15 \
+                and t - st["start"] > 5 and st["gag"] is None:
+            st["boom"] = t
+        bt = t - st["boom"]
+        boom = 0 <= bt < CV_BOOM
+        gag = st["gag"]
+        if gag and t - gag[1] >= CV_GAGS[gag[0]]:
+            st["gag"] = gag = None
+            st["next_gag"] = t + st["rng"].uniform(*CV_GAG_PAUSE)
+        if not demo and o.get("gags", True) and gag is None and playing and not boom and t >= st["next_gag"]:
+            if not st["order"]:
+                st["order"] = st["rng"].sample(list(CV_GAGS), len(CV_GAGS))
+            st["gag"] = gag = (st["order"].pop(0), t)
+            st["fill"] = 0
+        gname = gag[0] if gag else None
+        gl = t - gag[1] if gag else 0.0
+        say = []
+        rng = st["rng"]
+        # Umzugswagen (fährt langsam von rechts nach links durch, dann von vorn)
+        ph = ((t - st["start"]) / CV_FLOAT_PERIOD + 0.45) % 1.0 if not demo else 0.45
+        fx = WIDTH + 80 - ph * (WIDTH + 160)
+        mouth = min(1.0, level * 1.5) if playing else (0.5 * abs(math.sin(t * 8)) if talk else 0.0)
+        head = self._cv_float(img, d, fx, t, bang, mouth)
+        for k, side in enumerate((-1, 1)):                                          # Werfer auf dem Wagen
+            pose = {"lh": (-12, -14 if (st["k"] + k) % 2 else 10), "rh": (12, -14 if (st["k"] + k + 1) % 2 else 10)}
+            self._fig(img, d, fx + side * 36, CV_FLOOR - 42, t, CV_COLORS[k + 2], pose, h=0.7, hat="jester")
+        if playing and new_beat:
+            st["k"] += 1
+            if s["bass"] > 0.4 and -40 < fx < WIDTH + 40:
+                for _ in range(3):
+                    st["candy"].append([fx + rng.uniform(-30, 30), CV_FLOOR - 70, rng.uniform(-70, 70),
+                                        rng.uniform(-150, -90), rng.randrange(6)])
+        for c in st["candy"]:
+            c[0] += c[2] * dt
+            c[1] += c[3] * dt
+            c[3] += 300 * dt
+        st["candy"] = [c for c in st["candy"] if c[1] < VIS_H + 10][-60:]
+        # Funkengarde mit Beinwurf
+        if not boom:
+            for i, gx in enumerate(CV_GARDE):
+                kick = playing and (st["k"] + i) % 2 == 0
+                kk = bang if kick else 0.0
+                pose = {"lh": (-14, -16), "rh": (14, -16), "lf": (-4, 34), "rf": (18 * kk + 4, 34 - 40 * kk)}
+                self._fig(img, d, gx, CV_FLOOR - 4, t, (230, 40, 50), pose, h=0.95, dress=(250, 250, 250),
+                          hat="top", hat_col=(230, 40, 50), legs=(250, 240, 230), hair=(220, 180, 80))
+        # Kamelle
+        for x, y, vx, vy, ci in st["candy"]:
+            d.rectangle([x - 2, y - 1, x + 2, y + 1], fill=CV_COLORS[ci])
+            d.line([(x - 4, y - 2), (x - 2, y)], fill=CV_COLORS[ci])
+            d.line([(x + 2, y), (x + 4, y + 2)], fill=CV_COLORS[ci])
+        # Publikum ganz vorn
+        for i in range(7):
+            px = 18 + i * 48 + (6 if i % 2 else 0)
+            up = playing and (st["k"] + i) % 2 == 0
+            pose = {"lh": (-10, -18 if up else 8), "rh": (10, -18 if up else 8)}
+            hat = ("jester", "party", "cowboy", "crown", None, "top", "party")[i]
+            hair = [(250, 120, 180), (60, 200, 230), (120, 70, 40), (240, 200, 60), (230, 90, 40), (40, 30, 30),
+                    (180, 120, 250)][i]
+            if gname == "schirm" and i == 4:
+                self._cv_gag_umbrella(img, d, gl, t, say, px, st)
+                continue
+            self._fig(img, d, px, VIS_H + 40, t, CV_COLORS[i % 6], pose, h=0.8, hat=hat, hair=hair,
+                      mouth=0.8 if up else 0.0)
+        # Höhepunkt: Polonaise
+        if boom:
+            for i in range(7):
+                x = -40 + (bt / CV_BOOM) * (WIDTH + 140) - i * 26
+                pose = {"lh": (16, 2), "rh": (18, 0), "lf": (-6 + 6 * math.sin(t * 10 + i), 34),
+                        "rf": (6 - 6 * math.sin(t * 10 + i), 34)}
+                self._fig(img, d, x, CV_FLOOR, t, CV_COLORS[i % 6], pose, h=0.85, hat=("party", "jester", "top")[i % 3])
+            if 0.4 < bt < 4.0:
+                say.append((160, 70, call))
+        # Büttenrede
+        if talk:
+            tl = t - s.get("talk_t", t)
+            bx = 40
+            d.rectangle([bx - 18, CV_FLOOR - 40, bx + 18, CV_FLOOR], fill=(150, 100, 60))
+            for k in range(3):
+                d.line([(bx - 18, CV_FLOOR - 34 + k * 14), (bx + 18, CV_FLOOR - 34 + k * 14)], fill=(90, 70, 50), width=2)
+            hc, _ = self._fig(img, d, bx, CV_FLOOR - 36, t, (230, 50, 60), {"lh": (-12, -10), "rh": (12, 4)}, h=0.7,
+                              hat="jester", mouth=abs(math.sin(t * 9)))
+            if int(tl / 3.0) % 2 == 1 and tl % 3.0 < 1.2:
+                say.append((bx + 60, CV_FLOOR - 90, "Tusch! Täterätä!"))
+            elif tl < 2.5:
+                say.append((hc[0] + 10, hc[1] - 24, "Liebe Närrinnen und Narrhalesen …"))
+        if gname == "pferd":
+            self._cv_gag_horse(img, d, gl, t, say)
+        elif gname == "orden":
+            self._cv_gag_medal(img, d, gl, t, say)
+        for x, y, text in say:
+            self._xmas_party_say(d, x, y, text)
+        self.vis_cv = CV_COLORS[st["k"] % 6]
+        return img
+
+    # -- Gags ------------------------------------------------------------------------------------- #
+    def _cv_gag_horse(self, img, d, gl, t, say):
+        """Pferdekostüm: Vorder- und Hinterteil laufen auseinander."""
+        split = 0.0 if gl < 2.6 else min(1.0, (gl - 2.6) / 2.0)
+        x = 340 - min(1.0, gl / 2.6) * 180
+        y = CV_FLOOR
+        col = (170, 110, 60)
+        for part in ("front", "back"):
+            px = x - 14 - split * 70 if part == "front" else x + 14 + split * 50
+            for k in (-6, 6):
+                step = math.sin(t * 10 + k) * 4
+                d.line([(px + k, y - 26), (px + k + step, y)], fill=(70, 62, 90), width=4)
+            self._blob(img, px, y - 32, 30, 20, col, gloss=0.4)
+            if part == "front":
+                self._limb(img, (px - 10, y - 36), (px - 18, y - 56), 9, col)
+                self._blob(img, px - 22, y - 58, 16, 12, col, gloss=0.4)
+                d.point((px - 24, y - 61), fill=(0, 0, 0))
+                for k in range(4):
+                    d.line([(px - 12, y - 52 + k * 4), (px - 6, y - 48 + k * 4)], fill=(80, 50, 30), width=2)
+            else:
+                d.line([(px + 14, y - 34), (px + 22, y - 22 + math.sin(t * 6) * 3)], fill=(80, 50, 30), width=3)
+        if 3.4 <= gl < 5.4:
+            say.append((x - 60, y - 80, "Wo willst du hin?!"))
+        elif gl >= 5.4:
+            say.append((x + 60, y - 70, "Zur Kamelle!"))
+
+    def _cv_gag_medal(self, img, d, gl, t, say):
+        """Ein Narr bekommt einen riesigen Orden – und kippt unter dem Gewicht um."""
+        x, y = 250, CV_FLOOR
+        tip = 0.0 if gl < 3.0 else min(1.0, (gl - 3.0) / 0.6)
+        lean = tip * 1.2
+        hc, hands = self._fig(img, d, x, y, t, (90, 190, 90), {"lh": (-10, 14), "rh": (10, 14)}, h=0.9,
+                              hat="jester", lean=lean, eyes="big" if tip else "dot")
+        r = 4 + min(1.0, gl / 2.0) * 14
+        mx, my = hc[0] + 6 * lean, hc[1] + 30
+        d.line([(hc[0] - 6, hc[1] + 8), (mx, my - r)], fill=(230, 50, 60), width=3)
+        d.line([(hc[0] + 6, hc[1] + 8), (mx, my - r)], fill=(250, 200, 40), width=3)
+        self._blob(img, mx, my, r * 2, r * 2, (250, 210, 60), gloss=0.7)
+        if r > 10:
+            d.text((mx - 8, my - 8), "★", font=self.f_small_b, fill=(200, 140, 20))
+        if 0.6 <= gl < 2.8:
+            say.append((hc[0], hc[1] - 26, "Für besondere Verdienste!"))
+        elif gl >= 3.8:
+            say.append((hc[0] + 20, hc[1] - 20, "Schwer, die Ehre …"))
+
+    def _cv_gag_umbrella(self, img, d, gl, t, say, px, st):
+        """Umgedrehter Regenschirm fängt Kamelle, bis er umkippt."""
+        hc, hands = self._fig(img, d, px, VIS_H + 40, t, (220, 100, 200), {"lh": (-4, -20), "rh": (4, -20)}, h=0.8,
+                              hat="crown", hair=(230, 90, 40))
+        hx, hy = hands[0]
+        k = min(1.0, gl / 5.0)
+        tilt = 0.0 if gl < 5.2 else min(1.0, (gl - 5.2) / 0.4)
+        cx, cy = hx + tilt * 20, hy - 26
+        d.line([(hx, hy), (cx, cy)], fill=(60, 60, 70), width=2)
+        d.chord([cx - 22, cy - 18, cx + 22, cy + 14], 0, 180, fill=(60, 140, 230))
+        rng = random.Random(5)
+        for i in range(int(k * 26)):
+            qx, qy = cx - 16 + rng.uniform(0, 32), cy + rng.uniform(0, 8) - k * 10
+            d.rectangle([qx - 2, qy - 1, qx + 2, qy + 1], fill=CV_COLORS[i % 6])
+        if 1.0 <= gl < 4.6:
+            say.append((hc[0], hc[1] - 50, "Mehr! Mehr!"))
+        elif gl >= 5.4:
+            say.append((hc[0], hc[1] - 50, "Volltreffer …"))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Modul seite_visual_szenen
 #   Szenen für die bewegte Vorschau der Verwaltung: Höhepunkt, Wortbeitrag oder ein bestimmter Gag eines Stils
 #   gezielt zeigen (vis_scenes liefert die Auswahl, vis_force stellt den Zustand nach kurzem Vorlauf ein).
@@ -19340,6 +20129,15 @@ VIS_GAG_LABELS = {
     # Männertag
     "ballett": "Baumarkt-Ballett", "tour": "Bollerwagen rollt davon", "regen": "Regenwolke über dem Grill",
     "zollstock": "Zollstock",
+    # Silvester
+    "wachs": "Wachsgießen",
+    "vorsaetze": "Gute Vorsätze",
+    "wunderkerze": "Wunderkerze schreibt",
+    "rakete": "Rakete fliegt quer",
+    # Fasching
+    "pferd": "Pferdekostüm",
+    "orden": "Riesenorden",
+    "schirm": "Regenschirm voller Kamelle",
     # Überraschungsparty
     "hund": "Hund frisst die Torte", "kerzen": "Trickkerzen", "geschenk": "Kastenteufel im Geschenk",
     # Weihnachten (jugendfrei)
@@ -19353,7 +20151,7 @@ def vis_scenes(style):
     """Auswahl für die bewegte Vorschau: [[id, Beschriftung], …]; Gags als "gag:<name>"."""
     out = [["play", "Abspielen"], ["boom", "Höhepunkt"], ["talk", "Wortbeitrag"]]
     gags = {"cellar": CL_GAGS, "metal": MT_GAGS, "party": PT_GAGS, "xmas": FUN_GAGS, "easter": ES_GAGS,
-            "halloween": HW_GAGS, "horror": {**HR_GAGS["house"], **HR_GAGS["dolls"]},
+            "newyear": NY_GAGS, "carnival": CV_GAGS, "halloween": HW_GAGS, "horror": {**HR_GAGS["house"], **HR_GAGS["dolls"]},
             "birthday": BD_GAGS, "mother": MO_GAGS, "father": FA_GAGS}.get(style, {})
     out += [["gag:" + n, VIS_GAG_LABELS.get(n, n.capitalize())] for n in gags]
     if style == "xmas":                                             # Feierabend-Gags (schaltet ihn für die Vorschau an)
@@ -19403,7 +20201,7 @@ def vis_force(r, style, scene, t):
             st["place"] = "house" if name in HR_GAGS["house"] else "dolls"
             st["since"] = t - 9
             st["gag"], st["next_gag"], st["boom"] = (name, t), t + 99, -99.0
-    elif style in ("easter", "halloween", "birthday", "mother", "father"):
+    elif style in ("newyear", "easter", "halloween", "birthday", "mother", "father"):
         if kind == "boom":
             st["boom"], st["gag"] = t, None
         elif kind == "gag":
@@ -19825,7 +20623,7 @@ class Renderer(RendererBase,
                ClockPage, ClockBase, StandardFaces, MechanicalFaces, SkyFaces, DisplayFaces, InfoFaces,
                MacrosPage, MusicPage, SlidesPage, WeatherPage, CalendarPage, HardwarePage,
                NewsPage, WarningsPage, NetworkPage, UpdatesPage, VisualPage, XmasVisual, XmasParty, XmasFun, BalletVisual, StageFx,
-               PartyVisual, CellarVisual, CellarCrew, MetalVisual, EasterVisual, HalloweenVisual, HorrorVisual, BirthdayVisual, MotherVisual, FatherVisual,
+               PartyVisual, CellarVisual, CellarCrew, MetalVisual, EasterVisual, HalloweenVisual, HorrorVisual, BirthdayVisual, MotherVisual, FatherVisual, FigureKit, NewYearVisual, CarnivalVisual,
                MenuViews, OverlayViews):
     PAGES = len(PAGE_IDS)
     MUSIC_PAGE = PAGE_IDS.index("music")
@@ -21811,6 +22609,12 @@ class App(AppCore, KeyHandling, TimedTasks):
         if style == "father" and not quiet and visual_options(s, "father").get("keys", "ember") == "ember" \
                 and self.renderer.vis_ember:                        # Grillglut
             base = self.renderer.vis_ember
+        if style == "newyear" and not quiet and visual_options(s, "newyear").get("keys", "burst") == "burst" \
+                and self.renderer.vis_ny:
+            base = self.renderer.vis_ny
+        if style == "carnival" and not quiet and visual_options(s, "carnival").get("keys", "bunt") == "bunt" \
+                and self.renderer.vis_cv:
+            base = self.renderer.vis_cv
         if style == "metal" and visual_options(s, "metal").get("keys", "fire") == "fire":   # Feuerkörbe
             k, base = round(max(0.12, self.renderer.vis_fire) * 20) / 20, (255, 100, 16)
         color = tuple(int(c * k) for c in base)
@@ -21995,7 +22799,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.16-11"
+VERSION = "2026.11.16-12"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -23952,7 +24756,7 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
           <label class="check"><input type="checkbox" id="visBacklight"> Tastaturbeleuchtung pulsiert im Takt</label>
           <label class="check"><input type="checkbox" id="visTitle"> Laufenden Titel oben anzeigen</label>
           <label class="check"><input type="checkbox" id="visXmas"> In der Weihnachtszeit (1. Advent bis 6. Januar) automatisch den Stil „Weihnachten“ zeigen – wer dann am Display einen anderen Stil wählt, behält diesen bis zum Ende der Weihnachtszeit</label>
-          <label class="check"><input type="checkbox" id="visFest"> Festtage automatisch: Ostern (Gründonnerstag bis Ostermontag) Halloween (25. Oktober bis 1. November) Muttertag (2. Sonntag im Mai) und Männertag (Christi Himmelfahrt)</label>
+          <label class="check"><input type="checkbox" id="visFest"> Festtage automatisch: Fasching (Weiberfastnacht bis Faschingsdienstag), Ostern (Gründonnerstag bis Ostermontag), Muttertag, Männertag (Himmelfahrt), Halloween (25.10.–1.11.) und Silvester</label>
           <p class="hint" style="max-width:360px">Festkalender: An Geburtstagen aus der Liste des Stils „Überraschungsparty“ erscheint automatisch die Party, an jedem Freitag, dem 13., auf Wunsch die „Kellertreppe“ (Schalter dort). Wer am Display einen anderen Stil wählt, behält ihn für diesen Tag bzw. Zeitraum.</p>
           <label class="field" style="max-width:360px"><span>Wortbeitrag, wenn der Titel des Senders eines dieser Wörter enthält (durch Komma getrennt) – die Tänzerin langweilt sich dann</span><input type="text" id="visTalkWords" maxlength="300"></label>
           <p class="hint" style="max-width:360px">Nachrichten und Moderation erkennt die Visualisierung zusätzlich am Klang (Sprache statt Musik). Werbung mit Musik darunter nur über diese Wörter.</p>
@@ -26499,6 +27303,10 @@ Die Seite '''Visualisierung''' bewegt sich zu allem, was der Rechner gerade absp
 | Muttertag || Multitasking in der Küche: Mama wendet Pfannkuchen im Takt (sie fliegen auf den Bass und landen auf dem Stapel), bügelt auf hohe Schläge, telefoniert („Ja … mhm … ja …“) und gießt die Blumen – je lauter die Musik, desto mehr Arme wachsen ihr (2, 4, 6). Die Wanduhr rast mit der Lautstärke. Höhepunkt: Super-Mama mit Umhang („Alles erledigt!“). Wortbeitrag: Füße hoch, Kaffee („Fünf Minuten Ruhe …“). Gags: Die Kinder bringen Frühstück (verkohlter Toast, die Küche qualmt), das Blumenbeet vor dem Fenster wächst im Zeitraffer, bis eine Riesenblume hereinschnüffelt, ein selbstgemaltes Bild mit acht Armen („Das bist du!“ – „Wie … treffend.“), die Waschmaschine hüpft durch die Küche und frisst eine Socke || Mehr Arme bei lauter Musik, Gags, Tastaturbeleuchtung (Rosa im Takt oder Farbe der Ebene)
 |-
 | Männertag || Rast auf der Bollerwagentour am Feldweg: Der Grillmeister (Schürze „CHEF“) wendet die Würstchen im Takt – sie hüpfen auf dem Rost und werden langsam braun, die Glut glüht mit dem Bass. Zwei Kumpels schunkeln am Bollerwagen, auf dem eine Musikbox im Bass pumpt. Höhepunkt: Der Grill flambiert, die Würstchen fliegen, der Strohhut qualmt („Medium!“). Wortbeitrag: Die Kumpels sitzen auf dem Wagen und studieren die Karte („Wo sind wir eigentlich?“). Gags: Baumarkt-Ballett im Tutu mit Akkuschrauber, Zollstock und Wasserwaage, der Bollerwagen rollt allein davon und kommt mit einer Gans zurück, eine Regenwolke nur über dem Grill („Typisch Männertag.“), der Zollstock lässt sich nicht zusammenfalten || Gags, Tastaturbeleuchtung (Grillglut im Bass oder Farbe der Ebene)
+|-
+| Silvester || Party auf der Dachterrasse über der Stadt: Raketen steigen auf den Bass, hohe Schläge lassen kleine Sterne platzen, Sektkorken knallen („PLOPP“). Die Anzeigetafel zählt am 31. Dezember die echte Zeit bis Mitternacht herunter (die letzten zehn Sekunden groß), danach „Frohes neues Jahr“; an anderen Tagen zeigt sie Uhrzeit und kommendes Jahr. Höhepunkt: Countdown 3-2-1 – PROSIT! – mit großem Feuerwerk. Wortbeitrag: ein Trinkspruch. Gags: Wachsgießen mit Deutung (Schiff, Toaster, Herz, Schwein …), gute Vorsätze (sofort durchgestrichen – „Ab morgen.“), die Wunderkerze schreibt die Jahreszahl in die Luft, eine Rakete fliegt waagerecht über die Terrasse („Andersrum!!“) || Anzeigetafel/Countdown, Gags, Tastaturbeleuchtung (Farbe der letzten Rakete oder Farbe der Ebene)
+|-
+| Fasching || Rosenmontagszug in der Altstadt: Ein Umzugswagen mit riesigem Narrenkopf (nickt und singt im Takt) rollt durchs Bild, vom Wagen fliegen Kamelle auf den Bass, die Funkengarde tanzt mit Beinwurf, vorn jubelt das kostümierte Publikum. Höhepunkt: Polonaise quer durchs Bild („Helau!“ oder „Alaaf!“). Wortbeitrag: Büttenrede mit Tusch. Gags: Pferdekostüm (die Hälften laufen auseinander), ein riesiger Orden, unter dem der Geehrte umkippt, der umgedrehte Regenschirm füllt sich mit Kamelle || Narrenruf (Helau/Alaaf), Gags, Tastaturbeleuchtung (bunt im Takt oder Farbe der Ebene)
 |}
 '''Feierabend (Weihnachten):''' Eine Option mit derbem Humor, ab Werk aus. Eingeschaltet (oder nur abends von 20 bis 4 Uhr) trinken die beiden Glühwein über den Durst. Eine Runde läuft, solange Musik spielt, und dauert etwa die eingestellte Zeit:
 * '''Auftakt:''' tanzen und prosten. Jedes Prosten hebt den Pegel – bei lauter, schneller Musik prosten sie öfter, bei ruhiger Musik schunkeln sie nur.
@@ -26512,10 +27320,10 @@ Der Tanz-Modus gilt dabei nicht, die beiden sind immer zu zweit. Bei Wortbeiträ
 
 '''Weihnachtszeit:''' Vom 1. Advent bis zum 6. Januar zeigt die Visualisierung automatisch den Stil „Weihnachten“, egal welcher Stil gewählt ist (abschaltbar unter '''Beleuchtung & Display → Visualisierung'''). Wählt man in dieser Zeit am Display einen anderen Stil, bleibt dieser bis zum Ende der Weihnachtszeit; im nächsten Advent kommt „Weihnachten“ wieder.
 
-'''Festkalender:''' Hat jemand aus der Geburtstagsliste der Überraschungsparty heute Geburtstag, zeigt die Visualisierung automatisch die Party (oder, wenn beim Stil „Geburtstag“ eingeschaltet, die lebende Torte) – mit Namen auf dem Banner (bei zwei Geburtstagskindern beide) und, wenn das Geburtsjahr eingetragen ist, dem Alter als Zahlenballons; am 29. Februar Geborene feiern in Nicht-Schaltjahren am 28. Februar. An jedem Freitag, dem 13., erscheint auf Wunsch die Kellertreppe (Schalter in deren Optionen, ab Werk aus). Von Gründonnerstag bis Ostermontag zeigt sie „Ostern“, vom 25. Oktober bis 1. November „Halloween“ am 2. Sonntag im Mai „Muttertag“ und an Christi Himmelfahrt „Männertag“ (Schalter „Festtage automatisch“ unter Visualisierung). Ein Geburtstag geht vor Freitag, dem 13., dieser vor den Festtagen, alle gehen vor Weihnachten. Wählt man an so einem Tag am Display einen anderen Stil, bleibt dieser für den Tag bzw. den Festzeitraum.
+'''Festkalender:''' Hat jemand aus der Geburtstagsliste der Überraschungsparty heute Geburtstag, zeigt die Visualisierung automatisch die Party (oder, wenn beim Stil „Geburtstag“ eingeschaltet, die lebende Torte) – mit Namen auf dem Banner (bei zwei Geburtstagskindern beide) und, wenn das Geburtsjahr eingetragen ist, dem Alter als Zahlenballons; am 29. Februar Geborene feiern in Nicht-Schaltjahren am 28. Februar. An jedem Freitag, dem 13., erscheint auf Wunsch die Kellertreppe (Schalter in deren Optionen, ab Werk aus). Von Gründonnerstag bis Ostermontag zeigt sie „Ostern“, vom 25. Oktober bis 1. November „Halloween“ am 2. Sonntag im Mai „Muttertag“, an Christi Himmelfahrt „Männertag“, von Weiberfastnacht bis Faschingsdienstag „Fasching“ und am 31. Dezember „Silvester“ (Schalter „Festtage automatisch“ unter Visualisierung). Ein Geburtstag geht vor Freitag, dem 13., dieser vor den Festtagen, alle gehen vor Weihnachten. Wählt man an so einem Tag am Display einen anderen Stil, bleibt dieser für den Tag bzw. den Festzeitraum.
 Oben steht der laufende Titel (abschaltbar). Ohne Ton bleibt das letzte Bild abgedunkelt stehen und zeigt „Keine Wiedergabe“; ist der Ausgang stumm geschaltet (oder auf 0 %), „Ton stumm“. Sobald wieder Musik kommt, geht es sofort weiter – der mitgehörte Ausgang selbst merkt vom Stummschalten nichts, deshalb fragt der Treiber jede Sekunde nach. Die '''Tastaturbeleuchtung pulsiert''' in der Farbe der Ebene mit dem Bass, solange die Seite zu sehen ist (nicht nachts, nicht bei „Beleuchtung nicht umfärben“). Alles einstellbar unter '''Beleuchtung & Display → Visualisierung''' mit Vorschau – dort auch die '''Bildrate''' (10, 15, 20 oder 25 Bilder je Sekunde; Standard 15). Mehr Bilder wirken flüssiger, brauchen aber mehr Rechenzeit; die Visualisierung ist die rechenintensivste Seite. Die '''anpassende Bildrate''' (Standard an) zeichnet bei Stille und Wortbeiträgen nur 8 Bilder je Sekunde und bremst, wenn ein Bild länger als die halbe Bildzeit braucht. Alle 10 Minuten steht eine Zeile mit Zeichenzeit, Bildrate, CPU und Arbeitsspeicher im Protokoll.
 
-'''Bewegte Vorschau:''' Unter dem Vorschaubild in der Verwaltung spielen „▶ Abspielen“, „Höhepunkt“ und „Wortbeitrag“ den Stil einige Sekunden bewegt ab; „Gag zeigen“ führt einen bestimmten Gag aus der Liste vor (Kellertreppe, Mittelalter-Metal, Ostern, Halloween, Horror, Geburtstag, Muttertag, Männertag, Überraschungsparty, Weihnachten einschließlich Feierabend). „■ Stopp“ beendet die Szene.
+'''Bewegte Vorschau:''' Unter dem Vorschaubild in der Verwaltung spielen „▶ Abspielen“, „Höhepunkt“ und „Wortbeitrag“ den Stil einige Sekunden bewegt ab; „Gag zeigen“ führt einen bestimmten Gag aus der Liste vor (Kellertreppe, Mittelalter-Metal, Ostern, Halloween, Horror, Geburtstag, Muttertag, Männertag, Silvester, Fasching, Überraschungsparty, Weihnachten einschließlich Feierabend). „■ Stopp“ beendet die Szene.
 
 '''Wortbeiträge''' (Nachrichten, Moderation, Werbung): Die Visualisierung erkennt Sprache am Klang – viele kurze Pausen, stark schwankende Lautstärke, kaum Bass. Nach etwa 4–6 Sekunden Sprache gilt es als Wortbeitrag, nach etwa 3 Sekunden Musik wieder als Musik (beides steht im Protokoll, mit den Messwerten). Zusätzlich zählt der Titel des Senders: Enthält er eines der Stichwörter aus '''Beleuchtung & Display → Visualisierung''' (Standard: Nachrichten, News, Werbung, Werbepause, Verkehr, Wetter – ganze Wörter, Groß-/Kleinschreibung egal), ist es sofort ein Wortbeitrag. Werbung mit Musik darunter erkennt nur das Stichwort. Während eines Wortbeitrags pulsiert die Tastatur nicht, und das '''tanzende Mädchen''' langweilt sich: Es verschränkt die Arme, gähnt („Gähn …“), stemmt die Hände in die Hüften, schaut auf die Uhr und tippt mit dem Fuß; nach 30 Sekunden setzt es sich auf den Bühnenrand und döst („Zzz“), das Bühnenlicht ist gedimmt. Kommt wieder Musik, tanzt es sofort weiter.
 
