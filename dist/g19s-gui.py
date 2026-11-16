@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.16-1"
+VERSION = "2026.11.16-2"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -1695,6 +1695,7 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
 .clkopt { margin-bottom: 10px; }
 .clkopt .row { gap: 8px; }
 .clkopt input[type=color] { width: 42px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; }
+.bdayrow { margin: 4px 0; gap: 6px; align-items: center; }
 .clkcities { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; max-width: 360px; }
 .okbox { background: color-mix(in srgb, #3ecf7e 12%, transparent); border: 1px solid color-mix(in srgb, #3ecf7e 45%, transparent);
   border-radius: 9px; padding: 8px 12px; font-size: 13px; margin: 8px 0 12px; }
@@ -1891,6 +1892,7 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
           <label class="check"><input type="checkbox" id="visBacklight"> Tastaturbeleuchtung pulsiert im Takt</label>
           <label class="check"><input type="checkbox" id="visTitle"> Laufenden Titel oben anzeigen</label>
           <label class="check"><input type="checkbox" id="visXmas"> In der Weihnachtszeit (1. Advent bis 6. Januar) automatisch den Stil „Weihnachten“ zeigen – wer dann am Display einen anderen Stil wählt, behält diesen bis zum Ende der Weihnachtszeit</label>
+          <p class="hint" style="max-width:360px">Festkalender: An Geburtstagen aus der Liste des Stils „Überraschungsparty“ erscheint automatisch die Party, an jedem Freitag, dem 13., auf Wunsch die „Kellertreppe“ (Schalter dort). Wer am Display einen anderen Stil wählt, behält ihn für diesen Tag.</p>
           <label class="field" style="max-width:360px"><span>Wortbeitrag, wenn der Titel des Senders eines dieser Wörter enthält (durch Komma getrennt) – die Tänzerin langweilt sich dann</span><input type="text" id="visTalkWords" maxlength="300"></label>
           <p class="hint" style="max-width:360px">Nachrichten und Moderation erkennt die Visualisierung zusätzlich am Klang (Sprache statt Musik). Werbung mit Musik darunter nur über diese Wörter.</p>
         </div>
@@ -3217,8 +3219,32 @@ function optionFields(opts, d, changed) {
           el("option", {value: "", text: "—"}),
           S.worldCities.map(([n, tz]) => el("option", {value: tz, text: n}))))));
     }
+    if (o.type === "birthdays") return birthdayFields(o, d, changed);
     return null;
   });
+}
+// Geburtstagsliste (Überraschungsparty, Festkalender): Name, Tag, Monat, Geburtsjahr (leer = Alter unbekannt)
+function birthdayFields(o, d, changed) {
+  const box = el("div", {class: "field clkopt"});
+  const list = () => (d[o.key] = Array.isArray(d[o.key]) ? d[o.key] : (o.default || []).slice());
+  const num = (b, k, min, max, w, ph) => el("input", {type: "number", min, max, value: b[k] || "", placeholder: ph,
+    style: {width: w}, oninput: e => { b[k] = parseInt(e.target.value, 10) || (k === "year" ? 0 : 1); changed(); }});
+  function draw() {
+    const rows = list().map((b, i) => el("div", {class: "row bdayrow"},
+      el("input", {type: "text", value: b.name || "", maxlength: 20, placeholder: "Name", style: {width: "150px"},
+        oninput: e => { b.name = e.target.value; changed(); }}),
+      num(b, "day", 1, 31, "64px", "Tag"), num(b, "month", 1, 12, "64px", "Monat"),
+      num(b, "year", 1900, 2100, "84px", "Jahr"),
+      el("button", {class: "btn", type: "button", text: "✕", title: "Entfernen",
+        onclick: () => { list().splice(i, 1); changed(); draw(); }})));
+    box.replaceChildren(el("span", {text: o.label + " (Jahr freiwillig – dann steht das Alter auf den Ballons)"}),
+      ...rows,
+      el("button", {class: "btn", type: "button", text: "+ Geburtstag", onclick: () => {
+        const now = new Date();
+        list().push({name: "", day: now.getDate(), month: now.getMonth() + 1, year: 0}); changed(); draw(); }}));
+  }
+  draw();
+  return box;
 }
 let clkTimer = null;
 function clockPreview() {

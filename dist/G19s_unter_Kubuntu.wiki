@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.11.16-1)
+| 28.09.2026 (Version 2026.11.16-2)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -32,7 +32,7 @@ Für die G19s gibt es unter Linux keinen offiziellen Treiber. Die normalen Taste
 * '''Terminerinnerung''' vor Terminbeginn, '''Radiowecker''' und '''Einschlaftimer''', '''Song merken''' (Radiotitel in eine Liste), '''Lieblingsbilder''' in der Diashow, '''Mikrofon stumm''' per G-Taste (MR-Leuchte als Anzeige).
 * Displayseiten je Ebene '''und''' je Profil einstellbar, '''automatische Sicherung''' in einen Ordner.
 * '''25 Zifferblätter''' für die Uhr (u. a. Chronometer, Bahnhofsuhr, Pendel- und Kuckucksuhr, Astro- und Sonnenuhr, Weltzeituhr, Nixie-Röhren, Wortuhr) – Auswahl am Display mit MENU oder SETTINGS (kurz) je Profil und Ebene, Aussehen in der Verwaltung einstellbar.
-* '''Visualisierung''' zur laufenden Musik in acht Stilen: Grafik-Equalizer, Tänzerin an der Stange, Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm, Feuerwerk – die Tastaturbeleuchtung pulsiert auf Wunsch im Takt.
+* '''Visualisierung''' zur laufenden Musik in elf Stilen: Grafik-Equalizer, Tänzerin an der Stange, Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm, Feuerwerk, Weihnachten, Überraschungsparty, Kellertreppe – die Tastaturbeleuchtung pulsiert auf Wunsch im Takt.
 * Weitere Seiten: '''Nachrichten''' (RSS/Atom), '''Unwetter''' (amtliche DWD-Warnungen), '''Netzwerk''' (Erreichbarkeit von Router, NAS …), '''Updates''' (Paket- und Flatpak-Updates, Neustart nötig).
 * '''Display''' mit sieben Standardseiten: Uhr, Musik (inkl. Internetradio), Wetter, Termine, Hardware (Auslastung, Temperaturen, Arbeitsspeicher, Lüfter, Netz, Datenträger), Makro-Übersicht, Bilder. Welche Seiten in welcher Reihenfolge erscheinen, ist frei wählbar.
 * '''Diashow''' mit Bildern aus Piwigo-Alben (auch private Alben) oder aus einem Ordner auf dem Rechner – auf Wunsch als '''Bildschirmschoner'''.
@@ -182,7 +182,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.16-1"
+VERSION = "2026.11.16-2"
 
 # Weitere Importe der Module
 import select
@@ -299,6 +299,7 @@ WORLD_CITIES = [
 # Einstellungen je Zifferblatt (Verwaltung → Beleuchtung & Display → Uhr). Aus dieser Liste entstehen
 # das Einstellungsschema (settings.json → "clock") und die Formularfelder der Verwaltung.
 #   bool: Schalter · color: Farbe, None = Standard (none_label) · choice: Auswahl · cities: Städteliste
+#   birthdays: Geburtstagsliste (Name, Tag, Monat, Geburtsjahr oder 0)
 _LAYER = "Farbe der Ebene"
 CLOCK_OPTIONS = {
     "digital": [
@@ -364,7 +365,7 @@ CLOCK_COLOR_CHOICES = [
 VISUAL_STYLES = {
     "eq": "Grafik-Equalizer", "dancer": "Tänzerin an der Stange", "lights": "Lichtshow", "scope": "Oszilloskop",
     "ring": "Kreis-Spektrum", "vu": "VU-Meter", "spectro": "Spektrogramm", "fireworks": "Feuerwerk",
-    "xmas": "Weihnachten",
+    "xmas": "Weihnachten", "party": "Überraschungsparty", "cellar": "Kellertreppe",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 # Stichwörter im Titel des Senders, die einen Wortbeitrag anzeigen (Tänzerin langweilt sich); änderbar
@@ -463,6 +464,23 @@ VISUAL_OPTIONS = {
          "choices": [["300", "5 Minuten"], ["600", "10 Minuten"], ["900", "15 Minuten"], ["1200", "20 Minuten"]]},
         {"key": "party_meter", "label": "Feierabend: Glühwein-Barometer und Becherzähler", "type": "bool",
          "default": True},
+    ],
+    "party": [
+        {"key": "auto", "label": "An Geburtstagen automatisch zeigen (Liste unten)", "type": "bool", "default": True},
+        {"key": "birthdays", "label": "Geburtstage", "type": "birthdays", "default": []},
+        {"key": "round", "label": "Dauer einer Party-Runde (danach verstecken sich alle wieder)", "type": "choice",
+         "default": "300", "choices": [["180", "3 Minuten"], ["300", "5 Minuten"], ["600", "10 Minuten"]]},
+        {"key": "dog", "label": "Hund (hat Hunger auf Torte)", "type": "bool", "default": True},
+        {"key": "confetti", "label": "Konfetti", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "rainbow",
+         "choices": [["rainbow", "Bunt im Takt"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "cellar": [
+        {"key": "level", "label": "Gänsehaut-Stufe", "type": "choice", "default": "2",
+         "choices": [["1", "Schaurig-nett"], ["2", "Gruselig"], ["3", "Gänsehaut (Schreckmoment, Herzschlag)"]]},
+        {"key": "fri13", "label": "An jedem Freitag, den 13., automatisch zeigen", "type": "bool", "default": False},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "bulb",
+         "choices": [["bulb", "Wie die Glühbirne"], ["red", "Rot im Herzschlag"], ["layer", "Farbe der Ebene"]]},
     ],
 }
 OLD_CLOCK_PAGES = {"clock_chrono": "chrono", "clock_steampunk": "steampunk",      # Version 2026.09.28-8/-9
@@ -737,6 +755,7 @@ def _visual_section():
                         fps=Choice(str(VISUAL_FPS), lambda: ["10", "15", "20", "25"]),   # Bildrate (Rechenzeit!)
                         xmas_auto=Bool(True),          # vom 1. Advent bis 6. Januar Stil „Weihnachten“
                         xmas_skip=Int(0, 0, 9999),     # Jahr, in dem der Nutzer in der Weihnachtszeit einen anderen Stil wählte
+                        fest_skip=Str("", maxlen=20),  # Anlass (Geburtstag, Freitag der 13.), an dem ein anderer Stil gewählt wurde
                         **_option_sections(VISUAL_OPTIONS)))
 
 
@@ -754,6 +773,10 @@ def _option_sections(options):
                 fields[o["key"]] = Choice(o["default"], lambda o=o: [c[0] for c in o["choices"]])
             elif o["type"] == "cities":
                 fields[o["key"]] = Items(o["default"], Entry({"name": Str(maxlen=24), "tz": Str()}), required="tz", limit=6)
+            elif o["type"] == "birthdays":
+                fields[o["key"]] = Items(o["default"], Entry({"name": Str(maxlen=20), "day": Int(1, 1, 31),
+                                                              "month": Int(1, 1, 12), "year": Int(0, 0, 2100)}),
+                                         required="name", limit=40)
         faces[face] = Section(fields)
     return faces
 
@@ -858,6 +881,16 @@ def _check_hosts(s):
     for h in s["network"]["hosts"]:
         if not re.fullmatch(r"[A-Za-z0-9\[][A-Za-z0-9._:\-\[\]]*", h["host"]):    # nie mit „-“ beginnend
             raise Invalid(f"Ungültiger Gerätename: {h['host']}")
+
+
+@_strict_rule
+def _check_birthdays(s):
+    import calendar
+    for b in s["visual"]["party"]["birthdays"]:
+        if b["day"] > calendar.monthrange(2024, b["month"])[1]:            # 2024: Schaltjahr, 29.2. erlaubt
+            raise Invalid(f"Ungültiges Datum beim Geburtstag von {b['name']}: {b['day']}.{b['month']}.")
+        if b["year"] and not 1900 <= b["year"] <= 2100:
+            raise Invalid(f"Ungültiges Geburtsjahr bei {b['name']}: {b['year']}")
 
 
 @_strict_rule
@@ -967,6 +1000,48 @@ def xmas_season(day=None):
     xmas = _dt.date(day.year, 12, 25)
     advent1 = xmas - _dt.timedelta(days=(xmas.weekday() + 1) % 7 or 7) - _dt.timedelta(weeks=3)
     return day.year if day >= advent1 else None
+
+
+def fest_today():
+    """Heutiges Datum für den Festkalender (in Tests ersetzbar)."""
+    import datetime as _dt
+    return _dt.date.today()
+
+
+def birthdays_today(birthdays, day=None):
+    """Wer hat heute Geburtstag? Liste von (Name, Alter oder None). Am 29.2. Geborene feiern in Nicht-Schaltjahren
+    am 28.2."""
+    import calendar
+    day = day or fest_today()
+    out = []
+    for b in birthdays if isinstance(birthdays, list) else []:
+        if not isinstance(b, dict) or not str(b.get("name") or "").strip():
+            continue
+        try:
+            bd, bm, by = int(b.get("day") or 0), int(b.get("month") or 0), int(b.get("year") or 0)
+        except (TypeError, ValueError):
+            continue
+        if bm == 2 and bd == 29 and not calendar.isleap(day.year):
+            bd = 28
+        if (bd, bm) == (day.day, day.month):
+            age = day.year - by if 1900 <= by <= day.year else None
+            out.append((str(b["name"]).strip(), age))
+    return out
+
+
+def fest_occasion(vis, day=None):
+    """Festkalender der Visualisierung: (Stil, Anlass) für heute oder None. Geburtstag (Liste der Überraschungsparty)
+    vor Freitag, dem 13. (Kellertreppe, nur wenn eingeschaltet). Der Anlass (z. B. "geb:2026-11-16") merkt sich,
+    ob der Nutzer an diesem Tag am Display einen anderen Stil gewählt hat (visual.fest_skip)."""
+    vis = vis if isinstance(vis, dict) else {}
+    day = day or fest_today()
+    party = vis.get("party") if isinstance(vis.get("party"), dict) else {}
+    if party.get("auto", True) and birthdays_today(party.get("birthdays"), day):
+        return "party", f"geb:{day.isoformat()}"
+    cellar = vis.get("cellar") if isinstance(vis.get("cellar"), dict) else {}
+    if cellar.get("fri13") and day.day == 13 and day.weekday() == 4:
+        return "cellar", f"f13:{day.isoformat()}"
+    return None
 
 
 def in_time_window(now_hm, start, end):
@@ -9644,7 +9719,7 @@ def keys_updates(app, pressed):
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Modul seite_visual
-#   Displayseite „Visualisierung“: acht Stile, die auf die laufende Musik reagieren.
+#   Displayseite „Visualisierung“: elf Stile, die auf die laufende Musik reagieren.
 #
 #   Die Werte kommen von SoundAnalyzer (klanganalyse) über self.visual.snapshot(); ohne Analyse
 #   (Vorschau der Verwaltung, Referenzbilder) zeichnen die Stile mit demo_snapshot(). Ohne Ton (Stille,
@@ -13281,6 +13356,1159 @@ class BalletVisual:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Modul seite_visual_party
+#   Visualisierung „Überraschungsparty“ (Geburtstag): Im dunklen Wohnzimmer verstecken sich drei Gäste (und der Hund)
+#   hinter dem Sofa – man sieht nur ihre Augen, die im Takt blinzeln. Beim ersten Höhepunkt der Musik (spätestens nach
+#   PT_HIDE_MAX Sekunden) geht das Licht an: „ÜBERRASCHUNG!“, Konfetti, dann wird getanzt (Tröten auf hohe Schläge).
+#   Gags: der Hund frisst die Torte, Trickkerzen gehen immer wieder an, ein Kastenteufel springt aus dem Geschenk,
+#   Luftballons platzen bei kräftigem Bass, ein Gast verschläft die Überraschung. Bei Wortbeiträgen atmen alle Helium
+#   ein und quieken. Nach einer Runde (Option round) wird es dunkel und alle verstecken sich wieder.
+#   Namen und Alter kommen aus der Geburtstagsliste (Option birthdays, auch für den Festkalender).
+# ═══════════════════════════════════════════════════════════════════════════
+
+PT_FLOOR = VIS_H - 22                   # Fußboden (Fußlinie der Gäste)
+PT_SOFA = (148, 298)                    # Sofa von … bis (x)
+PT_SOFA_BACK = PT_FLOOR - 68            # Oberkante der Rückenlehne
+PT_HIDE_X = (176, 222, 268)             # Verstecke der Gäste hinter dem Sofa
+PT_STAND_X = (172, 220, 268)            # Plätze vor dem Sofa
+PT_TABLE = (26, 106)                    # Tisch mit der Torte
+PT_CAKE_X = 66
+PT_GIFT_X = 128                         # Geschenk (Kastenteufel) auf dem Boden
+PT_HIDE_MIN, PT_HIDE_MAX = 6.0, 20.0    # so lange (s) verstecken sich die Gäste mindestens/höchstens
+PT_SURPRISE = 3.6                       # Dauer „ÜBERRASCHUNG!“
+PT_GAG_FIRST = 15.0                     # erster Gag so viele Sekunden nach der Überraschung
+PT_GAGS = {"hund": 12.0, "kerzen": 11.0, "geschenk": 9.5}
+PT_WALK = 60                            # Gehen (Pixel je Sekunde)
+PT_GUESTS = [                           # Hemd, Haut, Haare, Partyhut, Tröte
+    {"shirt": (60, 130, 225), "skin": (242, 204, 176), "hair": (70, 46, 30), "hat": (230, 60, 100), "horn": (250, 210, 60)},
+    {"shirt": (236, 170, 40), "skin": (198, 146, 108), "hair": (30, 24, 22), "hat": (60, 170, 230), "horn": (240, 80, 160)},
+    {"shirt": (110, 190, 90), "skin": (250, 218, 196), "hair": (200, 150, 70), "hat": (250, 200, 60), "horn": (90, 200, 250)},
+]
+PT_POSES = [                            # Hände relativ zur Schulter, Füße gespreizt
+    {"lh": (-6, -22), "rh": (6, -22), "spread": 3},       # Arme hoch
+    {"lh": (-13, 8), "rh": (13, 8), "spread": 5},         # Arme seitlich unten
+    {"lh": (-4, -21), "rh": (13, 7), "spread": 4},        # Disco-Zeigefinger
+    {"lh": (11, 4), "rh": (-11, 4), "spread": 3},         # klatschen
+    {"lh": (-16, -5), "rh": (16, -5), "spread": 6},       # Arme aus
+    {"lh": (-12, 10), "rh": (8, -20), "spread": 4},       # ein Arm hoch
+]
+PT_BALLOONS = [((152, 84), (232, 60, 60)), ((168, 72), (70, 130, 240)), ((283, 74), (250, 200, 50)),
+               ((298, 88), (80, 200, 110))]
+PT_HELIUM = ["Hihi!", "Quiiiek!", "Ich klinge wie 'ne Maus!", "Nochmal!", "Alles Guuute!", "Hüstel … quiek!"]
+PT_HIDE_SAY = ["Psst!", "Pssst! Licht aus!", "Wer hat gepupst?", "Psst, er kommt!", "Nicht kichern!"]
+
+
+def _pt_banner(names):
+    if not names:
+        return "Alles Gute!"
+    if len(names) > 2:
+        return "Alles Gute euch allen!"
+    return "Alles Gute, " + " & ".join(names) + "!"
+
+
+class PartyVisual:
+    vis_party_dark = False              # Gäste verstecken sich im Dunkeln (Tastatur fast aus)
+
+    # -- Hintergrund ---------------------------------------------------------- #
+    def _pt_room(self, banner):
+        """Wohnzimmer mit Fenster, Tisch, Sofa und Girlande (zwischengespeichert je Bannertext)."""
+        cache = self.__dict__.get("_pt_room_img")
+        if cache and cache[0] == banner:
+            return cache[1]
+        ys = np.linspace(0, 1, HEIGHT)[:, None, None]
+        arr = np.broadcast_to(np.array([196, 150, 110], np.float32) * (1 - ys * 0.25), (HEIGHT, WIDTH, 3)).copy()
+        arr[:, ::12] *= 0.9                                                         # Tapete mit Streifen
+        arr[:, 6::12] *= 1.04
+        img = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGB")
+        d = ImageDraw.Draw(img)
+        for x in range(0, WIDTH, 24):                                               # Tapetenmuster
+            for y in range(52 + (x // 24 % 2) * 12, PT_FLOOR - 20, 24):
+                d.ellipse([x + 10, y, x + 14, y + 4], fill=(214, 172, 130))
+        d.rectangle([0, PT_FLOOR - 10, WIDTH, PT_FLOOR - 2], fill=(236, 226, 210))  # Fußleiste
+        for y in range(PT_FLOOR - 2, HEIGHT, 7):                                    # Holzboden
+            d.rectangle([0, y, WIDTH, y + 6], fill=(150, 98, 58) if (y // 7) % 2 else (140, 90, 52))
+            off = (y * 37) % 60
+            for x in range(off, WIDTH, 60):
+                d.line([(x, y), (x, y + 6)], fill=(110, 70, 40))
+        wx0, wy0, wx1, wy1 = 16, 52, 82, 118                                        # Fenster bei Nacht
+        d.rectangle([wx0 - 4, wy0 - 4, wx1 + 4, wy1 + 4], fill=(246, 240, 230))
+        d.rectangle([wx0, wy0, wx1, wy1], fill=(18, 26, 60))
+        rng = random.Random(9)
+        for _ in range(14):
+            d.point((rng.randrange(wx0 + 2, wx1 - 2), rng.randrange(wy0 + 2, wy1 - 20)), fill=(220, 220, 240))
+        self._blob(img, 64, 68, 14, 14, (250, 240, 200), gloss=0.1)                 # Mond
+        d.rectangle([wx0 - 6, wy1 + 2, wx1 + 6, wy1 + 7], fill=(230, 222, 210))
+        d.line([((wx0 + wx1) / 2, wy0), ((wx0 + wx1) / 2, wy1)], fill=(246, 240, 230), width=3)
+        d.line([(wx0, (wy0 + wy1) / 2), (wx1, (wy0 + wy1) / 2)], fill=(246, 240, 230), width=3)
+        tx0, tx1, ty = PT_TABLE[0], PT_TABLE[1], PT_FLOOR - 40                      # Tisch
+        for lx in (tx0 + 6, tx1 - 10):
+            d.rectangle([lx, ty, lx + 4, PT_FLOOR], fill=(110, 66, 36))
+        d.rectangle([tx0, ty - 4, tx1, ty + 2], fill=(140, 86, 46))
+        d.polygon([(tx0 + 2, ty - 4), (tx1 - 2, ty - 4), (tx1 + 4, ty + 10), (tx0 - 4, ty + 10)], fill=(240, 240, 250))
+        for x in range(tx0 - 2, tx1 + 4, 8):                                       # Tischdecke mit Zacken
+            d.polygon([(x, ty + 10), (x + 8, ty + 10), (x + 4, ty + 15)], fill=(240, 240, 250))
+        sx0, sx1 = PT_SOFA                                                          # Sofa
+        self._blob(img, (sx0 + sx1) / 2, PT_FLOOR + 1, sx1 - sx0 + 20, 10, (90, 60, 40), gloss=0)
+        d.rounded_rectangle([sx0 + 4, PT_SOFA_BACK, sx1 - 4, PT_FLOOR - 30], radius=10, fill=(150, 40, 60))
+        d.rounded_rectangle([sx0 + 4, PT_SOFA_BACK, sx1 - 4, PT_SOFA_BACK + 8], radius=6, fill=(176, 56, 78))
+        for k in range(3):                                                          # Kissen der Lehne
+            cx = sx0 + 30 + k * (sx1 - sx0 - 60) / 2
+            d.line([(cx + (sx1 - sx0 - 60) / 4, PT_SOFA_BACK + 10), (cx + (sx1 - sx0 - 60) / 4, PT_FLOOR - 34)],
+                   fill=(120, 30, 48), width=2)
+        d.rounded_rectangle([sx0 + 8, PT_FLOOR - 36, sx1 - 8, PT_FLOOR - 14], radius=6, fill=(170, 50, 72))
+        d.line([((sx0 + sx1) / 2, PT_FLOOR - 34), ((sx0 + sx1) / 2, PT_FLOOR - 16)], fill=(130, 36, 54), width=2)
+        for ax in (sx0, sx1 - 18):                                                  # Armlehnen
+            d.rounded_rectangle([ax, PT_FLOOR - 50, ax + 18, PT_FLOOR - 12], radius=7, fill=(136, 34, 54))
+            d.rounded_rectangle([ax, PT_FLOOR - 50, ax + 18, PT_FLOOR - 42], radius=6, fill=(160, 46, 66))
+        for fx in (sx0 + 6, sx1 - 12):
+            d.rectangle([fx, PT_FLOOR - 12, fx + 6, PT_FLOOR - 2], fill=(60, 36, 24))
+        lx = 228                                                                    # Deckenlampe
+        d.line([(lx, 0), (lx, 12)], fill=(60, 50, 40), width=2)
+        d.chord([lx - 16, 6, lx + 16, 30], 180, 360, fill=(246, 214, 140))
+        self._blob(img, lx, 20, 70, 40, (255, 240, 190), alpha=0.35, flat=True)
+        pts = []                                                                    # Girlande mit Wimpeln
+        for k in range(17):
+            x = 6 + k * (WIDTH - 12) / 16
+            pts.append((x, 24 + 10 * math.sin(math.pi * k / 16)))
+        d.line(pts, fill=(90, 70, 60), width=1)
+        cols = [(230, 60, 80), (250, 200, 50), (60, 160, 230), (110, 200, 90), (220, 110, 220)]
+        for k, (x, y) in enumerate(pts[:-1]):
+            d.polygon([(x + 2, y), (x + 16, y + 1), (x + 9, y + 13)], fill=cols[k % len(cols)])
+        font = load_font(13, bold=True)
+        w = d.textlength(banner, font=font) + 20
+        bx = (WIDTH - w) / 2
+        d.rounded_rectangle([bx, 36, bx + w, 54], radius=4, fill=(250, 246, 236), outline=(230, 60, 100), width=2)
+        d.text((bx + 10, 37), banner, font=font, fill=(200, 40, 80))
+        self._pt_room_img = (banner, img)
+        return img
+
+    # -- Figuren -------------------------------------------------------------- #
+    def _pt_guest(self, img, d, x, floor, pose, spec, t, sit=False):
+        """Gast mit Partyhut: Beine und Arme per IK, Tröte im Mund (pose["horn"] 0…1 = ausgerollt)."""
+        bob = pose.get("bob", 0.0)
+        hip = (x, floor - (10 if sit else 26) - bob)                              # sit: im Schneidersitz am Boden
+        self._blob(img, x, floor + 1, 30, 6, (90, 60, 40), gloss=0, alpha=0.5)
+        pants = (54, 56, 78)
+        for side in (-1, 1):
+            hj = (hip[0] + side * 5, hip[1])
+            if sit:
+                knee, foot = (hj[0] + side * 11, floor - 5), (hj[0] - side * 3, floor - 2)
+            else:
+                knee, foot = _ik(hj, (hj[0] + side * pose.get("spread", 4), floor - 2), 13, 13, -side)
+            self._limb(img, hj, knee, 8, pants)
+            self._limb(img, knee, foot, 7, pants)
+            self._blob(img, foot[0] + side * 2, foot[1] + 1, 10, 6, (40, 30, 30), gloss=0.6)
+        lean = pose.get("lean", 0.0)
+        body = (hip[0] + lean, hip[1] - 13)
+        self._blob(img, body[0], body[1], 24, 30, spec["shirt"], gloss=0.3)
+        neck = (body[0] + lean * 0.5, body[1] - 12)
+        hands = []
+        for side in (-1, 1):
+            sh = (neck[0] + side * 10, neck[1] + 3)
+            h = pose["lh" if side < 0 else "rh"]
+            elbow, hand = _ik(sh, (sh[0] + h[0], sh[1] + h[1]), 11, 11, side)
+            self._limb(img, sh, elbow, 7, spec["shirt"])
+            self._limb(img, elbow, hand, 6, spec["skin"])
+            self._blob(img, hand[0], hand[1], 7, 7, spec["skin"], gloss=0.2)
+            hands.append(hand)
+        head = (neck[0] + lean * 0.3, neck[1] - 10)
+        self._blob(img, head[0], head[1] - 6, 22, 12, spec["hair"], gloss=0.3)
+        self._blob(img, head[0], head[1], 19, 20, pose.get("face") or spec["skin"], gloss=0.25)
+        if pose.get("cheeks"):                                                      # pustet: dicke Backen
+            for side in (-1, 1):
+                self._blob(img, head[0] + side * 7, head[1] + 4, 8, 8, _lerp(spec["skin"], (240, 120, 110), 0.4))
+        if pose.get("sleep"):
+            for side in (-1, 1):
+                d.line([(head[0] + side * 4 - 2, head[1] - 1), (head[0] + side * 4 + 2, head[1] - 1)], fill=(30, 30, 40))
+        else:
+            for side in (-1, 1):
+                ex = head[0] + side * 4 + pose.get("look", 0)
+                d.ellipse([ex - 1.5, head[1] - 3, ex + 1.5, head[1] + 1], fill=(30, 30, 40))
+        mouth = pose.get("mouth", 0.0)
+        if mouth > 0.5:
+            d.ellipse([head[0] - 3, head[1] + 4, head[0] + 3, head[1] + 9], fill=(110, 30, 40))
+        elif not pose.get("cheeks"):
+            d.arc([head[0] - 4, head[1] + 1, head[0] + 4, head[1] + 7], 20, 160, fill=(110, 40, 40))
+        horn = pose.get("horn", 0.0)
+        if horn > 0.05:                                                             # Tröte rollt sich aus
+            x0, y0 = head[0] + 2, head[1] + 6
+            ln = 4 + 18 * horn
+            d.line([(x0, y0), (x0 + ln, y0 + 2)], fill=spec["horn"], width=3)
+            d.polygon([(x0 + ln, y0 - 1), (x0 + ln + 5, y0 - 3), (x0 + ln + 5, y0 + 7), (x0 + ln, y0 + 5)],
+                      fill=spec["hat"])
+        if not pose.get("nohat"):
+            tilt = lean * 0.6 + pose.get("hat_tilt", 0.0)
+            base_l, base_r = (head[0] - 8, head[1] - 8), (head[0] + 8, head[1] - 8)
+            tip = (head[0] + tilt * 1.5 + 2, head[1] - 30)
+            d.polygon([base_l, base_r, tip], fill=spec["hat"])
+            for k in (0.35, 0.65):                                                  # Streifen
+                a = (base_l[0] + (tip[0] - base_l[0]) * k, base_l[1] + (tip[1] - base_l[1]) * k)
+                b = (base_r[0] + (tip[0] - base_r[0]) * k, base_r[1] + (tip[1] - base_r[1]) * k)
+                d.line([a, b], fill=(250, 250, 250), width=2)
+            self._blob(img, tip[0], tip[1], 7, 7, (250, 250, 250), gloss=0.2)
+        return head, hands
+
+    def _pt_dog(self, img, d, x, floor, mode, t, cream=False):
+        """Dackel, schaut nach links. mode: walk, beg (Vorderpfoten auf dem Tisch), lie (schläft satt)."""
+        brown, dark = (156, 92, 44), (96, 54, 26)
+        if mode == "beg":
+            self._blob(img, x + 4, floor - 18, 16, 34, brown, ang=-30, gloss=0.3)
+            head = (x - 10, PT_FLOOR - 46)
+            for lx in (x + 2, x + 10):
+                d.line([(lx, floor - 6), (lx - 1, floor)], fill=dark, width=3)
+            d.line([(x - 2, floor - 30), (x - 12, PT_FLOOR - 40)], fill=dark, width=3)
+            tail = (x + 14, floor - 6)
+        elif mode == "lie":
+            self._blob(img, x, floor - 6, 40, 12, brown, gloss=0.3)
+            head = (x - 22, floor - 8)
+            tail = (x + 20, floor - 6)
+        else:
+            step = math.sin(t * 14)
+            self._blob(img, x, floor - 11, 40, 14, brown, gloss=0.3)
+            for k, lx in enumerate((x - 13, x - 7, x + 9, x + 15)):
+                sw = step * 3 * (1 if k % 2 else -1)
+                d.line([(lx, floor - 6), (lx + sw, floor)], fill=dark, width=3)
+            head = (x - 22, floor - 18)
+            tail = (x + 20, floor - 13)
+        wag = math.sin(t * 18) * 6
+        d.line([tail, (tail[0] + 9, tail[1] - 6 + wag)], fill=brown, width=3)
+        self._blob(img, head[0], head[1], 14, 12, brown, gloss=0.3)
+        self._blob(img, head[0] - 7, head[1] + 2, 11, 7, brown, gloss=0.3)
+        self._blob(img, head[0] + 3, head[1] + 2, 6, 11, dark, gloss=0.2)            # Ohr
+        d.ellipse([head[0] - 13, head[1] + 0, head[0] - 10, head[1] + 3], fill=(20, 16, 16))     # Nase
+        if mode == "lie":
+            d.line([(head[0] - 4, head[1] - 2), (head[0] - 1, head[1] - 2)], fill=(20, 16, 16))
+        else:
+            d.ellipse([head[0] - 4, head[1] - 4, head[0] - 1, head[1] - 1], fill=(20, 16, 16))
+        if cream:
+            self._blob(img, head[0] - 8, head[1] + 4, 10, 6, (252, 246, 236), gloss=0.2)
+        return head
+
+    def _pt_cake(self, img, d, s, t, age, eaten, out_k):
+        """Torte auf dem Tisch; Kerzenflammen flackern mit den Frequenzbändern. eaten 0…1 (Hund), out_k: Kerzen
+        ausgepustet (0 = brennen, 1 = aus)."""
+        cx, base = PT_CAKE_X, PT_FLOOR - 44
+        w = 42 * (1 - 0.55 * eaten)
+        if eaten < 0.98:
+            d.rectangle([cx - w / 2, base - 18, cx + w / 2, base], fill=(250, 214, 226))
+            d.rectangle([cx - w / 2, base - 9, cx + w / 2, base - 7], fill=(230, 80, 120))
+            self._blob(img, cx, base - 18, w + 2, 9, (254, 246, 250), gloss=0.3)
+            for k in range(int(w // 6)):
+                d.ellipse([cx - w / 2 + 2 + k * 6, base - 16, cx - w / 2 + 5 + k * 6, base - 12], fill=(254, 246, 250))
+            n = max(1, min(12, age or 5))
+            for k in range(min(n, int(n * (1 - eaten) + 0.5))):
+                kx = cx - w / 2 + 5 + k * (w - 10) / max(1, n - 1) if n > 1 else cx
+                d.rectangle([kx - 1, base - 30, kx + 1, base - 20], fill=(120, 190, 250) if k % 2 else (250, 120, 160))
+                if out_k < 0.5:
+                    b = s["bands"][int(k * (len(s["bands"]) - 1) / max(1, n - 1))] if n > 1 else s["bass"]
+                    fh = 4 + 6 * float(b)
+                    self._blob(img, kx, base - 31 - fh / 3, 8, 8 + fh, (255, 200, 80), alpha=0.5, flat=True)
+                    d.ellipse([kx - 2, base - 31 - fh, kx + 2, base - 30], fill=(255, 220, 110))
+                else:                                                               # Rauchfaden
+                    for j in range(3):
+                        yy = base - 32 - j * 5 - (t * 12) % 5
+                        d.point((kx + math.sin(t * 5 + j + k) * 2, yy), fill=(200, 200, 210))
+            if age and age >= 40 and out_k < 0.5:                                   # ab 40: es qualmt
+                for j in range(4):
+                    k = (t * 0.6 + j / 4) % 1.0
+                    v = int(170 * (1 - k))
+                    self._blob(img, cx - 6 + j * 4 + k * 10, base - 40 - k * 40, 10 + k * 14, 8 + k * 10,
+                               (v + 40, v + 40, v + 50), alpha=0.35 * (1 - k), flat=True)
+        else:
+            d.ellipse([cx - 22, base - 3, cx + 22, base + 2], fill=(244, 244, 250))  # leerer Teller
+        if eaten > 0.05:
+            for k in range(6):                                                      # Krümel
+                d.ellipse([cx + 10 + k * 5, base - 1 - (k % 2), cx + 12 + k * 5, base + 1], fill=(230, 180, 190))
+
+    def _pt_gift(self, img, d, s, t, gag):
+        """Geschenk; beim Gag „geschenk“ wackelt es und ein Kastenteufel springt heraus."""
+        x, y1 = PT_GIFT_X, PT_FLOOR - 2
+        lt = t - gag[1] if gag and gag[0] == "geschenk" else -1
+        shake = 0.0
+        if 0 <= lt < 4:
+            shake = math.sin(t * 40) * (1 + lt) * (0.5 + s["bass"])
+        d.rectangle([x - 14 + shake, y1 - 24, x + 14 + shake, y1], fill=(70, 120, 220))
+        d.rectangle([x - 2 + shake, y1 - 24, x + 2 + shake, y1], fill=(250, 220, 70))
+        if lt < 4 or lt >= PT_GAGS["geschenk"] - 0.6:
+            d.rectangle([x - 16 + shake, y1 - 29, x + 16 + shake, y1 - 23], fill=(90, 140, 236))
+            d.ellipse([x - 8 + shake, y1 - 36, x + shake, y1 - 28], outline=(250, 220, 70), width=2)
+            d.ellipse([x + shake, y1 - 36, x + 8 + shake, y1 - 28], outline=(250, 220, 70), width=2)
+            return None
+        k = lt - 4                                                                  # Deckel fliegt, Teufel springt
+        lid_x, lid_y = x - 20 - k * 30, y1 - 29 - max(0, 60 * k - 40 * k * k)
+        if lid_y < y1 - 4:
+            d.polygon([(lid_x - 16, lid_y), (lid_x + 16, lid_y - 6 * math.sin(k * 6)),
+                       (lid_x + 16, lid_y + 6 - 6 * math.sin(k * 6)), (lid_x - 16, lid_y + 6)], fill=(90, 140, 236))
+        sink = max(0.0, (lt - (PT_GAGS["geschenk"] - 1.4)) / 0.8)
+        hgt = (54 + 10 * math.sin(t * 9) + 10 * s["bass"]) * (1 - min(1.0, sink)) * min(1.0, k * 4)
+        top = y1 - 24 - hgt
+        pts = [(x + (5 if i % 2 else -5), y1 - 24 - hgt * i / 8) for i in range(9)]
+        d.line(pts, fill=(200, 200, 210), width=2)                                  # Feder
+        if hgt > 10:
+            self._blob(img, x, top - 10, 24, 24, (226, 240, 200), gloss=0.3)
+            for side in (-1, 1):
+                self._blob(img, x + side * 8, top - 22, 10, 12, (230, 50, 60), gloss=0.4)  # Haarbüschel
+                d.ellipse([x + side * 6 - 4, top - 17, x + side * 6 + 4, top - 8], fill=(255, 255, 255))
+                px = x + side * 6 + math.sin(t * 7 + side) * 2
+                d.ellipse([px - 1.5, top - 14, px + 1.5, top - 11], fill=(20, 20, 20))
+            d.chord([x - 9, top - 9, x + 9, top + 1], 0, 180, fill=(120, 20, 30))
+            for k2 in range(5):                                                     # Zähne
+                tx = x - 7 + k2 * 3.5
+                d.polygon([(tx, top - 4), (tx + 3, top - 4), (tx + 1.5, top - 1)], fill=(255, 255, 255))
+        return top
+
+    # -- Ablauf ---------------------------------------------------------------- #
+    def _pt_people(self):
+        """Geburtstagskinder von heute aus der Liste: (Namen, Alter bei genau einer Person mit Geburtsjahr)."""
+        today = birthdays_today(visual_options(self.settings, "party").get("birthdays"), fest_today())
+        names = [n for n, _ in today]
+        age = today[0][1] if len(today) == 1 else None
+        return names, age
+
+    @staticmethod
+    def _pt_new_round(st, t, seed, phase="hide"):
+        rng = random.Random(seed)
+        st.update(phase=phase, phase_t=t, gag=None, next_gag=None, eaten=0.0, dog=None, sleeper=rng.random() < 0.5,
+                  balloons=[True] * len(PT_BALLOONS), pops=[], order=rng.sample(list(PT_GAGS), len(PT_GAGS)),
+                  rng=rng, round=st.get("round", 0) + 1, say=None)
+
+    @vis_style("party")
+    def vis_party(self, s, o, color):
+        t = s["t"]
+        names, age = self._pt_people()
+        img = self._pt_room(_pt_banner(names)).copy()
+        d = ImageDraw.Draw(img)
+        demo = bool(s.get("demo"))
+        st = self._vstate("party", dict)
+        if "phase" not in st:
+            st.update(beats=s["beats"], k=0, t0=t, slow=s["level"], fast=s["level"], pop_t=-99.0,
+                      confetti=np.zeros((0, 6), np.float32), guests=[{"x": float(x)} for x in PT_STAND_X])
+            self._pt_new_round(st, t - (25.0 if demo else 0.0), 17, "party" if demo else "hide")
+        dt = self._vis_dt(st, t)
+        talk = bool(s.get("talk"))
+        new_beat = s["beats"] != st["beats"]
+        if new_beat:
+            st["beats"] = s["beats"]
+            if not talk:
+                st["k"] += 1
+                st["t0"] = t
+        st["slow"] += (s["level"] - st["slow"]) * min(1.0, dt / 6)
+        st["fast"] += (s["level"] - st["fast"]) * min(1.0, dt / 0.4)
+        surge = st["fast"] > st["slow"] * 1.2 + 0.04
+        lt = t - st["phase_t"]
+        # Ablauf: verstecken → Überraschung → Party → (nach einer Runde) wieder verstecken
+        if st["phase"] == "hide" and not demo and lt >= PT_HIDE_MIN and (surge or lt >= PT_HIDE_MAX) and not talk:
+            st["phase"], st["phase_t"], lt = "surprise", t, 0.0
+            self._pt_confetti(st, 70, burst=True)
+        elif st["phase"] == "surprise" and lt >= PT_SURPRISE:
+            st["phase"], st["phase_t"], lt = "party", t, 0.0
+            st["next_gag"] = t + PT_GAG_FIRST
+        elif st["phase"] == "party":
+            length = int(o["round"]) if str(o.get("round")).isdigit() else 300
+            if lt > max(60, length) and st["gag"] is None and not demo:
+                self._pt_new_round(st, t, st["round"] * 31 + 5)
+                lt = 0.0
+        phase = st["phase"]
+        self.vis_party_dark = phase == "hide"
+        gag = st["gag"]
+        if gag and t - gag[1] >= PT_GAGS[gag[0]]:
+            if gag[0] == "hund":
+                st["eaten"], st["dog"] = 1.0, "lie"
+            st["gag"] = gag = None
+            st["next_gag"] = t + st["rng"].uniform(14, 22)
+        if phase == "party" and gag is None and not demo and not talk and st["next_gag"] and t >= st["next_gag"]:
+            while st["order"]:
+                name = st["order"].pop(0)
+                if name == "hund" and (not o.get("dog", True) or st["eaten"] > 0):
+                    continue
+                st["gag"] = gag = (name, t)
+                break
+            else:
+                st["next_gag"] = None
+        if phase == "party" and not demo and new_beat and s["bass"] > 0.88 and t - st["pop_t"] > 25 \
+                and lt > 20 and sum(st["balloons"]) >= 2 and gag is None:
+            alive = [i for i, a in enumerate(st["balloons"]) if a]
+            i = alive[st["rng"].randrange(len(alive))]
+            st["balloons"][i] = False
+            st["pops"].append((i, t))
+            st["pop_t"] = t
+        # Ballons, Geschenk, Torte
+        for i, ((bx, by), bc) in enumerate(PT_BALLOONS):
+            if not st["balloons"][i]:
+                continue
+            yy = by + math.sin(t * 1.3 + i) * 3 - s["bass"] * 4
+            xx = bx + math.sin(t * 0.9 + i * 2) * 2
+            anchor = (PT_SOFA[0] + 9, PT_FLOOR - 50) if bx < 200 else (PT_SOFA[1] - 9, PT_FLOOR - 50)
+            d.line([(xx, yy + 11), anchor], fill=(80, 70, 70))
+            self._blob(img, xx, yy, 18, 22, bc, gloss=0.9)
+        if age:                                                                     # Zahlenballons (Alter)
+            self._pt_age_balloons(img, d, str(age), t, s)
+        lid_top = self._pt_gift(img, d, s, t, gag)
+        out_k = self._pt_candles_out(gag, t)
+        self._pt_cake(img, d, s, t, age, self._pt_eaten(st, gag, t), out_k)
+        if gag and gag[0] == "kerzen" and age and age >= 50 and t - gag[1] > 8.5:
+            on = int(t * 3) % 2 == 0                                                # Rauchmelder piept
+            d.ellipse([214, 0, 230, 8], fill=(240, 240, 240))
+            d.ellipse([220, 2, 224, 6], fill=(255, 40, 40) if on else (90, 30, 30))
+            if on:
+                self._xmas_party_say(d, 222, 30, "PIEP! PIEP!")
+        heads = self._pt_guests_draw(img, d, st, s, t, dt, phase, lt, gag, talk, o)
+        dog = self._pt_dog_state(st, gag, t)
+        if dog:
+            self._pt_dog(img, d, dog[0], PT_FLOOR, dog[1], t, cream=dog[2])
+        for i, pt in list(st["pops"]):                                              # PENG!
+            k = t - pt
+            if k > 1.2:
+                st["pops"].remove((i, pt))
+                continue
+            (bx, by), bc = PT_BALLOONS[i]
+            r = 6 + 22 * min(1.0, k * 4)
+            pts = [(bx + math.cos(a * math.pi / 6) * (r if a % 2 else r * 0.5),
+                    by + math.sin(a * math.pi / 6) * (r if a % 2 else r * 0.5)) for a in range(12)]
+            if k < 0.5:
+                d.polygon(pts, fill=(255, 240, 120))
+            self._xmas_party_say(d, bx, by - 14, "PENG!")
+        if lid_top is not None and gag and t - gag[1] < 7:
+            self._xmas_party_say(d, PT_STAND_X[2], PT_FLOOR - 96, "AAAH!")
+        # Konfetti
+        if o.get("confetti", True) and phase != "hide":
+            if phase == "party" and not talk and new_beat and s["bass"] > 0.7:
+                self._pt_confetti(st, 3 + int(5 * s["level"]))
+            self._pt_confetti_step(st, dt, d)
+        # Sprechblasen
+        self._pt_talk(st, s, t, d, heads, phase, lt, talk)
+        if phase == "hide":
+            img = self._pt_dark(img, st, s, t, lt, o)
+        elif phase == "surprise":
+            img = self._pt_surprise(img, st, t, lt)
+        return img
+
+    # -- Bausteine des Ablaufs -------------------------------------------------- #
+    @staticmethod
+    def _pt_candles_out(gag, t):
+        """Trickkerzen: dreimal ausgepustet, gehen jedes Mal wieder an."""
+        if not gag or gag[0] != "kerzen":
+            return 0.0
+        lt = t - gag[1]
+        for a in (2.6, 4.8, 7.0):
+            if a <= lt < a + 1.0:
+                return 1.0
+        return 0.0
+
+    @staticmethod
+    def _pt_eaten(st, gag, t):
+        if gag and gag[0] == "hund":
+            return max(0.0, min(1.0, (t - gag[1] - 5.0) / 4.0))
+        return st["eaten"]
+
+    @staticmethod
+    def _pt_dog_state(st, gag, t):
+        """Hund: (x, Haltung, Sahne) oder None."""
+        if gag and gag[0] == "hund":
+            lt = t - gag[1]
+            if lt < 5:
+                return (WIDTH + 30 - (WIDTH + 30 - 112) * lt / 5, "walk", False)
+            if lt < 9:
+                return (112, "beg", lt > 6)
+            k = min(1.0, (lt - 9) / 3)
+            return (112 + (300 - 112) * k, "walk" if k < 1 else "lie", True)
+        if st.get("dog") == "lie":
+            return (300, "lie", True)
+        return None
+
+    def _pt_age_balloons(self, img, d, digits, t, s):
+        font = self.__dict__.setdefault("_pt_digit_font", load_font(38, bold=True))
+        x = 112
+        for k, ch in enumerate(digits[:3]):
+            yy = 64 + math.sin(t * 1.1 + k * 1.7) * 3 - s["bass"] * 3
+            w = d.textlength(ch, font=font)
+            d.line([(x + w / 2, yy + 42), (PT_GIFT_X, PT_FLOOR - 30)], fill=(90, 80, 70))
+            for ox, oy in ((-2, 0), (2, 0), (0, -2), (0, 2)):
+                d.text((x + ox, yy + oy), ch, font=font, fill=(150, 110, 20))
+            d.text((x, yy), ch, font=font, fill=(250, 210, 70))
+            d.line([(x + 6, yy + 12), (x + 9, yy + 8)], fill=(255, 250, 220), width=2)
+            x += w + 2
+
+    def _pt_guests_draw(self, img, d, st, s, t, dt, phase, lt, gag, talk, o):
+        """Gäste: verstecken (nicht gezeichnet, nur Augen in _pt_dark), aufspringen, tanzen, Helium, Gags."""
+        if phase == "hide":
+            return {}
+        period = max(0.3, min(1.2, s.get("period") or 0.5))
+        energy = 0.4 + 0.6 * s["level"] if s.get("active") or s.get("demo") else 0.3
+        ph = ((t - st["t0"]) / period) % 1.0
+        heads = {}
+        sitting = talk and s["t"] - s.get("talk_t", s["t"]) > 25
+        startle = 0 <= t - st["pop_t"] < 0.7
+        for i, spec in enumerate(PT_GUESTS):
+            g = st["guests"][i]
+            goal = PT_STAND_X[i]
+            if gag and gag[0] == "kerzen" and i == 1 and t - gag[1] < PT_GAGS["kerzen"] - 1.5:
+                goal = PT_CAKE_X + 46
+            if gag and gag[0] == "geschenk" and 4 <= t - gag[1] < 7:
+                goal = PT_STAND_X[i] + 14                                           # zurückweichen
+            walking = abs(goal - g["x"]) > 1
+            if walking:
+                g["x"] += max(-PT_WALK * dt, min(PT_WALK * dt, goal - g["x"]))
+            pose = dict(PT_POSES[(st["k"] + i * 2) % len(PT_POSES)])
+            prev = g.get("pose")
+            k = _smooth((t - st["t0"]) / 0.18)
+            if prev is not None and not walking:
+                pose = _mix_pose(prev, pose, k) if k < 1 else pose
+            pose["bob"] = (1 + math.cos(2 * math.pi * ph)) / 2 * (2 + 5 * energy)
+            pose["horn"] = max(0.0, 1 - (t - s.get("hat_t", -9)) / 0.25) if s.get("hats", 0) % 3 == i else 0.0
+            pose["lean"] = math.sin(math.pi * (st["k"] + ph) + i) * 2 * energy
+            if phase == "surprise":                                                 # aufspringen!
+                if i == 2 and st["sleeper"] and lt < 2.4:
+                    continue                                                        # verschläft es (Zzz in _pt_talk)
+                jl = lt - (2.4 if i == 2 and st["sleeper"] else 0.0)
+                jump = max(0.0, math.sin(min(1.0, jl / 0.6) * math.pi)) * 18
+                pose = {"lh": (-8, -24), "rh": (8, -24), "spread": 6, "bob": jump, "mouth": 1.0, "horn": 1.0}
+                if i == 2 and st["sleeper"]:
+                    pose.update(lh=(-12, 8), rh=(13, 6), mouth=0.0, horn=0.0, hat_tilt=8)
+            elif talk and (gag is None or gag[0] != "kerzen"):
+                pose = {"lh": (-10, 10), "rh": (10, 10), "spread": 3, "bob": 0.0}
+                if (int((t - s.get("talk_t", t)) / 2.5)) % 3 == i:
+                    pose.update(mouth=1.0, lh=(-4, -6) if i == 1 else (-10, 10))
+            elif walking:
+                pose = {"lh": (-6, 10), "rh": (6, 10), "spread": 3 + 3 * math.sin(t * 12), "bob": abs(math.sin(t * 12)) * 2}
+            if gag and gag[0] == "kerzen" and i == 1 and not walking:
+                gl = t - gag[1]
+                blowing = any(a - 0.8 <= gl < a + 0.2 for a in (2.6, 4.8, 7.0))
+                red = min(1.0, max(0.0, (gl - 4.8) / 3))
+                pose = {"lh": (-12, 2), "rh": (4, 12), "spread": 4, "bob": 0.0, "lean": -3, "cheeks": blowing,
+                        "face": _lerp(spec["skin"], (230, 70, 60), red), "look": -1}
+            if gag and gag[0] == "hund" and 6 <= t - gag[1] < 9 and i == 0:
+                pose.update(lh=(-16, -8), rh=(4, 10), mouth=1.0, look=-1)          # „HEY!“
+            if gag and gag[0] == "geschenk" and 4 <= t - gag[1] < 7:
+                pose.update(lh=(-6, -22), rh=(6, -22), mouth=1.0, bob=2.0)
+            if startle:
+                pose.update(lh=(-8, -24), rh=(8, -24), mouth=1.0, bob=10 * math.sin((t - st["pop_t"]) / 0.7 * math.pi))
+            g["pose"] = pose
+            heads[i] = self._pt_guest(img, d, g["x"], PT_FLOOR, pose, spec, t, sit=sitting and not walking)[0]
+        return heads
+
+    def _pt_talk(self, st, s, t, d, heads, phase, lt, talk):
+        """Sprechblasen: Psst (Versteck), verschlafen, Helium, Gags."""
+        gag = st["gag"]
+        if phase == "hide":
+            n = int(lt / 7.0)
+            if lt % 7.0 > 4.5 and lt > 3:
+                return ("say", PT_HIDE_X[n % 3], PT_SOFA_BACK - 14, PT_HIDE_SAY[n % len(PT_HIDE_SAY)])
+            return None
+        if phase == "surprise":
+            if st["sleeper"] and lt < 2.4:
+                self._bal_bubble(d, (PT_STAND_X[2] - 10, PT_SOFA_BACK + 12), None, t)
+            elif st["sleeper"] and lt >= 2.4 and 2 in heads:
+                self._xmas_party_say(d, heads[2][0], heads[2][1] - 34, "… Überraschung?")
+            return None
+        if gag and gag[0] == "hund" and 6 <= t - gag[1] < 9 and 0 in heads:
+            self._xmas_party_say(d, heads[0][0], heads[0][1] - 34, "HEY! Die Torte!")
+        elif gag and gag[0] == "hund" and 10 <= t - gag[1] < 12:
+            self._xmas_party_say(d, 250, PT_FLOOR - 30, "Burp.")
+        elif gag and gag[0] == "kerzen" and 1 in heads:
+            gl = t - gag[1]
+            if 8.2 <= gl < 10.5:
+                self._xmas_party_say(d, heads[1][0], heads[1][1] - 34, "Trickkerzen?!")
+            elif 0.5 <= gl < 2.0:
+                self._xmas_party_say(d, heads[1][0], heads[1][1] - 34, "Ich puste!")
+            for a in (2.6, 4.8, 7.0):                                               # Pustewind
+                if a - 0.8 <= gl < a + 0.2:
+                    x0, y0 = heads[1][0] - 12, heads[1][1] + 4
+                    for j in range(3):
+                        d.line([(x0 - j * 2, y0 - 4 + j * 4), (x0 - 14 - j * 2, y0 - 6 + j * 4)], fill=(250, 250, 255))
+        elif talk and heads:
+            n = int((t - s.get("talk_t", t)) / 2.5)
+            i = n % 3
+            if i in heads:
+                font = self.__dict__.setdefault("_pt_helium_font", load_font(9, bold=True))
+                text = PT_HELIUM[n % len(PT_HELIUM)]
+                hx, hy = heads[i][0], heads[i][1] - 30
+                w = d.textlength(text, font=font) + 10
+                bx = max(2, min(WIDTH - w - 2, hx - w / 2))
+                wob = math.sin(t * 20) * 1.5                                        # zittrige Heliumblase
+                d.rounded_rectangle([bx, hy + wob, bx + w, hy + 14 + wob], radius=7, fill=(236, 246, 255),
+                                    outline=(150, 200, 250))
+                d.text((bx + 5, hy + 2 + wob), text, font=font, fill=(60, 90, 160))
+        return None
+
+    def _pt_dark(self, img, st, s, t, lt, o):
+        """Versteck: Raum dunkel, nur die Augen hinter dem Sofa (blinzeln auf hohe Schläge) und das Mondlicht."""
+        dark = Image.blend(img, Image.new("RGB", img.size, (6, 8, 22)), 0.88)
+        d = ImageDraw.Draw(dark)
+        spots = [(x, PT_SOFA_BACK - 4) for x in PT_HIDE_X]
+        if o.get("dog", True):
+            spots.append((PT_SOFA[1] - 4, PT_FLOOR - 8))                           # Hund unterm Sofa
+        for i, (x, y) in enumerate(spots):
+            blink = 0 <= t - s.get("hat_t", -9) < 0.12 and (s.get("hats", 0) + i) % 4 == 0
+            look = math.sin(t * 0.7 + i * 2.1) * 2
+            pop = math.sin(min(1.0, max(0.0, (lt - i * 0.4) / 0.5)) * math.pi / 2)  # tauchen nacheinander auf
+            yy = y + (1 - pop) * 6
+            if pop < 0.2:
+                continue
+            for side in (-1, 1):
+                ex = x + side * (3 if i == 3 else 4)
+                if blink:
+                    d.line([(ex - 2, yy), (ex + 2, yy)], fill=(200, 200, 210))
+                else:
+                    d.ellipse([ex - 2.5, yy - 2, ex + 2.5, yy + 2], fill=(236, 236, 230))
+                    d.ellipse([ex - 1 + look, yy - 1, ex + 1 + look, yy + 1], fill=(10, 10, 14))
+        say = self._pt_talk(st, s, t, d, {}, "hide", lt, False)
+        if say:
+            self._xmas_party_say(d, say[1], say[2], say[3])
+        return dark
+
+    def _pt_surprise(self, img, st, t, lt):
+        """Licht an (kurzer Lichtstoß), „ÜBERRASCHUNG!“ in großen Buchstaben."""
+        if lt < 0.3:
+            k = lt / 0.3
+            img = Image.blend(Image.blend(img, Image.new("RGB", img.size, (6, 8, 22)), 0.84 * (1 - k)),
+                              Image.new("RGB", img.size, (255, 250, 230)), 0.35 * k)
+        if lt < 2.8:
+            d = ImageDraw.Draw(img)
+            font = self.__dict__.setdefault("_pt_big_font", load_font(26, bold=True))
+            text = "ÜBERRASCHUNG!"
+            sc = min(1.0, lt / 0.25)
+            w = d.textlength(text, font=font)
+            x, y = (WIDTH - w) / 2, 64 - 6 * math.sin(min(1.0, lt / 0.4) * math.pi)
+            if sc > 0.3:
+                d.rounded_rectangle([x - 10, y - 4, x + w + 10, y + 34], radius=12, fill=(255, 250, 236),
+                                    outline=(230, 60, 100), width=3)
+                hue = int(lt * 8) % 3
+                d.text((x, y), text, font=font, fill=((230, 50, 90), (40, 120, 220), (230, 150, 20))[hue])
+        return img
+
+    def _pt_confetti(self, st, n, burst=False):
+        rng = st["rng"]
+        rows = []
+        for _ in range(n):
+            if burst:
+                x = rng.choice(PT_HIDE_X) + rng.uniform(-14, 14)
+                rows.append([x, PT_SOFA_BACK - 10, rng.uniform(-70, 70), rng.uniform(-190, -90), rng.randrange(6),
+                             rng.uniform(0, 6)])
+            else:
+                rows.append([rng.uniform(0, WIDTH), -4, rng.uniform(-10, 10), rng.uniform(20, 50), rng.randrange(6),
+                             rng.uniform(0, 6)])
+        st["confetti"] = np.concatenate([st["confetti"], np.array(rows, np.float32)])[-160:]
+
+    @staticmethod
+    def _pt_confetti_step(st, dt, d):
+        c = st["confetti"]
+        if not len(c):
+            return
+        c[:, 3] = np.minimum(c[:, 3] + 160 * dt, 45)                                # fallen, bremsen
+        c[:, 2] *= max(0.0, 1 - 1.5 * dt)
+        c[:, 0] += c[:, 2] * dt + np.sin(c[:, 5] * 3) * 0.6
+        c[:, 1] += c[:, 3] * dt
+        c[:, 5] += dt * 4
+        st["confetti"] = c = c[c[:, 1] < PT_FLOOR + 6]
+        cols = [(240, 70, 90), (250, 210, 60), (70, 150, 240), (110, 210, 100), (230, 120, 230), (255, 255, 255)]
+        for x, y, _, _, ci, sp in c:
+            w = 1 + abs(math.sin(sp)) * 2
+            d.rectangle([x, y, x + w, y + 2], fill=cols[int(ci) % 6])
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Modul seite_visual_keller
+#   Visualisierung „Kellertreppe“ (Horror mit Pointe): Eine nackte Glühbirne pendelt im Takt (Bassschläge stoßen sie
+#   an), Licht und Schatten wandern durch den Keller. In den dunklen Ecken blinzeln Augenpaare auf hohe Schläge.
+#   Beim Höhepunkt flackert das Licht und geht aus – nur noch Augen –, dann geht es wieder an: ein Monster mit
+#   Kittelschürze saugt den Keller. Gags: Spinne mit Kopfhörern, Mäuse-Polonaise, Hand mit Staubwedel unter der
+#   Treppe, die Waschmaschine frisst eine Socke. Bei Wortbeiträgen macht das Monster Pause und liest Zeitung.
+#   Gänsehaut-Stufe (Option level): 1 schaurig-nett (wenige, freundliche Augen), 2 gruselig (mehr, glühende Augen,
+#   Flackern), 3 Gänsehaut (rote Augen, Herzschlag am Bildrand, kurzer Schreckmoment im Dunkeln).
+#   Echtes Gewitter laut Wetterseite blitzt durchs Kellerfenster (sanft, höchstens alle paar Sekunden).
+# ═══════════════════════════════════════════════════════════════════════════
+
+CL_FLOOR = VIS_H - 22
+CL_CORD = (186, 0)                      # Aufhängung der Glühbirne
+CL_CORD_LEN = 80
+CL_LIGHT_R = 210                        # Reichweite des Lichts (Pixel)
+CL_STEPS = 9                            # Stufen von oben links nach unten
+CL_STAIR_X0, CL_STAIR_Y0, CL_STEP_W = 30, 62, 13
+CL_STEP_H = (CL_FLOOR - CL_STAIR_Y0) / (CL_STEPS + 1)
+CL_WASHER = (246, 142, 296, CL_FLOOR)
+CL_BOXES = (158, 150, 200, CL_FLOOR)
+CL_WINDOW = (250, 8, 292, 28)
+CL_BOOM = 9.5                           # Dauer des Höhepunkts (flackern, dunkel, Monster saugt, geht)
+CL_BOOM_LOCK = 20.0                     # frühestens so lange nach dem letzten Höhepunkt der nächste
+CL_GAGS = {"spinne": 8.0, "maeuse": 7.0, "staub": 7.0, "socke": 8.0}
+CL_GAG_FIRST = 12.0
+# Verstecke der Augen (dunkle Ecken); je Stufe sind die ersten 2/4/6 belegt, beim Höhepunkt alle und mehr
+CL_EYES = [(34, 176), (88, 184), (306, 40), (226, 182), (14, 100), (300, 118), (66, 158), (122, 120), (210, 40),
+           (144, 30), (40, 130), (276, 132)]
+CL_MONSTER_SAY = ["Oh! Ich putz nur.", "Schuhe aus!", "Hier wird gesaugt!", "Licht? Brauch ich nicht.",
+                  "Nicht auf den Teppich!"]
+
+
+class CellarVisual:
+    vis_bulb = 0.0                      # Helligkeit der Glühbirne 0…1 (Tastaturbeleuchtung)
+    vis_heart = 0.0                     # Herzschlag 0…1 (Stufe 3, Tastatur „Rot im Herzschlag“)
+
+    # -- Hintergrund ---------------------------------------------------------- #
+    @staticmethod
+    def _cl_step(i):
+        """Stufe i (0 = oben): (x0, x1, Oberkante y)."""
+        x0 = CL_STAIR_X0 + i * CL_STEP_W
+        return x0, x0 + CL_STEP_W, CL_STAIR_Y0 + (i + 1) * CL_STEP_H
+
+    def _cl_scene(self):
+        """Keller bei voller Beleuchtung: Ziegelwand, Treppe, Tür, Regal, Waschmaschine, Kisten, Fenster;
+        dazu die Maske der Gegenstände (sie werfen Schatten an die Wand) – zwischengespeichert."""
+        if "_cl_bg" in self.__dict__:
+            return self._cl_bg
+        img = Image.new("RGB", (WIDTH, HEIGHT), (120, 104, 92))
+        d = ImageDraw.Draw(img)
+        rng = random.Random(13)
+        for row, y in enumerate(range(0, CL_FLOOR, 10)):                            # Ziegel
+            off = 0 if row % 2 else 11
+            for x in range(-off, WIDTH, 22):
+                v = rng.randint(-12, 12)
+                d.rectangle([x + 1, y + 1, x + 20, y + 8], fill=(132 + v, 98 + v, 82 + v))
+        for y in range(CL_FLOOR, HEIGHT, 8):                                        # Steinboden
+            d.rectangle([0, y, WIDTH, y + 7], fill=(96, 92, 90) if (y // 8) % 2 else (88, 86, 84))
+            for x in range((y * 13) % 30, WIDTH, 30):
+                d.line([(x, y), (x, y + 7)], fill=(70, 68, 66))
+        d.polygon([(0, CL_STAIR_Y0 + 14), (CL_STAIR_X0 + CL_STEPS * CL_STEP_W - 18, CL_FLOOR), (0, CL_FLOOR)],
+                  fill=(26, 20, 18))                                                # Raum unter der Treppe
+        d.rectangle([2, 8, 28, CL_STAIR_Y0], fill=(90, 62, 40))                     # Tür oben
+        d.rectangle([5, 12, 25, CL_STAIR_Y0 - 2], fill=(110, 76, 48))
+        d.ellipse([20, 34, 24, 38], fill=(200, 180, 90))
+        d.rectangle([0, CL_STAIR_Y0, CL_STAIR_X0, CL_STAIR_Y0 + 6], fill=(126, 84, 50))   # Absatz
+        for i in range(CL_STEPS):                                                   # Stufen
+            x0, x1, y = self._cl_step(i)
+            d.rectangle([x0, y, x1 + 1, y + CL_STEP_H], fill=(116, 76, 44))
+            d.rectangle([x0, y, x1 + 1, y + 3], fill=(150, 104, 64))
+        x_end = CL_STAIR_X0 + CL_STEPS * CL_STEP_W
+        d.polygon([(CL_STAIR_X0, CL_STAIR_Y0 + 6), (x_end, CL_FLOOR - CL_STEP_H + 4), (x_end, CL_FLOOR),
+                   (x_end - 14, CL_FLOOR), (0, CL_STAIR_Y0 + 20), (0, CL_STAIR_Y0 + 6)], fill=(84, 54, 32))   # Wange
+        for i in range(0, CL_STEPS, 2):                                             # Geländer
+            x0, _, y = self._cl_step(i)
+            d.line([(x0 + 6, y), (x0 + 6, y - 34)], fill=(70, 46, 30), width=2)
+        d.line([(CL_STAIR_X0 + 6, CL_STAIR_Y0 - 21), (x_end - 7, CL_FLOOR - CL_STEP_H * 2 - 34)], fill=(96, 64, 40),
+               width=4)
+        wx0, wy0, wx1, wy1 = CL_WINDOW                                              # Kellerfenster
+        d.rectangle([wx0 - 3, wy0 - 3, wx1 + 3, wy1 + 3], fill=(70, 66, 64))
+        d.rectangle([wx0, wy0, wx1, wy1], fill=(14, 20, 40))
+        d.line([((wx0 + wx1) / 2, wy0), ((wx0 + wx1) / 2, wy1)], fill=(70, 66, 64), width=2)
+        for k in range(4):                                                          # Gitter
+            d.line([(wx0 + 4 + k * 11, wy0), (wx0 + 4 + k * 11, wy1)], fill=(40, 38, 38))
+        obj = Image.new("L", (WIDTH, VIS_H), 0)
+        od = ImageDraw.Draw(obj)
+        for y in (60, 92, 124):                                                     # Regal mit Einmachgläsern
+            d.rectangle([238, y, 312, y + 4], fill=(110, 74, 44))
+            od.rectangle([238, y, 312, y + 4], fill=255)
+            for k, x in enumerate(range(242, 308, 13)):
+                h = 14 + (k * 7 + y) % 9
+                col = [(190, 80, 60), (220, 170, 60), (110, 150, 70), (150, 60, 110)][(k + y // 32) % 4]
+                d.rectangle([x, y - h, x + 9, y], fill=col)
+                d.rectangle([x - 1, y - h - 3, x + 10, y - h], fill=(200, 196, 180))
+                d.line([(x + 2, y - h + 2), (x + 2, y - 3)], fill=(240, 240, 230))
+                od.rectangle([x - 1, y - h - 3, x + 10, y], fill=255)
+        for x in (238, 309):
+            d.rectangle([x, 50, x + 3, CL_WASHER[1] - 6], fill=(96, 64, 38))
+        bx0, by0, bx1, by1 = CL_BOXES                                               # Kisten
+        d.rectangle([bx0, by0 + 18, bx1, by1], fill=(176, 138, 90))
+        d.rectangle([bx0 + 6, by0, bx1 - 4, by0 + 18], fill=(186, 148, 98))
+        d.line([(bx0, by0 + 28), (bx1, by0 + 28)], fill=(150, 112, 70), width=2)
+        d.text((bx0 + 9, by0 + 4), "XMAS", font=load_font(8, bold=True), fill=(120, 60, 50))
+        od.rectangle([bx0, by0 + 18, bx1, by1], fill=255)
+        od.rectangle([bx0 + 6, by0, bx1 - 4, by0 + 18], fill=255)
+        od.rectangle(CL_WASHER, fill=255)
+        self._cl_bg = (img, obj)
+        return self._cl_bg
+
+    def _cl_washer(self, img, d, dx, s, t, eyes, level):
+        x0, y0, x1, y1 = CL_WASHER
+        x0, x1 = x0 + dx, x1 + dx
+        d.rounded_rectangle([x0, y0, x1, y1], radius=4, fill=(222, 224, 228))
+        d.rectangle([x0, y0, x1, y0 + 9], fill=(204, 206, 212))
+        d.ellipse([x1 - 12, y0 + 2, x1 - 6, y0 + 7], fill=(80, 80, 90))
+        cx, cy = (x0 + x1) / 2, y0 + 30
+        d.ellipse([cx - 17, cy - 17, cx + 17, cy + 17], fill=(150, 154, 160))
+        d.ellipse([cx - 13, cy - 13, cx + 13, cy + 13], fill=(30, 50, 80))
+        a = t * 6
+        d.arc([cx - 10, cy - 10, cx + 10, cy + 10], math.degrees(a), math.degrees(a) + 120, fill=(70, 110, 160), width=3)
+        if eyes:
+            glow = (255, 60, 40) if level >= 3 else (220, 240, 120)
+            look = math.sin(t * 2) * 3
+            for side in (-1, 1):
+                d.ellipse([cx + side * 5 - 3 + look, cy - 3, cx + side * 5 + 3 + look, cy + 2], fill=glow)
+        return cx, cy
+
+    # -- Figuren -------------------------------------------------------------- #
+    def _cl_monster(self, img, d, x, s, t, mode, level):
+        """Zotteliges Monster mit geblümter Kittelschürze. mode: vacuum (saugt), walk, read (sitzt, Zeitung)."""
+        fur, dark = (104, 70, 140), (70, 46, 96)
+        floor = CL_FLOOR
+        sit = mode == "read"
+        by = floor - (30 if sit else 44)
+        bob = abs(math.sin(t * 9)) * 3 if mode == "walk" else math.sin(t * 4) * 1.5
+        self._blob(img, x, floor + 1, 60, 8, (40, 36, 40), gloss=0, alpha=0.6)
+        for side in (-1, 1):                                                        # Füße
+            fx = x + side * 12 + (math.sin(t * 9) * 4 * side if mode == "walk" else 0)
+            if sit:
+                fx += side * 6
+            self._blob(img, fx, floor - 4, 20, 10, dark, gloss=0.3)
+        rng = random.Random(3)
+        for k in range(22):                                                         # Zotteln am Rand
+            a = k / 22 * math.tau
+            self._blob(img, x + math.cos(a) * 26, by - bob + math.sin(a) * 32, 12, 12, dark, gloss=0.2)
+        self._blob(img, x, by - bob, 56, 70, fur, gloss=0.25)
+        for k in range(8):
+            px, py = x + rng.uniform(-18, 18), by - bob + rng.uniform(-24, 26)
+            d.line([(px, py), (px + 2, py + 5)], fill=dark)
+        apron = [(x - 18, by - bob - 6), (x + 18, by - bob - 6), (x + 22, by - bob + 30), (x - 22, by - bob + 30)]
+        d.polygon(apron, fill=(246, 214, 226))                                      # Kittelschürze
+        for k in range(9):
+            fx = x - 15 + (k % 3) * 14 + (k // 3 % 2) * 4
+            fy = by - bob - 1 + (k // 3) * 11
+            for a in range(5):
+                d.ellipse([fx + math.cos(a * 1.26) * 3 - 1.5, fy + math.sin(a * 1.26) * 3 - 1.5,
+                           fx + math.cos(a * 1.26) * 3 + 1.5, fy + math.sin(a * 1.26) * 3 + 1.5], fill=(230, 90, 130))
+            d.ellipse([fx - 1, fy - 1, fx + 1, fy + 1], fill=(250, 210, 60))
+        d.line([(x - 14, by - bob - 6), (x - 8, by - bob - 30)], fill=(246, 214, 226), width=2)
+        d.line([(x + 14, by - bob - 6), (x + 8, by - bob - 30)], fill=(246, 214, 226), width=2)
+        hy = by - bob - 30
+        for side in (-1, 1):                                                        # Hörner und Augen
+            d.polygon([(x + side * 10, hy - 4), (x + side * 18, hy - 22), (x + side * 16, hy - 2)], fill=(236, 220, 180))
+            ex = x + side * 9
+            d.ellipse([ex - 8, hy - 2, ex + 8, hy + 16], fill=(252, 252, 240))
+            look = 2 if mode == "vacuum" else -2 if mode == "read" else 0
+            d.ellipse([ex - 3 + look, hy + 6, ex + 3 + look, hy + 13], fill=(20, 16, 24))
+            if mode == "read" and s.get("talk") and s["t"] - s.get("talk_t", s["t"]) > 25:
+                d.rectangle([ex - 8, hy - 2, ex + 8, hy + 8], fill=fur)               # Lider zu: döst
+        my = hy + 22
+        d.chord([x - 10, my - 4, x + 10, my + 6], 0, 180, fill=(60, 20, 30))
+        for k in range(4):
+            tx = x - 8 + k * 5
+            d.polygon([(tx, my + 1), (tx + 3, my + 1), (tx + 1.5, my + 4)], fill=(255, 255, 250))
+        if mode == "read":                                                          # Zeitung
+            d.polygon([(x - 26, by - 8), (x + 26, by - 8), (x + 28, by + 22), (x - 28, by + 22)], fill=(232, 228, 214))
+            d.line([(x, by - 8), (x, by + 22)], fill=(170, 166, 150))
+            font = self.__dict__.setdefault("_cl_news_font", load_font(7, bold=True))
+            d.text((x - 24, by - 6), "KELLER-", font=font, fill=(40, 40, 40))
+            d.text((x + 3, by - 6), "BLATT", font=font, fill=(40, 40, 40))
+            for k in range(4):
+                d.line([(x - 23, by + 5 + k * 4), (x - 3, by + 5 + k * 4)], fill=(120, 120, 120))
+                d.line([(x + 3, by + 5 + k * 4), (x + 23, by + 5 + k * 4)], fill=(120, 120, 120))
+            return (x, hy)
+        hand = (x + 26, by - bob + 6)
+        self._limb(img, (x + 18, by - bob - 10), hand, 9, fur)
+        self._limb(img, (x - 18, by - bob - 10), (x - 26, by - bob + 12), 9, fur)
+        if mode == "vacuum":                                                        # Staubsauger
+            nozzle = x + 52 + math.sin(t * math.pi / max(0.3, s.get("period") or 0.5)) * 20
+            d.line([hand, (nozzle - 4, floor - 4)], fill=(60, 60, 70), width=3)
+            d.rectangle([nozzle - 10, floor - 6, nozzle + 4, floor - 1], fill=(70, 70, 80))
+            self._blob(img, x - 40, floor - 12, 26, 20, (210, 40, 50), gloss=0.9)
+            d.line([(x - 40, floor - 12), (x - 22, by - bob + 12)], fill=(60, 60, 70), width=2)
+            rng2 = random.Random(int(t * 6))
+            for _ in range(5):                                                      # Staubwölkchen
+                px = nozzle + rng2.uniform(-6, 10)
+                py = floor - 6 - rng2.uniform(0, 14)
+                self._blob(img, px, py, 6, 6, (200, 196, 190), alpha=0.5, flat=True)
+        return (x, hy)
+
+    def _cl_spider(self, img, d, x, y, s, t, level):
+        k = 1.6 if level >= 3 else 1.0
+        d.line([(x, 0), (x, y - 6 * k)], fill=(200, 200, 210))
+        for side in (-1, 1):
+            for j in range(4):
+                a = math.radians(-50 + j * 30) + math.sin(t * 10 + j) * 0.15
+                kx = x + side * math.cos(a) * 9 * k
+                ky = y + math.sin(a) * 9 * k
+                d.line([(x, y), (kx, ky - 3 * k), (kx + side * 4 * k, ky + 4 * k)], fill=(30, 26, 30), width=2)
+        self._blob(img, x, y + 3 * k, 14 * k, 12 * k, (40, 34, 40), gloss=0.6)
+        self._blob(img, x, y - 4 * k, 9 * k, 8 * k, (40, 34, 40), gloss=0.6)
+        eye = (255, 40, 40) if level >= 3 else (240, 240, 230)
+        for side in (-1, 1):
+            d.ellipse([x + side * 2 * k - 1, y - 5 * k - 1, x + side * 2 * k + 1, y - 5 * k + 1], fill=eye)
+        d.arc([x - 7 * k, y - 12 * k, x + 7 * k, y + 2 * k], 180, 360, fill=(230, 60, 60), width=2)   # Kopfhörer
+        for side in (-1, 1):
+            self._blob(img, x + side * 6 * k, y - 4 * k, 5 * k, 6 * k, (230, 60, 60), gloss=0.5)
+        if int(s.get("beats", 0)) % 2:
+            d.text((x + 10 * k, y - 18 * k), "♪", font=self.f_tiny, fill=(240, 240, 250))
+
+    def _cl_mouse(self, img, d, x, y, t, hat):
+        d.line([(x + 6, y - 2), (x + 13, y - 5 + math.sin(t * 9 + x) * 2)], fill=(200, 150, 150))
+        self._blob(img, x, y - 4, 14, 9, (150, 150, 158), gloss=0.4)
+        self._blob(img, x - 7, y - 6, 8, 7, (150, 150, 158), gloss=0.4)
+        self._blob(img, x - 6, y - 10, 5, 5, (220, 170, 180), gloss=0.2)
+        d.point((x - 9, y - 7), fill=(10, 10, 10))
+        d.point((x - 11, y - 5), fill=(240, 120, 140))
+        if hat:
+            d.polygon([(x - 10, y - 10), (x - 4, y - 10), (x - 8, y - 19)], fill=hat)
+
+    def _cl_hand(self, img, d, k, s, t):
+        """Grüne Hand mit Staubwedel kommt unter der Treppe hervor (k 0…1 ausgestreckt)."""
+        base = (8, CL_FLOOR - 8)
+        tip = (base[0] + 96 * k, CL_FLOOR - 10)
+        self._limb(img, base, tip, 10, (90, 150, 70))
+        self._blob(img, tip[0], tip[1], 12, 10, (100, 170, 80), gloss=0.3)
+        sweep = math.sin(t * math.pi / max(0.3, s.get("period") or 0.5)) * 10
+        end = (tip[0] + 18 + sweep, CL_FLOOR - 4)
+        d.line([tip, end], fill=(120, 80, 40), width=2)
+        for j in range(5):
+            self._blob(img, end[0] + 4 + j * 1.5, end[1] - 2 + (j % 2) * 2, 10, 6, (240, 120, 180), gloss=0.1,
+                       ang=-20 + j * 10)
+        for j in range(3):
+            q = (t * 2 + j / 3) % 1.0
+            self._blob(img, end[0] + 4 + q * 14, end[1] - 4 - q * 14, 6 + q * 8, 6 + q * 8, (190, 186, 180),
+                       alpha=0.4 * (1 - q), flat=True)
+
+    def _cl_scare(self, img):
+        """Schreckmoment (Stufe 3): riesiges Gesicht für ein paar Bilder."""
+        img = Image.blend(img, Image.new("RGB", img.size, (40, 0, 4)), 0.8)
+        d = ImageDraw.Draw(img)
+        self._blob(img, WIDTH / 2, VIS_H / 2 + 20, 330, 260, (60, 40, 76), gloss=0.15)
+        for side in (-1, 1):
+            cx = WIDTH / 2 + side * 62
+            self._blob(img, cx, 80, 90, 70, (255, 230, 80), alpha=0.5, flat=True)
+            d.ellipse([cx - 30, 58, cx + 30, 104], fill=(255, 220, 60))
+            d.ellipse([cx - 5, 60, cx + 5, 102], fill=(10, 4, 8))
+        d.chord([60, 120, 260, 220], 0, 180, fill=(30, 4, 10))
+        for k in range(12):
+            tx = 66 + k * 16
+            d.polygon([(tx, 170), (tx + 12, 170), (tx + 6, 192)], fill=(250, 248, 236))
+        return img
+
+    # -- Ablauf ---------------------------------------------------------------- #
+    @vis_style("cellar")
+    def vis_cellar(self, s, o, color):
+        t = s["t"]
+        level = int(o["level"]) if str(o.get("level")) in ("1", "2", "3") else 2
+        bg, objmask = self._cl_scene()
+        img = bg.copy()
+        d = ImageDraw.Draw(img)
+        demo = bool(s.get("demo"))
+        st = self._vstate("cellar", lambda: {"th": 0.3, "om": 0.0, "beats": s["beats"], "slow": s["level"],
+                                              "fast": s["level"], "boom": -99.0, "gag": None, "booms": 0,
+                                              "next_gag": t + CL_GAG_FIRST, "order": [], "rng": random.Random(29),
+                                              "flash": -99.0, "next_flash": t + 4.0, "start": t})
+        dt = self._vis_dt(st, t)
+        talk = bool(s.get("talk"))
+        new_beat = s["beats"] != st["beats"]
+        st["beats"] = s["beats"]
+        # Glühbirne pendelt: Bassschläge stoßen in Bewegungsrichtung an, Reibung bremst, Wortbeitrag: ruhig
+        if demo:
+            st["th"], st["om"] = 0.32 * math.sin(t * 3.4), 0.0
+        else:
+            if new_beat and s["bass"] > 0.55 and not talk:
+                soft = max(0.0, 1 - abs(st["th"]) / 0.55)                     # weit draußen: kaum noch Schwung
+                st["om"] += (0.25 + 0.45 * s["bass"]) * soft * (1 if st["om"] >= 0 else -1)
+            st["om"] += (-12.0 * st["th"] - (2.5 if talk else 0.55) * st["om"]) * dt
+            st["th"] = max(-0.7, min(0.7, st["th"] + st["om"] * dt))
+        bx = CL_CORD[0] + math.sin(st["th"]) * CL_CORD_LEN
+        by = CL_CORD[1] + math.cos(st["th"]) * CL_CORD_LEN
+        # Höhepunkt
+        st["slow"] += (s["level"] - st["slow"]) * min(1.0, dt / 6)
+        st["fast"] += (s["level"] - st["fast"]) * min(1.0, dt / 0.4)
+        if not demo and not talk and st["fast"] > st["slow"] * 1.2 + 0.04 and t - st["boom"] > CL_BOOM_LOCK \
+                and t - st["start"] > 5 and st["gag"] is None:
+            st["boom"] = t
+            st["booms"] += 1
+        bt = t - st["boom"]
+        boom = 0 <= bt < CL_BOOM
+        # Gags
+        gag = st["gag"]
+        if gag and t - gag[1] >= CL_GAGS[gag[0]]:
+            st["gag"] = gag = None
+            st["next_gag"] = t + st["rng"].uniform(14, 24)
+        if not demo and gag is None and not boom and not talk and t >= st["next_gag"]:
+            if not st["order"]:
+                st["order"] = st["rng"].sample(list(CL_GAGS), len(CL_GAGS))
+            st["gag"] = gag = (st["order"].pop(0), t)
+        # Licht: an, flackern (hohe Schläge, ab Stufe 2), aus beim Höhepunkt
+        bright = 1.0
+        if level >= 2 and 0 <= t - s.get("hat_t", -9) < 0.08 and s.get("hat", 0) > 0.7 and \
+                random.Random(s.get("hats", 0) * 7).random() < 0.15:
+            bright = 0.15
+        if boom:
+            if bt < 0.7:
+                bright = 1.0 if (0.15 <= bt < 0.3 or 0.45 <= bt < 0.55) else 0.05
+            elif bt < 2.2:
+                bright = 0.0
+        if talk:
+            bright = 1.0
+        self.vis_bulb = bright
+        # Dynamisches vor dem Licht (wird mit beleuchtet)
+        shake = math.sin(t * 50) * 2 * (0.4 + s["bass"]) if gag and gag[0] == "socke" else 0.0
+        gl = t - gag[1] if gag else 0.0
+        eyes_in = bool(gag and gag[0] == "socke" and level >= 2 and 1.0 <= gl < 3.4)
+        pc = self._cl_washer(img, d, shake, s, t, eyes_in, level)
+        if gag and gag[0] == "socke":
+            k = max(0.0, min(1.0, (gl - 3.4) / 1.2))
+            if k < 1:
+                sx = 222 + (pc[0] - 222) * k
+                sy = CL_FLOOR - 3 - math.sin(k * math.pi) * 26 + (pc[1] - CL_FLOOR) * k
+                sc = 1 - 0.7 * k
+                d.rounded_rectangle([sx - 8 * sc, sy - 3 * sc, sx + 8 * sc, sy + 3 * sc], radius=2, fill=(240, 240, 240))
+                for j in range(3):
+                    d.line([(sx - 6 * sc + j * 5 * sc, sy - 3 * sc), (sx - 6 * sc + j * 5 * sc, sy + 3 * sc)],
+                           fill=(220, 50, 60), width=2)
+        if gag and gag[0] == "staub":
+            k = min(1.0, gl / 1.2, max(0.0, (CL_GAGS["staub"] - gl) / 1.2))
+            self._cl_hand(img, d, k, s, t)
+        if gag and gag[0] == "maeuse":
+            hats = [(230, 60, 100), (60, 170, 230), (250, 200, 60), (110, 200, 90)]
+            ph = (t - s.get("beat_t", t)) / max(0.3, s.get("period") or 0.5)
+            for j in range(4):
+                mx = -20 + (WIDTH + 60) * gl / CL_GAGS["maeuse"] - j * 18
+                hop = abs(math.sin(min(1.0, ph) * math.pi)) * 5 if (j + s["beats"]) % 2 else 0
+                self._cl_mouse(img, d, mx, CL_FLOOR - hop, t, hats[j])
+        monster = None
+        if talk:
+            monster = (124, "read")
+        elif boom and bt >= 2.2:
+            k = (bt - 7.2) / (CL_BOOM - 7.2)
+            monster = (150 - 110 * _smooth(k), "walk") if k > 0 else (150, "vacuum")
+        head = None
+        if monster:
+            sh = self._cl_shadow_offset(monster[0], CL_FLOOR - 50, bx, by)
+            self._blob(img, monster[0] + sh[0], CL_FLOOR - 50 + sh[1], 60, 80, (40, 32, 34), gloss=0, alpha=0.45)
+            head = self._cl_monster(img, d, monster[0], s, t, monster[1], level)
+        if gag and gag[0] == "spinne":
+            k = min(1.0, gl / 2.5)
+            up = max(0.0, (gl - (CL_GAGS["spinne"] - 2.0)) / 2.0)
+            y = 20 + 90 * _smooth(k) * (1 - _smooth(up)) + s["bass"] * 6
+            self._cl_spider(img, d, 112, y, s, t, level)
+        # Licht und Schatten
+        img = self._cl_light(img, objmask, bx, by, bright)
+        d = ImageDraw.Draw(img)
+        self._cl_weather(img, d, st, t, demo)
+        # Glühbirne mit Kabel
+        d.line([CL_CORD, (bx, by - 6)], fill=(30, 28, 26), width=2)
+        d.rectangle([bx - 3, by - 8, bx + 3, by - 3], fill=(120, 116, 100))
+        if bright > 0.3:
+            self._blob(img, bx, by + 3, 46, 46, (255, 210, 120), alpha=0.5 * bright, flat=True)
+            self._blob(img, bx, by + 3, 11, 13, (255, 246, 200), gloss=0.2)
+        else:
+            self._blob(img, bx, by + 3, 11, 13, (60, 56, 50), gloss=0.4)
+        # Augen in der Dunkelheit
+        self._cl_eyes(img, d, s, t, level, bx, by, bright, boom and 0.7 <= bt < 2.2, talk)
+        if level >= 3 and not talk:                                                 # Herzschlag am Bildrand
+            img = self._cl_heart(img, s, t)
+            d = ImageDraw.Draw(img)
+        else:
+            self.vis_heart = 0.0
+        # Sprechblasen
+        if monster and head:
+            if talk:
+                tl = s["t"] - s.get("talk_t", s["t"])
+                if tl < 3:
+                    self._xmas_party_say(d, head[0], head[1] - 22, "Pause.")
+                elif tl > 25:
+                    self._bal_bubble(d, (head[0] + 4, head[1] + 10), None, t)
+            elif 2.4 <= bt < 5.2:
+                self._xmas_party_say(d, head[0], head[1] - 22, CL_MONSTER_SAY[(st["booms"] - 1) % len(CL_MONSTER_SAY)])
+        if gag and gag[0] == "socke":
+            if 4.6 <= gl < 6.0:
+                self._xmas_party_say(d, pc[0], CL_WASHER[1] - 8, "MAMPF!")
+            elif 6.4 <= gl < 7.8:
+                self._xmas_party_say(d, pc[0], CL_WASHER[1] - 8, "Burp.")
+        if gag and gag[0] == "staub" and 3.0 <= gl < 5.0:
+            self._xmas_party_say(d, 70, CL_FLOOR - 24, "Hier wird's nie sauber.")
+        if level >= 3 and boom and 1.7 <= bt < 1.95:
+            img = self._cl_scare(img)                                               # Schreckmoment
+        return img
+
+    @staticmethod
+    def _cl_shadow_offset(x, y, bx, by, k=0.18):
+        """Schatten an der Wand: Gegenstand um k × (Abstand zur Glühbirne) versetzt."""
+        return (x - bx) * k, (y - by) * k
+
+    def _cl_light(self, img, objmask, bx, by, bright):
+        """Kegel der Glühbirne (fällt mit dem Abstand ab) mal Bild; Gegenstände werfen versetzte Schatten an die
+        Wand. Dunkle Stellen behalten einen Rest Licht (blaugrau)."""
+        spr = self.__dict__.get("_cl_light_spr")
+        if spr is None:
+            R = CL_LIGHT_R
+            yy, xx = np.mgrid[-R:R + 1, -R:R + 1].astype(np.float32)
+            r = np.sqrt(xx * xx + yy * yy) / R
+            spr = self._cl_light_spr = Image.fromarray((np.clip(1 - r, 0, 1) ** 1.15 * 255).astype(np.uint8), "L")
+        mask = Image.new("L", (WIDTH, VIS_H), 0)
+        mask.paste(spr, (int(bx) - CL_LIGHT_R, int(by) - CL_LIGHT_R))
+        lit = mask
+        sh = Image.new("L", (WIDTH, VIS_H), 255)                                    # Schatten der Gegenstände
+        sd = ImageDraw.Draw(sh)
+        for x0, y0, x1, y1, k in ((*CL_BOXES, 0.2), (*CL_WASHER, 0.14), (238, 46, 312, 128, 0.08)):
+            ox, oy = self._cl_shadow_offset((x0 + x1) / 2, (y0 + y1) / 2, bx, by, k)
+            sd.rectangle([x0 + ox, y0 + oy, x1 + ox, min(CL_FLOOR, y1 + oy)], fill=90)   # nur an der Wand
+        mask = ImageChops.multiply(mask, sh)
+        mask = Image.composite(lit, mask, objmask)                                  # Gegenstände selbst hell
+        lut = self.__dict__.setdefault("_cl_lut", {})
+        key = round(bright, 2)
+        if key not in lut:
+            lut.clear()
+            lut[key] = [int(16 + (255 - 16) * min(1.0, v / 255 * 1.7) * key) for v in range(256)]
+        mask = mask.point(lut[key])
+        full = Image.new("L", (WIDTH, HEIGHT), int(16 + 140 * bright))              # Fußzeile egal, Boden unten
+        full.paste(mask, (0, 0))
+        warm = Image.merge("RGB", (full, full.point(lambda v: int(v * 0.92)), full.point(lambda v: int(v * 0.8 + 10))))
+        return ImageChops.multiply(img, warm)
+
+    def _cl_weather(self, img, d, st, t, demo):
+        """Wetter der Wetterseite: Regen am Kellerfenster, Gewitter blitzt (sanft, alle 6–15 s)."""
+        kind = None if demo else self._party_weather()[0]
+        wx0, wy0, wx1, wy1 = CL_WINDOW
+        if kind in ("rain", "drizzle", "thunder"):
+            rng = random.Random(int(t * 10))
+            for _ in range(6):
+                x = rng.uniform(wx0 + 1, wx1 - 1)
+                y = rng.uniform(wy0, wy1 - 5)
+                d.line([(x, y), (x - 1, y + 4)], fill=(120, 140, 190))
+        if kind == "thunder" and t >= st["next_flash"]:
+            st["flash"], st["next_flash"] = t, t + st["rng"].uniform(6, 15)
+        if 0 <= t - st["flash"] < 0.12:
+            d.rectangle([wx0, wy0, wx1, wy1], fill=(240, 244, 255))
+            img.paste(Image.blend(img, Image.new("RGB", img.size, (200, 210, 255)), 0.22))
+
+    def _cl_eyes(self, img, d, s, t, level, bx, by, bright, blackout, talk):
+        """Augenpaare in den dunklen Ecken: sichtbar, wo wenig Licht hinfällt; blinzeln auf hohe Schläge.
+        Stufe 1 rund und freundlich, 2 gelbgrün glühend, 3 rot mit Schlitz. Im Dunkeln (Höhepunkt): alle."""
+        n = len(CL_EYES) if blackout else (2, 4, 6)[level - 1]
+        col = ((246, 246, 240), (210, 240, 110), (255, 50, 40))[level - 1]
+        for i, (x, y) in enumerate(CL_EYES[:n]):
+            dist = math.hypot(x - bx, y - by) / CL_LIGHT_R
+            vis = 1.0 if blackout else max(0.0, min(1.0, (dist - 0.55) / 0.35 + (1 - bright)))
+            if vis < 0.15:
+                continue
+            blink = 0 <= t - s.get("hat_t", -9) < 0.13 and (s.get("hats", 0) + i) % 3 == 0
+            half = talk                                                             # Wortbeitrag: dösen
+            look = math.sin(t * 0.8 + i * 1.9) * 1.5 + (bx - x) / 160
+            k = vis
+            c = tuple(int(v * k) for v in col)
+            if level >= 2:
+                self._blob(img, x, y, 22, 12, col, alpha=round(0.35 * k, 2), flat=True)
+            for side in (-1, 1):
+                ex = x + side * 5
+                if blink:
+                    d.line([(ex - 3, y), (ex + 3, y)], fill=c)
+                    continue
+                top = y - (0 if half else 2.5)
+                d.ellipse([ex - 3, top, ex + 3, y + 2.5], fill=c)
+                if level == 1:
+                    d.ellipse([ex - 1.2 + look, y - 1.2, ex + 1.2 + look, y + 1.2], fill=(10, 10, 14))
+                elif level == 3:
+                    d.line([(ex + look * 0.5, y - 2), (ex + look * 0.5, y + 2)], fill=(20, 0, 0))
+
+    def _cl_heart(self, img, s, t):
+        """Stufe 3: dunkelroter Herzschlag am Bildrand (Doppelschlag auf jeden Bassschlag)."""
+        vig = self.__dict__.get("_cl_vig")
+        if vig is None:
+            yy, xx = np.mgrid[0:HEIGHT, 0:WIDTH].astype(np.float32)
+            r = np.sqrt(((xx - WIDTH / 2) / (WIDTH / 2)) ** 2 + ((yy - VIS_H / 2) / (VIS_H / 2)) ** 2)
+            vig = self._cl_vig = Image.fromarray((np.clip((r - 0.65) / 0.6, 0, 1) * 255).astype(np.uint8), "L")
+        a = t - s.get("beat_t", -9)
+        k = math.exp(-max(0.0, a) * 9) + (0.6 * math.exp(-(a - 0.22) * 9) if a > 0.22 else 0.0)
+        k = max(0.0, min(1.0, k * (0.4 + 0.6 * s["bass"])))
+        self.vis_heart = k
+        if k < 0.03:
+            return img
+        m = vig.point([int(v * k * 0.7) for v in range(256)])
+        return Image.composite(Image.new("RGB", img.size, (120, 0, 8)), img, m)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Modul menues
 #   Auswahllisten auf dem Display: Profile, Kalender, Alben und allgemeine Listen (Sender, Textbausteine).
 # ═══════════════════════════════════════════════════════════════════════════
@@ -13693,6 +14921,7 @@ class Renderer(RendererBase,
                ClockPage, ClockBase, StandardFaces, MechanicalFaces, SkyFaces, DisplayFaces, InfoFaces,
                MacrosPage, MusicPage, SlidesPage, WeatherPage, CalendarPage, HardwarePage,
                NewsPage, WarningsPage, NetworkPage, UpdatesPage, VisualPage, XmasVisual, XmasParty, BalletVisual, StageFx,
+               PartyVisual, CellarVisual,
                MenuViews, OverlayViews):
     PAGES = len(PAGE_IDS)
     MUSIC_PAGE = PAGE_IDS.index("music")
@@ -14809,6 +16038,9 @@ class AppCore:
         """Gezeigter Stil: der gewählte – in der Weihnachtszeit „Weihnachten“ (abschaltbar; wählt der Nutzer dann
         am Display einen anderen Stil, gilt dieser bis zum Ende der Weihnachtszeit)."""
         vis = self.settings().get("visual") or {}
+        fest = fest_occasion(vis)                   # Geburtstag, Freitag der 13. (Festkalender) vor Weihnachten
+        if fest and vis.get("fest_skip") != fest[1]:
+            return fest[0]
         season = xmas_season()
         if vis.get("xmas_auto", True) and season and vis.get("xmas_skip") != season:
             return "xmas"
@@ -14818,6 +16050,9 @@ class AppCore:
     def set_visual_style(self, style):
         season = xmas_season()
         vis = self.settings().get("visual") or {}
+        fest = fest_occasion(vis)
+        if fest:                                    # heute anderer Stil gewählt: Anlass für heute aussetzen
+            self.save_setting(["visual", "fest_skip"], "" if style == fest[0] else fest[1])
         if season and vis.get("xmas_auto", True):
             self.save_setting(["visual", "xmas_skip"], 0 if style == "xmas" else season)
         if self.save_setting(["visual", "style"], style):
@@ -15602,6 +16837,19 @@ class App(AppCore, KeyHandling, TimedTasks):
                 k = round((0.15 + 0.85 * math.exp(-max(0.0, snap["t"] - snap.get("hat_t", -9)) * 9)) * 20) / 20
             if keys == "stage" and self.renderer.vis_stage_color and not self.renderer.vis_listen:
                 base = self.renderer.vis_stage_color
+        style = self.visual_style()
+        if style == "party":                                                # Party: bunt im Takt, versteckt: dunkel
+            if self.renderer.vis_party_dark:
+                k, base = 0.08, (60, 70, 140)
+            elif not quiet and visual_options(s, "party").get("keys", "rainbow") == "rainbow":
+                base = _hue(snap["beats"] * 0.13, 0.9, 1.0)
+        if style == "cellar":                                               # Keller: Glühbirne bzw. Herzschlag
+            keys = visual_options(s, "cellar").get("keys", "bulb")
+            if keys == "bulb":
+                k, base = round(max(0.04, self.renderer.vis_bulb * (0.55 + 0.45 * k)) * 20) / 20, (255, 160, 60)
+            elif keys == "red":
+                beat = math.exp(-max(0.0, snap["t"] - snap.get("beat_t", -9)) * 7) if not quiet else 0.0
+                k, base = round(max(0.06, beat) * 20) / 20, (255, 10, 10)
         color = tuple(int(c * k) for c in base)
         strobe = False
         if self.visual_style() in ("lights", "dancer") and not quiet:     # Stroboskop: Tastatur blitzt mit
@@ -15784,7 +17032,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.16-1"
+VERSION = "2026.11.16-2"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -17439,6 +18687,7 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
 .clkopt { margin-bottom: 10px; }
 .clkopt .row { gap: 8px; }
 .clkopt input[type=color] { width: 42px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; }
+.bdayrow { margin: 4px 0; gap: 6px; align-items: center; }
 .clkcities { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; max-width: 360px; }
 .okbox { background: color-mix(in srgb, #3ecf7e 12%, transparent); border: 1px solid color-mix(in srgb, #3ecf7e 45%, transparent);
   border-radius: 9px; padding: 8px 12px; font-size: 13px; margin: 8px 0 12px; }
@@ -17635,6 +18884,7 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
           <label class="check"><input type="checkbox" id="visBacklight"> Tastaturbeleuchtung pulsiert im Takt</label>
           <label class="check"><input type="checkbox" id="visTitle"> Laufenden Titel oben anzeigen</label>
           <label class="check"><input type="checkbox" id="visXmas"> In der Weihnachtszeit (1. Advent bis 6. Januar) automatisch den Stil „Weihnachten“ zeigen – wer dann am Display einen anderen Stil wählt, behält diesen bis zum Ende der Weihnachtszeit</label>
+          <p class="hint" style="max-width:360px">Festkalender: An Geburtstagen aus der Liste des Stils „Überraschungsparty“ erscheint automatisch die Party, an jedem Freitag, dem 13., auf Wunsch die „Kellertreppe“ (Schalter dort). Wer am Display einen anderen Stil wählt, behält ihn für diesen Tag.</p>
           <label class="field" style="max-width:360px"><span>Wortbeitrag, wenn der Titel des Senders eines dieser Wörter enthält (durch Komma getrennt) – die Tänzerin langweilt sich dann</span><input type="text" id="visTalkWords" maxlength="300"></label>
           <p class="hint" style="max-width:360px">Nachrichten und Moderation erkennt die Visualisierung zusätzlich am Klang (Sprache statt Musik). Werbung mit Musik darunter nur über diese Wörter.</p>
         </div>
@@ -18961,8 +20211,32 @@ function optionFields(opts, d, changed) {
           el("option", {value: "", text: "—"}),
           S.worldCities.map(([n, tz]) => el("option", {value: tz, text: n}))))));
     }
+    if (o.type === "birthdays") return birthdayFields(o, d, changed);
     return null;
   });
+}
+// Geburtstagsliste (Überraschungsparty, Festkalender): Name, Tag, Monat, Geburtsjahr (leer = Alter unbekannt)
+function birthdayFields(o, d, changed) {
+  const box = el("div", {class: "field clkopt"});
+  const list = () => (d[o.key] = Array.isArray(d[o.key]) ? d[o.key] : (o.default || []).slice());
+  const num = (b, k, min, max, w, ph) => el("input", {type: "number", min, max, value: b[k] || "", placeholder: ph,
+    style: {width: w}, oninput: e => { b[k] = parseInt(e.target.value, 10) || (k === "year" ? 0 : 1); changed(); }});
+  function draw() {
+    const rows = list().map((b, i) => el("div", {class: "row bdayrow"},
+      el("input", {type: "text", value: b.name || "", maxlength: 20, placeholder: "Name", style: {width: "150px"},
+        oninput: e => { b.name = e.target.value; changed(); }}),
+      num(b, "day", 1, 31, "64px", "Tag"), num(b, "month", 1, 12, "64px", "Monat"),
+      num(b, "year", 1900, 2100, "84px", "Jahr"),
+      el("button", {class: "btn", type: "button", text: "✕", title: "Entfernen",
+        onclick: () => { list().splice(i, 1); changed(); draw(); }})));
+    box.replaceChildren(el("span", {text: o.label + " (Jahr freiwillig – dann steht das Alter auf den Ballons)"}),
+      ...rows,
+      el("button", {class: "btn", type: "button", text: "+ Geburtstag", onclick: () => {
+        const now = new Date();
+        list().push({name: "", day: now.getDate(), month: now.getMonth() + 1, year: 0}); changed(); draw(); }}));
+  }
+  draw();
+  return box;
 }
 let clkTimer = null;
 function clockPreview() {
@@ -19995,6 +21269,10 @@ Die Seite '''Visualisierung''' bewegt sich zu allem, was der Rechner gerade absp
 | Feuerwerk || bei jedem Schlag explodiert eine Rakete über der Stadt || Leuchtspuren
 |-
 | Weihnachten || Weihnachtsmann und Weihnachtsfrau – räumlich gezeichnet mit Licht, Glanz und Schatten – tanzen neben einem Weihnachtsbaum im Schneefall: er wippt mit dem Bauch, winkt, kickt; sie dreht Pirouetten. Im Paartanz halten sie sich an den Händen, und alle acht Schritte dreht sie sich unter seinem Arm. Lichterkette blinkt im Takt, der Stern leuchtet mit dem Bass, kräftige Schläge wirbeln den Schnee auf. Wechselt der Tanz, verabschiedet sich eine Figur winkend und geht aus dem Bild (er nach links, sie nach rechts), die andere kommt herein; beim Öffnen der Seite kommen beide ins Bild gelaufen. Bei Wortbeiträgen gehen beide zu einer Bank – er liest die Wunschliste, sie trinkt Kakao || Tanz (abwechselnd, Paartanz, nur Weihnachtsmann, nur Weihnachtsfrau), Wechsel bei „Abwechselnd“ (alle 30 Sekunden, jede Minute, alle 2, 5 oder 10 Minuten), Schneefall (leicht, normal, dicht), Lichterkette im Takt, Tastaturbeleuchtung (rot und grün im Takt oder Farbe der Ebene), Feierabend (aus, an, nur abends), Dauer einer Feierabend-Runde (5, 10, 15 oder 20 Minuten), Glühwein-Barometer und Becherzähler
+|-
+| Überraschungsparty || Geburtstag im Wohnzimmer: Erst ist es dunkel, drei Gäste und der Hund verstecken sich hinter dem Sofa – nur ihre Augen blinzeln im Takt („Psst!“). Beim ersten Höhepunkt der Musik (spätestens nach 20 Sekunden) geht das Licht an: „ÜBERRASCHUNG!“, Konfetti, dann tanzen alle mit Partyhut und Tröte (sie rollt sich auf hohe Schläge aus). Gags: der Hund frisst die Torte, Trickkerzen gehen immer wieder an (ab 50 piept der Rauchmelder, ab 40 qualmt die Torte), ein Kastenteufel springt aus dem Geschenk, Luftballons platzen bei kräftigem Bass, manchmal verschläft ein Gast die Überraschung. Bei Wortbeiträgen atmen alle Helium ein und quieken, nach 25 Sekunden setzen sie sich auf den Boden. Nach einer Runde wird es dunkel, und alle verstecken sich wieder (mit neuer Torte) || An Geburtstagen automatisch zeigen, Geburtstagsliste (nur in der Verwaltung: Name, Tag, Monat, Geburtsjahr – mit Jahr stehen Zahlenballons mit dem Alter im Bild), Dauer einer Runde (3, 5, 10 Minuten), Hund, Konfetti, Tastaturbeleuchtung (bunt im Takt oder Farbe der Ebene)
+|-
+| Kellertreppe || Horror mit Pointe: Eine nackte Glühbirne pendelt im Takt (Bassschläge stoßen sie an), Licht und Schatten wandern durch den Keller mit Treppe, Regal voller Einmachgläser und Waschmaschine. In den dunklen Ecken blinzeln Augenpaare auf hohe Schläge. Beim Höhepunkt flackert das Licht und geht aus – nur noch Augen –, dann geht es wieder an: Ein zotteliges Monster mit geblümter Kittelschürze saugt den Keller („Oh! Ich putz nur.“). Gags: Spinne mit Kopfhörern, Mäuse-Polonaise mit Partyhüten, Hand mit Staubwedel unter der Treppe, die Waschmaschine frisst eine Socke. Bei Wortbeiträgen liest das Monster das „Kellerblatt“ und döst nach 25 Sekunden ein. Gewitter laut Wetterseite blitzt sanft durchs Kellerfenster || Gänsehaut-Stufe (schaurig-nett: wenige freundliche Augen; gruselig: mehr glühende Augen, Licht flackert; Gänsehaut: rote Augen, Herzschlag am Bildrand, kurzer Schreckmoment im Dunkeln), an jedem Freitag, dem 13., automatisch zeigen, Tastaturbeleuchtung (wie die Glühbirne, rot im Herzschlag, Farbe der Ebene)
 |}
 '''Feierabend (Weihnachten):''' Eine Option mit derbem Humor, ab Werk aus. Eingeschaltet (oder nur abends von 20 bis 4 Uhr) trinken die beiden Glühwein über den Durst. Eine Runde läuft, solange Musik spielt, und dauert etwa die eingestellte Zeit:
 * '''Auftakt:''' tanzen und prosten. Jedes Prosten hebt den Pegel – bei lauter, schneller Musik prosten sie öfter, bei ruhiger Musik schunkeln sie nur.
@@ -20007,6 +21285,8 @@ Die Seite '''Visualisierung''' bewegt sich zu allem, was der Rechner gerade absp
 Der Tanz-Modus gilt dabei nicht, die beiden sind immer zu zweit. Bei Wortbeiträgen sitzen sie wie gewohnt auf der Bank; mit hohem Pegel schlafen sie dort ein. Solange ihm schlecht ist, leuchtet die Tastatur nur grün.
 
 '''Weihnachtszeit:''' Vom 1. Advent bis zum 6. Januar zeigt die Visualisierung automatisch den Stil „Weihnachten“, egal welcher Stil gewählt ist (abschaltbar unter '''Beleuchtung & Display → Visualisierung'''). Wählt man in dieser Zeit am Display einen anderen Stil, bleibt dieser bis zum Ende der Weihnachtszeit; im nächsten Advent kommt „Weihnachten“ wieder.
+
+'''Festkalender:''' Hat jemand aus der Geburtstagsliste der Überraschungsparty heute Geburtstag, zeigt die Visualisierung automatisch die Party – mit Namen auf dem Banner (bei zwei Geburtstagskindern beide) und, wenn das Geburtsjahr eingetragen ist, dem Alter als Zahlenballons; am 29. Februar Geborene feiern in Nicht-Schaltjahren am 28. Februar. An jedem Freitag, dem 13., erscheint auf Wunsch die Kellertreppe (Schalter in deren Optionen, ab Werk aus). Ein Geburtstag geht vor Freitag, dem 13., beide gehen vor Weihnachten. Wählt man an so einem Tag am Display einen anderen Stil, bleibt dieser bis Mitternacht.
 Oben steht der laufende Titel (abschaltbar). Ohne Ton bleibt das letzte Bild abgedunkelt stehen und zeigt „Keine Wiedergabe“; ist der Ausgang stumm geschaltet (oder auf 0 %), „Ton stumm“. Sobald wieder Musik kommt, geht es sofort weiter – der mitgehörte Ausgang selbst merkt vom Stummschalten nichts, deshalb fragt der Treiber jede Sekunde nach. Die '''Tastaturbeleuchtung pulsiert''' in der Farbe der Ebene mit dem Bass, solange die Seite zu sehen ist (nicht nachts, nicht bei „Beleuchtung nicht umfärben“). Alles einstellbar unter '''Beleuchtung & Display → Visualisierung''' mit Vorschau – dort auch die '''Bildrate''' (10, 15, 20 oder 25 Bilder je Sekunde; Standard 15). Mehr Bilder wirken flüssiger, brauchen aber mehr Rechenzeit; die Visualisierung ist die rechenintensivste Seite.
 
 '''Wortbeiträge''' (Nachrichten, Moderation, Werbung): Die Visualisierung erkennt Sprache am Klang – viele kurze Pausen, stark schwankende Lautstärke, kaum Bass. Nach etwa 4–6 Sekunden Sprache gilt es als Wortbeitrag, nach etwa 3 Sekunden Musik wieder als Musik (beides steht im Protokoll, mit den Messwerten). Zusätzlich zählt der Titel des Senders: Enthält er eines der Stichwörter aus '''Beleuchtung & Display → Visualisierung''' (Standard: Nachrichten, News, Werbung, Werbepause, Verkehr, Wetter – ganze Wörter, Groß-/Kleinschreibung egal), ist es sofort ein Wortbeitrag. Werbung mit Musik darunter erkennt nur das Stichwort. Während eines Wortbeitrags pulsiert die Tastatur nicht, und das '''tanzende Mädchen''' langweilt sich: Es verschränkt die Arme, gähnt („Gähn …“), stemmt die Hände in die Hüften, schaut auf die Uhr und tippt mit dem Fuß; nach 30 Sekunden setzt es sich auf den Bühnenrand und döst („Zzz“), das Bühnenlicht ist gedimmt. Kommt wieder Musik, tanzt es sofort weiter.

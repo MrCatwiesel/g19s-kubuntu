@@ -208,6 +208,7 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
 .clkopt { margin-bottom: 10px; }
 .clkopt .row { gap: 8px; }
 .clkopt input[type=color] { width: 42px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; }
+.bdayrow { margin: 4px 0; gap: 6px; align-items: center; }
 .clkcities { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; max-width: 360px; }
 .okbox { background: color-mix(in srgb, #3ecf7e 12%, transparent); border: 1px solid color-mix(in srgb, #3ecf7e 45%, transparent);
   border-radius: 9px; padding: 8px 12px; font-size: 13px; margin: 8px 0 12px; }

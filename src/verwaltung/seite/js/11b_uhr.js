@@ -60,8 +60,32 @@ function optionFields(opts, d, changed) {
           el("option", {value: "", text: "—"}),
           S.worldCities.map(([n, tz]) => el("option", {value: tz, text: n}))))));
     }
+    if (o.type === "birthdays") return birthdayFields(o, d, changed);
     return null;
   });
+}
+// Geburtstagsliste (Überraschungsparty, Festkalender): Name, Tag, Monat, Geburtsjahr (leer = Alter unbekannt)
+function birthdayFields(o, d, changed) {
+  const box = el("div", {class: "field clkopt"});
+  const list = () => (d[o.key] = Array.isArray(d[o.key]) ? d[o.key] : (o.default || []).slice());
+  const num = (b, k, min, max, w, ph) => el("input", {type: "number", min, max, value: b[k] || "", placeholder: ph,
+    style: {width: w}, oninput: e => { b[k] = parseInt(e.target.value, 10) || (k === "year" ? 0 : 1); changed(); }});
+  function draw() {
+    const rows = list().map((b, i) => el("div", {class: "row bdayrow"},
+      el("input", {type: "text", value: b.name || "", maxlength: 20, placeholder: "Name", style: {width: "150px"},
+        oninput: e => { b.name = e.target.value; changed(); }}),
+      num(b, "day", 1, 31, "64px", "Tag"), num(b, "month", 1, 12, "64px", "Monat"),
+      num(b, "year", 1900, 2100, "84px", "Jahr"),
+      el("button", {class: "btn", type: "button", text: "✕", title: "Entfernen",
+        onclick: () => { list().splice(i, 1); changed(); draw(); }})));
+    box.replaceChildren(el("span", {text: o.label + " (Jahr freiwillig – dann steht das Alter auf den Ballons)"}),
+      ...rows,
+      el("button", {class: "btn", type: "button", text: "+ Geburtstag", onclick: () => {
+        const now = new Date();
+        list().push({name: "", day: now.getDate(), month: now.getMonth() + 1, year: 0}); changed(); draw(); }}));
+  }
+  draw();
+  return box;
 }
 let clkTimer = null;
 function clockPreview() {

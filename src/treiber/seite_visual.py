@@ -1,4 +1,4 @@
-"""Displayseite „Visualisierung“: acht Stile, die auf die laufende Musik reagieren.
+"""Displayseite „Visualisierung“: elf Stile, die auf die laufende Musik reagieren.
 
 Die Werte kommen von SoundAnalyzer (klanganalyse) über self.visual.snapshot(); ohne Analyse
 (Vorschau der Verwaltung, Referenzbilder) zeichnen die Stile mit demo_snapshot(). Ohne Ton (Stille,

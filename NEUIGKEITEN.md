@@ -3,6 +3,15 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.16-2
+- **Neuer Stil „Überraschungsparty“** (Geburtstag): Im dunklen Wohnzimmer verstecken sich drei Gäste und der Hund hinter dem Sofa – man sieht nur ihre Augen, die im Takt blinzeln („Psst!“). Beim ersten Höhepunkt der Musik (spätestens nach 20 Sekunden) geht das Licht an: „ÜBERRASCHUNG!“, Konfetti, dann wird mit Tröten getanzt.
+  - Gags: Der Hund frisst die Torte, Trickkerzen gehen immer wieder an (ab 50 piept der Rauchmelder), ein Kastenteufel springt aus dem Geschenk, Luftballons platzen bei kräftigem Bass, manchmal verschläft ein Gast die Überraschung. Bei Wortbeiträgen atmen alle Helium ein und quieken.
+  - Banner „Alles Gute, ‹Name›!“ und Zahlenballons mit dem Alter aus der neuen **Geburtstagsliste** (Verwaltung → Beleuchtung & Display → Visualisierung → Stil „Überraschungsparty“). Nach einer Runde (3, 5 oder 10 Minuten) wird es dunkel und alle verstecken sich wieder.
+- **Neuer Stil „Kellertreppe“** (Horror mit Pointe): Eine nackte Glühbirne pendelt im Takt, Licht und Schatten wandern durch den Keller, in den dunklen Ecken blinzeln Augenpaare. Beim Höhepunkt flackert das Licht und geht aus – dann saugt ein Monster mit geblümter Kittelschürze den Keller. Dazu eine Spinne mit Kopfhörern, eine Mäuse-Polonaise, eine Hand mit Staubwedel unter der Treppe und eine Waschmaschine, die Socken frisst. Bei Wortbeiträgen liest das Monster das „Kellerblatt“.
+  - **Gänsehaut-Stufe:** schaurig-nett, gruselig oder Gänsehaut (rote Augen, Herzschlag am Bildrand, kurzer Schreckmoment im Dunkeln). Gewitter laut Wetterseite blitzt durchs Kellerfenster.
+- **Festkalender:** An Geburtstagen aus der Liste erscheint automatisch die Überraschungsparty, an jedem Freitag, dem 13., auf Wunsch die Kellertreppe. Wer am Display einen anderen Stil wählt, behält ihn für diesen Tag.
+- Tastaturbeleuchtung: Party bunt im Takt (im Versteck fast aus), Keller wie die Glühbirne oder rot im Herzschlag.
+
 ## 2026.11.16-1
 - **Fehlerbehebung:** Nach dem Ubuntu-Sicherheitsupdate von Pillow (python3-pil 12.1.1-2ubuntu1.5) zeigte die Uhr nur noch „Anzeige-Fehler – SystemError … resize“. Betroffen waren Klappzahlen, Nixie, 7-Segment, LED-Matrix und Zählwerk; der Farbverlauf dieser Zifferblätter wird jetzt ohne die betroffene Pillow-Funktion gezeichnet.
 - Das Uhr- und Stil-Menü bleibt bedienbar, wenn eine Vorschau nicht gezeichnet werden kann (Hinweis statt Bild) – so lässt sich ein fehlerhaftes Zifferblatt immer abwählen.

@@ -93,6 +93,7 @@ WORLD_CITIES = [
 # Einstellungen je Zifferblatt (Verwaltung → Beleuchtung & Display → Uhr). Aus dieser Liste entstehen
 # das Einstellungsschema (settings.json → "clock") und die Formularfelder der Verwaltung.
 #   bool: Schalter · color: Farbe, None = Standard (none_label) · choice: Auswahl · cities: Städteliste
+#   birthdays: Geburtstagsliste (Name, Tag, Monat, Geburtsjahr oder 0)
 _LAYER = "Farbe der Ebene"
 CLOCK_OPTIONS = {
     "digital": [
@@ -158,7 +159,7 @@ CLOCK_COLOR_CHOICES = [
 VISUAL_STYLES = {
     "eq": "Grafik-Equalizer", "dancer": "Tänzerin an der Stange", "lights": "Lichtshow", "scope": "Oszilloskop",
     "ring": "Kreis-Spektrum", "vu": "VU-Meter", "spectro": "Spektrogramm", "fireworks": "Feuerwerk",
-    "xmas": "Weihnachten",
+    "xmas": "Weihnachten", "party": "Überraschungsparty", "cellar": "Kellertreppe",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 # Stichwörter im Titel des Senders, die einen Wortbeitrag anzeigen (Tänzerin langweilt sich); änderbar
@@ -257,6 +258,23 @@ VISUAL_OPTIONS = {
          "choices": [["300", "5 Minuten"], ["600", "10 Minuten"], ["900", "15 Minuten"], ["1200", "20 Minuten"]]},
         {"key": "party_meter", "label": "Feierabend: Glühwein-Barometer und Becherzähler", "type": "bool",
          "default": True},
+    ],
+    "party": [
+        {"key": "auto", "label": "An Geburtstagen automatisch zeigen (Liste unten)", "type": "bool", "default": True},
+        {"key": "birthdays", "label": "Geburtstage", "type": "birthdays", "default": []},
+        {"key": "round", "label": "Dauer einer Party-Runde (danach verstecken sich alle wieder)", "type": "choice",
+         "default": "300", "choices": [["180", "3 Minuten"], ["300", "5 Minuten"], ["600", "10 Minuten"]]},
+        {"key": "dog", "label": "Hund (hat Hunger auf Torte)", "type": "bool", "default": True},
+        {"key": "confetti", "label": "Konfetti", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "rainbow",
+         "choices": [["rainbow", "Bunt im Takt"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "cellar": [
+        {"key": "level", "label": "Gänsehaut-Stufe", "type": "choice", "default": "2",
+         "choices": [["1", "Schaurig-nett"], ["2", "Gruselig"], ["3", "Gänsehaut (Schreckmoment, Herzschlag)"]]},
+        {"key": "fri13", "label": "An jedem Freitag, den 13., automatisch zeigen", "type": "bool", "default": False},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "bulb",
+         "choices": [["bulb", "Wie die Glühbirne"], ["red", "Rot im Herzschlag"], ["layer", "Farbe der Ebene"]]},
     ],
 }
 OLD_CLOCK_PAGES = {"clock_chrono": "chrono", "clock_steampunk": "steampunk",      # Version 2026.09.28-8/-9

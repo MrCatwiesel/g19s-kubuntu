@@ -33,7 +33,7 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
       anzeige_basis           Renderer-Grundlage, @page / @page_keys
       seite_*.py              je Displayseite: Zeichnen + Tasten
       uhr_basis, uhr_*.py     Zifferblätter der Seite „Uhr“ (@clock_face), 25 Stück
-      seite_visual            Seite „Visualisierung“, 8 Stile (@vis_style), Optionen VISUAL_OPTIONS
+      seite_visual            Seite „Visualisierung“, 11 Stile (@vis_style), Optionen VISUAL_OPTIONS
       seite_visual_xmas       Stil „Weihnachten“: schattierte Figuren (_blob/_limb, IK _ik), Baum, Schnee,
                               Auftritte (_xmas_actors: Ziel/Zustand je Figur, Seite neu = _vis_enter)
       seite_visual_licht      Bühnenlicht-Effekte (Mixin StageFx): FX_ALL, Programme FX_PROGRAMS (Tänzerin) und
@@ -43,6 +43,11 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
       seite_visual_feier      Weihnachten, Option „Feierabend“ (Mixin XmasParty): Runde mit Pegel (Prosten),
                               zufälligen Gags PARTY_GAGS (party_eligible), Schluss PARTY_END, Sprüche PARTY_LINES;
                               je Gag _party_<name> (Ziele/Zustände p_*, Requisiten); Uhrzeit über party_clock()
+      seite_visual_party      Stil „Überraschungsparty“ (party, Mixin PartyVisual): Phasen hide/surprise/party
+                              (_pt_new_round), Gags PT_GAGS, Gäste _pt_guest, Hund, Torte, Kastenteufel, Konfetti
+      seite_visual_keller     Stil „Kellertreppe“ (cellar, Mixin CellarVisual): Pendel der Glühbirne, Licht als
+                              Maske mit Wandschatten (_cl_light), Augen CL_EYES, Höhepunkt CL_BOOM, Gags CL_GAGS
+      hilfen                  u. a. Festkalender: fest_today() (Tests ersetzen), birthdays_today, fest_occasion
       menues, einblendungen   Zeichnen von Menüs und Einblendungen
       menue_logik             Menü-Klassen (Tasten + draw)
       aktionen                G-Tasten-Aktionen (@gkey_action)

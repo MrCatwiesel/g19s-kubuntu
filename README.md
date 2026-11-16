@@ -26,8 +26,9 @@ vieles mehr – ohne Logitech-Software, in zwei Python-Dateien. Kostenlos und qu
 - **25 Zifferblätter** für die Uhr – von Chronometer, Bahnhofs- und Kuckucksuhr über Astro- und
   Sonnenuhr bis Nixie-Röhren und Wortuhr, Auswahl am Display mit MENU und Live-Vorschau
 - **Visualisierung** zu allem, was der Rechner abspielt: Grafik-Equalizer, tanzendes Mädchen,
-  Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm, Feuerwerk und – in der
-  Weihnachtszeit automatisch – tanzende Weihnachtsleute im Schnee; die Tastatur pulsiert im Takt.
+  Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm, Feuerwerk, eine
+  Überraschungsparty (an Geburtstagen automatisch), eine gruselige Kellertreppe mit Monster und –
+  in der Weihnachtszeit automatisch – tanzende Weihnachtsleute im Schnee; die Tastatur pulsiert im Takt.
   Bei Nachrichten und Werbung langweilt sich die Tänzerin.
 - Bedienung am Display: Zifferblätter und ihre Optionen, Stile, Schnellmenü (Helligkeit, Nachtmodus,
   Diashow, Bildschirmschoner), Profile (SETTINGS lang drücken)

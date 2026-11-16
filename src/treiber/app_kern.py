@@ -419,6 +419,9 @@ class AppCore:
         """Gezeigter Stil: der gewählte – in der Weihnachtszeit „Weihnachten“ (abschaltbar; wählt der Nutzer dann
         am Display einen anderen Stil, gilt dieser bis zum Ende der Weihnachtszeit)."""
         vis = self.settings().get("visual") or {}
+        fest = fest_occasion(vis)                   # Geburtstag, Freitag der 13. (Festkalender) vor Weihnachten
+        if fest and vis.get("fest_skip") != fest[1]:
+            return fest[0]
         season = xmas_season()
         if vis.get("xmas_auto", True) and season and vis.get("xmas_skip") != season:
             return "xmas"
@@ -428,6 +431,9 @@ class AppCore:
     def set_visual_style(self, style):
         season = xmas_season()
         vis = self.settings().get("visual") or {}
+        fest = fest_occasion(vis)
+        if fest:                                    # heute anderer Stil gewählt: Anlass für heute aussetzen
+            self.save_setting(["visual", "fest_skip"], "" if style == fest[0] else fest[1])
         if season and vis.get("xmas_auto", True):
             self.save_setting(["visual", "xmas_skip"], 0 if style == "xmas" else season)
         if self.save_setting(["visual", "style"], style):

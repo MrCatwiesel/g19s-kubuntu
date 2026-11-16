@@ -249,6 +249,7 @@ def _visual_section():
                         fps=Choice(str(VISUAL_FPS), lambda: ["10", "15", "20", "25"]),   # Bildrate (Rechenzeit!)
                         xmas_auto=Bool(True),          # vom 1. Advent bis 6. Januar Stil „Weihnachten“
                         xmas_skip=Int(0, 0, 9999),     # Jahr, in dem der Nutzer in der Weihnachtszeit einen anderen Stil wählte
+                        fest_skip=Str("", maxlen=20),  # Anlass (Geburtstag, Freitag der 13.), an dem ein anderer Stil gewählt wurde
                         **_option_sections(VISUAL_OPTIONS)))
 
 
@@ -266,6 +267,10 @@ def _option_sections(options):
                 fields[o["key"]] = Choice(o["default"], lambda o=o: [c[0] for c in o["choices"]])
             elif o["type"] == "cities":
                 fields[o["key"]] = Items(o["default"], Entry({"name": Str(maxlen=24), "tz": Str()}), required="tz", limit=6)
+            elif o["type"] == "birthdays":
+                fields[o["key"]] = Items(o["default"], Entry({"name": Str(maxlen=20), "day": Int(1, 1, 31),
+                                                              "month": Int(1, 1, 12), "year": Int(0, 0, 2100)}),
+                                         required="name", limit=40)
         faces[face] = Section(fields)
     return faces
 
@@ -370,6 +375,16 @@ def _check_hosts(s):
     for h in s["network"]["hosts"]:
         if not re.fullmatch(r"[A-Za-z0-9\[][A-Za-z0-9._:\-\[\]]*", h["host"]):    # nie mit „-“ beginnend
             raise Invalid(f"Ungültiger Gerätename: {h['host']}")
+
+
+@_strict_rule
+def _check_birthdays(s):
+    import calendar
+    for b in s["visual"]["party"]["birthdays"]:
+        if b["day"] > calendar.monthrange(2024, b["month"])[1]:            # 2024: Schaltjahr, 29.2. erlaubt
+            raise Invalid(f"Ungültiges Datum beim Geburtstag von {b['name']}: {b['day']}.{b['month']}.")
+        if b["year"] and not 1900 <= b["year"] <= 2100:
+            raise Invalid(f"Ungültiges Geburtsjahr bei {b['name']}: {b['year']}")
 
 
 @_strict_rule

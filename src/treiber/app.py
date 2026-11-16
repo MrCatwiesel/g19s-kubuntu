@@ -158,6 +158,19 @@ class App(AppCore, KeyHandling, TimedTasks):
                 k = round((0.15 + 0.85 * math.exp(-max(0.0, snap["t"] - snap.get("hat_t", -9)) * 9)) * 20) / 20
             if keys == "stage" and self.renderer.vis_stage_color and not self.renderer.vis_listen:
                 base = self.renderer.vis_stage_color
+        style = self.visual_style()
+        if style == "party":                                                # Party: bunt im Takt, versteckt: dunkel
+            if self.renderer.vis_party_dark:
+                k, base = 0.08, (60, 70, 140)
+            elif not quiet and visual_options(s, "party").get("keys", "rainbow") == "rainbow":
+                base = _hue(snap["beats"] * 0.13, 0.9, 1.0)
+        if style == "cellar":                                               # Keller: Glühbirne bzw. Herzschlag
+            keys = visual_options(s, "cellar").get("keys", "bulb")
+            if keys == "bulb":
+                k, base = round(max(0.04, self.renderer.vis_bulb * (0.55 + 0.45 * k)) * 20) / 20, (255, 160, 60)
+            elif keys == "red":
+                beat = math.exp(-max(0.0, snap["t"] - snap.get("beat_t", -9)) * 7) if not quiet else 0.0
+                k, base = round(max(0.06, beat) * 20) / 20, (255, 10, 10)
         color = tuple(int(c * k) for c in base)
         strobe = False
         if self.visual_style() in ("lights", "dancer") and not quiet:     # Stroboskop: Tastatur blitzt mit
