@@ -33,7 +33,7 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
       anzeige_basis           Renderer-Grundlage, @page / @page_keys
       seite_*.py              je Displayseite: Zeichnen + Tasten
       uhr_basis, uhr_*.py     Zifferblätter der Seite „Uhr“ (@clock_face), 25 Stück
-      seite_visual            Seite „Visualisierung“, 11 Stile (@vis_style), Optionen VISUAL_OPTIONS
+      seite_visual            Seite „Visualisierung“, 12 Stile (@vis_style), Optionen VISUAL_OPTIONS
       seite_visual_xmas       Stil „Weihnachten“: schattierte Figuren (_blob/_limb, IK _ik), Baum, Schnee,
                               Auftritte (_xmas_actors: Ziel/Zustand je Figur, Seite neu = _vis_enter)
       seite_visual_licht      Bühnenlicht-Effekte (Mixin StageFx): FX_ALL, Programme FX_PROGRAMS (Tänzerin) und
@@ -43,6 +43,10 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
       seite_visual_feier      Weihnachten, Option „Feierabend“ (Mixin XmasParty): Runde mit Pegel (Prosten),
                               zufälligen Gags PARTY_GAGS (party_eligible), Schluss PARTY_END, Sprüche PARTY_LINES;
                               je Gag _party_<name> (Ziele/Zustände p_*, Requisiten); Uhrzeit über party_clock()
+      seite_visual_xmasfun    Weihnachten: jugendfreie Gags FUN_GAGS ohne Feierabend (_xmas_fun, Plan P mit
+                              family=True) und Feierabend-Gags FEIER_EXTRA; Requisiten _xmas_fun_ground/_over/_after
+      seite_visual_burg       Stil „Mittelalter-Metal“ (metal, Mixin MetalVisual): Band MT_BAND, Feuerkörbe, Publikum,
+                              Pyro/Drache beim Höhepunkt, Gags MT_GAGS, Herold, Hofnarr, Blitz bei Gewitter
       seite_visual_party      Stil „Überraschungsparty“ (party, Mixin PartyVisual): Phasen hide/surprise/party
                               (_pt_new_round), Gags PT_GAGS, Gäste _pt_guest, Hund, Torte, Kastenteufel, Konfetti
       seite_visual_keller     Stil „Kellertreppe“ (cellar, Mixin CellarVisual): Pendel der Glühbirne, Licht als

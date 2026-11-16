@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.11.16-3)
+| 28.09.2026 (Version 2026.11.16-4)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -32,7 +32,7 @@ Für die G19s gibt es unter Linux keinen offiziellen Treiber. Die normalen Taste
 * '''Terminerinnerung''' vor Terminbeginn, '''Radiowecker''' und '''Einschlaftimer''', '''Song merken''' (Radiotitel in eine Liste), '''Lieblingsbilder''' in der Diashow, '''Mikrofon stumm''' per G-Taste (MR-Leuchte als Anzeige).
 * Displayseiten je Ebene '''und''' je Profil einstellbar, '''automatische Sicherung''' in einen Ordner.
 * '''25 Zifferblätter''' für die Uhr (u. a. Chronometer, Bahnhofsuhr, Pendel- und Kuckucksuhr, Astro- und Sonnenuhr, Weltzeituhr, Nixie-Röhren, Wortuhr) – Auswahl am Display mit MENU oder SETTINGS (kurz) je Profil und Ebene, Aussehen in der Verwaltung einstellbar.
-* '''Visualisierung''' zur laufenden Musik in elf Stilen: Grafik-Equalizer, Tänzerin an der Stange, Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm, Feuerwerk, Weihnachten, Überraschungsparty, Kellertreppe – die Tastaturbeleuchtung pulsiert auf Wunsch im Takt.
+* '''Visualisierung''' zur laufenden Musik in zwölf Stilen: Grafik-Equalizer, Tänzerin an der Stange, Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm, Feuerwerk, Weihnachten, Überraschungsparty, Kellertreppe, Mittelalter-Metal – die Tastaturbeleuchtung pulsiert auf Wunsch im Takt.
 * Weitere Seiten: '''Nachrichten''' (RSS/Atom), '''Unwetter''' (amtliche DWD-Warnungen), '''Netzwerk''' (Erreichbarkeit von Router, NAS …), '''Updates''' (Paket- und Flatpak-Updates, Neustart nötig).
 * '''Display''' mit sieben Standardseiten: Uhr, Musik (inkl. Internetradio), Wetter, Termine, Hardware (Auslastung, Temperaturen, Arbeitsspeicher, Lüfter, Netz, Datenträger), Makro-Übersicht, Bilder. Welche Seiten in welcher Reihenfolge erscheinen, ist frei wählbar.
 * '''Diashow''' mit Bildern aus Piwigo-Alben (auch private Alben) oder aus einem Ordner auf dem Rechner – auf Wunsch als '''Bildschirmschoner'''.
@@ -182,7 +182,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.16-3"
+VERSION = "2026.11.16-4"
 
 # Weitere Importe der Module
 import select
@@ -366,6 +366,7 @@ VISUAL_STYLES = {
     "eq": "Grafik-Equalizer", "dancer": "Tänzerin an der Stange", "lights": "Lichtshow", "scope": "Oszilloskop",
     "ring": "Kreis-Spektrum", "vu": "VU-Meter", "spectro": "Spektrogramm", "fireworks": "Feuerwerk",
     "xmas": "Weihnachten", "party": "Überraschungsparty", "cellar": "Kellertreppe",
+    "metal": "Mittelalter-Metal",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 # Stichwörter im Titel des Senders, die einen Wortbeitrag anzeigen (Tänzerin langweilt sich); änderbar
@@ -456,6 +457,8 @@ VISUAL_OPTIONS = {
         {"key": "snow", "label": "Schneefall", "type": "choice", "default": "normal",
          "choices": [["light", "Leicht"], ["normal", "Normal"], ["heavy", "Dicht"]]},
         {"key": "lights", "label": "Lichterkette blinkt im Takt", "type": "bool", "default": True},
+        {"key": "gags", "label": "Gags beim Tanzen (jugendfrei: Schornstein, Plätzchen, Glatteis …)", "type": "bool",
+         "default": True},
         {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "redgreen",
          "choices": [["redgreen", "Rot und Grün im Takt"], ["layer", "Farbe der Ebene"]]},
         {"key": "party", "label": "Feierabend: Glühwein-Gags (derber Humor)", "type": "choice", "default": "off",
@@ -481,6 +484,14 @@ VISUAL_OPTIONS = {
         {"key": "fri13", "label": "An jedem Freitag, den 13., automatisch zeigen", "type": "bool", "default": False},
         {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "bulb",
          "choices": [["bulb", "Wie die Glühbirne"], ["red", "Rot im Herzschlag"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "metal": [
+        {"key": "pyro", "label": "Pyro beim Höhepunkt", "type": "choice", "default": "dragon",
+         "choices": [["dragon", "Drache speit Feuer"], ["fire", "Flammensäulen aus den Feuerkörben"], ["off", "Aus"]]},
+        {"key": "crowd", "label": "Publikum (headbangt mit Pommesgabel)", "type": "bool", "default": True},
+        {"key": "gags", "label": "Gags (Visier, Mönch, Steckenpferd, Katapult …)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "fire",
+         "choices": [["fire", "Feuer im Takt"], ["layer", "Farbe der Ebene"]]},
     ],
 }
 OLD_CLOCK_PAGES = {"clock_chrono": "chrono", "clock_steampunk": "steampunk",      # Version 2026.09.28-8/-9
@@ -11188,6 +11199,23 @@ def _lerp(a, b, k):
     return tuple(int(round(x + (y - x) * k)) for x, y in zip(a, b))
 
 
+SAY_FONT = 14                             # Schriftgröße der Sprechblasen (Pixel, fett)
+SAY_MAX_W = 196                           # längere Sätze werden umgebrochen
+
+
+def _wrap_text(d, text, font, max_w):
+    """Text in Zeilen von höchstens max_w Pixeln (an Leerzeichen; überlange Wörter bleiben ganz)."""
+    lines, cur = [], ""
+    for word in text.split():
+        test = (cur + " " + word).strip()
+        if cur and d.textlength(test, font=font) > max_w:
+            lines.append(cur)
+            cur = word
+        else:
+            cur = test
+    return lines + [cur] if cur else lines or [""]
+
+
 def _win(lt, a, b):
     return a <= lt < b
 
@@ -11287,7 +11315,11 @@ class XmasParty:
         if not party_active(o):
             st.pop("party", None)
             self.vis_green = False
-            return None
+            if s.get("demo") or not o.get("gags", True):                     # Vorschau: nur tanzen
+                st.pop("fun", None)
+                return None
+            return self._xmas_fun(st, s, t, dt, o, moving, talk)            # jugendfreie Gags (seite_visual_xmasfun)
+        st.pop("fun", None)
         clock = party_clock()
         hour, wday = clock.tm_hour, getattr(clock, "tm_wday", 3)
         length = max(120, int(o["party_len"]) if str(o.get("party_len")).isdigit() else 600)
@@ -11348,7 +11380,7 @@ class XmasParty:
                     names = [n for n in PARTY_GAGS if party_eligible(ps, n, song, ordered=poke)]
                     if names:
                         loud = (vol or 0) >= 85
-                        weights = [8 if PARTY_GAGS[n].get("song") or PARTY_GAGS[n].get("storm") else
+                        weights = [14 if PARTY_GAGS[n].get("song") or PARTY_GAGS[n].get("storm") else
                                    6 if n == "nachbar" and loud else 1 for n in names]
                         self._xmas_party_start(ps, ps["rng"].choices(names, weights)[0])
                     else:
@@ -12095,15 +12127,19 @@ class XmasParty:
     def _xmas_party_ground(self, img, d, P, floor, t):
         """Hinter den Figuren: Haus des Nachbarn, Glühweintopf, Pfütze, Schrift im Schnee, gelber Fleck, Sack,
         Schneeengel, Schneemann, Rentier, er liegend im Schnee."""
-        self._xmas_party_house(img, d, P.get("window"), t)
-        if P.get("meter"):
+        family = P.get("family")                                     # ohne Feierabend: kein Glühwein
+        if not family or P.get("house"):
+            self._xmas_party_house(img, d, P.get("window"), t)
+        if P.get("meter") and not family:
             self._xmas_party_meter(img, d, P)
         x = PARTY_POT_X                                             # Topf mit Dampf
-        self._blob(img, x, floor + 1, 34, 8, (150, 165, 190), gloss=0)
-        if P.get("pot", True):
+        if not family:
+            self._blob(img, x, floor + 1, 34, 8, (150, 165, 190), gloss=0)
+        if P.get("pot", True) and not family:
             d.rectangle([x - 12, floor - 22, x + 12, floor], fill=(40, 36, 44))
             d.rectangle([x - 14, floor - 24, x + 14, floor - 20], fill=(70, 64, 78))
-            d.rectangle([x - 10, floor - 16, x + 10, floor - 8], fill=(120, 30, 40))
+            if not P.get("pot_empty"):
+                d.rectangle([x - 10, floor - 16, x + 10, floor - 8], fill=(120, 30, 40))
             for k in range(3):
                 pts = [(x - 6 + k * 6 + math.sin(t * 2.5 + yy * 0.25 + k) * 2.5, floor - 26 - yy)
                        for yy in range(0, 22, 2)]
@@ -12138,6 +12174,7 @@ class XmasParty:
             self._xmas_party_deer(img, d, P["deer"], floor, t, P["beats"], P.get("deer_boot"))
         if P.get("lie") is not None:
             self._xmas_party_lying(img, d, P["lie_x"], floor, t, P["lie"], P)
+        self._xmas_fun_ground(img, d, P, floor, t)
 
     def _xmas_party_snowman(self, img, d, x, floor, state):
         if isinstance(state, tuple) and state[0] == "melt" or state == "melted":
@@ -12328,6 +12365,7 @@ class XmasParty:
                         k = (t * 0.45 + i / 3 + (0.5 if who == "mrs" else 0)) % 1.0
                         v = int(230 * (1 - k))
                         d.text((hx + 8 + k * 14 + i * 3, hy - 14 - k * 30), "z", font=font, fill=(v, v, min(255, v + 25)))
+        self._xmas_fun_over(img, d, P, acts, floor, t)
         for who, text in P["say"]:
             if who == "mid":
                 if not (visible["santa"] and visible["mrs"]):
@@ -12355,7 +12393,7 @@ class XmasParty:
         """Ganz zuletzt: Blitzlicht des Handys, Licht aus (Pupswolke)."""
         if P.get("flash"):
             img = Image.blend(img, Image.new("RGB", img.size, (255, 255, 255)), 0.65 * P["flash"])
-        return img
+        return self._xmas_fun_after(img, P)
 
     def _xmas_party_arc(self, d, p0, p1, height, t):
         """Gelber Bogen (leicht flatternd) von p0 nach p1."""
@@ -12437,15 +12475,22 @@ class XmasParty:
         d.point((hx, hy + 2), fill=(230, 140, 150))
 
     def _xmas_party_say(self, d, x, y, text):
-        """Sprechblase mit Spitze nach unten, im Bild gehalten."""
-        font = self.__dict__.setdefault("_party_say_font", load_font(11, bold=True))
-        w = d.textlength(text, font=font) + 10
+        """Sprechblase mit Spitze nach unten, im Bild gehalten; lange Sätze werden umgebrochen (höchstens
+        SAY_MAX_W Pixel breit). Gilt für alle Stile mit Sprechblasen (Weihnachten, Party, Keller)."""
+        font = self.__dict__.setdefault("_party_say_font", load_font(SAY_FONT, bold=True))
+        lines = _wrap_text(d, text, font, SAY_MAX_W)
+        lh = SAY_FONT + 3
+        w = max(d.textlength(line, font=font) for line in lines) + 12
+        h = lh * len(lines) + 5
         bx = max(2, min(WIDTH - w - 2, x - w / 2))
-        by = max(16, y - 18)
-        d.rounded_rectangle([bx, by, bx + w, by + 17], radius=7, fill=(240, 240, 248))
-        tx = max(bx + 6, min(bx + w - 6, x))
-        d.polygon([(tx - 4, by + 16), (tx + 4, by + 16), (tx, by + 23)], fill=(240, 240, 248))
-        d.text((bx + 5, by + 2), text, font=font, fill=(40, 40, 60))
+        by = max(16, y - h - 1)
+        tx = max(bx + 7, min(bx + w - 7, x))
+        d.polygon([(tx - 5, by + h - 2), (tx + 5, by + h - 2), (tx, by + h + 6)], fill=(250, 250, 252),
+                  outline=(70, 70, 92))
+        d.rounded_rectangle([bx, by, bx + w, by + h], radius=7, fill=(250, 250, 252), outline=(70, 70, 92))
+        d.line([(tx - 4, by + h), (tx + 4, by + h)], fill=(250, 250, 252), width=2)
+        for i, line in enumerate(lines):
+            d.text((bx + 6, by + 2 + i * lh), line, font=font, fill=(20, 20, 36))
 
     # -- Zusätze (8 Gags der dritten Runde, Wetter, Anzeige) ----------------- #
     def _xmas_party_extras(self, img, d, P, acts, floor, t, heads, hands, visible):
@@ -12616,6 +12661,502 @@ class XmasParty:
         d.text((x - w / 2, y1 + 13), text, font=font, fill=(235, 220, 200))
         d.rectangle([x - 4, y1 + 25, x + 2, y1 + 31], fill=(178, 30, 42))                   # Becher
         d.arc([x + 1, y1 + 26, x + 5, y1 + 30], 270, 90, fill=(235, 235, 240))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Modul seite_visual_xmasfun
+#   Weihnachten: weitere Gags (Mixin XmasFun). Ohne „Feierabend“ laufen die jugendfreien Gags FUN_GAGS von allein
+#   (Option gags, Standard an): Schornstein, Plätzchen, Geschenketurm, Wunschzettel, Schlitten einparken, Lebkuchenmann,
+#   Katze im Baum, Stromausfall, Glatteis, Wichtel-Chor. Mit Feierabend kommen sie zusätzlich in den Topf, dazu
+#   FEIER_EXTRA: Glühwein-Nachschub, Karaoke, Wichtel-Bar, vergessene Geschenke.
+#   Die Gags benutzen den Plan P des Feierabends (Ziele, Zustände p_*, Sprechblasen); eigene Requisiten zeichnen
+#   _xmas_fun_ground (hinter den Figuren), _xmas_fun_over (davor) und _xmas_fun_after (nach dem Abdunkeln).
+# ═══════════════════════════════════════════════════════════════════════════
+
+FUN_GAGS = {"schornstein": 12.0, "plaetzchen": 11.0, "geschenketurm": 11.0, "wunschzettel": 10.0, "schlitten": 11.0,
+            "lebkuchen": 10.0, "katze": 9.0, "stromausfall": 10.0, "glatteis": 8.0, "wichtelchor": 9.0}
+FEIER_EXTRA = {"nachschub": {"dur": 13, "min": 0.4}, "karaoke": {"dur": 12, "min": 0.35},
+               "wichtelbar": {"dur": 12, "min": 0.3}, "panik": {"dur": 10, "min": 0.2}}
+FUN_FIRST = 18.0                        # erster Gag nach so vielen Sekunden Musik
+FUN_PAUSE = (16.0, 26.0)                # Pause zwischen zwei Gags
+FUN_COTTAGE_X = 250                     # Hütte mit Schornstein rechts
+FUN_TOWER_X = 98                        # Geschenketurm
+PARTY_GAGS.update({n: {"dur": d, "min": 0.0} for n, d in FUN_GAGS.items()})
+PARTY_GAGS.update(FEIER_EXTRA)
+
+
+class XmasFun:
+    # -- Ablauf ohne Feierabend --------------------------------------------------- #
+    def _xmas_fun(self, st, s, t, dt, o, moving, talk):
+        """Jugendfreie Gags ohne Feierabend: Plan P während eines Gags, sonst None (normales Tanzen)."""
+        fs = st.get("fun")
+        if fs is None:
+            fs = st["fun"] = {"p": 0.0, "next": FUN_FIRST, "cur": None, "done": set(), "rng": random.Random(7)}
+        self.vis_green = False
+        if talk:                                                        # Wortbeitrag: Gag abbrechen, Bank wie immer
+            if fs["cur"]:
+                fs["cur"] = None
+                fs["next"] = fs["p"] + 6.0
+            return None
+        if moving:
+            fs["p"] += dt
+        cur = fs["cur"]
+        if cur and fs["p"] - cur["t0"] >= cur["dur"]:
+            fs["cur"] = cur = None
+            fs["next"] = fs["p"] + fs["rng"].uniform(*FUN_PAUSE)
+        if cur is None and fs["p"] >= fs["next"]:
+            names = [n for n in FUN_GAGS if n not in fs["done"]]
+            if not names:
+                fs["done"].clear()
+                names = list(FUN_GAGS)
+            self._xmas_fun_start(fs, fs["rng"].choice(names))
+            cur = fs["cur"]
+        if cur is None:
+            return None
+        lt = fs["p"] - cur["t0"]
+        P = self._xmas_fun_plan(cur["name"], lt, cur["dur"], s, t)
+        getattr(self, "_party_" + cur["name"])(P, lt, cur)
+        return P
+
+    @staticmethod
+    def _xmas_fun_start(fs, name):
+        """Gag ohne Feierabend beginnen (auch für Tests und Referenzbilder)."""
+        fs["done"].add(name)
+        fs["cur"] = {"name": name, "t0": fs["p"], "dur": FUN_GAGS[name], "var": None, "rng": fs["rng"], "lines": {}}
+
+    @staticmethod
+    def _xmas_fun_plan(name, lt, dur, s, t):
+        return {"step": name, "lt": lt, "dur": dur, "goals": dict(PARTY_PAIR), "states": {}, "back": {}, "say": [],
+                "hat": True, "green": 0.0, "mugs": False, "stream": None, "puke": None, "flake": None, "cat": None,
+                "zzz": False, "flicker": False, "props": set(), "snowman": None, "mood": "normal", "pegel": 0.0,
+                "beat_age": t - s.get("beat_t", t), "beats": s.get("beats", 0), "star": "tree", "hide": set(),
+                "weather": None, "warm": False, "elf_n": 0, "pot": False, "meter": False, "mugs_today": 0,
+                "lvl": 0.0, "family": True, "carrot": False, "bass": s.get("bass", 0.0)}
+
+    @staticmethod
+    def _fsay(P, x, y, text, late=False):
+        """Sprechblase an fester Stelle (late: erst nach dem Abdunkeln zeichnen)."""
+        P.setdefault("late_say" if late else "fsay", []).append((x, y, text))
+
+    # -- Gags ohne Alkohol ------------------------------------------------------------ #
+    def _party_schornstein(self, P, lt, g):
+        """Er steigt in den Schornstein der Hütte und bleibt stecken; sie zieht ihn heraus – Plopp, Ruß."""
+        P["cottage"] = True
+        P["goals"] = {"santa": FUN_COTTAGE_X + 18 if lt < 8 else 200, "mrs": 226 if lt < 4.6 else 244}
+        if 1.6 <= lt < 8.0:
+            P["hide"] = {"santa"}
+            P["chimney_legs"] = lt - 1.6
+        if 8.0 <= lt < 9.4:
+            P["soot"] = (lt - 8.0) / 1.4
+        if lt >= 8.0:
+            P["sooty"] = True
+        P["states"] = {"mrs": "p_pull" if 5.0 <= lt < 8.0 else "p_laugh" if 8.6 <= lt < 11 else None}
+        cx, top = FUN_COTTAGE_X + 40, XMAS_FLOOR - 104
+        if 2.4 <= lt < 5.0:
+            self._fsay(P, cx, top - 26, "Hilfe! Zu viele Plätzchen!")
+        if 5.2 <= lt < 7.6:
+            P["say"].append(("mrs", "Halt dich fest!"))
+        if 8.6 <= lt < 11.2:
+            P["say"].append(("santa", "Ho … ho … hust!"))
+
+    def _party_plaetzchen(self, P, lt, g):
+        """Sie bringt ein Blech Plätzchen, er nascht; dann qualmt die zweite Ladung."""
+        P["goals"] = {"santa": 176 if 1.8 <= lt < 6 else 160, "mrs": 222}
+        P["tray"] = (max(0, 6 - int(max(0.0, lt - 2.0) / 0.6)) if lt < 6.5 else 6, lt >= 6.5)
+        P["states"] = {"mrs": "p_offer" if lt < 6.5 else "p_worry",
+                       "santa": "p_grab" if 2.0 <= lt < 4.8 else "p_innocent" if lt >= 8.4 else None}
+        if 2.4 <= lt < 4.6:
+            P["say"].append(("santa", "Mmmh!"))
+        elif 4.8 <= lt < 6.4:
+            P["say"].append(("mrs", "Finger weg!"))
+        elif 6.6 <= lt < 8.4:
+            P["say"].append(("mrs", "Die zweite Ladung …"))
+        elif 8.6 <= lt < 10.6:
+            P["say"].append(("santa", "Ich war's nicht!"))
+
+    def _party_geschenketurm(self, P, lt, g):
+        """Er stapelt Geschenke im Takt, der Turm wackelt immer mehr und kippt."""
+        g.setdefault("b0", P["beats"])
+        P["goals"] = {"santa": FUN_TOWER_X + 50, "mrs": 222}
+        n = max(1, min(7, P["beats"] - g["b0"] + 1)) if lt < 7.5 else 7
+        g["n"] = max(g.get("n", 1), n)
+        P["tower"] = (g["n"], lt)
+        P["states"] = {"santa": "p_present" if lt < 7.5 else "p_worry", "mrs": "p_laugh" if lt >= 8 else "p_clap"}
+        if 7.6 <= lt < 9.6:
+            P["say"].append(("santa", "Hoppla!"))
+        elif 9.0 <= lt < 11:
+            P["say"].append(("mrs", "Statik, Schatz!"))
+
+    def _party_wunschzettel(self, P, lt, g):
+        """Er rollt einen meterlangen Wunschzettel aus."""
+        P["goals"] = {"santa": 186, "mrs": 236}
+        P["scroll"] = min(1.0, max(0.0, (lt - 0.6) / 4.0))
+        P["states"] = {"santa": "p_write" if lt < 5 else "p_proud", "mrs": "p_worry" if lt >= 4 else None}
+        if 0.6 <= lt < 3.0:
+            P["say"].append(("santa", "Mein Wunschzettel …"))
+        elif 4.0 <= lt < 6.6:
+            P["say"].append(("mrs", "Ein Pony?! Schon wieder?"))
+        elif 7.0 <= lt < 9.6:
+            P["say"].append(("santa", "Das ist nur Seite 1."))
+
+    def _party_schlitten(self, P, lt, g):
+        """Der Rentierschlitten landet und parkt rückwärts ein – er winkt ein, bis es kracht."""
+        P["goals"] = {"santa": 176, "mrs": 236}
+        if lt < 3.0:
+            k = lt / 3.0
+            P["sleigh_fly"] = (-80 + 230 * k, 90 * (1 - k) ** 2)
+        elif lt < 6.6:
+            k = (lt - 3.0) / 3.6
+            P["sleigh_fly"] = (150 - 60 * k + math.sin(k * 9) * 6, 0.0)
+        else:
+            P["sleigh_fly"] = (90.0, 0.0)
+        P["states"] = {"santa": "p_point" if lt < 6.6 else "p_worry",
+                       "mrs": "p_covereyes" if 6.4 <= lt < 9 else None}
+        if lt >= 6.6:
+            P["star_wobble"] = math.sin((lt - 6.6) * 14) * 16 * math.exp(-(lt - 6.6) * 1.2)
+        if 3.4 <= lt < 6.4:
+            P["say"].append(("santa", "Weiter … weiter … weiter …"))
+            if int(lt * 2) % 2:
+                self._fsay(P, 120, XMAS_FLOOR - 40, "PIEP")
+        elif 6.6 <= lt < 7.8:
+            self._fsay(P, 70, XMAS_FLOOR - 60, "RUMMS!")
+        elif 8.0 <= lt < 10.4:
+            P["say"].append(("santa", "Passt doch!"))
+
+    def _party_lebkuchen(self, P, lt, g):
+        """Ein Lebkuchenmann haut ab, beide jagen ihn aus dem Bild – er kommt satt zurück."""
+        if lt < 5.0:
+            P["gingerbread"] = (WIDTH + 20 - (WIDTH + 50) * lt / 5.0, lt)
+        if 2.0 <= lt < 6.6:
+            P["goals"] = {"santa": -90, "mrs": -60}
+        if 0.6 <= lt < 2.8:
+            self._fsay(P, max(30, WIDTH + 20 - (WIDTH + 50) * lt / 5.0), XMAS_FLOOR - 44, "Fang mich doch!")
+        if 2.6 <= lt < 4.4:
+            P["say"].append(("santa", "Komm zurück, Krümel!"))
+        if 8.4 <= lt < 10:
+            P["say"].append(("santa", "Lecker."))
+            P["states"] = {"mrs": "p_tsk"}
+
+    def _party_katze(self, P, lt, g):
+        """Die Katze klettert in den Baum, Kugeln fallen im Takt; am Ende springt sie ihm auf die Mütze."""
+        g.setdefault("b0", P["beats"])
+        P["goals"] = {"santa": 104 if lt >= 5.6 else 150, "mrs": 196}
+        P["treecat"] = (lt, max(0, min(6, P["beats"] - g["b0"] - 4)) if lt >= 3 else 0)
+        P["states"] = {"mrs": "p_worry" if lt >= 2.6 else None, "santa": "p_reach" if 5.8 <= lt < 7.4 else None}
+        if 3.0 <= lt < 5.6:
+            P["say"].append(("mrs", "Mieze, komm runter!"))
+        elif 5.8 <= lt < 7.4:
+            P["say"].append(("santa", "Ich hol sie!"))
+        elif 7.6 <= lt < 9:
+            P["say"].append(("santa", "Miau?"))
+
+    def _party_stromausfall(self, P, lt, g):
+        """Beim Nachbarn blinkt die Lichterkette immer greller – dann ist der Strom weg, nur der Stern leuchtet."""
+        P["house"] = True
+        P["houselights"] = min(1.0, lt / 5.5) if lt < 5.5 else 0.0 if lt < 8.6 else 1.0
+        if 5.5 <= lt < 8.6:
+            P["blackout"] = min(1.0, (lt - 5.5) / 0.15)
+            P["dark"] = True
+            if 6.0 <= lt < 8.4:
+                self._fsay(P, 285, 92, "Ups! Sicherung!", late=True)
+        P["states"] = {"santa": "p_worry" if 5.5 <= lt < 8.6 else None, "mrs": "p_clap" if lt >= 8.8 else None}
+        if 2.0 <= lt < 5.0:
+            P["say"].append(("mrs", "Ganz schön hell da drüben."))
+        if 8.8 <= lt < 10:
+            P["say"].append(("santa", "Geht wieder!"))
+
+    def _party_glatteis(self, P, lt, g):
+        """Glatteis: beide rutschen in Eiskunstlauf-Figuren aneinander vorbei."""
+        P["ice"] = True
+        if lt < 2.6:
+            P["goals"] = {"santa": 236, "mrs": 150}
+        elif lt < 5.2:
+            P["goals"] = {"santa": 150, "mrs": 236}
+        P["states"] = {"santa": "p_slip" if lt < 5.2 else "p_proud", "mrs": "p_pose" if lt >= 5.4 else None}
+        if 0.6 <= lt < 2.6:
+            P["say"].append(("mrs", "Doppelter Rittberger!"))
+        elif 2.8 <= lt < 4.8:
+            P["say"].append(("santa", "Huiiii!"))
+        elif 5.6 <= lt < 7.8:
+            P["say"].append(("mrs", "Sechs Punkte!"))
+
+    def _party_wichtelchor(self, P, lt, g):
+        """Drei Wichtel singen – ihre Münder gehen mit der Musik auf und zu."""
+        P["choir"] = lt
+        P["states"] = {"santa": "p_clap" if lt >= 6 else None, "mrs": "p_clap" if lt >= 6 else None}
+        if 2.0 <= lt < 5.6:
+            self._fsay(P, 114, XMAS_FLOOR - 64, "♪ O Tannenbaum ♪")
+        if 6.2 <= lt < 8.6:
+            P["say"].append(("mrs", "Zugabe!"))
+
+    # -- Feierabend: zusätzliche Gags -------------------------------------------------- #
+    def _party_nachschub(self, P, lt, g):
+        """Der Topf ist leer: er holt mit dem Schlitten Nachschub und kommt schief zurück."""
+        P["goals"] = {"santa": 120 if lt < 2.4 else 150, "mrs": 226}
+        if lt < 2.4:
+            P["pot_empty"] = True
+        if 2.4 <= lt < 9.0:
+            P["hide"] = {"santa"}
+            x = 120 + 230 * (lt - 2.4) / 2.0 if lt < 4.4 else -80 + 200 * (lt - 6.4) / 2.6 if lt >= 6.4 else None
+            if x is not None:
+                P["sleigh_fly"] = (x, 0.0)
+                P["barrel"] = lt >= 6.4
+        elif lt < 2.4:
+            P["sleigh_fly"] = (120.0, 0.0)
+        P["states"] = {"santa": "p_stagger" if lt >= 9 else None, "mrs": "p_bye" if 2.6 <= lt < 4.4 else None}
+        if 0.4 <= lt < 2.4:
+            P["say"].append(("santa", "Leer! Ich hol Nachschub."))
+        if 2.8 <= lt < 5.2:
+            P["say"].append(("mrs", "Und Lebkuchen mitbringen!"))
+        if 9.4 <= lt < 12:
+            P["say"].append(("santa", "Nachschub! Hicks!"))
+
+    def _party_karaoke(self, P, lt, g):
+        """Karaoke: er singt schief ins Mikrofon, sie hält sich die Ohren zu, das Rentier auch."""
+        P["goals"] = {"santa": 150, "mrs": 226}
+        P["karaoke"] = lt
+        P["states"] = {"santa": "p_sing", "mrs": "p_ears" if lt >= 2 else None}
+        if lt >= 3.0:
+            P["deer"] = (262, -1, "stand", lt)
+        if 4.4 <= lt < 7.0:
+            P["say"].append(("mrs", "Du triffst keinen Ton!"))
+        elif 7.4 <= lt < 10:
+            P["say"].append(("santa", "Ich bin Künstler!"))
+
+    def _party_wichtelbar(self, P, lt, g):
+        """Die Wichtel zimmern im Takt eine Bar; er bestellt – ohne Ausweis gibt's nichts."""
+        g.setdefault("b0", P["beats"])
+        P["bar"] = max(1, min(4, P["beats"] - g["b0"] + 1)) if lt < 5 else 4
+        P["elf"] = (118, 1, "look" if 8.4 <= lt < 11 else "write", lt)
+        P["goals"] = {"santa": 160, "mrs": 226}
+        P["states"] = {"santa": "p_offer" if 5.6 <= lt < 8.2 else "p_nope" if lt >= 10.6 else None}
+        if 5.8 <= lt < 8.2:
+            P["say"].append(("santa", "Einen Doppelten!"))
+        elif 8.4 <= lt < 11:
+            P["say"].append(("elf", "Nur mit Nordpol-Ausweis!"))
+
+    def _party_panik(self, P, lt, g):
+        """Panik: Die Geschenke! Er rennt hin und her – sie weiß, wo sie liegen."""
+        if lt < 7.6:
+            P["goals"] = {"santa": (40, 290)[int(lt / 1.6) % 2], "mrs": 226}
+        P["states"] = {"mrs": "p_laugh" if lt >= 3.6 else None}
+        if 0.4 <= lt < 3.0:
+            P["say"].append(("santa", "DIE GESCHENKE!"))
+        if 4.0 <= lt < 7.4:
+            P["say"].append(("mrs", "Liegen seit Oktober im Keller."))
+        if 8.0 <= lt < 10:
+            P["say"].append(("santa", "Puh."))
+
+    # -- Zeichnen ----------------------------------------------------------------------- #
+    def _xmas_fun_ground(self, img, d, P, floor, t):
+        """Hinter den Figuren: Hütte mit Schornstein, Geschenketurm, Eisfläche, Schlitten, Wichtel-Chor, Bar,
+        Karaoke-Bildschirm, Lichter am Nachbarhaus."""
+        if P.get("cottage"):
+            x0 = FUN_COTTAGE_X
+            d.rectangle([x0, floor - 46, WIDTH, floor + 2], fill=(120, 78, 46))
+            for y in range(int(floor - 42), int(floor), 7):
+                d.line([(x0, y), (WIDTH, y)], fill=(96, 62, 36))
+            d.rectangle([x0 + 14, floor - 34, x0 + 30, floor - 16], fill=(250, 210, 120))
+            d.polygon([(x0 - 10, floor - 44), (WIDTH + 4, floor - 44), (WIDTH + 4, floor - 92)], fill=(150, 40, 40))
+            d.polygon([(x0 - 10, floor - 44), (WIDTH + 4, floor - 92), (WIDTH + 4, floor - 86), (x0 - 6, floor - 48)],
+                      fill=(246, 246, 252))                                       # Schnee auf dem Dach
+            cx = x0 + 40
+            d.rectangle([cx - 9, floor - 104, cx + 9, floor - 60], fill=(150, 64, 50))
+            for y in range(int(floor - 100), int(floor - 60), 6):
+                d.line([(cx - 9, y), (cx + 9, y)], fill=(110, 46, 36))
+            d.rectangle([cx - 11, floor - 108, cx + 11, floor - 102], fill=(120, 52, 42))
+            legs = P.get("chimney_legs")
+            if legs is not None:
+                k = min(1.0, legs / 0.4)
+                for side in (-1, 1):
+                    kick = math.sin(t * 14 + side) * 0.45 * k
+                    a = side * 0.25 + kick
+                    p0 = (cx + side * 3, floor - 106)
+                    p1 = (p0[0] + math.sin(a) * 16 * k, p0[1] - math.cos(a) * 16 * k)
+                    self._limb(img, p0, p1, 7, XMAS_RED)
+                    self._blob(img, p1[0], p1[1] - 2, 9, 7, (30, 26, 26), gloss=0.8)
+            if P.get("soot") is not None:
+                k = P["soot"]
+                for j in range(6):
+                    a = j * 1.05
+                    r = 6 + 26 * k
+                    self._blob(img, cx + math.cos(a) * r, floor - 112 - k * 20 + math.sin(a) * r * 0.5, 14 + 10 * k,
+                               12 + 8 * k, (70, 66, 70), alpha=0.7 * (1 - k), flat=True)
+        if P.get("ice"):
+            self._blob(img, 194, floor + 4, 150, 12, (200, 230, 250), gloss=0.9, alpha=0.8)
+        if P.get("tower"):
+            n, lt = P["tower"]
+            cols = [(220, 40, 50), (60, 140, 230), (250, 200, 60), (70, 180, 90), (200, 80, 200), (250, 140, 40),
+                    (90, 200, 220)]
+            if lt < 7.5:
+                wob = math.sin(t * 5) * n * 1.2 * (0.4 + P.get("bass", 0.5))
+                y = floor
+                for i in range(n):
+                    w, h = 26 - i * 2, 14
+                    x = FUN_TOWER_X + wob * (i / 6.0) ** 1.6 * 3
+                    d.rectangle([x - w / 2, y - h, x + w / 2, y], fill=cols[i])
+                    d.line([(x, y - h), (x, y)], fill=(250, 240, 200), width=2)
+                    y -= h
+            else:                                                                # gekippt: Pakete liegen verstreut
+                k = min(1.0, (lt - 7.5) / 0.7)
+                for i in range(n):
+                    tx, ty = FUN_TOWER_X + 20 + i * 15, floor
+                    sx, sy = FUN_TOWER_X, floor - 14 * i - 7
+                    x = sx + (tx - sx) * k
+                    y = sy + (ty - 7 - sy) * k - math.sin(k * math.pi) * 18
+                    d.rectangle([x - 9, y - 7, x + 9, y + 7], fill=cols[i])
+        if P.get("sleigh_fly"):
+            x, h = P["sleigh_fly"]
+            self._xmas_party_sleigh(img, d, x, floor - h, t, False)
+            if P.get("barrel"):
+                self._blob(img, x - 2, floor - h - 34, 22, 20, (130, 80, 44), gloss=0.4)
+                d.line([(x - 12, floor - h - 38), (x + 8, floor - h - 38)], fill=(80, 60, 50), width=2)
+        if P.get("choir") is not None:
+            lt = P["choir"]
+            for i, ex in enumerate((92, 114, 136)):
+                x = min(ex, -20 + (ex + 20) * lt / 1.6)
+                self._xmas_party_elf(img, d, (x, 1, "sing", lt), floor, t)
+                if lt >= 1.6:
+                    m = 1 + 3 * abs(math.sin(t * 7 + i * 1.3))
+                    d.ellipse([x + 1, floor - 29, x + 4, floor - 29 + m], fill=(90, 20, 30))
+                    if int(t * 3 + i) % 3 == 0:
+                        d.text((x + 4, floor - 52 - (t * 20 + i * 7) % 14), "♪", font=self.f_tiny,
+                               fill=(255, 240, 160))
+        if P.get("bar"):
+            n = P["bar"]
+            for i in range(n):
+                d.rectangle([96, floor - 6 - i * 7, 142, floor - 1 - i * 7], fill=(140, 92, 52))
+                d.line([(96, floor - 6 - i * 7), (142, floor - 6 - i * 7)], fill=(170, 116, 70))
+            if n >= 4:
+                d.rectangle([92, floor - 34, 146, floor - 30], fill=(110, 70, 40))
+                for j, c in enumerate(((240, 220, 120), (150, 40, 60), (120, 200, 230))):
+                    d.rectangle([100 + j * 14, floor - 42, 106 + j * 14, floor - 34], fill=c)
+        if P.get("karaoke") is not None:
+            x, y = 104, floor - 70
+            d.rectangle([x - 4, y + 36, x + 4, floor], fill=(60, 60, 70))
+            d.rectangle([x - 28, y, x + 28, y + 36], fill=(30, 30, 40))
+            d.rectangle([x - 25, y + 3, x + 25, y + 33], fill=(30, 50, 120))
+            font = self.__dict__.setdefault("_fun_tv_font", load_font(8, bold=True))
+            words = ["♪ LA LA", "LA LAAA ♪", "JINGLE …", "♪ HO HO"]
+            w = words[int(P["karaoke"] / 1.5) % len(words)]
+            d.text((x - 22, y + 8), w, font=font, fill=(255, 240, 120))
+            d.text((x - 22, y + 20), "♪♪♪", font=font, fill=(160, 220, 255))
+
+    def _xmas_fun_over(self, img, d, P, acts, floor, t):
+        """Vor den Figuren: Plätzchenblech, Wunschzettel, Lebkuchenmann, Katze, Kugeln, Ruß, Mikrofon, feste
+        Sprechblasen."""
+        heads = self.__dict__.get("_xmas_heads", {})
+        hands = self.__dict__.get("_xmas_hands", {})
+        if P.get("tray") and "mrs" in hands:
+            n, burnt = P["tray"]
+            hx, hy = hands["mrs"][1]
+            d.rectangle([hx - 26, hy - 4, hx, hy - 1], fill=(170, 170, 180))
+            for i in range(n):
+                cx = hx - 22 + i * 4
+                d.ellipse([cx - 2, hy - 7, cx + 2, hy - 3], fill=(40, 30, 26) if burnt else (220, 170, 90))
+            if burnt:
+                for j in range(3):
+                    k = (t * 0.8 + j / 3) % 1.0
+                    self._blob(img, hx - 14 + j * 6, hy - 10 - k * 30, 8 + k * 10, 8 + k * 10, (90, 90, 96),
+                               alpha=0.6 * (1 - k), flat=True)
+        if P.get("scroll") and "santa" in hands:
+            hx, hy = hands["santa"][0]
+            k = P["scroll"]
+            end = hx - 20 - k * 260
+            d.line([(hx, hy), (hx - 8, floor - 2)], fill=(250, 246, 230), width=6)
+            d.rectangle([end, floor - 4, hx - 8, floor + 2], fill=(250, 246, 230))
+            for x in range(int(hx - 14), int(end), -9):
+                d.line([(x, floor - 2), (x - 5, floor - 2)], fill=(150, 60, 60))
+            self._blob(img, end, floor - 1, 7, 9, (240, 232, 210), gloss=0.3)
+        if P.get("gingerbread"):
+            x, lt = P["gingerbread"]
+            hop = abs(math.sin(lt * 9)) * 8
+            y = floor - 12 - hop
+            brown = (178, 110, 50)
+            for side in (-1, 1):
+                d.line([(x + side * 3, y + 4), (x + side * 6 + math.sin(lt * 18) * 3 * side, y + 12)], fill=brown,
+                       width=4)
+                d.line([(x + side * 4, y - 4), (x + side * 10, y - 8 + math.sin(lt * 18) * 3)], fill=brown, width=4)
+            self._blob(img, x, y, 12, 14, brown, gloss=0.3)
+            self._blob(img, x, y - 12, 11, 11, brown, gloss=0.3)
+            for j in range(2):
+                d.ellipse([x - 1, y - 2 + j * 5, x + 1, y + j * 5], fill=(240, 60, 60))
+            d.ellipse([x - 3, y - 14, x - 1, y - 12], fill=(255, 255, 255))
+            d.ellipse([x + 1, y - 14, x + 3, y - 12], fill=(255, 255, 255))
+            d.arc([x - 3, y - 12, x + 3, y - 8], 20, 160, fill=(255, 255, 255))
+        if P.get("treecat"):
+            lt, balls = P["treecat"]
+            star = self.__dict__.get("_xmas_star_pos", (XMAS_TREE_X, 40))
+            if lt < 3.0:
+                cx, cy = XMAS_TREE_X + 10, floor - 8 - (floor - star[1] - 40) * lt / 3.0
+            elif lt < 7.4 or "santa" not in heads:
+                cx, cy = XMAS_TREE_X + 6 + math.sin(t * 2) * 3, star[1] + 32
+            else:                                                                # auf seiner Mütze
+                k = min(1.0, (lt - 7.4) / 0.4)
+                hx, hy = heads["santa"]
+                cx = XMAS_TREE_X + 6 + (hx - XMAS_TREE_X - 6) * k
+                cy = star[1] + 32 + (hy - 22 - star[1] - 32) * k - math.sin(k * math.pi) * 20
+            self._fun_cat(img, d, cx, cy, t)
+            rng = random.Random(3)
+            for i in range(balls):
+                bx = XMAS_TREE_X - 20 + rng.uniform(0, 40)
+                col = XMAS_LIGHT_COLORS[i % len(XMAS_LIGHT_COLORS)]
+                self._blob(img, bx, floor + 3, 7, 7, col, gloss=0.9)
+        if P.get("sooty") and "santa" in heads:
+            hx, hy = heads["santa"]
+            for j, (ox, oy) in enumerate(((-5, -2), (4, 1), (-1, 5), (6, -5))):
+                d.ellipse([hx + ox - 2, hy + oy - 2, hx + ox + 2, hy + oy + 2], fill=(50, 46, 50))
+        if P.get("karaoke") is not None and "santa" in hands:
+            hx, hy = hands["santa"][0]
+            d.line([(hx, hy), (hx + 4, hy - 8)], fill=(40, 40, 44), width=3)
+            self._blob(img, hx + 5, hy - 10, 6, 6, (120, 120, 130), gloss=0.8)
+            if "santa" in heads:
+                sx, sy = heads["santa"]
+                for j in range(3):
+                    k = (t * 0.9 + j / 3) % 1.0
+                    d.text((sx + 10 + k * 20 + math.sin(t * 9 + j) * 4, sy - 10 - k * 26), "♪", font=self.f_tiny,
+                           fill=(255, 90, 90))
+        if P.get("houselights") is not None:
+            k = P["houselights"]
+            for i in range(15):                                                  # entlang der Dachkante
+                q = i / 14
+                x = 256 + 58 * q
+                y = 87 - 21 * (1 - abs(q - 0.5) * 2)
+                on = (i + P["beats"]) % 2 == 0
+                if k > 0 and on:
+                    col = XMAS_LIGHT_COLORS[i % len(XMAS_LIGHT_COLORS)]
+                    self._blob(img, x, y, 6 + 12 * k, 6 + 12 * k, col, alpha=round(0.3 + 0.5 * k, 1), flat=True)
+                    d.ellipse([x - 1.5, y - 1.5, x + 1.5, y + 1.5], fill=(255, 255, 230))
+        for x, y, text in P.get("fsay", []):
+            self._xmas_party_say(d, x, y, text)
+
+    def _xmas_fun_after(self, img, P):
+        """Stromausfall: alles dunkel, nur der Stern leuchtet weiter; Sprechblasen danach."""
+        if P.get("blackout"):
+            img = Image.blend(img, Image.new("RGB", img.size, (4, 6, 18)), 0.78 * P["blackout"])
+            star = self.__dict__.get("_xmas_star_pos")
+            if star:
+                self._blob(img, star[0], star[1], 30, 30, (255, 230, 120), alpha=0.6, flat=True)
+                d = ImageDraw.Draw(img)
+                pts = [(star[0] + math.cos(-math.pi / 2 + k * math.pi / 5) * (9 if k % 2 == 0 else 4),
+                        star[1] + math.sin(-math.pi / 2 + k * math.pi / 5) * (9 if k % 2 == 0 else 4))
+                       for k in range(10)]
+                d.polygon(pts, fill=(255, 220, 70))
+        if P.get("late_say"):
+            d = ImageDraw.Draw(img)
+            for x, y, text in P["late_say"]:
+                self._xmas_party_say(d, x, y, text)
+        return img
+
+    def _fun_cat(self, img, d, x, y, t):
+        grey = (120, 116, 122)
+        self._blob(img, x, y, 16, 10, grey, gloss=0.3)
+        self._blob(img, x - 8, y - 5, 10, 9, grey, gloss=0.3)
+        for side in (-1, 1):
+            d.polygon([(x - 8 + side * 4, y - 9), (x - 8 + side * 2, y - 13), (x - 8 + side * 1, y - 8)], fill=grey)
+        d.line([(x + 7, y), (x + 13, y - 6 + math.sin(t * 5) * 3)], fill=grey, width=2)
+        d.point((x - 10, y - 6), fill=(120, 230, 90))
+        d.point((x - 6, y - 6), fill=(120, 230, 90))
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -15214,6 +15755,579 @@ class CellarCrew:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Modul seite_visual_burg
+#   Visualisierung „Mittelalter-Metal“ (metal, Mixin MetalVisual): Eine Ritter-Band spielt nachts im Burghof.
+#   Sänger in Rüstung (Visier, Federbusch, Lanze als Mikrofonständer), Gitarrist im Kettenhemd mit wehenden Haaren und
+#   Flying-V, Dudelsackspieler (der Sack bläht sich mit der Lautstärke), Trommler mit Hörnerhelm an zwei Fasstrommeln.
+#   Feuerkörbe lodern mit dem Bass, Funken stieben auf hohe Schläge, vorn headbangt das Publikum mit der Pommesgabel.
+#   Höhepunkt: Pyro – je nach Option schießen die Feuerkörbe Flammensäulen oder ein Drache auf dem Turm speit Feuer.
+#   Wortbeitrag: Ein Herold verliest eine Bekanntmachung, die Band trinkt Met aus Hörnern.
+#   Gags: Visier klappt zu, Mönch beim Crowdsurfen, Ritter auf Steckenpferd, Katapult schießt einen Kohlkopf,
+#   Gitarrensolo mit gerissener Saite, Wall of Death, Burgfräulein wirft eine Rose, Drache headbangt mit, Trommler trinkt
+#   Met und verpasst den Takt. Echtes Gewitter laut Wetterseite: Der Blitz schlägt in den Helm des Sängers.
+# ═══════════════════════════════════════════════════════════════════════════
+
+MT_STAGE = VIS_H - 64                   # Bühnenboden (Füße der Band)
+MT_BAND = {"guitar": 74, "singer": 150, "piper": 222, "drums": 278}
+MT_FIRE_X = (18, 302)                   # Feuerkörbe am Bühnenrand
+MT_TOWERS = ((0, 44), (276, 320))       # Türme links/rechts (x von … bis)
+MT_WALL_Y = 74                          # Oberkante der Burgmauer
+MT_BOOM = 3.2                           # Pyro beim Höhepunkt (s)
+MT_BOOM_LOCK = 12.0
+MT_GAGS = {"visier": 5.0, "moench": 8.0, "steckenpferd": 7.0, "katapult": 7.0, "solo": 8.0, "walldeath": 7.0,
+           "fraeulein": 7.0, "drache": 6.0, "met": 6.0}
+MT_GAG_FIRST, MT_GAG_PAUSE = 8.0, (9.0, 15.0)
+MT_HERALD = ["Hört, hört! Eine Bekanntmachung!", "Der König lässt verkünden …", "… Met ist heute billiger!",
+             "Hört, hört! Wer hat sein Pferd im Halteverbot?"]
+MT_STEEL, MT_STEEL_D = (176, 182, 196), (110, 116, 130)
+
+
+class MetalVisual:
+    vis_fire = 0.0                      # Feuerstärke 0…1 (Tastatur „Feuer“)
+
+    # -- Hintergrund ------------------------------------------------------------------- #
+    def _mt_scene(self):
+        """Nachthimmel mit Mond, Burgmauer mit Zinnen, zwei Türme mit Bannern, Holzbühne (zwischengespeichert)."""
+        if "_mt_bg" in self.__dict__:
+            return self._mt_bg
+        ys = np.linspace(0, 1, HEIGHT)[:, None, None]
+        top, bot = np.array([16, 12, 40], np.float32), np.array([70, 34, 60], np.float32)
+        arr = np.broadcast_to(top + (bot - top) * ys, (HEIGHT, WIDTH, 3)).copy()
+        img = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGB")
+        d = ImageDraw.Draw(img)
+        rng = random.Random(4)
+        for _ in range(40):
+            d.point((rng.randrange(WIDTH), rng.randrange(MT_WALL_Y)), fill=(200, 200, 230))
+        self._blob(img, 236, 30, 26, 26, (250, 240, 210), gloss=0.1)               # Vollmond
+        self._blob(img, 236, 30, 60, 60, (200, 190, 230), alpha=0.18, flat=True)
+        stone, dark = (92, 86, 98), (66, 60, 74)
+        d.rectangle([0, MT_WALL_Y, WIDTH, MT_STAGE], fill=stone)                    # Mauer
+        for row, y in enumerate(range(MT_WALL_Y + 2, MT_STAGE, 9)):
+            off = 0 if row % 2 else 9
+            for x in range(-off, WIDTH, 18):
+                v = rng.randint(-8, 8)
+                d.rectangle([x + 1, y, x + 16, y + 7], fill=(stone[0] + v, stone[1] + v, stone[2] + v))
+        for x in range(0, WIDTH, 20):                                               # Zinnen
+            d.rectangle([x, MT_WALL_Y - 10, x + 11, MT_WALL_Y], fill=stone)
+        for x0, x1 in MT_TOWERS:                                                    # Türme mit Dach und Banner
+            d.rectangle([x0, 20, x1, MT_STAGE], fill=dark)
+            for y in range(24, MT_STAGE, 9):
+                d.line([(x0, y), (x1, y)], fill=(54, 50, 62))
+            d.polygon([(x0 - 4, 22), (x1 + 4, 22), ((x0 + x1) / 2, -14)], fill=(110, 40, 50))
+            cx = (x0 + x1) / 2
+            d.rectangle([cx - 4, 38, cx + 4, 50], fill=(30, 26, 30))                 # Fenster
+            d.polygon([(cx - 9, 60), (cx + 9, 60), (cx + 9, 96), (cx, 90), (cx - 9, 96)], fill=(150, 30, 40))
+            d.polygon([(cx - 4, 70), (cx + 4, 70), (cx, 80)], fill=(240, 200, 70))
+        d.rectangle([0, MT_STAGE, WIDTH, MT_STAGE + 10], fill=(110, 72, 42))       # Bühne
+        for x in range(0, WIDTH, 24):
+            d.line([(x, MT_STAGE), (x, MT_STAGE + 10)], fill=(80, 52, 30))
+        d.line([(0, MT_STAGE), (WIDTH, MT_STAGE)], fill=(150, 104, 60), width=2)
+        d.rectangle([0, MT_STAGE + 10, WIDTH, HEIGHT], fill=(30, 22, 26))
+        rx = MT_BAND["drums"]                                                       # Podest des Trommlers
+        d.rectangle([rx - 30, MT_STAGE - 8, rx + 30, MT_STAGE], fill=(96, 62, 36))
+        self._mt_bg = img
+        return img
+
+    # -- Figuren ------------------------------------------------------------------------ #
+    def _mt_legs(self, img, x, feet, hip, spread, color, boot=(40, 32, 30)):
+        for side in (-1, 1):
+            hj = (x + side * 5, hip)
+            knee, foot = _ik(hj, (x + side * spread, feet - 1), 13, 13, side)
+            self._limb(img, hj, knee, 7, color)
+            self._limb(img, knee, foot, 6, color)
+            self._blob(img, foot[0] + side * 2, foot[1], 11, 6, boot, gloss=0.6)
+
+    def _mt_arm(self, img, sh, target, side, upper, lower, hand):
+        elbow, h = _ik(sh, target, 12, 12, side)
+        self._limb(img, sh, elbow, 6, upper)
+        self._limb(img, elbow, h, 5, lower)
+        self._blob(img, h[0], h[1], 7, 7, hand, gloss=0.5)
+        return h
+
+    def _mt_singer(self, img, d, x, feet, t, bang, visor, glow=0.0, raise_arm=0.0, drink=False):
+        """Ritter in Rüstung mit Federbusch, singt an der Lanze; visor 0…1 = Visier zu."""
+        hip = feet - 27
+        self._mt_legs(img, x, feet, hip, 7, MT_STEEL)
+        self._blob(img, x, hip - 14, 26, 32, MT_STEEL, gloss=0.8)
+        d.polygon([(x - 10, hip - 26), (x + 10, hip - 26), (x + 12, hip + 6), (x - 12, hip + 6)], fill=(140, 26, 36))
+        d.polygon([(x - 4, hip - 18), (x + 4, hip - 18), (x, hip - 6)], fill=(240, 200, 70))   # Wappen
+        for side in (-1, 1):
+            self._blob(img, x + side * 13, hip - 25, 12, 10, MT_STEEL, gloss=0.9)    # Schulterpanzer
+        lx = x + 18                                                                   # Lanze als Mikrofonständer
+        d.line([(lx, feet), (lx - 4, hip - 40)], fill=(120, 84, 50), width=3)
+        d.polygon([(lx - 6, hip - 40), (lx - 2, hip - 40), (lx - 4, hip - 50)], fill=MT_STEEL_D)
+        self._blob(img, lx - 8, hip - 36, 6, 7, (50, 50, 56), gloss=0.8)             # Mikrofon
+        if drink:
+            hand = self._mt_arm(img, (x + 11, hip - 24), (x + 4, hip - 40), 1, MT_STEEL, MT_STEEL, MT_STEEL_D)
+            self._mt_horn(img, d, hand)
+        else:
+            self._mt_arm(img, (x + 11, hip - 24), (lx - 6, hip - 34), 1, MT_STEEL, MT_STEEL, MT_STEEL_D)
+        ltarget = (x - 22, hip - 52) if raise_arm > 0.5 else (x - 18 - 6 * bang, hip - 6 - 10 * bang)
+        hand = self._mt_arm(img, (x - 11, hip - 24), ltarget, -1, MT_STEEL, MT_STEEL, MT_STEEL_D)
+        if raise_arm > 0.5:                                                           # Schwert in die Höhe
+            d.line([hand, (hand[0] - 4, hand[1] - 30)], fill=(220, 224, 236), width=3)
+            d.line([(hand[0] - 6, hand[1] - 2), (hand[0] + 4, hand[1] - 2)], fill=(200, 160, 60), width=3)
+        hy = hip - 40 + 7 * bang
+        hx = x + 2 * bang
+        self._blob(img, hx, hy, 19, 21, MT_STEEL, gloss=0.9)                         # Helm
+        if glow:
+            self._blob(img, hx, hy, 40, 40, (180, 220, 255), alpha=round(0.6 * glow, 2), flat=True)
+        if visor < 0.5:
+            d.rectangle([hx - 7, hy - 2, hx + 7, hy + 5], fill=(40, 34, 40))
+            d.ellipse([hx - 4, hy, hx - 1, hy + 2], fill=(240, 220, 200))
+            d.ellipse([hx + 1, hy, hx + 4, hy + 2], fill=(240, 220, 200))
+        else:
+            d.line([(hx - 7, hy + 1), (hx + 7, hy + 1)], fill=(60, 64, 74), width=2)
+            for k in range(3):
+                d.point((hx - 3 + k * 3, hy + 4), fill=(60, 64, 74))
+        for k in range(4):                                                            # Federbusch
+            a = -0.4 + k * 0.3 + math.sin(t * 6) * 0.1 - bang * 0.4
+            d.line([(hx, hy - 10), (hx + math.sin(a) * 14, hy - 10 - math.cos(a) * 14)], fill=(220, 40, 50), width=3)
+        return (hx, hy)
+
+    def _mt_guitarist(self, img, d, x, feet, t, bang, strum, kneel=0.0, drink=False):
+        """Kettenhemd, lange Haare (fliegen beim Headbangen), Flying-V."""
+        hip = feet - 27 + 12 * kneel
+        self._mt_legs(img, x, feet, hip, 9 - 4 * kneel, (50, 44, 40))
+        mail = (130, 134, 140)
+        self._blob(img, x, hip - 14, 24, 30, mail, gloss=0.5)
+        for k in range(10):                                                           # Kettenglieder
+            d.point((x - 8 + (k * 7) % 17, hip - 22 + (k * 5) % 18), fill=(90, 94, 100))
+        gx, gy = x + 2, hip - 8                                                       # Gitarre
+        body = [(gx - 4, gy - 4), (gx + 16, gy - 12), (gx + 12, gy), (gx + 16, gy + 10), (gx - 4, gy + 4)]
+        d.polygon(body, fill=(150, 20, 30))
+        d.line([(gx - 2, gy), (gx - 30, gy - 8)], fill=(90, 60, 40), width=3)
+        d.line([(gx - 30, gy - 8), (gx - 36, gy - 12)], fill=(40, 30, 30), width=4)
+        skin = (236, 196, 166)
+        if drink:
+            hand = self._mt_arm(img, (x + 10, hip - 24), (x + 2, hip - 40), 1, mail, skin, skin)
+            self._mt_horn(img, d, hand)
+        else:
+            self._mt_arm(img, (x + 10, hip - 24), (gx + 6, gy - 2 + 6 * strum), 1, mail, skin, skin)
+        self._mt_arm(img, (x - 10, hip - 24), (gx - 24, gy - 8), -1, mail, skin, skin)
+        hy = hip - 38 + 8 * bang
+        hx = x + 3 * bang
+        hair = (60, 36, 24)
+        for k in range(5):                                                            # fliegende Haare
+            a = -1.0 + k * 0.5
+            ln = 14 + 8 * bang
+            d.line([(hx, hy - 4), (hx + math.sin(a + bang) * ln, hy - 4 + abs(math.cos(a)) * ln * (2 * bang - 0.6))],
+                   fill=hair, width=4)
+        self._blob(img, hx, hy, 15, 17, skin, gloss=0.3)
+        self._blob(img, hx, hy - 6, 17, 9, hair, gloss=0.3)
+        d.line([(hx - 4, hy + 1), (hx - 1, hy + 1)], fill=(30, 20, 20))
+        d.line([(hx + 1, hy + 1), (hx + 4, hy + 1)], fill=(30, 20, 20))
+        d.ellipse([hx - 2, hy + 4, hx + 2, hy + 7], fill=(80, 20, 20))
+        return (hx, hy)
+
+    def _mt_piper(self, img, d, x, feet, t, bang, puff, drink=False):
+        """Dudelsackspieler: grüner Wams, Hut mit Feder; der Sack bläht sich mit der Lautstärke."""
+        hip = feet - 27
+        self._mt_legs(img, x, feet, hip, 7, (70, 60, 44))
+        tunic, skin = (50, 110, 60), (236, 196, 166)
+        self._blob(img, x, hip - 14, 24, 32, tunic, gloss=0.3)
+        d.line([(x - 12, hip - 2), (x + 12, hip - 2)], fill=(90, 60, 30), width=3)
+        bag = (x - 12, hip - 18)
+        self._blob(img, bag[0], bag[1], 16 + 8 * puff, 14 + 6 * puff, (120, 40, 60), gloss=0.5)
+        for k in range(3):                                                            # Bordunpfeifen
+            d.line([(bag[0] - 2 + k * 3, bag[1] - 4), (bag[0] - 10 + k * 7, bag[1] - 34 + k * 4)], fill=(40, 30, 26),
+                   width=2)
+        if drink:
+            hand = self._mt_arm(img, (x + 10, hip - 24), (x + 2, hip - 40), 1, tunic, skin, skin)
+            self._mt_horn(img, d, hand)
+        else:
+            self._mt_arm(img, (x + 10, hip - 24), (x + 4, hip - 6), 1, tunic, skin, skin)
+            d.line([(x + 4, hip - 6), (x - 1, hip - 34)], fill=(40, 30, 26), width=2)  # Spielpfeife
+        self._mt_arm(img, (x - 10, hip - 24), (x - 4, hip - 16), -1, tunic, skin, skin)
+        hy = hip - 38 + 5 * bang
+        self._blob(img, x, hy, 15, 17, skin, gloss=0.3)
+        for side in (-1, 1):
+            self._blob(img, x + side * 5, hy + 3, 6, 5 + 3 * puff, _lerp(skin, (240, 140, 130), 0.4))   # Backen
+        d.polygon([(x - 10, hy - 6), (x + 10, hy - 6), (x + 4, hy - 14), (x - 6, hy - 13)], fill=(40, 70, 40))
+        d.line([(x + 4, hy - 12), (x + 16, hy - 24)], fill=(230, 220, 160), width=2)
+        d.point((x - 3, hy), fill=(20, 20, 20))
+        d.point((x + 3, hy), fill=(20, 20, 20))
+        return (x, hy)
+
+    def _mt_drummer(self, img, d, x, feet, t, hit_l, hit_r, drink=False):
+        """Trommler mit Hörnerhelm und Fellweste an zwei Fasstrommeln."""
+        hip = feet - 25
+        skin = (226, 180, 146)
+        self._blob(img, x, hip - 12, 26, 30, (110, 80, 50), gloss=0.2)               # Fellweste
+        hy = hip - 36
+        self._blob(img, x, hy, 16, 17, skin, gloss=0.3)
+        self._blob(img, x, hy + 8, 14, 10, (170, 90, 40), gloss=0.2)                 # Bart
+        self._blob(img, x, hy - 5, 18, 10, MT_STEEL, gloss=0.9)
+        for side in (-1, 1):                                                          # Hörner
+            d.line([(x + side * 8, hy - 6), (x + side * 14, hy - 12), (x + side * 13, hy - 20)], fill=(240, 230, 200),
+                   width=3)
+        d.point((x - 3, hy), fill=(20, 20, 20))
+        d.point((x + 3, hy), fill=(20, 20, 20))
+        for side, hit in ((-1, hit_l), (1, hit_r)):                                   # Trommeln vor ihm
+            dx = x + side * 15
+            d.rectangle([dx - 11, feet - 22, dx + 11, feet], fill=(130, 84, 46))
+            d.ellipse([dx - 11, feet - 26, dx + 11, feet - 18], fill=(230, 214, 180))
+            for yy in (feet - 16, feet - 6):
+                d.line([(dx - 11, yy), (dx + 11, yy)], fill=(70, 60, 50), width=2)
+            if drink and side == 1:
+                hand = self._mt_arm(img, (x + 11, hip - 22), (x + 4, hip - 38), 1, skin, skin, skin)
+                self._mt_horn(img, d, hand)
+                continue
+            target = (dx, feet - 24 - (1 - hit) * 14)
+            hand = self._mt_arm(img, (x + side * 11, hip - 22), target, side, skin, skin, skin)
+            d.line([hand, (hand[0] + side * 6, hand[1] - 10 + 12 * hit)], fill=(200, 170, 120), width=2)
+        return (x, hy)
+
+    def _mt_horn(self, img, d, hand):
+        hx, hy = hand
+        d.polygon([(hx - 2, hy - 2), (hx + 6, hy - 6), (hx + 12, hy - 14), (hx + 8, hy - 2)], fill=(230, 210, 160))
+        d.line([(hx + 6, hy - 6), (hx + 12, hy - 14)], fill=(140, 110, 70), width=1)
+
+    def _mt_fire(self, img, d, x, y, k, t):
+        """Feuerkorb mit Flamme der Stärke k (0…1, beim Pyro bis 2)."""
+        d.line([(x, y + 34), (x, y + 6)], fill=(40, 34, 34), width=3)
+        d.polygon([(x - 10, y), (x + 10, y), (x + 6, y + 8), (x - 6, y + 8)], fill=(50, 44, 44))
+        for j in range(3):
+            d.line([(x - 9 + j * 9, y), (x - 5 + j * 5, y + 8)], fill=(80, 70, 66))
+        h = 14 + 22 * k
+        for j in range(4):
+            q = j / 3
+            fx = x + math.sin(t * 9 + j * 2) * 3 * (1 - q)
+            fy = y - h * q * 0.8
+            col = _lerp((255, 90, 20), (255, 230, 120), q)
+            self._blob(img, fx, fy - 2, 16 - 8 * q, h * (1 - q * 0.6), col, alpha=0.75, flat=True)
+        self._blob(img, x, y - h / 2, 60 + 40 * k, 60 + 40 * k, (255, 120, 40), alpha=round(0.12 + 0.1 * k, 2), flat=True)
+
+    def _mt_crowd(self, img, d, st, s, t, gag, gl):
+        """Publikum vorn: Köpfe und Schultern, Hörnerhelme, Pommesgabel auf jeden Schlag; Wall of Death."""
+        rng = random.Random(8)
+        beat_age = t - s.get("beat_t", t)
+        jump = max(0.0, 1 - beat_age / 0.25) if s.get("active") or s.get("demo") else 0.0
+        talk = bool(s.get("talk"))
+        n = 11
+        for i in range(n):
+            base = 10 + i * (WIDTH - 20) / (n - 1) + rng.uniform(-6, 6)
+            x = base
+            if gag and gag[0] == "walldeath":                                       # auseinander, dann zusammen
+                side = -1 if base < WIDTH / 2 else 1
+                if gl < 3:
+                    x = base + side * 40 * _smooth(gl / 3)
+                elif gl < 4:
+                    x = base + side * 40 * (1 - _smooth((gl - 3) / 1))
+            y = MT_STAGE + 26 - (0 if talk else (jump * (6 if i % 2 else 3) + rng.uniform(0, 3)))
+            col = (64 + i % 3 * 10, 44, 56)                                         # vom Feuer angestrahlt
+            self._blob(img, x, y + 20, 30, 34, col, gloss=0.25)
+            self._blob(img, x, y - 2, 15, 16, col, gloss=0.3)
+            if i % 3 == 0:                                                           # Hörnerhelm
+                for side in (-1, 1):
+                    d.line([(x + side * 6, y - 6), (x + side * 11, y - 14)], fill=(200, 190, 170), width=2)
+            if not talk and (i + s.get("beats", 0)) % 2 == 0:                       # Pommesgabel
+                ax = x + (8 if i % 2 else -8)
+                d.line([(x, y + 6), (ax, y - 18 - 4 * jump)], fill=col, width=4)
+                d.line([(ax - 2, y - 18 - 4 * jump), (ax - 3, y - 26 - 4 * jump)], fill=col, width=2)
+                d.line([(ax + 2, y - 18 - 4 * jump), (ax + 3, y - 26 - 4 * jump)], fill=col, width=2)
+        if gag and gag[0] == "walldeath" and 3.6 <= gl < 4.6:                         # Zusammenprall
+            for j in range(6):
+                self._blob(img, WIDTH / 2 + (j - 2.5) * 14, MT_STAGE + 30 - j % 2 * 6, 22, 16, (150, 130, 110),
+                           alpha=0.5, flat=True)
+
+    # -- Ablauf ---------------------------------------------------------------------------- #
+    @vis_style("metal")
+    def vis_metal(self, s, o, color):
+        t = s["t"]
+        img = self._mt_scene().copy()
+        d = ImageDraw.Draw(img)
+        demo = bool(s.get("demo"))
+        talk = bool(s.get("talk"))
+        st = self._vstate("metal", lambda: {"beats": s["beats"], "slow": s["level"], "fast": s["level"],
+                                             "boom": -99.0, "gag": None, "next_gag": t + MT_GAG_FIRST, "order": [],
+                                             "rng": random.Random(31), "sparks": [], "bolt": -99.0,
+                                             "next_bolt": t + 6.0, "start": t, "song": None, "jester": -99.0})
+        dt = self._vis_dt(st, t)
+        new_beat = s["beats"] != st["beats"]
+        st["beats"] = s["beats"]
+        period = max(0.3, min(1.2, s.get("period") or 0.5))
+        ph = ((t - s.get("beat_t", t)) / period) % 1.0
+        playing = (s.get("active") or demo) and not talk
+        bang = (math.sin(math.pi * min(1.0, (t - s.get("beat_t", t)) / (period * 0.6)))) if playing else 0.0
+        # Höhepunkt → Pyro
+        st["slow"] += (s["level"] - st["slow"]) * min(1.0, dt / 6)
+        st["fast"] += (s["level"] - st["fast"]) * min(1.0, dt / 0.4)
+        if not demo and not talk and st["fast"] > st["slow"] * 1.2 + 0.04 and t - st["boom"] > MT_BOOM_LOCK \
+                and t - st["start"] > 4:
+            st["boom"] = t
+        bt = t - st["boom"]
+        boom = 0 <= bt < MT_BOOM and o.get("pyro", "dragon") != "off"
+        # Gags
+        gag = st["gag"]
+        if gag and t - gag[1] >= MT_GAGS[gag[0]]:
+            st["gag"] = gag = None
+            st["next_gag"] = t + st["rng"].uniform(*MT_GAG_PAUSE)
+        if not demo and o.get("gags", True) and gag is None and not talk and not boom and t >= st["next_gag"]:
+            if not st["order"]:
+                st["order"] = st["rng"].sample(list(MT_GAGS), len(MT_GAGS))
+            st["gag"] = gag = (st["order"].pop(0), t)
+        gl = t - gag[1] if gag else 0.0
+        # Liedwechsel: der Hofnarr läuft mit „Zugabe!“-Schild über die Bühne
+        song = getattr(self, "_vis_song", "")
+        if st["song"] is not None and song and song != st["song"] and not demo:
+            st["jester"] = t
+        st["song"] = song
+        # Feuer
+        fire = (0.3 + 0.7 * s["bass"]) if playing else 0.25
+        if boom and o.get("pyro", "dragon") in ("fire", "dragon"):
+            fire = 1.0 + 0.8 * math.sin(min(1.0, bt / MT_BOOM) * math.pi)
+        self.vis_fire = min(1.0, fire)
+        if 0 <= t - s.get("hat_t", -9) < 0.05 and playing:                           # Funken auf hohe Schläge
+            for fx in MT_FIRE_X:
+                for _ in range(3):
+                    st["sparks"].append([fx + st["rng"].uniform(-4, 4), MT_STAGE - 46, st["rng"].uniform(-20, 20),
+                                         st["rng"].uniform(-90, -50), t])
+        say = []
+        # Turm links: Burgfräulein; Turm rechts: Drache
+        if gag and gag[0] == "fraeulein":
+            self._mt_lady(img, d, gl, say, t)
+        dragon_k = 0.0
+        if gag and gag[0] == "drache":
+            dragon_k = min(1.0, gl / 0.8, (MT_GAGS["drache"] - gl) / 0.8)
+        if boom and o.get("pyro", "dragon") == "dragon":
+            dragon_k = min(1.0, bt / 0.4, (MT_BOOM - bt) / 0.4 + 0.01)
+        if dragon_k > 0:
+            peek = not boom
+            self._mt_dragon(img, d, dragon_k, t, bang if peek else 0.0, breathe=boom, peek=peek)
+            if gag and gag[0] == "drache" and 1.0 <= gl < 4.5:
+                say.append((240, MT_WALL_Y - 34, "Hörner hoch!"))
+        if gag and gag[0] == "katapult":
+            self._mt_catapult(img, d, gl, t, say)
+        # Feuerkörbe
+        for fx in MT_FIRE_X:
+            self._mt_fire(img, d, fx, MT_STAGE - 40, fire, t)
+        # Band
+        drink = talk
+        lvl = s["level"] if playing else 0.0
+        strum = abs(math.sin(t * 20)) if playing and t - s.get("hat_t", -9) < 0.2 else 0.0
+        heads = {}
+        solo = gag and gag[0] == "solo"
+        gx = MT_BAND["guitar"] + (26 * min(1.0, gl / 1.0) if solo and gl < 7 else 0)
+        heads["guitar"] = self._mt_guitarist(img, d, gx, MT_STAGE, t, bang, strum,
+                                             kneel=min(1.0, max(0.0, (gl - 1.0) / 0.6)) if solo and gl < 7 else 0.0,
+                                             drink=drink)
+        if solo and 1.6 <= gl < 6 and t - s.get("hat_t", -9) < 0.15:
+            for _ in range(2):
+                st["sparks"].append([gx + 16, MT_STAGE - 34, st["rng"].uniform(-40, 40), st["rng"].uniform(-80, -30), t])
+        missed = gag and gag[0] == "met"
+        hit = max(0.0, 1 - (t - s.get("beat_t", -9)) / 0.15) if playing and not missed else 0.0
+        heads["drums"] = self._mt_drummer(img, d, MT_BAND["drums"], MT_STAGE - 8, t,
+                                          hit if s["beats"] % 2 else 0.0, hit if s["beats"] % 2 == 0 else 0.0,
+                                          drink=drink or (missed and gl < 3.6))
+        heads["piper"] = self._mt_piper(img, d, MT_BAND["piper"], MT_STAGE, t, bang * 0.6, lvl, drink=drink)
+        visor = 1.0 if (gag and gag[0] == "visier" and gl < 4.2) else 0.0
+        glow = max(0.0, 1 - (t - st["bolt"]) / 1.2)
+        heads["singer"] = self._mt_singer(img, d, MT_BAND["singer"], MT_STAGE, t, bang, visor, glow,
+                                          raise_arm=1.0 if boom else 0.0, drink=drink)
+        if gag and gag[0] == "steckenpferd":
+            self._mt_hobbyhorse(img, d, -30 + (WIDTH + 60) * gl / MT_GAGS["steckenpferd"], MT_STAGE, t, say)
+        # Herold bei Wortbeiträgen
+        if talk:
+            tl = s["t"] - s.get("talk_t", s["t"])
+            hx = min(150.0, -20 + tl * 60)
+            self._mt_herald(img, d, hx, MT_STAGE + 4, t)
+            if hx >= 150:
+                say.append((hx, MT_STAGE - 70, MT_HERALD[int(tl / 4) % len(MT_HERALD)]))
+        # Hofnarr nach Liedwechsel
+        jt = t - st["jester"]
+        if 0 <= jt < 4 and not talk:
+            self._mt_jester(img, d, -20 + (WIDTH + 40) * jt / 4, MT_STAGE, t)
+        # Publikum
+        if o.get("crowd", True):
+            self._mt_crowd(img, d, st, s, t, gag, gl)
+        if gag and gag[0] == "moench":
+            self._mt_monk(img, d, -30 + (WIDTH + 60) * gl / MT_GAGS["moench"], MT_STAGE + 18, t, say)
+        # Funken
+        alive = []
+        for sp in st["sparks"]:
+            sp[3] += 160 * dt
+            sp[0] += sp[2] * dt
+            sp[1] += sp[3] * dt
+            if t - sp[4] < 1.2 and sp[1] < MT_STAGE + 20:
+                alive.append(sp)
+                c = int(255 * (1 - (t - sp[4]) / 1.2))
+                d.point((sp[0], sp[1]), fill=(255, max(0, c), max(0, c // 3)))
+        st["sparks"] = alive[-120:]
+        # Drachenfeuer über die Bühne
+        if boom and o.get("pyro", "dragon") == "dragon" and 0.4 <= bt < MT_BOOM - 0.4:
+            self._mt_breath(img, d, bt, t)
+        if boom:
+            k = math.sin(min(1.0, bt / MT_BOOM) * math.pi)
+            img = ImageChops.add(img, Image.new("RGB", img.size, (int(60 * k), int(26 * k), 0)))
+            d = ImageDraw.Draw(img)
+        # Gewitter: Blitz in den Helm
+        if not demo and self._party_weather()[0] == "thunder" and t >= st["next_bolt"] and not talk:
+            st["bolt"], st["next_bolt"] = t, t + st["rng"].uniform(15, 30)
+        if 0 <= t - st["bolt"] < 0.25:
+            sx, sy = heads["singer"]
+            pts, y = [(sx + 30, 0)], 0
+            r2 = random.Random(int(st["bolt"] * 10))
+            while y < sy - 12:
+                y += 14
+                pts.append((sx + (sy - y) * 0.3 + r2.uniform(-6, 6), y))
+            d.line(pts, fill=(230, 240, 255), width=2)
+            img = Image.blend(img, Image.new("RGB", img.size, (220, 230, 255)), 0.18)
+            d = ImageDraw.Draw(img)
+        if 0.2 <= t - st["bolt"] < 2.2:
+            say.append((heads["singer"][0], heads["singer"][1] - 20, "Bzzzt!"))
+        # Sprechblasen der Band
+        if gag:
+            name = gag[0]
+            if name == "visier" and 0.8 <= gl < 3.6:
+                say.append((heads["singer"][0], heads["singer"][1] - 20, "Mmmpf mmpf!"))
+            elif name == "visier" and 3.0 <= gl < 4.8:
+                say.append((heads["guitar"][0], heads["guitar"][1] - 22, "Hahaha!"))
+            elif name == "solo" and 0.2 <= gl < 2.0:
+                say.append((heads["singer"][0], heads["singer"][1] - 20, "Solo!"))
+            elif name == "solo" and 5.6 <= gl < 7.6:
+                say.append((heads["guitar"][0], heads["guitar"][1] - 22, "PLING! Saite …"))
+            elif name == "met" and 2.0 <= gl < 5.0:
+                say.append((heads["drums"][0], heads["drums"][1] - 22, "Hups – wo war ich?"))
+        if boom and o.get("pyro", "dragon") == "dragon" and 0.6 <= bt < 2.6:
+            say.append((heads["singer"][0], heads["singer"][1] - 24, "FEUER!"))
+        for x, y, text in say:
+            self._xmas_party_say(d, x, y, text)
+        return img
+
+    # -- Gäste und Requisiten --------------------------------------------------------------- #
+    def _mt_dragon(self, img, d, k, t, bang, breathe=False, peek=False):
+        """Drachenkopf: speit vom rechten Turm Feuer bzw. (peek) schaut hinter der Mauer hervor und headbangt mit."""
+        if peek:
+            x, y = 246, MT_WALL_Y - 18 + (1 - k) * 46
+        else:
+            x, y = 298, 20 + (1 - k) * 40
+        green, dark = (60, 140, 70), (36, 90, 44)
+        if y > 58 and not peek:
+            return
+        self._blob(img, x + 10, y + 26, 22, 34, green, gloss=0.4)                   # Hals
+        hy = y + 6 * bang
+        self._blob(img, x - 4, hy, 30, 20, green, gloss=0.5)
+        self._blob(img, x - 18, hy + 4, 18, 12, green, gloss=0.5)                   # Schnauze
+        for side in (0, 1):
+            d.polygon([(x + 2 + side * 8, hy - 8), (x + 8 + side * 8, hy - 22), (x + 10 + side * 8, hy - 6)], fill=dark)
+        d.ellipse([x - 8, hy - 5, x - 2, hy + 1], fill=(255, 220, 60))
+        d.line([(x - 5, hy - 5), (x - 5, hy + 1)], fill=(20, 20, 20))
+        if breathe:
+            d.chord([x - 28, hy + 2, x - 10, hy + 14], 0, 180, fill=(120, 20, 20))
+        for j in range(3):                                                           # Rauch aus den Nüstern
+            q = (t * 1.5 + j / 3) % 1.0
+            self._blob(img, x - 26 - q * 10, hy - q * 12, 4 + q * 6, 4 + q * 6, (150, 150, 160), alpha=0.5 * (1 - q),
+                       flat=True)
+        if peek:                                                                     # Mauer davor
+            img.paste(self._mt_scene().crop((x - 44, MT_WALL_Y - 10, x + 30, MT_WALL_Y + 40)), (x - 44, MT_WALL_Y - 10))
+
+    def _mt_breath(self, img, d, bt, t):
+        """Feuerstoß des Drachen quer über die Bühne (Flammenkegel aus Blobs)."""
+        reach = min(1.0, (bt - 0.4) / 0.6)
+        x0, y0 = 270, 30
+        for j in range(16):
+            q = j / 15 * reach
+            x = x0 - q * 250
+            y = y0 + q * 30 + math.sin(t * 12 + j) * 4
+            r = 8 + q * 26
+            col = _lerp((255, 240, 160), (255, 80, 20), q)
+            self._blob(img, x, y, r, r * 0.8, col, alpha=0.7, flat=True)
+
+    def _mt_lady(self, img, d, gl, say, t):
+        """Burgfräulein im linken Turm wirft eine Rose – für den Trommler."""
+        cx = (MT_TOWERS[0][0] + MT_TOWERS[0][1]) / 2
+        d.rectangle([cx - 4, 38, cx + 4, 50], fill=(250, 210, 120))
+        self._blob(img, cx, 44, 7, 7, (240, 210, 180), gloss=0.3)
+        d.polygon([(cx - 4, 41), (cx + 4, 41), (cx, 28)], fill=(200, 80, 160))     # Hennin (Spitzhut)
+        if 1.4 <= gl < 3.6:
+            k = (gl - 1.4) / 2.2
+            tx, ty = MT_BAND["drums"], MT_STAGE - 50
+            x = cx + (tx - cx) * k
+            y = 46 + (ty - 46) * k - math.sin(k * math.pi) * 50
+            d.line([(x - 4, y + 2), (x + 4, y - 2)], fill=(40, 120, 40), width=2)
+            self._blob(img, x + 4, y - 3, 6, 6, (220, 30, 50), gloss=0.5)
+        if 0.4 <= gl < 2.4:
+            say.append((cx + 30, 36, "Für den Trommler!"))
+        if 3.8 <= gl < 6.4:
+            say.append((MT_BAND["drums"], MT_STAGE - 72, "Für mich?!"))
+
+    def _mt_catapult(self, img, d, gl, t, say):
+        """Katapult auf dem linken Turm schießt einen Kohlkopf ins Publikum."""
+        x, y = 24, 18
+        arm = -0.9 if 1.0 <= gl else -0.1
+        d.rectangle([x - 10, y, x + 10, y + 4], fill=(110, 70, 40))
+        d.line([(x, y), (x + math.cos(arm) * 18, y + math.sin(arm) * 18)], fill=(130, 90, 50), width=3)
+        if gl < 1.0:
+            self._blob(img, x + 16, y - 2, 8, 8, (120, 180, 80), gloss=0.4)
+        elif gl < 3.4:
+            k = (gl - 1.0) / 2.4
+            bx = x + 16 + (190 - x - 16) * k
+            by = y - 2 + (MT_STAGE + 22 - y) * k - math.sin(k * math.pi) * 60
+            self._blob(img, bx, by, 9, 9, (120, 180, 80), gloss=0.4)
+        else:
+            self._blob(img, 190, MT_STAGE + 6, 9, 9, (120, 180, 80), gloss=0.4)
+            if gl < 6.4:
+                say.append((190, MT_STAGE - 4, "Gemüse!"))
+
+    def _mt_hobbyhorse(self, img, d, x, feet, t, say):
+        """Ritter auf dem Steckenpferd galoppiert über die Bühne."""
+        hop = abs(math.sin(t * 9)) * 4
+        y = feet - hop
+        self._mt_legs(img, x, y, y - 26, 6 + 4 * math.sin(t * 9), MT_STEEL)
+        self._blob(img, x, y - 40, 20, 26, MT_STEEL, gloss=0.8)
+        self._blob(img, x, y - 60, 15, 16, MT_STEEL, gloss=0.9)
+        d.line([(x - 6, y - 59), (x + 6, y - 59)], fill=(40, 40, 50), width=2)
+        d.line([(x - 14, y - 6), (x + 16, y - 34)], fill=(120, 84, 50), width=3)   # Stecken
+        self._blob(img, x + 20, y - 38, 14, 10, (200, 160, 110), gloss=0.3)          # Pferdekopf
+        d.line([(x + 14, y - 40), (x + 12, y - 28)], fill=(90, 60, 40), width=3)    # Mähne
+        say.append((x, y - 84, "Hü-hott!"))
+
+    def _mt_monk(self, img, d, x, y, t, say):
+        """Mönch beim Crowdsurfen, auf Händen über das Publikum getragen."""
+        robe, skin = (110, 74, 46), (236, 196, 166)
+        y += math.sin(t * 6) * 2
+        self._blob(img, x, y, 44, 14, robe, gloss=0.3)
+        self._blob(img, x + 26, y - 2, 13, 13, skin, gloss=0.3)
+        d.arc([x + 19, y - 9, x + 33, y + 5], 200, 340, fill=(90, 60, 40), width=2)  # Tonsur
+        for j in range(4):                                                           # Hände darunter
+            hx = x - 18 + j * 12
+            d.line([(hx, y + 6), (hx + 2, y + 18)], fill=(30, 22, 26), width=3)
+        say.append((x + 26, y - 14, "Halleluja!"))
+
+    def _mt_herald(self, img, d, x, feet, t):
+        """Herold mit Wappenrock und Schriftrolle."""
+        hip = feet - 26
+        self._mt_legs(img, x, feet, hip, 6, (40, 40, 80))
+        self._blob(img, x, hip - 14, 24, 30, (40, 60, 150), gloss=0.3)
+        d.polygon([(x - 6, hip - 22), (x + 6, hip - 22), (x, hip - 8)], fill=(240, 200, 70))
+        skin = (236, 196, 166)
+        for side in (-1, 1):
+            self._mt_arm(img, (x + side * 10, hip - 24), (x + side * 10, hip - 14), side, (40, 60, 150), skin, skin)
+        d.rectangle([x - 10, hip - 22, x + 10, hip - 4], fill=(240, 228, 196))      # Schriftrolle
+        for k in range(4):
+            d.line([(x - 7, hip - 19 + k * 4), (x + 7, hip - 19 + k * 4)], fill=(120, 80, 60))
+        hy = hip - 38
+        self._blob(img, x, hy, 15, 16, skin, gloss=0.3)
+        d.polygon([(x - 9, hy - 5), (x + 9, hy - 5), (x + 2, hy - 13)], fill=(150, 30, 40))
+        d.ellipse([x - 2, hy + 3, x + 2, hy + 6], fill=(90, 20, 20))
+
+    def _mt_jester(self, img, d, x, feet, t):
+        """Hofnarr hüpft mit einem Schild „Zugabe!“ über die Bühne."""
+        hop = abs(math.sin(t * 10)) * 6
+        y = feet - hop
+        self._mt_legs(img, x, y, y - 24, 6 + 3 * math.sin(t * 10), (200, 40, 40), boot=(240, 200, 60))
+        self._blob(img, x, y - 36, 18, 24, (60, 120, 220), gloss=0.3)
+        self._blob(img, x, y - 54, 13, 14, (240, 210, 180), gloss=0.3)
+        for side in (-1, 1):
+            d.line([(x, y - 60), (x + side * 10, y - 70)], fill=(200, 40, 40) if side < 0 else (240, 200, 60), width=4)
+            self._blob(img, x + side * 11, y - 71, 5, 5, (250, 230, 80), gloss=0.5)
+        d.line([(x + 8, y - 40), (x + 8, y - 74)], fill=(120, 84, 50), width=2)
+        d.rectangle([x - 6, y - 92, x + 34, y - 74], fill=(250, 240, 210))
+        d.text((x - 3, y - 90), "Zugabe!", font=self.f_tiny, fill=(160, 30, 30))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Modul menues
 #   Auswahllisten auf dem Display: Profile, Kalender, Alben und allgemeine Listen (Sender, Textbausteine).
 # ═══════════════════════════════════════════════════════════════════════════
@@ -15625,8 +16739,8 @@ class OverlayViews:
 class Renderer(RendererBase,
                ClockPage, ClockBase, StandardFaces, MechanicalFaces, SkyFaces, DisplayFaces, InfoFaces,
                MacrosPage, MusicPage, SlidesPage, WeatherPage, CalendarPage, HardwarePage,
-               NewsPage, WarningsPage, NetworkPage, UpdatesPage, VisualPage, XmasVisual, XmasParty, BalletVisual, StageFx,
-               PartyVisual, CellarVisual, CellarCrew,
+               NewsPage, WarningsPage, NetworkPage, UpdatesPage, VisualPage, XmasVisual, XmasParty, XmasFun, BalletVisual, StageFx,
+               PartyVisual, CellarVisual, CellarCrew, MetalVisual,
                MenuViews, OverlayViews):
     PAGES = len(PAGE_IDS)
     MUSIC_PAGE = PAGE_IDS.index("music")
@@ -17555,6 +18669,8 @@ class App(AppCore, KeyHandling, TimedTasks):
             elif keys == "red":
                 beat = math.exp(-max(0.0, snap["t"] - snap.get("beat_t", -9)) * 7) if not quiet else 0.0
                 k, base = round(max(0.06, beat) * 20) / 20, (255, 10, 10)
+        if style == "metal" and visual_options(s, "metal").get("keys", "fire") == "fire":   # Feuerkörbe
+            k, base = round(max(0.12, self.renderer.vis_fire) * 20) / 20, (255, 100, 16)
         color = tuple(int(c * k) for c in base)
         strobe = False
         if self.visual_style() in ("lights", "dancer") and not quiet:     # Stroboskop: Tastatur blitzt mit
@@ -17737,7 +18853,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.16-3"
+VERSION = "2026.11.16-4"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -21973,18 +23089,20 @@ Die Seite '''Visualisierung''' bewegt sich zu allem, was der Rechner gerade absp
 |-
 | Feuerwerk || bei jedem Schlag explodiert eine Rakete über der Stadt || Leuchtspuren
 |-
-| Weihnachten || Weihnachtsmann und Weihnachtsfrau – räumlich gezeichnet mit Licht, Glanz und Schatten – tanzen neben einem Weihnachtsbaum im Schneefall: er wippt mit dem Bauch, winkt, kickt; sie dreht Pirouetten. Im Paartanz halten sie sich an den Händen, und alle acht Schritte dreht sie sich unter seinem Arm. Lichterkette blinkt im Takt, der Stern leuchtet mit dem Bass, kräftige Schläge wirbeln den Schnee auf. Wechselt der Tanz, verabschiedet sich eine Figur winkend und geht aus dem Bild (er nach links, sie nach rechts), die andere kommt herein; beim Öffnen der Seite kommen beide ins Bild gelaufen. Bei Wortbeiträgen gehen beide zu einer Bank – er liest die Wunschliste, sie trinkt Kakao || Tanz (abwechselnd, Paartanz, nur Weihnachtsmann, nur Weihnachtsfrau), Wechsel bei „Abwechselnd“ (alle 30 Sekunden, jede Minute, alle 2, 5 oder 10 Minuten), Schneefall (leicht, normal, dicht), Lichterkette im Takt, Tastaturbeleuchtung (rot und grün im Takt oder Farbe der Ebene), Feierabend (aus, an, nur abends), Dauer einer Feierabend-Runde (5, 10, 15 oder 20 Minuten), Glühwein-Barometer und Becherzähler
+| Weihnachten || Weihnachtsmann und Weihnachtsfrau – räumlich gezeichnet mit Licht, Glanz und Schatten – tanzen neben einem Weihnachtsbaum im Schneefall: er wippt mit dem Bauch, winkt, kickt; sie dreht Pirouetten. Im Paartanz halten sie sich an den Händen, und alle acht Schritte dreht sie sich unter seinem Arm. Lichterkette blinkt im Takt, der Stern leuchtet mit dem Bass, kräftige Schläge wirbeln den Schnee auf. Wechselt der Tanz, verabschiedet sich eine Figur winkend und geht aus dem Bild (er nach links, sie nach rechts), die andere kommt herein; beim Öffnen der Seite kommen beide ins Bild gelaufen. Bei Wortbeiträgen gehen beide zu einer Bank – er liest die Wunschliste, sie trinkt Kakao. '''Gags''' (jugendfrei, etwa alle 20 Sekunden): Er steckt im Schornstein fest, nascht Plätzchen (die zweite Ladung verbrennt), stapelt einen Geschenketurm im Takt, bis er kippt, rollt einen meterlangen Wunschzettel aus, winkt den Rentierschlitten beim Einparken gegen den Baum, jagt einen Lebkuchenmann, die Katze klettert in den Baum, beim Nachbarn fällt der Strom aus, Glatteis-Kür, Wichtel-Chor || Tanz (abwechselnd, Paartanz, nur Weihnachtsmann, nur Weihnachtsfrau), Wechsel bei „Abwechselnd“ (alle 30 Sekunden, jede Minute, alle 2, 5 oder 10 Minuten), Schneefall (leicht, normal, dicht), Lichterkette im Takt, Gags beim Tanzen, Tastaturbeleuchtung (rot und grün im Takt oder Farbe der Ebene), Feierabend (aus, an, nur abends), Dauer einer Feierabend-Runde (5, 10, 15 oder 20 Minuten), Glühwein-Barometer und Becherzähler
 |-
 | Überraschungsparty || Geburtstag im Wohnzimmer: Erst ist es dunkel, drei Gäste und der Hund verstecken sich hinter dem Sofa – nur ihre Augen blinzeln im Takt („Psst!“). Beim ersten Höhepunkt der Musik (spätestens nach 20 Sekunden) geht das Licht an: „ÜBERRASCHUNG!“, Konfetti, dann tanzen alle mit Partyhut und Tröte (sie rollt sich auf hohe Schläge aus). Gags: der Hund frisst die Torte, Trickkerzen gehen immer wieder an (ab 50 piept der Rauchmelder, ab 40 qualmt die Torte), ein Kastenteufel springt aus dem Geschenk, Luftballons platzen bei kräftigem Bass, manchmal verschläft ein Gast die Überraschung. Bei Wortbeiträgen atmen alle Helium ein und quieken, nach 25 Sekunden setzen sie sich auf den Boden. Nach einer Runde wird es dunkel, und alle verstecken sich wieder (mit neuer Torte) || An Geburtstagen automatisch zeigen, Geburtstagsliste (nur in der Verwaltung: Name, Tag, Monat, Geburtsjahr – mit Jahr stehen Zahlenballons mit dem Alter im Bild), Dauer einer Runde (3, 5, 10 Minuten), Hund, Konfetti, Tastaturbeleuchtung (bunt im Takt oder Farbe der Ebene)
 |-
 | Kellertreppe || Horror mit Pointe: Eine nackte Glühbirne pendelt im Takt (Bassschläge stoßen sie an), Licht und Schatten wandern durch den Keller mit Treppe, Regal voller Einmachgläser und Waschmaschine. In den dunklen Ecken blinzeln Augenpaare auf hohe Schläge. Beim Höhepunkt flackert das Licht und geht aus – nur noch Augen –, dann geht es wieder an: Ein zotteliges Monster mit geblümter Kittelschürze saugt den Keller („Oh! Ich putz nur.“). Gags: Spinne mit Kopfhörern, Mäuse-Polonaise mit Partyhüten, Hand mit Staubwedel unter der Treppe, die Waschmaschine frisst eine Socke. Bei Wortbeiträgen liest das Monster das „Kellerblatt“ und döst nach 25 Sekunden ein. Gewitter laut Wetterseite blitzt sanft durchs Kellerfenster. '''Bewohner:''' Zombies steigen aus dem Boden und schlurfen im Takt, ein Skelett tanzt aus dem Kellerschrank (je nach Stufe nur das Skelett, dazu zwei Zombies oder eine Horde mit roten Augen). Vor dem Staubsauger flüchten die Zombies in den Boden und das Skelett in den Schrank; bei Wortbeiträgen sitzen alle auf der Treppe; bei einem Liedwechsel taucht ein Zombie anderswo wieder auf. Weitere Gags: Zombie verliert den Arm (eine Maus schleppt ihn weg), Zombie futtert Einmachgläser, Zombie in der Mäuse-Polonaise, Skelett-Xylophon, Skelett zerfällt bei sehr kräftigem Bass und setzt sich falsch zusammen. Besuch: Hausverwalter-Zombie mit Nebenkostenabrechnung und Zettel „Ruhezeiten!“, Graf Kellerstein (stößt sich am Balken, flieht als Fledermaus), die Mumie (wickelt sich beim Tanzen ab). Alle 8–14 Sekunden passiert etwas || Gänsehaut-Stufe (schaurig-nett: wenige freundliche Augen, nur das Skelett; gruselig: mehr glühende Augen, Licht flackert, zwei Zombies; Gänsehaut: rote Augen, Zombie-Horde, Herzschlag am Bildrand, kurzer Schreckmoment im Dunkeln), an jedem Freitag, dem 13., automatisch zeigen, Tastaturbeleuchtung (wie die Glühbirne, rot im Herzschlag, Farbe der Ebene)
+|-
+| Mittelalter-Metal || Eine Ritterband im nächtlichen Burghof: Sänger in Rüstung mit Federbusch (Lanze als Mikrofonständer), Gitarrist im Kettenhemd mit fliegenden Haaren und Flying-V, Dudelsackspieler (der Sack bläht sich mit der Lautstärke), Trommler mit Hörnerhelm an Fasstrommeln. Alle headbangen im Takt, Feuerkörbe lodern mit dem Bass, Funken stieben auf hohe Schläge, das Publikum zeigt die Pommesgabel. Höhepunkt: Pyro (Drache speit Feuer oder Flammensäulen). Gags: Visier klappt zu, Mönch beim Crowdsurfen, Steckenpferd-Ritter, Katapult mit Kohlkopf, Gitarrensolo mit gerissener Saite, Wall of Death, Burgfräulein wirft eine Rose, Drache headbangt hinter der Mauer, Trommler trinkt Met und verpasst den Takt. Wortbeitrag: Ein Herold verliest Bekanntmachungen, die Band trinkt Met. Liedwechsel: Hofnarr mit „Zugabe!“. Gewitter (Wetterseite): Blitz in den Helm || Pyro beim Höhepunkt (Drache, Flammensäulen, aus), Publikum, Gags, Tastaturbeleuchtung (Feuer im Takt oder Farbe der Ebene)
 |}
 '''Feierabend (Weihnachten):''' Eine Option mit derbem Humor, ab Werk aus. Eingeschaltet (oder nur abends von 20 bis 4 Uhr) trinken die beiden Glühwein über den Durst. Eine Runde läuft, solange Musik spielt, und dauert etwa die eingestellte Zeit:
 * '''Auftakt:''' tanzen und prosten. Jedes Prosten hebt den Pegel – bei lauter, schneller Musik prosten sie öfter, bei ruhiger Musik schunkeln sie nur.
 * '''Gags in zufälliger Reihenfolge''' (je Runde höchstens einmal; wildere erst bei höherem Pegel; manche nur nach anderen): Pipi-Tanz, hinter den Baum, „War das Rentier!“, „HO HO H“ im Schnee, gelber Schnee, Wichtel mit Unartig-Liste, Rülpser, Pupswolke, Ausrutschen auf der Pfütze, Stern vom Baum auf den Kopf, Mistelzweig, sie tanzt auf der Bank oder singt schief, Handyvideo mit Blitz, Schneemann, Rentier am Glühweintopf. Die Sprüche wechseln. Zwischendurch stolpern sie, verschütten Glühwein, verpassen den Takt oder haben Schluckauf.
 * '''Schluss:''' grünes Gesicht, „Na, schöne Bescherung!“ in den Geschenkesack (sie hält die Mütze), Schlaf auf der Bank mit Kater, der Morgen danach mit Sonnenbrille, „Nur noch einen …“ – dann von vorn.
 * Läuft im Radio ein Weihnachtslied (am Titel erkannt), grölen beide schief mit. Nach Mitternacht wird gegähnt, an Silvester ab 23 Uhr gibt es Feuerwerk.
-* '''Weitere Gags:''' Schneeballschlacht, Lichterkette (danach blinkt er bunt), Schneeengel, Geschenk mit Socken, Glühweintopf auf dem Kopf, Polonaise, Taxi im Rentierschlitten, der Nachbar ruft „Ruhe da unten!“. Running Gags: der verlorene Stiefel (er hinkt mit Socke, der Wichtel bringt ihn zurück), der Wichtel kommt bis zu dreimal.
+* '''Weitere Gags:''' Glühwein-Nachschub mit dem Schlitten, Karaoke, Wichtel-Bar, Panik wegen der Geschenke, dazu alle jugendfreien Gags. Schneeballschlacht, Lichterkette (danach blinkt er bunt), Schneeengel, Geschenk mit Socken, Glühweintopf auf dem Kopf, Polonaise, Taxi im Rentierschlitten, der Nachbar ruft „Ruhe da unten!“. Running Gags: der verlorene Stiefel (er hinkt mit Socke, der Wichtel bringt ihn zurück), der Wichtel kommt bis zu dreimal.
 * '''Reaktionen:''' lauter drehen → Jubel, leiser → Enttäuschung, Stumm → beide schlafen auf der Bank. Wetter der Wetterseite: Regen (Schirm), Sturm (Mütze fliegt), Tauwetter (Schneemann schmilzt). Neues Lied: „Das ist mein Lied!“, lange Moderation: „Laber nicht, spiel was!“. Freitag und Samstag dauert die Runde 1,5-mal so lang, Montag bis 12 Uhr gibt es nur den Kater.
 * '''OK''' auf der Visualisierungsseite löst sofort einen Gag aus. Rechts zeigt ein Glühwein-Barometer den Pegel und die Becher des Tages (abschaltbar).
 Der Tanz-Modus gilt dabei nicht, die beiden sind immer zu zweit. Bei Wortbeiträgen sitzen sie wie gewohnt auf der Bank; mit hohem Pegel schlafen sie dort ein. Solange ihm schlecht ist, leuchtet die Tastatur nur grün.

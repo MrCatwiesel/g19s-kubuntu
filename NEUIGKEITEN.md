@@ -3,6 +3,15 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.16-4
+- **Neuer Stil „Mittelalter-Metal“:** Eine Ritterband spielt nachts im Burghof – Sänger in Rüstung mit Federbusch (die Lanze ist der Mikrofonständer), Gitarrist im Kettenhemd mit fliegenden Haaren und Flying-V, Dudelsackspieler (der Sack bläht sich mit der Lautstärke), Trommler mit Hörnerhelm an zwei Fasstrommeln. Feuerkörbe lodern mit dem Bass, Funken stieben auf hohe Schläge, vorn headbangt das Publikum mit der Pommesgabel.
+  - Beim Höhepunkt gibt es Pyro: Ein Drache auf dem Turm speit Feuer über die Bühne (oder Flammensäulen aus den Feuerkörben, oder aus).
+  - Gags: Visier klappt zu („Mmmpf!“), ein Mönch surft über das Publikum, ein Ritter galoppiert auf dem Steckenpferd vorbei, ein Katapult schießt einen Kohlkopf ins Publikum, Gitarrensolo mit gerissener Saite, Wall of Death, das Burgfräulein wirft eine Rose („Für den Trommler!“), der Drache headbangt hinter der Mauer mit, der Trommler trinkt Met und verpasst den Takt.
+  - Bei Wortbeiträgen verliest ein Herold Bekanntmachungen, die Band trinkt Met. Nach einem Liedwechsel hüpft der Hofnarr mit „Zugabe!“ über die Bühne, bei echtem Gewitter schlägt der Blitz in den Helm des Sängers („Bzzzt!“). Tastatur: Feuer im Takt.
+- **Weihnachten mit Gags – auch ohne Feierabend:** Zehn jugendfreie Gags: Er steckt im Schornstein fest, nascht Plätzchen (die zweite Ladung verbrennt), stapelt einen Geschenketurm im Takt, bis er kippt, rollt einen meterlangen Wunschzettel aus, winkt den Schlitten beim Einparken gegen den Baum, jagt einen Lebkuchenmann, die Katze klettert in den Baum, beim Nachbarn fällt der Strom aus (nur der Stern leuchtet weiter), Glatteis-Kür und ein Wichtel-Chor. Abschaltbar unter „Gags beim Tanzen“.
+- **Feierabend:** vier neue Gags – Glühwein-Nachschub mit dem Schlitten, Karaoke (das Rentier hört zu), die Wichtel zimmern eine Bar („Nur mit Nordpol-Ausweis!“) und Panik wegen der Geschenke („Liegen seit Oktober im Keller.“). Die zehn neuen Gags kommen auch im Feierabend vor.
+- **Größere Sprechblasen** in allen Stilen (Weihnachten, Party, Keller, Mittelalter): größere, dunklere Schrift mit Rand; lange Sätze werden umgebrochen.
+
 ## 2026.11.16-3
 - **Kellertreppe mit Bewohnern:** Zombies steigen aus dem Kellerboden (erst greift eine Hand heraus) und schlurfen im Takt herum, ein Skelett tanzt aus dem neuen Kellerschrank und klappert auf hohe Schläge. Wie viele es sind, hängt von der Gänsehaut-Stufe ab: schaurig-nett nur das Skelett, gruselig dazu zwei Zombies, Gänsehaut eine ganze Horde mit roten Augen.
   - Kommt das Monster mit dem Staubsauger, flüchten die Zombies zurück in den Boden („Iiih, Staubsauger!“) und das Skelett in den Schrank. Bei Wortbeiträgen sitzen alle auf der Treppe und hören dem Monster beim Zeitunglesen zu. Bei einem Liedwechsel taucht ein Zombie ab und anderswo wieder auf.

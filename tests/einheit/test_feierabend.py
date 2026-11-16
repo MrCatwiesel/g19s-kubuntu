@@ -124,6 +124,7 @@ fresh()
 for _ in range(FPS * 120):
     frame(amp=0.3)
 quiet = party()["pegel"]
+party().update(cur=None, next=1e9)                                  # gerade kein Gag
 ok(wild > 3 * quiet and wild > 0.15, f"Pegel nach 2 min: wild {wild:.2f}, ruhig {quiet:.2f}")
 P = r._xmas_party(r._vis_states["xmas"], dict(g.demo_snapshot(5000 + T[0], amp=0.3), active=True), T[0], 0.1,
                   OPTS, True, False, False, False)

@@ -498,6 +498,34 @@ def _(r): return r.render_mic(True, (0, 110, 255))
 def _(r): return r.render_mic(False, (0, 110, 255))
 
 
+def _xmas_fun(r, gag, at):
+    """Weihnachten ohne Feierabend live: jugendfreien Gag erzwingen (nach 5 s Auftritt) und at Sekunden spielen."""
+    import time as _t
+    r._party_wx = (_t.monotonic() + 1e9, (None, None, None))
+    r.visual_style, r.visual = "xmas", _Live()
+    r.settings = json.loads(json.dumps(settings))
+    r.settings.setdefault("visual", json.loads(json.dumps(g.DEFAULT_SETTINGS["visual"])))
+    r.settings["visual"]["xmas"] = dict(g.DEFAULT_SETTINGS["visual"]["xmas"])
+    img = r.render(g.PAGE_IDS.index("visual"), "M2", macros)
+    for _ in range(5 * 15):
+        r.visual.t += 1 / 15
+        r.render(g.PAGE_IDS.index("visual"), "M2", macros)
+    fs = r._vis_states["xmas"]["fun"]
+    r._xmas_fun_start(fs, gag)
+    fs["next"] = 1e9
+    for _ in range(int(round(at * 15))):
+        r.visual.t += 1 / 15
+        img = r.render(g.PAGE_IDS.index("visual"), "M2", macros)
+    return img
+
+
+for _gag, _at in (("schornstein", 4.0), ("plaetzchen", 3.0), ("geschenketurm", 6.0), ("wunschzettel", 5.0),
+                  ("schlitten", 7.0), ("lebkuchen", 1.6), ("katze", 6.4), ("stromausfall", 6.6),
+                  ("glatteis", 1.8), ("wichtelchor", 3.0)):
+    scenes[f"vis_weihnachten_{_gag}"] = lambda r, gag=_gag, at=_at: _xmas_fun(r, gag, at)
+for _gag, _at in (("nachschub", 7.4), ("karaoke", 5.0), ("wichtelbar", 9.0), ("panik", 5.0)):
+    scenes[f"vis_feierabend_{_gag}"] = lambda r, gag=_gag, at=_at: _xmas_party(r, gag, at)
+
 def _fest(r, style, seconds, setup=None, opts=None, talk=False, weather=(None, None, None)):
     """Überraschungsparty bzw. Kellertreppe live: Seite öffnen, setup(Zustand, t) aufrufen (Phase/Gag erzwingen)
     und seconds Sekunden mit 15 Bildern je Sekunde spielen."""
@@ -568,6 +596,23 @@ scenes["vis_keller_zerfall"] = lambda r: _fest(r, "cellar", 3.0, _cl_gag("zerfal
 scenes["vis_keller_hausverwalter"] = lambda r: _fest(r, "cellar", 5.4, _cl_gag("hausverwalter"))
 scenes["vis_keller_vampir"] = lambda r: _fest(r, "cellar", 2.8, _cl_gag("vampir"))
 scenes["vis_keller_mumie"] = lambda r: _fest(r, "cellar", 6.6, _cl_gag("mumie"))
+def _mt_gag(name):
+    def setup(st, t):
+        st["gag"], st["next_gag"] = ((name, t) if name else None), t + 99
+    return setup
+
+
+def _mt_boom(st, t):
+    st["boom"], st["next_gag"] = t, t + 99
+
+
+scenes["vis_metal_pyro"] = lambda r: _fest(r, "metal", 1.4, _mt_boom)
+scenes["vis_metal_flammen"] = lambda r: _fest(r, "metal", 1.4, _mt_boom, {"pyro": "fire"})
+scenes["vis_metal_herold"] = lambda r: _fest(r, "metal", 4.0, _mt_gag(None), talk=True)
+scenes["vis_metal_gewitter"] = lambda r: _fest(r, "metal", 6.4, _mt_gag(None), weather=("thunder", 12.0, 10.0))
+for _gag, _at in (("visier", 2.0), ("moench", 4.0), ("steckenpferd", 3.0), ("katapult", 2.6), ("solo", 3.0),
+                  ("walldeath", 3.0), ("fraeulein", 2.6), ("drache", 2.4), ("met", 3.0)):
+    scenes[f"vis_metal_{_gag}"] = lambda r, gag=_gag, at=_at: _fest(r, "metal", at, _mt_gag(gag))
 scenes["vis_keller_gewitter"] = lambda r: _fest(r, "cellar", 4.07, weather=("thunder", 12.0, 10.0))
 
 

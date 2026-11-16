@@ -4,6 +4,7 @@ from common import g, eq, ok, done
 
 r = g.Renderer()
 r.settings = g.load_settings("/nonexistent")
+r.settings["visual"]["xmas"]["gags"] = False                     # hier nur Tanz/Auftritte (Gags: test_xmasfun)
 OPTS = g.visual_options(r.settings, "xmas")
 OFF = g.XMAS_OFF
 T = [0.0]

@@ -188,6 +188,23 @@ def _lerp(a, b, k):
     return tuple(int(round(x + (y - x) * k)) for x, y in zip(a, b))
 
 
+SAY_FONT = 14                             # Schriftgröße der Sprechblasen (Pixel, fett)
+SAY_MAX_W = 196                           # längere Sätze werden umgebrochen
+
+
+def _wrap_text(d, text, font, max_w):
+    """Text in Zeilen von höchstens max_w Pixeln (an Leerzeichen; überlange Wörter bleiben ganz)."""
+    lines, cur = [], ""
+    for word in text.split():
+        test = (cur + " " + word).strip()
+        if cur and d.textlength(test, font=font) > max_w:
+            lines.append(cur)
+            cur = word
+        else:
+            cur = test
+    return lines + [cur] if cur else lines or [""]
+
+
 def _win(lt, a, b):
     return a <= lt < b
 
@@ -287,7 +304,11 @@ class XmasParty:
         if not party_active(o):
             st.pop("party", None)
             self.vis_green = False
-            return None
+            if s.get("demo") or not o.get("gags", True):                     # Vorschau: nur tanzen
+                st.pop("fun", None)
+                return None
+            return self._xmas_fun(st, s, t, dt, o, moving, talk)            # jugendfreie Gags (seite_visual_xmasfun)
+        st.pop("fun", None)
         clock = party_clock()
         hour, wday = clock.tm_hour, getattr(clock, "tm_wday", 3)
         length = max(120, int(o["party_len"]) if str(o.get("party_len")).isdigit() else 600)
@@ -348,7 +369,7 @@ class XmasParty:
                     names = [n for n in PARTY_GAGS if party_eligible(ps, n, song, ordered=poke)]
                     if names:
                         loud = (vol or 0) >= 85
-                        weights = [8 if PARTY_GAGS[n].get("song") or PARTY_GAGS[n].get("storm") else
+                        weights = [14 if PARTY_GAGS[n].get("song") or PARTY_GAGS[n].get("storm") else
                                    6 if n == "nachbar" and loud else 1 for n in names]
                         self._xmas_party_start(ps, ps["rng"].choices(names, weights)[0])
                     else:
@@ -1095,15 +1116,19 @@ class XmasParty:
     def _xmas_party_ground(self, img, d, P, floor, t):
         """Hinter den Figuren: Haus des Nachbarn, Glühweintopf, Pfütze, Schrift im Schnee, gelber Fleck, Sack,
         Schneeengel, Schneemann, Rentier, er liegend im Schnee."""
-        self._xmas_party_house(img, d, P.get("window"), t)
-        if P.get("meter"):
+        family = P.get("family")                                     # ohne Feierabend: kein Glühwein
+        if not family or P.get("house"):
+            self._xmas_party_house(img, d, P.get("window"), t)
+        if P.get("meter") and not family:
             self._xmas_party_meter(img, d, P)
         x = PARTY_POT_X                                             # Topf mit Dampf
-        self._blob(img, x, floor + 1, 34, 8, (150, 165, 190), gloss=0)
-        if P.get("pot", True):
+        if not family:
+            self._blob(img, x, floor + 1, 34, 8, (150, 165, 190), gloss=0)
+        if P.get("pot", True) and not family:
             d.rectangle([x - 12, floor - 22, x + 12, floor], fill=(40, 36, 44))
             d.rectangle([x - 14, floor - 24, x + 14, floor - 20], fill=(70, 64, 78))
-            d.rectangle([x - 10, floor - 16, x + 10, floor - 8], fill=(120, 30, 40))
+            if not P.get("pot_empty"):
+                d.rectangle([x - 10, floor - 16, x + 10, floor - 8], fill=(120, 30, 40))
             for k in range(3):
                 pts = [(x - 6 + k * 6 + math.sin(t * 2.5 + yy * 0.25 + k) * 2.5, floor - 26 - yy)
                        for yy in range(0, 22, 2)]
@@ -1138,6 +1163,7 @@ class XmasParty:
             self._xmas_party_deer(img, d, P["deer"], floor, t, P["beats"], P.get("deer_boot"))
         if P.get("lie") is not None:
             self._xmas_party_lying(img, d, P["lie_x"], floor, t, P["lie"], P)
+        self._xmas_fun_ground(img, d, P, floor, t)
 
     def _xmas_party_snowman(self, img, d, x, floor, state):
         if isinstance(state, tuple) and state[0] == "melt" or state == "melted":
@@ -1328,6 +1354,7 @@ class XmasParty:
                         k = (t * 0.45 + i / 3 + (0.5 if who == "mrs" else 0)) % 1.0
                         v = int(230 * (1 - k))
                         d.text((hx + 8 + k * 14 + i * 3, hy - 14 - k * 30), "z", font=font, fill=(v, v, min(255, v + 25)))
+        self._xmas_fun_over(img, d, P, acts, floor, t)
         for who, text in P["say"]:
             if who == "mid":
                 if not (visible["santa"] and visible["mrs"]):
@@ -1355,7 +1382,7 @@ class XmasParty:
         """Ganz zuletzt: Blitzlicht des Handys, Licht aus (Pupswolke)."""
         if P.get("flash"):
             img = Image.blend(img, Image.new("RGB", img.size, (255, 255, 255)), 0.65 * P["flash"])
-        return img
+        return self._xmas_fun_after(img, P)
 
     def _xmas_party_arc(self, d, p0, p1, height, t):
         """Gelber Bogen (leicht flatternd) von p0 nach p1."""
@@ -1437,15 +1464,22 @@ class XmasParty:
         d.point((hx, hy + 2), fill=(230, 140, 150))
 
     def _xmas_party_say(self, d, x, y, text):
-        """Sprechblase mit Spitze nach unten, im Bild gehalten."""
-        font = self.__dict__.setdefault("_party_say_font", load_font(11, bold=True))
-        w = d.textlength(text, font=font) + 10
+        """Sprechblase mit Spitze nach unten, im Bild gehalten; lange Sätze werden umgebrochen (höchstens
+        SAY_MAX_W Pixel breit). Gilt für alle Stile mit Sprechblasen (Weihnachten, Party, Keller)."""
+        font = self.__dict__.setdefault("_party_say_font", load_font(SAY_FONT, bold=True))
+        lines = _wrap_text(d, text, font, SAY_MAX_W)
+        lh = SAY_FONT + 3
+        w = max(d.textlength(line, font=font) for line in lines) + 12
+        h = lh * len(lines) + 5
         bx = max(2, min(WIDTH - w - 2, x - w / 2))
-        by = max(16, y - 18)
-        d.rounded_rectangle([bx, by, bx + w, by + 17], radius=7, fill=(240, 240, 248))
-        tx = max(bx + 6, min(bx + w - 6, x))
-        d.polygon([(tx - 4, by + 16), (tx + 4, by + 16), (tx, by + 23)], fill=(240, 240, 248))
-        d.text((bx + 5, by + 2), text, font=font, fill=(40, 40, 60))
+        by = max(16, y - h - 1)
+        tx = max(bx + 7, min(bx + w - 7, x))
+        d.polygon([(tx - 5, by + h - 2), (tx + 5, by + h - 2), (tx, by + h + 6)], fill=(250, 250, 252),
+                  outline=(70, 70, 92))
+        d.rounded_rectangle([bx, by, bx + w, by + h], radius=7, fill=(250, 250, 252), outline=(70, 70, 92))
+        d.line([(tx - 4, by + h), (tx + 4, by + h)], fill=(250, 250, 252), width=2)
+        for i, line in enumerate(lines):
+            d.text((bx + 6, by + 2 + i * lh), line, font=font, fill=(20, 20, 36))
 
     # -- Zusätze (8 Gags der dritten Runde, Wetter, Anzeige) ----------------- #
     def _xmas_party_extras(self, img, d, P, acts, floor, t, heads, hands, visible):

@@ -160,6 +160,7 @@ VISUAL_STYLES = {
     "eq": "Grafik-Equalizer", "dancer": "Tänzerin an der Stange", "lights": "Lichtshow", "scope": "Oszilloskop",
     "ring": "Kreis-Spektrum", "vu": "VU-Meter", "spectro": "Spektrogramm", "fireworks": "Feuerwerk",
     "xmas": "Weihnachten", "party": "Überraschungsparty", "cellar": "Kellertreppe",
+    "metal": "Mittelalter-Metal",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 # Stichwörter im Titel des Senders, die einen Wortbeitrag anzeigen (Tänzerin langweilt sich); änderbar
@@ -250,6 +251,8 @@ VISUAL_OPTIONS = {
         {"key": "snow", "label": "Schneefall", "type": "choice", "default": "normal",
          "choices": [["light", "Leicht"], ["normal", "Normal"], ["heavy", "Dicht"]]},
         {"key": "lights", "label": "Lichterkette blinkt im Takt", "type": "bool", "default": True},
+        {"key": "gags", "label": "Gags beim Tanzen (jugendfrei: Schornstein, Plätzchen, Glatteis …)", "type": "bool",
+         "default": True},
         {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "redgreen",
          "choices": [["redgreen", "Rot und Grün im Takt"], ["layer", "Farbe der Ebene"]]},
         {"key": "party", "label": "Feierabend: Glühwein-Gags (derber Humor)", "type": "choice", "default": "off",
@@ -275,6 +278,14 @@ VISUAL_OPTIONS = {
         {"key": "fri13", "label": "An jedem Freitag, den 13., automatisch zeigen", "type": "bool", "default": False},
         {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "bulb",
          "choices": [["bulb", "Wie die Glühbirne"], ["red", "Rot im Herzschlag"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "metal": [
+        {"key": "pyro", "label": "Pyro beim Höhepunkt", "type": "choice", "default": "dragon",
+         "choices": [["dragon", "Drache speit Feuer"], ["fire", "Flammensäulen aus den Feuerkörben"], ["off", "Aus"]]},
+        {"key": "crowd", "label": "Publikum (headbangt mit Pommesgabel)", "type": "bool", "default": True},
+        {"key": "gags", "label": "Gags (Visier, Mönch, Steckenpferd, Katapult …)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "fire",
+         "choices": [["fire", "Feuer im Takt"], ["layer", "Farbe der Ebene"]]},
     ],
 }
 OLD_CLOCK_PAGES = {"clock_chrono": "chrono", "clock_steampunk": "steampunk",      # Version 2026.09.28-8/-9
