@@ -71,7 +71,9 @@ def fest_occasion(vis, day=None):
     day = day or fest_today()
     party = vis.get("party") if isinstance(vis.get("party"), dict) else {}
     if party.get("auto", True) and birthdays_today(party.get("birthdays"), day):
-        return "party", f"geb:{day.isoformat()}"
+        bday = vis.get("birthday") if isinstance(vis.get("birthday"), dict) else {}
+        style = "birthday" if bday.get("auto") and "birthday" in VISUAL_STYLES else "party"
+        return style, f"geb:{day.isoformat()}"
     cellar = vis.get("cellar") if isinstance(vis.get("cellar"), dict) else {}
     if cellar.get("fri13") and day.day == 13 and day.weekday() == 4:
         return "cellar", f"f13:{day.isoformat()}"

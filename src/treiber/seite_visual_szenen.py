@@ -21,6 +21,9 @@ VIS_GAG_LABELS = {
     "hund": "Nachbar mit Hund", "pizza": "Pizzabote", "augen": "Augen in den Fenstern (Gänsehaut)",
     "teeparty": "Teeparty mit Teddy", "kasten": "Springteufel", "drehen": "Puppen drehen sich (Gänsehaut)",
     "licht": "Licht aus (Gänsehaut)",
+    # Geburtstag
+    "zeitraffer": "Älter werden im Zeitraffer", "auspusten": "Auspusten (Scherzkerzen)",
+    "anschneiden": "Torte anschneiden", "geschenk": "Geschenk im Geschenk", "ballon": "Luftballon",
     # Überraschungsparty
     "hund": "Hund frisst die Torte", "kerzen": "Trickkerzen", "geschenk": "Kastenteufel im Geschenk",
     # Weihnachten (jugendfrei)
@@ -34,7 +37,8 @@ def vis_scenes(style):
     """Auswahl für die bewegte Vorschau: [[id, Beschriftung], …]; Gags als "gag:<name>"."""
     out = [["play", "Abspielen"], ["boom", "Höhepunkt"], ["talk", "Wortbeitrag"]]
     gags = {"cellar": CL_GAGS, "metal": MT_GAGS, "party": PT_GAGS, "xmas": FUN_GAGS, "easter": ES_GAGS,
-            "halloween": HW_GAGS, "horror": {**HR_GAGS["house"], **HR_GAGS["dolls"]}}.get(style, {})
+            "halloween": HW_GAGS, "horror": {**HR_GAGS["house"], **HR_GAGS["dolls"]},
+            "birthday": BD_GAGS}.get(style, {})
     out += [["gag:" + n, VIS_GAG_LABELS.get(n, n.capitalize())] for n in gags]
     if style == "xmas":                                             # Feierabend-Gags (schaltet ihn für die Vorschau an)
         out += [["feier:" + n, "Feierabend: " + VIS_GAG_LABELS.get(n, n.capitalize())]
@@ -83,7 +87,7 @@ def vis_force(r, style, scene, t):
             st["place"] = "house" if name in HR_GAGS["house"] else "dolls"
             st["since"] = t - 9
             st["gag"], st["next_gag"], st["boom"] = (name, t), t + 99, -99.0
-    elif style in ("easter", "halloween"):
+    elif style in ("easter", "halloween", "birthday"):
         if kind == "boom":
             st["boom"], st["gag"] = t, None
         elif kind == "gag":

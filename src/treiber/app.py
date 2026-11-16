@@ -215,6 +215,9 @@ class App(AppCore, KeyHandling, TimedTasks):
         if style == "horror" and not quiet and visual_options(s, "horror").get("keys", "scene") == "scene" \
                 and self.renderer.vis_horror:                       # Fensterlicht bzw. Puppenrosa
             base = self.renderer.vis_horror
+        if style == "birthday" and not quiet and visual_options(s, "birthday").get("keys", "candle") == "candle" \
+                and self.renderer.vis_candle:                       # Kerzenschein
+            base = self.renderer.vis_candle
         if style == "metal" and visual_options(s, "metal").get("keys", "fire") == "fire":   # Feuerkörbe
             k, base = round(max(0.12, self.renderer.vis_fire) * 20) / 20, (255, 100, 16)
         color = tuple(int(c * k) for c in base)

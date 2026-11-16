@@ -3,6 +3,14 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.16-9
+- **Neuer Stil „Geburtstag“ – die lebende Torte:** Auf dem Festtisch singt eine zweistöckige Torte mit Gesicht mit und hüpft im Takt, die Kerzen flackern. Daneben tanzt das Geburtstagskind mit Partyhut, die Geschenke hüpfen. Name und Kerzen kommen aus der Geburtstagsliste der Überraschungsparty (ab 13 Jahren als Zahlenkerzen).
+  - Höhepunkt: Konfettikanonen, die Kerzen werden zu Wunderkerzen („Hoch – hoch – hoch!“).
+  - Wortbeitrag: Die Torte klopft mit der Gabel ans Glas und hält eine Rede.
+  - Gags: **Älterwerden im Zeitraffer** – vom Baby bis 99 mit Brille und Gehstock („Ich fühl mich wie 18!“) und zurück; Auspusten mit Scherzkerzen („Hä?!“), die Torte will nicht angeschnitten werden („Wag es ja nicht!“) und hüpft weg, Geschenk im Geschenk im Geschenk („Socken. Wie jedes Jahr.“), ein Luftballon wird zu groß – PENG.
+  - Tastatur: flackernder Kerzenschein.
+- **Festkalender:** Mit dem Schalter „An Geburtstagen … statt der Überraschungsparty“ (Stil „Geburtstag“) erscheint an Geburtstagen die Torte statt der Party.
+
 ## 2026.11.16-8
 - **Neuer Stil „Horror“** mit zwei Schauplätzen, die bei jedem Liedwechsel wechseln (oder fest einstellbar):
   - **Das Haus am Ende der Straße:** Die Fenster leuchten je Frequenzband, dahinter tanzen Schatten, die Laterne flackert. Beim Höhepunkt erwacht das Haus – Fenster werden Augen, die Tür ein Mund, das Dach hebt sich wie ein Hut („HAUSPARTY!“). Bei Wortbeiträgen sitzt ein Rabe auf dem Briefkasten („Krah! Durchsage!“). Gags: Der Nachbar im Bademantel will mit dem Hund vorbei („Komm schon, Bello!“ – „Wuff … nö.“), der Pizzabote liefert an eine sehr lange Hand, und mit Gänsehaut: In allen Fenstern blinzeln Augen.

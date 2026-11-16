@@ -162,6 +162,7 @@ VISUAL_STYLES = {
     "xmas": "Weihnachten", "party": "Überraschungsparty", "cellar": "Kellertreppe",
     "metal": "Mittelalter-Metal", "easter": "Ostern",
     "halloween": "Halloween", "horror": "Horror",
+    "birthday": "Geburtstag",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 VISUAL_FPS_QUIET = 8        # anpassende Bildrate (visual.adaptive): bei Stille/Wortbeitrag …
@@ -316,6 +317,16 @@ VISUAL_OPTIONS = {
          "type": "bool", "default": True},
         {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "scene",
          "choices": [["scene", "Licht des Schauplatzes"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "birthday": [
+        {"key": "auto", "label": "An Geburtstagen aus der Liste statt der Überraschungsparty zeigen", "type": "bool",
+         "default": False, "help": "Die Geburtstagsliste steht beim Stil „Überraschungsparty“. Ist dieser Schalter an, "
+                                   "erscheint an Geburtstagen die lebende Torte statt der Party – mit Namen und "
+                                   "Kerzen für das Alter."},
+        {"key": "gags", "label": "Gags (Zeitraffer, Auspusten, Anschneiden, Geschenk, Ballon)", "type": "bool",
+         "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "candle",
+         "choices": [["candle", "Kerzenschein (flackert)"], ["layer", "Farbe der Ebene"]]},
     ],
 }
 
