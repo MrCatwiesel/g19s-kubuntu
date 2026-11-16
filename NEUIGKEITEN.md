@@ -3,6 +3,10 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.16-16
+- **Retro-Arcade repariert:** Beim Umschalten auf Retro-Arcade und in der Vorschau erschien manchmal „Anzeige-Fehler“ bzw. „Vorschau-Fehler“ (SystemError beim Vergrößern des Pixelbildes). Ursache war die Pillow-Version von Kubuntu; Retro-Arcade verdoppelt die Pixel jetzt selbst – gleiches Bild, etwas weniger Rechenzeit.
+- Retro-Arcade übersteht auch ungültige Messwerte der Klanganalyse, ohne dass das Raumschiff verschwindet.
+
 ## 2026.11.16-15
 - **Neuer Stil „Western-Saloon“:** Der Klavierspieler hämmert, die Schwingtüren schlagen im Bass, der Wirt schiebt Gläser über den Tresen, zwei Cowboys tanzen Line-Dance. Höhepunkt: Hüte fliegen („Yeehaw!“). Wortbeitrag: der Sheriff. Gags: Duell mit Banane, Glas rutscht zu weit, ein Pferd bestellt ein Wasser, ein Steppenläufer rollt durch.
 - **Neuer Stil „Lagerfeuer“ – der ruhige Stil für den Abend:** Flammen wachsen mit der Lautstärke, Funken auf hohe Schläge, Spiegelung im See, Glühwürmchen, eine blinzelnde Eule, auf Wunsch zwei Leute mit Marshmallows. Keine Gags.

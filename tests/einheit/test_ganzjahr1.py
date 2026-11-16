@@ -42,6 +42,26 @@ for style, gags, attr in (("underwater", g.UW_GAGS, "vis_sea"), ("farm", g.FM_GA
 
 st = r._vis_states["arcade"]
 ok(st["score"] > 0, f"Arcade: Treffer zählen ({st['score']})")
+# Pillow aus Kubuntu: resize(…, NEAREST) meldete gelegentlich „SystemError … returned NULL“ – Arcade braucht kein resize
+o = g.visual_options(r.settings, "arcade")
+real_resize = g.Image.Image.resize
+def broken_resize(*a, **k):
+    raise SystemError("<method 'resize' of 'ImagingCore' objects> returned NULL without setting an exception")
+g.Image.Image.resize = broken_resize
+try:
+    for scan in (True, False):
+        r._vis_states = {}
+        run("arcade", dict(o, scanlines=scan), 0.5)
+    ok(True, "Arcade: zeichnet ohne Image.resize (mit und ohne Röhren-Zeilen)")
+except SystemError as ex:
+    ok(False, f"Arcade: braucht noch Image.resize ({ex})")
+finally:
+    g.Image.Image.resize = real_resize
+# kaputte Messwerte (NaN) dürfen das Raumschiff nicht dauerhaft zerstören
+r._vis_states = {}
+run("arcade", o, 0.3, bands=[float("nan")] * 16)
+st = run("arcade", o, 0.3)
+ok(st["ship"] == st["ship"], f"Arcade: Raumschiff nach ungültigen Messwerten weiter gültig ({st['ship']:.1f})")
 o = dict(g.visual_options(r.settings, "underwater"), spooky=False)
 r._vis_states = {}
 st = run("underwater", o, 0.2)

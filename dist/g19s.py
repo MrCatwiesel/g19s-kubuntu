@@ -40,7 +40,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.16-15"
+VERSION = "2026.11.16-16"
 
 # Weitere Importe der Module
 import select
@@ -21559,7 +21559,8 @@ class ArcadeVisual:
             target = 10 + (AR_W - 20) * float((w * np.arange(len(w))).sum() / max(1e-6, w.sum()) / max(1, len(w) - 1))
         else:
             target = AR_W / 2 + math.sin(t * 0.7) * 30
-        st["ship"] += (target - st["ship"]) * min(1.0, dt * 4)
+        if math.isfinite(target):                                                   # kaputte Messwerte: Schiff bleibt stehen
+            st["ship"] += (target - st["ship"]) * min(1.0, dt * 4)
         sx, sy = int(st["ship"]), AR_H - 18
         d.rectangle([sx - 5, sy + 2, sx + 5, sy + 4], fill=(90, 250, 120))
         d.rectangle([sx - 1, sy - 1, sx + 1, sy + 2], fill=(90, 250, 120))
@@ -21609,13 +21610,13 @@ class ArcadeVisual:
                 d.rectangle([mx - 4, 1, mx + 4, 4], fill=(250, 120, 120))
                 if gl > 4.4:
                     d.line([(mx, 9), (mx, AR_H - 18)], fill=(255, 255, 255))
-        big = low.resize((WIDTH, VIS_H), Image.NEAREST)
-        img = Image.new("RGB", (WIDTH, HEIGHT), (0, 0, 0))
-        img.paste(big, (0, 0))
+        # Pixel verdoppeln mit numpy statt low.resize(…, NEAREST): Pillow aus Kubuntu meldete dabei
+        # gelegentlich „SystemError: … returned NULL“ – das Ergebnis ist dasselbe
+        arr = np.zeros((HEIGHT, WIDTH, 3), np.uint8)
+        arr[:VIS_H] = np.asarray(low).repeat(2, axis=0).repeat(2, axis=1)[:VIS_H, :WIDTH]
         if o.get("scanlines", True):                                                # Röhren-Zeilen
-            arr = np.asarray(img).copy()
             arr[1:VIS_H:2] = (arr[1:VIS_H:2] * 0.72).astype(np.uint8)
-            img = Image.fromarray(arr, "RGB")
+        img = Image.fromarray(arr, "RGB")
         d = ImageDraw.Draw(img)
         d.text((8, VIS_H - 18), f"SCORE {st['score']:06d}", font=self.f_tiny, fill=(255, 255, 255))
         d.text((200, VIS_H - 18), f"HI {max(st['hi'], st['score']):06d}", font=self.f_tiny, fill=(255, 220, 80))
