@@ -3,6 +3,11 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.16-1
+- **Fehlerbehebung:** Nach dem Ubuntu-Sicherheitsupdate von Pillow (python3-pil 12.1.1-2ubuntu1.5) zeigte die Uhr nur noch „Anzeige-Fehler – SystemError … resize“. Betroffen waren Klappzahlen, Nixie, 7-Segment, LED-Matrix und Zählwerk; der Farbverlauf dieser Zifferblätter wird jetzt ohne die betroffene Pillow-Funktion gezeichnet.
+- Das Uhr- und Stil-Menü bleibt bedienbar, wenn eine Vorschau nicht gezeichnet werden kann (Hinweis statt Bild) – so lässt sich ein fehlerhaftes Zifferblatt immer abwählen.
+- Anzeige-Fehler stehen mit den entscheidenden (innersten) Zeilen im Protokoll.
+
 ## 2026.11.07-12
 - **Neue Lichteffekte** für die Tänzerin, wählbar im Optionsmenü unter „Lichtprogramm“:
   - **Ballett:** Verfolgerspot auf der Tänzerin, Farben nach Stimmung (ruhig blau/violett, wild rot), leichter Nebel; bei ruhigen Stellen steht sie als Silhouette im farbigen Gegenlicht.

@@ -40,7 +40,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.07-12"
+VERSION = "2026.11.16-1"
 
 # Weitere Importe der Module
 import select
@@ -7574,9 +7574,9 @@ def _disp_grad(img, box, radius, stops, mask=None):
             if u <= b or (b, cb) == stops[-1]:
                 col.append(mix(ca, cb, 0 if b == a else min(1, max(0, (u - a) / (b - a)))))
                 break
-    g = Image.new("RGB", (1, h))
-    g.putdata(col)
-    g = g.resize((w, h), Image.NEAREST)
+    # Spalte per numpy auf w verbreitern – nicht resize(NEAREST): das scheitert mit manchen
+    # gepatchten Pillow-Versionen (Ubuntu 12.1.1-2ubuntu1.5) mit „SystemError … returned NULL“.
+    g = Image.fromarray(np.repeat(np.array(col, dtype=np.uint8).reshape(h, 1, 3), w, axis=1))
     if mask is None:
         mask = Image.new("L", (w, h), 0)
         ImageDraw.Draw(mask).rounded_rectangle([0, 0, w - 1, h - 1], radius, fill=255)
@@ -13585,6 +13585,21 @@ MENU_TIMEOUT = 30
 CLOSE_KEYS = LKEY_BITS["BACK"] | LKEY_BITS["MENU"] | LKEY_BITS["SETTINGS"] | LKEY_BITS["LEFT"] | LKEY_BITS["RIGHT"]
 
 
+
+def preview_render(app, page):
+    """Vorschau im Menü zeichnen; scheitert das Zifferblatt/der Stil, bleibt das Menü bedienbar
+    (Hinweis statt Bild, Fehler einmal im Protokoll) – so lässt sich ein kaputtes Zifferblatt abwählen."""
+    r = app.renderer
+    try:
+        return r.render(page, app.layer, {})
+    except Exception as ex:
+        import traceback
+        text = f"{type(ex).__name__}: {ex}"
+        if getattr(app, "_last_preview_error", None) != text:
+            app._last_preview_error = text
+            app.log(f"Vorschau-Fehler: {text}\n" + "".join(traceback.format_exc(limit=-8)).rstrip())
+        return r.render_message("Vorschau-Fehler", [text[:40], "Anderes wählen: ▲▼ OK", "Details: Protokoll"], REC_COLOR)
+
 class Menu:
     kind = ""
     timeout = MENU_TIMEOUT
@@ -13721,7 +13736,7 @@ class ClockMenu(Menu):
         self.cursor = min(self.cursor, len(items) - 1)
         it, r = items[self.cursor], app.renderer
         r.clock_face = it["face"]           # app.draw() setzt beim nächsten Bild wieder das eingestellte
-        img = r.render(PAGE_IDS.index("clock"), app.layer, {})
+        img = preview_render(app, PAGE_IDS.index("clock"))
         hint = ("▲▼ blättern · OK übernehmen · ► Optionen" if clock_option_list(it["face"])
                 else "▲▼ blättern · OK übernehmen · BACK zurück")
         return r.render_face_preview(img, it["label"], self.cursor + 1, len(items), bool(it["mark"]),
@@ -13767,7 +13782,7 @@ class OptionsMenu(Menu):
         else:
             r.visual_style = self.item
             name, page_id = VISUAL_STYLES[self.item], "visual"
-        img = r.render(PAGE_IDS.index(page_id), app.layer, {})
+        img = preview_render(app, PAGE_IDS.index(page_id))
         swatch = tuple(value) if opt["type"] == "color" and value else None
         return r.render_option_overlay(img, name, opt["label"], option_text(opt, value),
                                        self.cursor + 1, len(opts), swatch, PROFILE_COLOR[app.layer])
@@ -13808,7 +13823,7 @@ class VisualMenu(Menu):
         self.cursor = min(self.cursor, len(items) - 1)
         it, r = items[self.cursor], app.renderer
         r.visual_style = it["style"]        # app.draw() setzt beim nächsten Bild wieder den eingestellten
-        img = r.render(PAGE_IDS.index("visual"), app.layer, {})
+        img = preview_render(app, PAGE_IDS.index("visual"))
         return r.render_face_preview(img, it["label"], self.cursor + 1, len(items), bool(it["mark"]),
                                      PROFILE_COLOR[app.layer], "▲▼ blättern · OK übernehmen · ► Optionen",
                                      title="Stil")
@@ -15491,7 +15506,7 @@ class App(AppCore, KeyHandling, TimedTasks):
         text = f"{type(ex).__name__}: {ex}"
         if (where, text) != self._last_draw_error:
             self._last_draw_error = (where, text)
-            self.log(f"Anzeige-Fehler auf „{where}“: {text}\n" + "".join(traceback.format_exc(limit=4)).rstrip())
+            self.log(f"Anzeige-Fehler auf „{where}“: {text}\n" + "".join(traceback.format_exc(limit=-8)).rstrip())   # innerste 8 Ebenen: dort steht die Ursache
         if self.menu is not None:
             self.menu = None                # kaputtes Menü schließen, damit die Tasten wieder gehen
         self.flash = None

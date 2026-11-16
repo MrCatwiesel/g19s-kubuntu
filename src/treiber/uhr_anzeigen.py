@@ -28,9 +28,9 @@ def _disp_grad(img, box, radius, stops, mask=None):
             if u <= b or (b, cb) == stops[-1]:
                 col.append(mix(ca, cb, 0 if b == a else min(1, max(0, (u - a) / (b - a)))))
                 break
-    g = Image.new("RGB", (1, h))
-    g.putdata(col)
-    g = g.resize((w, h), Image.NEAREST)
+    # Spalte per numpy auf w verbreitern – nicht resize(NEAREST): das scheitert mit manchen
+    # gepatchten Pillow-Versionen (Ubuntu 12.1.1-2ubuntu1.5) mit „SystemError … returned NULL“.
+    g = Image.fromarray(np.repeat(np.array(col, dtype=np.uint8).reshape(h, 1, 3), w, axis=1))
     if mask is None:
         mask = Image.new("L", (w, h), 0)
         ImageDraw.Draw(mask).rounded_rectangle([0, 0, w - 1, h - 1], radius, fill=255)

@@ -784,6 +784,8 @@ Danach mit Schritt 3 „udev-Regel“ weitermachen. Treiber und Dienst sind dann
 |-
 | Display „Kein Lesezugriff auf Tastatur“ bei MR || Benutzer nicht in Gruppe <code>input</code> || Schritt 4, dann Neustart; prüfen mit <code>groups</code>
 |-
+| Uhr zeigt „Anzeige-Fehler – SystemError: <method 'resize' …>“ (Klappzahlen, Nixie, 7-Segment, Matrix, Zählwerk) || Version vor 2026.11.16-1 mit Ubuntu-Pillow 12.1.1-2ubuntu1.5 || Update über „Nach Updates suchen“; bis dahin in der Verwaltung ein anderes Zifferblatt wählen
+|-
 | G-Taste löst mehrere Tasten aus || alte Version mit Report-Fehler || aktuelle <code>g19s.py</code> von dieser Seite einspielen
 |-
 | G-Taste löst nur beim ersten Druck aus, nach M1/M2/M3 wieder einmal (oft bei Tasten ohne Belegung) || Version vor 2026.10.01-7 (Loslassen bzw. erneuter Druck steckte hinter einem anderen Report und wurde übersehen) || Update über „Nach Updates suchen“

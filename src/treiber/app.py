@@ -204,7 +204,7 @@ class App(AppCore, KeyHandling, TimedTasks):
         text = f"{type(ex).__name__}: {ex}"
         if (where, text) != self._last_draw_error:
             self._last_draw_error = (where, text)
-            self.log(f"Anzeige-Fehler auf „{where}“: {text}\n" + "".join(traceback.format_exc(limit=4)).rstrip())
+            self.log(f"Anzeige-Fehler auf „{where}“: {text}\n" + "".join(traceback.format_exc(limit=-8)).rstrip())   # innerste 8 Ebenen: dort steht die Ursache
         if self.menu is not None:
             self.menu = None                # kaputtes Menü schließen, damit die Tasten wieder gehen
         self.flash = None

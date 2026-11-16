@@ -10,6 +10,21 @@ MENU_TIMEOUT = 30
 CLOSE_KEYS = LKEY_BITS["BACK"] | LKEY_BITS["MENU"] | LKEY_BITS["SETTINGS"] | LKEY_BITS["LEFT"] | LKEY_BITS["RIGHT"]
 
 
+
+def preview_render(app, page):
+    """Vorschau im Menü zeichnen; scheitert das Zifferblatt/der Stil, bleibt das Menü bedienbar
+    (Hinweis statt Bild, Fehler einmal im Protokoll) – so lässt sich ein kaputtes Zifferblatt abwählen."""
+    r = app.renderer
+    try:
+        return r.render(page, app.layer, {})
+    except Exception as ex:
+        import traceback
+        text = f"{type(ex).__name__}: {ex}"
+        if getattr(app, "_last_preview_error", None) != text:
+            app._last_preview_error = text
+            app.log(f"Vorschau-Fehler: {text}\n" + "".join(traceback.format_exc(limit=-8)).rstrip())
+        return r.render_message("Vorschau-Fehler", [text[:40], "Anderes wählen: ▲▼ OK", "Details: Protokoll"], REC_COLOR)
+
 class Menu:
     kind = ""
     timeout = MENU_TIMEOUT
@@ -146,7 +161,7 @@ class ClockMenu(Menu):
         self.cursor = min(self.cursor, len(items) - 1)
         it, r = items[self.cursor], app.renderer
         r.clock_face = it["face"]           # app.draw() setzt beim nächsten Bild wieder das eingestellte
-        img = r.render(PAGE_IDS.index("clock"), app.layer, {})
+        img = preview_render(app, PAGE_IDS.index("clock"))
         hint = ("▲▼ blättern · OK übernehmen · ► Optionen" if clock_option_list(it["face"])
                 else "▲▼ blättern · OK übernehmen · BACK zurück")
         return r.render_face_preview(img, it["label"], self.cursor + 1, len(items), bool(it["mark"]),
@@ -192,7 +207,7 @@ class OptionsMenu(Menu):
         else:
             r.visual_style = self.item
             name, page_id = VISUAL_STYLES[self.item], "visual"
-        img = r.render(PAGE_IDS.index(page_id), app.layer, {})
+        img = preview_render(app, PAGE_IDS.index(page_id))
         swatch = tuple(value) if opt["type"] == "color" and value else None
         return r.render_option_overlay(img, name, opt["label"], option_text(opt, value),
                                        self.cursor + 1, len(opts), swatch, PROFILE_COLOR[app.layer])
@@ -233,7 +248,7 @@ class VisualMenu(Menu):
         self.cursor = min(self.cursor, len(items) - 1)
         it, r = items[self.cursor], app.renderer
         r.visual_style = it["style"]        # app.draw() setzt beim nächsten Bild wieder den eingestellten
-        img = r.render(PAGE_IDS.index("visual"), app.layer, {})
+        img = preview_render(app, PAGE_IDS.index("visual"))
         return r.render_face_preview(img, it["label"], self.cursor + 1, len(items), bool(it["mark"]),
                                      PROFILE_COLOR[app.layer], "▲▼ blättern · OK übernehmen · ► Optionen",
                                      title="Stil")

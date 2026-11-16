@@ -101,4 +101,22 @@ for variant in ({}, {"weather": {"name": "Tromsø", "lat": 69.65, "lon": 18.96}}
                 bad.append(f"{face} {ts}: {type(ex).__name__}: {ex}")
 eq(bad, [], "alle Zifferblätter zu allen Testzeiten gezeichnet")
 eq(slow, [], "kein Bild langsamer als 250 ms")
+# Ubuntu-Pillow 12.1.1-2ubuntu1.5: resize(NEAREST) scheitert mit SystemError → Zifferblätter dürfen es nicht nutzen
+_orig_resize = g.Image.Image.resize
+def _strict_resize(self, size, resample=None, *a, **k):
+    if resample == g.Image.NEAREST:
+        raise SystemError("<method 'resize' of 'ImagingCore' objects> returned NULL without setting an exception")
+    return _orig_resize(self, size, resample, *a, **k)
+g.Image.Image.resize = _strict_resize
+r2 = g.Renderer()
+r2.fixed_time = dt.datetime(2026, 11, 16, 9, 45, 10).timestamp()
+bad = []
+for face in g.CLOCK_FACES:
+    r2.clock_face = face
+    try:
+        r2.render(0, "M1", {})
+    except Exception as ex:
+        bad.append(f"{face}: {type(ex).__name__}")
+g.Image.Image.resize = _orig_resize
+eq(bad, [], "kein Zifferblatt braucht resize(NEAREST)")
 done()
