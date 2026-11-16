@@ -51,7 +51,8 @@ $("#warnTest").addEventListener("click", async () => {
     $("#warnInfo").textContent = `✓ ${r.place}: ` + (r.alerts.length ? r.alerts.join(", ") : "keine Warnungen"); }
   catch (e) { $("#warnInfo").textContent = "✗ " + e.message; }
 });
-$("#updFlatpak").addEventListener("change", e => { UI.sdraft.updates = {flatpak: e.target.checked}; touchSettings(); });
+$("#updFlatpak").addEventListener("change", e => { UI.sdraft.updates = {...UI.sdraft.updates, flatpak: e.target.checked}; touchSettings(); });
+$("#updG19s").addEventListener("change", e => { UI.sdraft.updates = {...UI.sdraft.updates, g19s: e.target.checked}; touchSettings(); });
 $("#updTest").addEventListener("click", async () => {
   $("#updInfo").textContent = "prüfe … (kann etwas dauern)";
   try { const r = await api("/api/updates/test", {body: {settings: UI.sdraft}});
@@ -64,6 +65,7 @@ function renderInfo() {
   renderNews(); renderNet();
   $("#warnPopup").checked = sd.warnings.popup;
   $("#updFlatpak").checked = sd.updates.flatpak;
+  $("#updG19s").checked = sd.updates.g19s !== false;
   const w = sd.weather;
   $("#wxName").textContent = w.lat !== null && w.lat !== undefined ? (w.name || `${w.lat}, ${w.lon}`) : "noch nicht eingestellt";
   renderCalSources();

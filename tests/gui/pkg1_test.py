@@ -73,7 +73,7 @@ with sync_playwright() as p:
     ok("active" in pg.get_attribute("#editor .seg >> text=Pomodoro", "class"), "Pomodoro beim erneuten Öffnen gewählt")
     pg.screenshot(path=ROOT + "/shots/20_timer.png", full_page=True)
     # Signalton
-    pg.click("nav >> text=Beleuchtung"); pg.wait_for_timeout(300)
+    pg.click("nav >> text=Beleuchtung"); pg.evaluate("document.querySelectorAll('#tab-settings .card[data-sub]').forEach(c => c.hidden = false)"); pg.wait_for_timeout(300)
     ok(pg.is_checked("#timerSound"), "Signalton standardmäßig an")
     pg.uncheck("#timerSound"); pg.click("#saveSettings"); pg.wait_for_timeout(400)
     ok(cfg()["timer_sound"] is False, "Signalton aus gespeichert")

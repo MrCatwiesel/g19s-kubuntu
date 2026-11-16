@@ -47,6 +47,7 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
                               family=True) und Feierabend-Gags FEIER_EXTRA; Requisiten _xmas_fun_ground/_over/_after
       seite_visual_burg       Stil „Mittelalter-Metal“ (metal, Mixin MetalVisual): Band MT_BAND, Feuerkörbe, Publikum,
                               Pyro/Drache beim Höhepunkt, Gags MT_GAGS, Herold, Hofnarr, Blitz bei Gewitter
+      seite_visual_szenen     Szenen der bewegten Vorschau (vis_scenes, vis_force; Server: vorschau.render_scene)
       seite_visual_party      Stil „Überraschungsparty“ (party, Mixin PartyVisual): Phasen hide/surprise/party
                               (_pt_new_round), Gags PT_GAGS, Gäste _pt_guest, Hund, Torte, Kastenteufel, Konfetti
       seite_visual_keller     Stil „Kellertreppe“ (cellar, Mixin CellarVisual): Pendel der Glühbirne, Licht als

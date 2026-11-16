@@ -59,7 +59,7 @@ with sync_playwright() as p:
         answers.append(f"P{i + 3}"); pg.click("#profNew"); pg.wait_for_timeout(350)
     ok(len(json.load(open(MAC))["profiles"]) == 10 and pg.is_disabled("#profNew"), "Höchstens 10 Profile („+ Neu“ gesperrt)")
     # Vorschau nutzt Profilfarben/-namen
-    pg.select_option("#profSel", "1"); pg.click("nav >> text=Beleuchtung"); pg.wait_for_timeout(900)
+    pg.select_option("#profSel", "1"); pg.click("nav >> text=Beleuchtung"); pg.evaluate("document.querySelectorAll('#tab-settings .card[data-sub]').forEach(c => c.hidden = false)"); pg.wait_for_timeout(900)
     ok((pg.get_attribute("#lcd", "src") or "").startswith("data:image/png"), "Displayvorschau mit Profil")
     pg.screenshot(path=ROOT + "/shots/12_vorschau.png")
     b.close()

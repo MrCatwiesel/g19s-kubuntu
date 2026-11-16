@@ -11,7 +11,8 @@ class Slideshow(threading.Thread):
     AREA = (WIDTH, HEIGHT - FOOTER_H)  # Fläche über der Fußzeile
     LIST_REFRESH = 1800               # Bildliste alle 30 Minuten neu laden
     RETRY = 60                        # nach einem Fehler erneut versuchen
-    CACHE_MAX = 400                   # höchstens so viele Bilder zwischenspeichern
+    CACHE_MAX = 400                   # höchstens so viele Bilder zwischenspeichern …
+    CACHE_MAX_MB = 80                 # … und höchstens so viele MB
 
     def __init__(self, get_settings, log=print):
         super().__init__(daemon=True)
@@ -263,9 +264,11 @@ class Slideshow(threading.Thread):
     def _prune_cache(self):
         try:
             files = [os.path.join(self.cache_dir, f) for f in os.listdir(self.cache_dir)]
-            if len(files) > self.CACHE_MAX:
-                files.sort(key=os.path.getmtime)
-                for f in files[:len(files) - self.CACHE_MAX]:
-                    os.remove(f)
+            files.sort(key=os.path.getmtime)                    # älteste zuerst löschen
+            total = sum(os.path.getsize(f) for f in files)
+            while files and (len(files) > self.CACHE_MAX or total > self.CACHE_MAX_MB * 1024 * 1024):
+                f = files.pop(0)
+                total -= os.path.getsize(f)
+                os.remove(f)
         except OSError:
             pass

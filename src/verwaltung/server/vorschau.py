@@ -99,12 +99,78 @@ _preview_extra = {"news": PreviewData(g.NewsPoller), "warnings": PreviewData(g.W
 _PREVIEW_ATTR = {"news": "news", "warnings": "alerts", "network": "net", "updates": "updates"}
 
 
+def _lenient(settings):
+    """Entwurf der Einstellungen für Vorschauen: streng geprüft, bei Eingabefehlern (z. B. 31.4.) nachsichtig – die
+    Vorschau soll weiterlaufen, die Meldung kommt beim Speichern."""
+    if not settings:
+        return g.load_settings()
+    try:
+        return clean_settings(settings)
+    except ValueError:
+        return g._clean(settings, strict=False)
+
+
+class _SceneAudio:
+    """Klang für die bewegte Vorschau: Demo-Musik, die als „läuft gerade“ gilt; bei „boom“ kurz lauter."""
+    def __init__(self, scene):
+        self.t, self.scene, self.t0 = 1000.0, scene, None
+
+    def snapshot(self):
+        amp = 1.6 if self.scene == "boom" and self.t0 is not None and self.t - self.t0 < 2.0 else 1.0
+        s = g.demo_snapshot(self.t, amp=amp)
+        s.update(active=True, demo=False, t=self.t)
+        if self.scene == "talk" and self.t0 is not None:
+            s.update(talk=True, talk_t=self.t0)
+        return s
+
+    def want(self):
+        pass
+
+
+_scene = {"key": None, "r": None, "audio": None, "steps": 0}
+SCENE_FPS = 10                           # Bilder je Sekunde der bewegten Vorschau (je Abruf ein Bild)
+
+
+def render_scene(style, settings, scene, step):
+    """Bewegte Vorschau: Bild Nummer step der Szene (Abspielen, Höhepunkt, Wortbeitrag, Gag). step 0 beginnt neu:
+    1,5 s Vorlauf (Figuren kommen ins Bild), dann wird die Szene erzwungen (vis_force)."""
+    with _preview_lock:
+        s = _lenient(settings)
+        style = style if style in g.VISUAL_STYLES else s["visual"]["style"]
+        scene = scene if any(scene == sid for sid, _ in g.vis_scenes(style)) else "play"
+        if scene.startswith("feier:"):
+            s["visual"]["xmas"]["party"] = "on"
+        key = (style, scene)
+        if int(step) == 0 or _scene["key"] != key or _scene["r"] is None:
+            r = g.Renderer()
+            r.settings = s
+            r.visual_style = style
+            r.visible = [g.PAGE_IDS.index("visual")]
+            r.profile_name = ""
+            audio = _SceneAudio(scene)
+            r.visual = audio
+            r._party_wx = (time.monotonic() + 1e9, (None, None, None))
+            for _ in range(int(1.5 * 15)):
+                audio.t += 1 / 15
+                r.render(g.PAGE_IDS.index("visual"), "M1", {})
+            audio.t0 = audio.t
+            g.vis_force(r, style, scene, audio.t)
+            _scene.update(key=key, r=r, audio=audio, steps=0)
+        r, audio = _scene["r"], _scene["audio"]
+        r.settings = s
+        audio.t += 1 / SCENE_FPS
+        img = r.render(g.PAGE_IDS.index("visual"), "M1", {})
+        buf = io.BytesIO()
+        img.save(buf, "PNG")
+        return buf.getvalue()
+
+
 def render_preview(page, layer, settings, pidx=0, colors=None, name=None, face=None, style=None):
     global _renderer
     with _preview_lock:
         if _renderer is None:
             _renderer = g.Renderer()
-        s = clean_settings(settings) if settings else g.load_settings()
+        s = _lenient(settings)
         lay = layer if layer in g.LAYERS else "M1"
         macros_pv, _ = read_macros()
         profs = macros_pv["profiles"]

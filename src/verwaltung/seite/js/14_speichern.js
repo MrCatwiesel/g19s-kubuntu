@@ -12,10 +12,10 @@ $("#saveSettings").addEventListener("click", async () => {
   try {
     const r = await api("/api/settings", {body: {settings: UI.sdraft}});
     S.settings = r.settings; S.mtimes.settings = r.mtime; UI.sdraft = clone(r.settings); UI.sDirty = false;
-    markTabs(); renderAll();
+    markTabs(); renderAll(); clearCardDirty();
     toast("Gespeichert – der Treiber übernimmt die Einstellungen sofort." + (empty ? ` (${empty} Sender ohne Adresse entfernt)` : ""));
   } catch (e) { toast(e.message, true); }
 });
 $("#discardSettings").addEventListener("click", () => {
-  UI.sdraft = clone(S.settings); UI.sDirty = false; markTabs(); renderAll(); refreshPreview();
+  UI.sdraft = clone(S.settings); UI.sDirty = false; markTabs(); renderAll(); refreshPreview(); clearCardDirty();
 });

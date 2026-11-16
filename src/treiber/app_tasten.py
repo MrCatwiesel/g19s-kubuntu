@@ -240,12 +240,15 @@ class KeyHandling:
                 self._settings_key(long=True)
 
     def _settings_key(self, long):
-        """SETTINGS lang: Profilauswahl. Kurz: auf der Uhrseite die Zifferblätter, sonst die Profilauswahl."""
+        """SETTINGS lang: Profilauswahl. Kurz: auf der Uhrseite die Zifferblätter, auf der Visualisierung die Stile,
+        sonst das Schnellmenü (Helligkeit, Nachtmodus, Diashow, Bildschirmschoner, Profil)."""
         page = PAGE_IDS[self.page % len(PAGE_IDS)]
         if not long and page == "clock":
             self.menu = ClockMenu(self)
         elif not long and page == "visual":
             self.menu = VisualMenu(self)
+        elif not long:
+            self.menu = QuickMenu()
         else:
             self.menu = ProfileMenu(self.prof_idx)
         if self.args.debug:

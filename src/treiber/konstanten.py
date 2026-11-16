@@ -163,6 +163,10 @@ VISUAL_STYLES = {
     "metal": "Mittelalter-Metal",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
+VISUAL_FPS_QUIET = 8        # anpassende Bildrate (visual.adaptive): bei Stille/Wortbeitrag …
+VISUAL_FPS_MIN = 8          # … und als Untergrenze der Lastbremse
+VISUAL_LOAD_SHARE = 0.5     # Lastbremse: Zeichnen darf höchstens diesen Anteil der Bildzeit brauchen
+DIAG_LOG_EVERY = 600        # Diagnosewerte der Visualisierung so oft (s) ins Protokoll
 # Stichwörter im Titel des Senders, die einen Wortbeitrag anzeigen (Tänzerin langweilt sich); änderbar
 TALK_WORDS = "Nachrichten, News, Werbung, Werbepause, Verkehr, Wetter"
 # Stroboskop (Lichtshow und Tänzerin): höchstens 3 Blitze je Sekunde – mehr gilt als riskant für Lichtempfindliche
@@ -288,6 +292,54 @@ VISUAL_OPTIONS = {
          "choices": [["fire", "Feuer im Takt"], ["layer", "Farbe der Ebene"]]},
     ],
 }
+
+
+# Wann eine Option wirkt (B8: sonst ausgeblendet – in der Verwaltung und im Display-Menü), Gruppen (B9) und
+# Hilfetexte. when: {"key": Option, "in": [Werte]} oder {"key": Option, "not": [Werte]}.
+_OPTION_WHEN = {
+    ("dancer", "beams"): {"key": "show", "in": ["beams", "club", "custom"]},
+    ("xmas", "every"): {"key": "dance", "in": ["auto"]},
+    ("xmas", "party_len"): {"key": "party", "not": ["off"]},
+    ("xmas", "party_meter"): {"key": "party", "not": ["off"]},
+}
+for _k in ("follow", "heads", "laser", "haze", "chase", "silhouette", "uv", "mood", "ball", "blinder", "beams"):
+    _OPTION_WHEN[("dancer", "fx_" + _k)] = {"key": "show", "in": ["custom"]}
+for _st in ("dancer", "lights"):
+    for _k in ("strobe_rate", "strobe_color", "strobe_keys"):
+        _OPTION_WHEN[(_st, _k)] = {"key": "strobe", "not": ["off"]}
+_OPTION_GROUP = {"keys": "Tastatur", "strobe": "Stroboskop", "strobe_rate": "Stroboskop", "strobe_color": "Stroboskop",
+                 "strobe_keys": "Stroboskop", "stage": "Licht", "show": "Licht", "beams": "Licht", "flash": "Licht",
+                 "fx": "Licht", "lights": "Licht", "pyro": "Licht", "dance": "Ablauf", "every": "Ablauf",
+                 "gags": "Ablauf", "party": "Feierabend", "party_len": "Feierabend", "party_meter": "Feierabend",
+                 "round": "Ablauf", "auto": "Festkalender", "birthdays": "Festkalender", "fri13": "Festkalender",
+                 "level": "Ablauf", "dog": "Ablauf", "confetti": "Aussehen", "crowd": "Aussehen"}
+_OPTION_HELP = {
+    "strobe": "Harte Blitze, höchstens 3 je Sekunde. Vorsicht bei Lichtempfindlichkeit (Epilepsie).",
+    "show": "Lichtprogramm der Bühne. „Eigene Auswahl“ blendet die einzelnen Effekte zum An- und Abschalten ein.",
+    "party": "Derber Humor rund um Glühwein – ab Werk aus. „Nur abends“: 20 bis 4 Uhr.",
+    "gags": "Kleine Szenen zwischendurch, etwa alle 15–25 Sekunden Musik.",
+    "level": "Stufe 3 bringt rote Augen, Herzschlag am Bildrand und einen kurzen Schreckmoment im Dunkeln.",
+    "pyro": "Beim Höhepunkt der Musik (wenn es deutlich lauter wird).",
+    "every": "Wie lange ein Tanz läuft, bevor die Figuren wechseln.",
+    "fri13": "An jedem Freitag, dem 13., zeigt die Visualisierung automatisch die Kellertreppe.",
+    "auto": "Hat jemand aus der Liste heute Geburtstag, erscheint die Party automatisch.",
+}
+for _st, _opts in VISUAL_OPTIONS.items():
+    for _o in _opts:
+        if (_st, _o["key"]) in _OPTION_WHEN:
+            _o["when"] = _OPTION_WHEN[(_st, _o["key"])]
+        _o.setdefault("group", "Licht" if _o["key"].startswith("fx_") else _OPTION_GROUP.get(_o["key"], "Aussehen"))
+        if _o["key"] in _OPTION_HELP:
+            _o.setdefault("help", _OPTION_HELP[_o["key"]])
+
+
+def option_visible(o, values):
+    """Wirkt die Option bei diesen Werten (sonst ausblenden)?"""
+    w = o.get("when")
+    if not w:
+        return True
+    v = (values or {}).get(w["key"])
+    return v in w["in"] if "in" in w else v not in w.get("not", [])
 OLD_CLOCK_PAGES = {"clock_chrono": "chrono", "clock_steampunk": "steampunk",      # Version 2026.09.28-8/-9
                    "clock_station": "station", "clock_binary": "binary"}
 DEFAULT_PAGE_ORDER = ["clock", "music", "weather", "calendar", "hardware", "macros", "slides"]

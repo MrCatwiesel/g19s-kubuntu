@@ -1,5 +1,5 @@
 """Displaytaste SETTINGS: kurz auf der Uhrseite = Zifferblätter, lang (ab LONG_PRESS, schon während des
-Haltens) = Profilauswahl, kurz auf anderen Seiten = Profilauswahl; SETTINGS schließt ein offenes Menü."""
+Haltens) = Profilauswahl, kurz auf anderen Seiten = Schnellmenü (seit 2026.11.16-5); SETTINGS schließt ein offenes Menü."""
 import json
 import time
 from harness import Sim
@@ -20,10 +20,11 @@ def spy(name, kind):
 
 spy("render_profile_menu", "profile")
 spy("render_face_preview", "clocks")
+spy("render_list_menu", "quick")
 s.key(1.0, "SETTINGS"); s.key(1.6, "DOWN"); s.key(2.0, "OK")                 # kurz auf der Uhr: Zifferblatt wählen
 s.key(3.0, "SETTINGS", hold=1.6)                                             # lang: Profilauswahl, noch gehalten
 s.key(4.9, "DOWN"); s.key(5.3, "OK")                                         # → Profil „Spiele“
-s.key(6.0, "RIGHT"); s.key(6.6, "SETTINGS"); s.key(7.2, "BACK")              # Hardware-Seite: kurz = Profilauswahl
+s.key(6.0, "RIGHT"); s.key(6.6, "SETTINGS"); s.key(7.2, "BACK")              # Hardware-Seite: kurz = Schnellmenü
 s.key(7.8, "LEFT"); s.key(8.4, "SETTINGS"); s.key(9.0, "SETTINGS")           # Uhr: Zifferblätter, SETTINGS schließt
 s.run(10.5)
 s.save({"zifferblaetter": 1.4, "lang_gehalten": 4.3, "hardware_profil": 7.0})

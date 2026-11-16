@@ -16,7 +16,7 @@ with sync_playwright() as p:
     ok(json.load(open(MAC))["profiles"][0]["keys"]["M1"]["G10"] == {"volume": "mute"}, "G10 = Lautstärke stumm")
     ok("Stumm" in pg.inner_text(".gkey >> nth=9"), "Kachel zeigt „Stumm“")
     # Seiten, Nachtmodus, Bildschirmschoner
-    pg.click("nav >> text=Beleuchtung"); pg.wait_for_timeout(400)
+    pg.click("nav >> text=Beleuchtung"); pg.evaluate("document.querySelectorAll('#tab-settings .card[data-sub]').forEach(c => c.hidden = false)"); pg.wait_for_timeout(400)
     ok(pg.locator(".pagerow").count() == 12, "12 Displayseiten aufgelistet")
     rows = pg.locator(".pagerow")
     names = [rows.nth(i).locator(".pn").inner_text() for i in range(7)]
@@ -103,7 +103,7 @@ with sync_playwright() as p:
     ok([x["name"] for x in s["calendar"]["sources"]] == ["Privat"] and s["calendar"]["sources"][0]["password"] == "geheim", "Kalender gespeichert")
     ok(s["notifications"] == {"enabled": True, "seconds": 8, "ignore": "Discover"}, "Benachrichtigungen gespeichert")
     # Vorschau der neuen Seiten (vom Server gerendert)
-    pg.click("nav >> text=Beleuchtung"); pg.select_option("#pvPages", "4"); pg.wait_for_timeout(1500)
+    pg.click("nav >> text=Beleuchtung"); pg.evaluate("document.querySelectorAll('#tab-settings .card[data-sub]').forEach(c => c.hidden = false)"); pg.select_option("#pvPages", "4"); pg.wait_for_timeout(1500)
     ok((pg.get_attribute("#lcd", "src") or "").startswith("data:image/png"), "Vorschau Wetterseite")
     b.close()
 print("Seitenfehler:", errors or "keine")

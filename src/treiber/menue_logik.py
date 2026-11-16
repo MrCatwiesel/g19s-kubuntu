@@ -76,11 +76,12 @@ class ProfileMenu(Menu):
                                                 self.cursor, app.prof_idx, app.profile_colors)
 
 
-def option_list(section, item):
-    """Am Display änderbare Optionen eines Zifferblatts ("clock") bzw. Stils ("visual");
-    die Städteliste der Weltuhr nur in der Verwaltung."""
+def option_list(section, item, values=None):
+    """Am Display änderbare Optionen eines Zifferblatts ("clock") bzw. Stils ("visual"); die Städteliste der Weltuhr
+    nur in der Verwaltung. Mit values nur die Optionen, die bei diesen Werten wirken (option_visible)."""
     src = CLOCK_OPTIONS if section == "clock" else VISUAL_OPTIONS
-    return [o for o in src.get(item, []) if o["type"] in ("bool", "choice", "color")]
+    return [o for o in src.get(item, []) if o["type"] in ("bool", "choice", "color")
+            and (values is None or option_visible(o, values))]
 
 
 def clock_option_list(face):
@@ -179,7 +180,7 @@ class OptionsMenu(Menu):
         self.kind = "clock_options" if section == "clock" else "visual_options"
 
     def on_key(self, app, pressed):
-        opts = option_list(self.section, self.item)
+        opts = option_list(self.section, self.item, item_options(app.settings(), self.section, self.item))
         self.cursor = self.step(self.cursor, pressed, len(opts))
         step = -1 if pressed & LKEY_BITS["LEFT"] else 1 if pressed & (LKEY_BITS["RIGHT"] | LKEY_BITS["OK"]) else 0
         if step:
@@ -196,7 +197,7 @@ class OptionsMenu(Menu):
         app.next_draw = 0
 
     def draw(self, app, now):
-        opts = option_list(self.section, self.item)
+        opts = option_list(self.section, self.item, item_options(app.settings(), self.section, self.item))
         self.cursor = min(self.cursor, len(opts) - 1)
         opt = opts[self.cursor]
         value = item_options(app.settings(), self.section, self.item)[opt["key"]]

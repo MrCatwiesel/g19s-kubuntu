@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.16-4"
+VERSION = "2026.11.16-5"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -69,7 +69,7 @@ def load_driver():
 
 
 # Alle Namen des Treibers, die die Verwaltung benutzt (g.<name>) – build.py trägt sie beim Bauen ein
-DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD ENTRY_TYPES FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VISUAL_OPTIONS VISUAL_STYLES VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller auto_backup backup_members clean_macros clean_settings err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed save_json save_state test_backup_target valid_colors".split()
+DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD ENTRY_TYPES FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VISUAL_OPTIONS VISUAL_STYLES VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller _clean auto_backup backup_members clean_macros clean_settings demo_snapshot err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed save_json save_state test_backup_target valid_colors vis_force vis_scenes".split()
 
 
 g = load_driver()
@@ -687,12 +687,78 @@ _preview_extra = {"news": PreviewData(g.NewsPoller), "warnings": PreviewData(g.W
 _PREVIEW_ATTR = {"news": "news", "warnings": "alerts", "network": "net", "updates": "updates"}
 
 
+def _lenient(settings):
+    """Entwurf der Einstellungen für Vorschauen: streng geprüft, bei Eingabefehlern (z. B. 31.4.) nachsichtig – die
+    Vorschau soll weiterlaufen, die Meldung kommt beim Speichern."""
+    if not settings:
+        return g.load_settings()
+    try:
+        return clean_settings(settings)
+    except ValueError:
+        return g._clean(settings, strict=False)
+
+
+class _SceneAudio:
+    """Klang für die bewegte Vorschau: Demo-Musik, die als „läuft gerade“ gilt; bei „boom“ kurz lauter."""
+    def __init__(self, scene):
+        self.t, self.scene, self.t0 = 1000.0, scene, None
+
+    def snapshot(self):
+        amp = 1.6 if self.scene == "boom" and self.t0 is not None and self.t - self.t0 < 2.0 else 1.0
+        s = g.demo_snapshot(self.t, amp=amp)
+        s.update(active=True, demo=False, t=self.t)
+        if self.scene == "talk" and self.t0 is not None:
+            s.update(talk=True, talk_t=self.t0)
+        return s
+
+    def want(self):
+        pass
+
+
+_scene = {"key": None, "r": None, "audio": None, "steps": 0}
+SCENE_FPS = 10                           # Bilder je Sekunde der bewegten Vorschau (je Abruf ein Bild)
+
+
+def render_scene(style, settings, scene, step):
+    """Bewegte Vorschau: Bild Nummer step der Szene (Abspielen, Höhepunkt, Wortbeitrag, Gag). step 0 beginnt neu:
+    1,5 s Vorlauf (Figuren kommen ins Bild), dann wird die Szene erzwungen (vis_force)."""
+    with _preview_lock:
+        s = _lenient(settings)
+        style = style if style in g.VISUAL_STYLES else s["visual"]["style"]
+        scene = scene if any(scene == sid for sid, _ in g.vis_scenes(style)) else "play"
+        if scene.startswith("feier:"):
+            s["visual"]["xmas"]["party"] = "on"
+        key = (style, scene)
+        if int(step) == 0 or _scene["key"] != key or _scene["r"] is None:
+            r = g.Renderer()
+            r.settings = s
+            r.visual_style = style
+            r.visible = [g.PAGE_IDS.index("visual")]
+            r.profile_name = ""
+            audio = _SceneAudio(scene)
+            r.visual = audio
+            r._party_wx = (time.monotonic() + 1e9, (None, None, None))
+            for _ in range(int(1.5 * 15)):
+                audio.t += 1 / 15
+                r.render(g.PAGE_IDS.index("visual"), "M1", {})
+            audio.t0 = audio.t
+            g.vis_force(r, style, scene, audio.t)
+            _scene.update(key=key, r=r, audio=audio, steps=0)
+        r, audio = _scene["r"], _scene["audio"]
+        r.settings = s
+        audio.t += 1 / SCENE_FPS
+        img = r.render(g.PAGE_IDS.index("visual"), "M1", {})
+        buf = io.BytesIO()
+        img.save(buf, "PNG")
+        return buf.getvalue()
+
+
 def render_preview(page, layer, settings, pidx=0, colors=None, name=None, face=None, style=None):
     global _renderer
     with _preview_lock:
         if _renderer is None:
             _renderer = g.Renderer()
-        s = clean_settings(settings) if settings else g.load_settings()
+        s = _lenient(settings)
         lay = layer if layer in g.LAYERS else "M1"
         macros_pv, _ = read_macros()
         profs = macros_pv["profiles"]
@@ -747,6 +813,7 @@ class ApiKeys:
             "entry_types": g.ENTRY_TYPES,
             "clock_faces": list(g.CLOCK_FACES.items()), "clock_options": g.CLOCK_OPTIONS,
             "visual_styles": list(g.VISUAL_STYLES.items()), "visual_options": g.VISUAL_OPTIONS,
+            "visual_scenes": {st: g.vis_scenes(st) for st in g.VISUAL_STYLES},
             "world_cities": g.WORLD_CITIES,
             "mtimes": {"macros": mtime(g.MACRO_FILE), "settings": mtime(g.SETTINGS_FILE)},
             "paths": {"macros": g.MACRO_FILE, "settings": g.SETTINGS_FILE,
@@ -784,6 +851,12 @@ class ApiKeys:
         self._send(200, {"ok": True, "settings": data, "mtime": mtime(g.SETTINGS_FILE)})
 
     # -- API: Vorschau ----------------------------------------------------- #
+    def api_post_vis_scene(self, q):
+        body = self._json()
+        png = render_scene(body.get("style"), body.get("settings"), str(body.get("scene") or "play"),
+                           int(body.get("step") or 0))
+        self._send(200, {"image": "data:image/png;base64," + base64.b64encode(png).decode()})
+
     def api_post_preview(self, q):
         body = self._json()
         png = render_preview(body.get("page", 0), body.get("profile", "M1"), body.get("settings"),
@@ -1695,6 +1768,8 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
 .clkopt { margin-bottom: 10px; }
 .clkopt .row { gap: 8px; }
 .clkopt input[type=color] { width: 42px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; }
+.visscene { margin-top: 6px; gap: 6px; flex-wrap: wrap; }
+.visscene select { max-width: 200px; }
 .bdayrow { margin: 4px 0; gap: 6px; align-items: center; }
 .clkcities { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; max-width: 360px; }
 .okbox { background: color-mix(in srgb, #3ecf7e 12%, transparent); border: 1px solid color-mix(in srgb, #3ecf7e 45%, transparent);
@@ -1706,6 +1781,27 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
 .relnotes a { color: var(--accent); }
 .relnotes ul { margin: 2px 0; padding-left: 20px; }
 .snip select.pasteMode { max-width: 440px; }
+
+/* Unterreiter, einklappbare Karten, Änderungspunkt, Optionsgruppen, Hilfe */
+.subnav { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 12px; }
+.subnav button { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 5px 14px;
+  color: inherit; cursor: pointer; font: inherit; }
+.subnav button.active { background: var(--accent, #3a7bd5); color: #fff; border-color: transparent; }
+.subnav button .badge, .card h2 .dot { display: none; width: 7px; height: 7px; border-radius: 50%;
+  background: #e8a13a; margin-left: 6px; vertical-align: middle; }
+.subnav button.dirty .badge, .card.dirty h2 .dot { display: inline-block; }
+.subnav input[type=search] { margin-left: auto; max-width: 220px; }
+.card h2 { cursor: pointer; user-select: none; }
+.card h2::before { content: "▾ "; color: var(--muted); font-size: 12px; }
+.card.collapsed h2::before { content: "▸ "; }
+.card.collapsed > :not(h2):not(.cardhead) { display: none !important; }
+.card.collapsed .cardhead > :not(h2) { display: none !important; }
+.card[hidden], .card.nomatch { display: none !important; }
+.optgroup { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 12px 0 4px; }
+.optgroup:first-child { margin-top: 0; }
+.helpi { display: inline-block; margin-left: 4px; width: 15px; height: 15px; border-radius: 50%; font-size: 11px;
+  line-height: 15px; text-align: center; background: var(--line); color: var(--muted); cursor: help; font-style: normal; }
+[hidden] { display: none !important; }
 
 </style>
 </head>
@@ -1823,12 +1919,19 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
 
   <!-- ===================== Einstellungen ===================== -->
   <section class="tab" id="tab-settings">
-    <div class="card">
+    <div class="subnav" id="setSub">
+      <button data-sub="display" class="active">Display & Seiten<span class="badge"></span></button>
+      <button data-sub="clock">Uhr<span class="badge"></span></button>
+      <button data-sub="visual">Visualisierung<span class="badge"></span></button>
+      <button data-sub="night">Licht & Nacht<span class="badge"></span></button>
+      <input type="search" id="setSearch" placeholder="Einstellung suchen …" aria-label="Einstellung suchen">
+    </div>
+    <div class="card" data-sub="display">
       <h2>Tastaturbeleuchtung</h2>
       <p class="hint">Die Farben für M1/M2/M3 legst du je Profil im Reiter „Tasten“ fest.</p>
       <label class="check"><input type="checkbox" id="keepBacklight"> Beleuchtung nicht umfärben (eigene Farbe der Tastatur behalten)</label>
     </div>
-    <div class="card">
+    <div class="card" data-sub="display">
       <h2>Display</h2>
       <div class="preview">
         <div>
@@ -1848,7 +1951,7 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
         </div>
       </div>
     </div>
-    <div class="card">
+    <div class="card" data-sub="display">
       <h2>Displayseiten</h2>
       <p class="hint">Welche Seiten mit Links/Rechts durchgeblättert werden, und in welcher Reihenfolge – für jede Ebene (M1/M2/M3) getrennt. Beim Umschalten mit der M-Taste zeigt das Display die Seiten dieser Ebene.</p>
       <div class="row" style="margin-bottom:10px">
@@ -1861,7 +1964,7 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
       </div>
       <div class="pagelist" id="pageList"></div>
     </div>
-    <div class="card">
+    <div class="card" data-sub="clock">
       <h2>Uhr</h2>
       <p class="hint">Aussehen der Zifferblätter der Seite „Uhr“. Welches Zifferblatt das Display zeigt, wählst du an der Tastatur: auf der Uhr <b>MENU</b> drücken – getrennt für jedes Profil und jede Ebene.</p>
       <div class="preview">
@@ -1879,16 +1982,18 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
       <div class="clkgrid" id="clkMenu"></div>
       <div class="row" style="margin-top:8px"><button class="btn small" id="clkAll">Alle anhaken</button></div>
     </div>
-    <div class="card">
+    <div class="card" data-sub="visual">
       <h2>Visualisierung</h2>
       <p class="hint">Die Seite „Visualisierung“ bewegt sich zu allem, was der Rechner gerade abspielt (Radio, Spotify, Browser …). Der Treiber hört dafür den Ausgang mit (<code>pw-record</code>), nur solange die Seite zu sehen ist – es wird nichts gespeichert, das Mikrofon wird nicht benutzt. Seite unter „Displayseiten“ einschalten oder als Bildschirmschoner wählen. Am Display: MENU oder SETTINGS kurz = Stil wählen, dort ► = Optionen.</p>
       <div class="preview">
         <div>
+          <div class="field"><span>Fertige Kombinationen</span><div class="row visscene" id="visPresets"></div></div>
           <label class="field" style="max-width:300px"><span>Stil</span><select id="visStyle"></select></label>
           <div id="visOpts"></div>
           <label class="field" style="max-width:300px"><span>Bildrate (mehr = flüssiger, braucht mehr Rechenzeit)</span><select id="visFps">
             <option value="10">10 Bilder/s – sparsam</option><option value="15">15 Bilder/s – Standard</option>
             <option value="20">20 Bilder/s</option><option value="25">25 Bilder/s – sehr flüssig</option></select></label>
+          <label class="check"><input type="checkbox" id="visAdaptive"> Anpassende Bildrate (bei Stille und Wortbeiträgen langsamer, bremst bei hoher Last)</label>
           <label class="check"><input type="checkbox" id="visBacklight"> Tastaturbeleuchtung pulsiert im Takt</label>
           <label class="check"><input type="checkbox" id="visTitle"> Laufenden Titel oben anzeigen</label>
           <label class="check"><input type="checkbox" id="visXmas"> In der Weihnachtszeit (1. Advent bis 6. Januar) automatisch den Stil „Weihnachten“ zeigen – wer dann am Display einen anderen Stil wählt, behält diesen bis zum Ende der Weihnachtszeit</label>
@@ -1898,11 +2003,21 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
         </div>
         <div>
           <img class="lcd" id="visLcd" alt="Vorschau der Visualisierung">
+          <div class="row visscene">
+            <button class="btn" type="button" id="visPlay" title="Ein paar Sekunden bewegt zeigen">▶ Abspielen</button>
+            <button class="btn" type="button" id="visBoom">Höhepunkt</button>
+            <button class="btn" type="button" id="visTalk">Wortbeitrag</button>
+          </div>
+          <div class="row visscene">
+            <select id="visGag" title="Einen Gag gezielt zeigen"></select>
+            <button class="btn" type="button" id="visGagGo">Gag zeigen</button>
+            <button class="btn" type="button" id="visStop" hidden>■ Stopp</button>
+          </div>
           <div class="hint" style="margin-top:6px">Vorschau mit künstlicher Musik.</div>
         </div>
       </div>
     </div>
-    <div class="card">
+    <div class="card" data-sub="night">
       <h2>Nachtmodus</h2>
       <p class="hint">Zu festen Zeiten Display und Beleuchtung abdunkeln. Ein Tastendruck weckt beides für eine Minute.</p>
       <label class="check"><input type="checkbox" id="nightOn"> Nachtmodus verwenden</label>
@@ -1914,7 +2029,7 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
       <div class="row" id="nightDimRow" style="margin-bottom:8px"><span class="muted">Helligkeit nachts</span><input type="range" id="nightBright" min="0" max="60" step="1"><span class="muted" id="nightBrightVal"></span></div>
       <label class="check"><input type="checkbox" id="nightBacklight"> Tastaturbeleuchtung nachts ausschalten</label>
     </div>
-    <div class="card">
+    <div class="card" data-sub="night">
       <h2>Bildschirmschoner</h2>
       <p class="hint">Wenn eine Weile weder Tastatur noch Maus benutzt wurden, zeigt das Display eine bestimmte Seite – z. B. die Diashow. Beim nächsten Tastendruck geht es zurück.</p>
       <label class="check"><input type="checkbox" id="saverOn"> Bildschirmschoner verwenden</label>
@@ -1923,7 +2038,7 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
         <label class="field" style="margin:0">Seite <select id="saverPage" style="width:auto"></select></label>
       </div>
     </div>
-    <div class="card">
+    <div class="card" data-sub="night">
       <h2>Lautstärke</h2>
       <label class="field" style="max-width:320px"><span>Schrittweite der G-Tasten-Aktion „Lautstärke“ (Prozent)</span><input type="number" id="volStep" min="1" max="25"></label>
       <label class="check"><input type="checkbox" id="mediaKeys"> Lautstärkerad, Stumm- und Medientasten der Tastatur vom Treiber steuern – wirken dann auch im Remote-Desktop (z.&nbsp;B. xfreerdp) auf diesen Rechner, die Lautstärke erscheint auf dem Display. Aus: KDE steuert sie wie gewohnt.</label>
@@ -2057,6 +2172,7 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
       <h2>Systemupdates</h2>
       <p class="hint">Die Displayseite „Updates“ zeigt stündlich, wie viele Paket- und Flatpak-Updates bereitstehen und ob ein Neustart nötig ist. Am Display öffnet OK die Aktualisierung (Discover), MENU prüft neu.</p>
       <label class="check"><input type="checkbox" id="updFlatpak"> Auch Flatpak-Programme prüfen</label>
+      <label class="check"><input type="checkbox" id="updG19s"> Einmal am Tag nach einer neuen G19s-Version sehen (Hinweis auf der Seite „Updates“)</label>
       <button class="btn" id="updTest">Jetzt prüfen</button> <span class="muted" id="updInfo"></span>
     </div>
     <div class="card">
@@ -2364,7 +2480,7 @@ async function loadState() {
   S.macros = d.macros; S.settings = d.settings; S.keys = d.keys; S.media = d.media; S.pages = d.pages; S.pageIds = d.page_ids; S.volume = d.volume;
   S.entryTypes = d.entry_types;
   S.clockFaces = d.clock_faces; S.clockOptions = d.clock_options; S.worldCities = d.world_cities;
-  S.visualStyles = d.visual_styles; S.visualOptions = d.visual_options;
+  S.visualStyles = d.visual_styles; S.visualOptions = d.visual_options; S.visualScenes = d.visual_scenes || {};
   S.active = d.active; S.maxProfiles = d.max_profiles;
   if (UI.pidx === undefined) UI.pidx = d.active;
   UI.pidx = Math.min(UI.pidx, S.macros.profiles.length - 1);
@@ -2405,6 +2521,58 @@ function markTabs() {
   n("slides").classList.toggle("dirty", UI.sDirty);
   n("info").classList.toggle("dirty", UI.sDirty);
 }
+
+// Unterreiter in „Beleuchtung & Display“ (der zuletzt gewählte bleibt gemerkt)
+function store(key, val) { try { if (val === undefined) return localStorage.getItem(key); localStorage.setItem(key, val); } catch (e) { return null; } }
+function showSub(sub) {
+  sub = ["display", "clock", "visual", "night"].includes(sub) ? sub : "display";
+  document.querySelectorAll("#setSub button[data-sub]").forEach(b => b.classList.toggle("active", b.dataset.sub === sub));
+  document.querySelectorAll("#tab-settings .card[data-sub]").forEach(c => { c.hidden = c.dataset.sub !== sub; });
+  store("g19s.sub", sub);
+  if (sub === "clock") clockPreview();
+  if (sub === "visual" && typeof visualPreview === "function") visualPreview();
+  if (sub === "display") refreshPreview();
+}
+$("#setSub").addEventListener("click", e => {
+  const b = e.target.closest("button[data-sub]"); if (!b) return;
+  $("#setSearch").value = ""; applySearch(""); showSub(b.dataset.sub);
+});
+showSub(store("g19s.sub"));
+// Suche über alle Karten von „Beleuchtung & Display“ (Überschrift, Beschriftungen, Hinweise)
+function applySearch(q) {
+  q = q.trim().toLowerCase();
+  document.querySelectorAll("#tab-settings .card[data-sub]").forEach(c => {
+    if (!q) { c.classList.remove("nomatch"); return; }
+    const hit = c.textContent.toLowerCase().includes(q) ||
+      [...c.querySelectorAll("option")].some(o => o.textContent.toLowerCase().includes(q));
+    c.hidden = false; c.classList.toggle("nomatch", !hit);
+    if (hit) c.classList.remove("collapsed");
+  });
+  if (!q) showSub(store("g19s.sub"));
+}
+$("#setSearch").addEventListener("input", e => applySearch(e.target.value));
+// Karten einklappen (Klick auf die Überschrift, gemerkt) und Änderungspunkt je Karte
+function cardKey(c) { const h = c.querySelector("h2"); return h ? h.firstChild.textContent.trim() : ""; }
+const collapsed = new Set(JSON.parse(store("g19s.collapsed") || "[]"));
+document.querySelectorAll(".card").forEach(c => {
+  const h = c.querySelector("h2"); if (!h) return;
+  h.append(el("span", {class: "dot", title: "Ungespeicherte Änderung"}));
+  if (collapsed.has(cardKey(c))) c.classList.add("collapsed");
+  h.addEventListener("click", e => {
+    if (e.target.closest("button, input, select")) return;
+    c.classList.toggle("collapsed");
+    c.classList.contains("collapsed") ? collapsed.add(cardKey(c)) : collapsed.delete(cardKey(c));
+    store("g19s.collapsed", JSON.stringify([...collapsed]));
+  });
+  const mark = e => { if (!e.target.closest(".subnav")) { c.classList.add("dirty"); markSubs(); } };
+  c.addEventListener("input", mark); c.addEventListener("change", mark); c.addEventListener("click", e => {
+    if (e.target.closest("button.btn") && !e.target.closest(".visscene, #visPresets")) mark(e); });
+});
+function markSubs() {
+  document.querySelectorAll("#setSub button[data-sub]").forEach(b => b.classList.toggle("dirty",
+    !!document.querySelector(`#tab-settings .card.dirty[data-sub=${b.dataset.sub}]`)));
+}
+function clearCardDirty() { document.querySelectorAll(".card.dirty").forEach(c => c.classList.remove("dirty")); markSubs(); }
 
 // ---------------------------------------------------------------- Tasten: Profile & Tastenfeld
 function renderProfiles() {
@@ -3188,14 +3356,33 @@ function renderClockOptions() {
   box.replaceChildren(...optionFields(opts, d, () => { touchSettings(); clockPreview(); }));
 }
 // Formularfelder für Optionen (CLOCK_OPTIONS/VISUAL_OPTIONS): d = Entwurf des Zifferblatts bzw. Stils
+// Wirkt die Option bei den aktuellen Werten? (when: {key, in} bzw. {key, not}; sonst ausgeblendet)
+function optionVisible(o, d, opts) {
+  const w = o.when; if (!w) return true;
+  const ref = opts.find(x => x.key === w.key);
+  const v = w.key in d ? d[w.key] : ref && ref.default;
+  return w.in ? w.in.includes(v) : !(w.not || []).includes(v);
+}
+function helpMark(o) { return o.help ? el("i", {class: "helpi", title: o.help, text: "i"}) : null; }
 function optionFields(opts, d, changed) {
-  return opts.map(o => {
+  let group = null;
+  const groups = new Set(opts.map(o => o.group).filter(Boolean));
+  return opts.flatMap(o => {
+    if (!optionVisible(o, d, opts)) return [];
+    const head = groups.size > 1 && o.group && o.group !== group ? [el("div", {class: "optgroup", text: o.group})] : [];
+    if (o.group) group = o.group;
+    const field = optionField(o, d, () => changed(o.key));
+    return field ? [...head, field] : head;
+  });
+}
+function optionField(o, d, changed) {
+  {
     const val = o.key in d ? d[o.key] : o.default;
     if (o.type === "bool")
       return el("label", {class: "check clkopt"}, el("input", {type: "checkbox", checked: !!val,
-        onchange: e => { d[o.key] = e.target.checked; changed(); }}), " " + o.label);
+        onchange: e => { d[o.key] = e.target.checked; changed(); }}), " " + o.label, helpMark(o));
     if (o.type === "choice")
-      return el("label", {class: "field clkopt", style: {maxWidth: "300px"}}, el("span", {text: o.label}),
+      return el("label", {class: "field clkopt", style: {maxWidth: "300px"}}, el("span", {}, o.label, helpMark(o)),
         el("select", {value: val, onchange: e => { d[o.key] = e.target.value; changed(); }},
           o.choices.map(([v, l]) => el("option", {value: v, text: l}))));
     if (o.type === "color") {
@@ -3221,7 +3408,7 @@ function optionFields(opts, d, changed) {
     }
     if (o.type === "birthdays") return birthdayFields(o, d, changed);
     return null;
-  });
+  }
 }
 // Geburtstagsliste (Überraschungsparty, Festkalender): Name, Tag, Monat, Geburtsjahr (leer = Alter unbekannt)
 function birthdayFields(o, d, changed) {
@@ -3270,16 +3457,20 @@ function renderVisual() {
   $("#visBacklight").checked = v.backlight !== false;
   $("#visTitle").checked = v.title !== false;
   $("#visFps").value = v.fps || "15";
+  $("#visAdaptive").checked = v.adaptive !== false;
   $("#visXmas").checked = v.xmas_auto !== false;
   $("#visTalkWords").value = v.talk_words || "";
   renderVisualOptions();
+  renderVisualScenes();
   visualPreview();
 }
 function renderVisualOptions() {
   const v = UI.sdraft.visual, style = v.style;
   if (!v[style]) v[style] = {};
-  $("#visOpts").replaceChildren(...optionFields(S.visualOptions[style] || [], v[style],
-    () => { touchSettings(); visualPreview(); }));
+  const opts = S.visualOptions[style] || [];
+  const deps = new Set(opts.filter(o => o.when).map(o => o.when.key));
+  $("#visOpts").replaceChildren(...optionFields(opts, v[style],
+    key => { touchSettings(); visualPreview(); if (deps.has(key)) renderVisualOptions(); }));
 }
 let visTimer = null;
 function visualPreview() {
@@ -3291,12 +3482,65 @@ function visualPreview() {
     catch (e) { /* Vorschau ist nicht kritisch */ }
   }, 200);
 }
-$("#visStyle").addEventListener("change", e => { UI.sdraft.visual.style = e.target.value; touchSettings(); renderVisualOptions(); visualPreview(); });
+$("#visStyle").addEventListener("change", e => { UI.sdraft.visual.style = e.target.value; touchSettings(); stopVisualScene();
+  renderVisualOptions(); renderVisualScenes(); visualPreview(); });
 $("#visBacklight").addEventListener("change", e => { UI.sdraft.visual.backlight = e.target.checked; touchSettings(); });
 $("#visTitle").addEventListener("change", e => { UI.sdraft.visual.title = e.target.checked; touchSettings(); visualPreview(); });
 $("#visTalkWords").addEventListener("input", e => { UI.sdraft.visual.talk_words = e.target.value; touchSettings(); });
 $("#visXmas").addEventListener("change", e => { UI.sdraft.visual.xmas_auto = e.target.checked; UI.sdraft.visual.xmas_skip = 0; touchSettings(); });
 $("#visFps").addEventListener("change", e => { UI.sdraft.visual.fps = e.target.value; touchSettings(); });
+$("#visAdaptive").addEventListener("change", e => { UI.sdraft.visual.adaptive = e.target.checked; touchSettings(); });
+// Bewegte Vorschau: Szene (Abspielen, Höhepunkt, Wortbeitrag, Gag) etwa 12 Sekunden lang Bild für Bild abrufen
+let visScene = null;
+function renderVisualScenes() {
+  const style = UI.sdraft && UI.sdraft.visual.style;
+  const gags = (S.visualScenes && S.visualScenes[style] || []).filter(([id]) => id.includes(":"));
+  $("#visGag").replaceChildren(...(gags.length ? gags.map(([id, label]) => el("option", {value: id, text: label}))
+    : [el("option", {value: "", text: "keine Gags in diesem Stil"})]));
+  $("#visGag").disabled = $("#visGagGo").disabled = !gags.length;
+}
+function stopVisualScene() {
+  if (visScene) visScene.stop = true;
+  visScene = null;
+  $("#visStop").hidden = true;
+}
+async function playVisualScene(scene, seconds = 12) {
+  stopVisualScene();
+  const run = visScene = {stop: false};
+  $("#visStop").hidden = false;
+  for (let step = 0; step < seconds * 10 && !run.stop; step++) {
+    const t0 = performance.now();
+    try {
+      const r = await api("/api/vis_scene", {body: {style: UI.sdraft.visual.style, settings: UI.sdraft, scene, step}});
+      if (run.stop) break;
+      $("#visLcd").src = r.image;
+    } catch (e) { break; }
+    await new Promise(res => setTimeout(res, Math.max(0, 100 - (performance.now() - t0))));
+  }
+  if (visScene === run) { stopVisualScene(); visualPreview(); }
+}
+$("#visPlay").addEventListener("click", () => playVisualScene("play"));
+$("#visBoom").addEventListener("click", () => playVisualScene("boom", 10));
+$("#visTalk").addEventListener("click", () => playVisualScene("talk", 10));
+$("#visGagGo").addEventListener("click", () => { if ($("#visGag").value) playVisualScene($("#visGag").value, 13); });
+$("#visStop").addEventListener("click", () => { stopVisualScene(); visualPreview(); });
+
+// Fertige Kombinationen: Stil und passende Optionen auf einen Klick (danach wie gewohnt speichern)
+const VIS_PRESETS = [
+  ["Ruhiger Abend", {style: "dancer", fps: "10", dancer: {show: "ballet", strobe: "off", keys: "stage"}}],
+  ["Party", {style: "lights", fps: "20", lights: {fx: "show", flash: true, strobe: "off"}}],
+  ["Weihnachtsfeier", {style: "xmas", xmas_auto: true, xmas: {dance: "pair", gags: true, party: "evening"}}],
+  ["Gruselabend", {style: "cellar", cellar: {level: "3", keys: "red"}}],
+  ["Ritterfest", {style: "metal", fps: "15", metal: {pyro: "dragon", crowd: true, gags: true, keys: "fire"}}],
+];
+$("#visPresets").replaceChildren(...VIS_PRESETS.map(([name, p]) => el("button", {class: "btn", type: "button", text: name,
+  title: "Stil und Optionen setzen – danach speichern", onclick: () => {
+    const v = UI.sdraft.visual;
+    for (const [k, val] of Object.entries(p)) {
+      if (val && typeof val === "object") v[k] = Object.assign({}, v[k] || {}, val); else v[k] = val;
+    }
+    touchSettings(); renderVisual(); toast(`„${name}“ eingestellt – noch speichern.`);
+  }})));
 
 // ---------------------------------------------------------------- Diashow (Piwigo)
 UI.albums = null;
@@ -3468,7 +3712,8 @@ $("#warnTest").addEventListener("click", async () => {
     $("#warnInfo").textContent = `✓ ${r.place}: ` + (r.alerts.length ? r.alerts.join(", ") : "keine Warnungen"); }
   catch (e) { $("#warnInfo").textContent = "✗ " + e.message; }
 });
-$("#updFlatpak").addEventListener("change", e => { UI.sdraft.updates = {flatpak: e.target.checked}; touchSettings(); });
+$("#updFlatpak").addEventListener("change", e => { UI.sdraft.updates = {...UI.sdraft.updates, flatpak: e.target.checked}; touchSettings(); });
+$("#updG19s").addEventListener("change", e => { UI.sdraft.updates = {...UI.sdraft.updates, g19s: e.target.checked}; touchSettings(); });
 $("#updTest").addEventListener("click", async () => {
   $("#updInfo").textContent = "prüfe … (kann etwas dauern)";
   try { const r = await api("/api/updates/test", {body: {settings: UI.sdraft}});
@@ -3481,6 +3726,7 @@ function renderInfo() {
   renderNews(); renderNet();
   $("#warnPopup").checked = sd.warnings.popup;
   $("#updFlatpak").checked = sd.updates.flatpak;
+  $("#updG19s").checked = sd.updates.g19s !== false;
   const w = sd.weather;
   $("#wxName").textContent = w.lat !== null && w.lat !== undefined ? (w.name || `${w.lat}, ${w.lon}`) : "noch nicht eingestellt";
   renderCalSources();
@@ -3569,12 +3815,12 @@ $("#saveSettings").addEventListener("click", async () => {
   try {
     const r = await api("/api/settings", {body: {settings: UI.sdraft}});
     S.settings = r.settings; S.mtimes.settings = r.mtime; UI.sdraft = clone(r.settings); UI.sDirty = false;
-    markTabs(); renderAll();
+    markTabs(); renderAll(); clearCardDirty();
     toast("Gespeichert – der Treiber übernimmt die Einstellungen sofort." + (empty ? ` (${empty} Sender ohne Adresse entfernt)` : ""));
   } catch (e) { toast(e.message, true); }
 });
 $("#discardSettings").addEventListener("click", () => {
-  UI.sdraft = clone(S.settings); UI.sDirty = false; markTabs(); renderAll(); refreshPreview();
+  UI.sdraft = clone(S.settings); UI.sDirty = false; markTabs(); renderAll(); refreshPreview(); clearCardDirty();
 });
 
 // ---------------------------------------------------------------- Dienst & Sicherung

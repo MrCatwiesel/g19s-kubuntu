@@ -44,10 +44,10 @@ with sync_playwright() as p:
     pg.click("#saveSettings"); pg.wait_for_timeout(500)
     s = cfg()
     ok([f["url"] for f in s["news"]["feeds"]] == ["http://127.0.0.1:8812/rss.xml", "https://www.heise.de/rss/heise-atom.xml"], "Feeds gespeichert")
-    ok(s["warnings"] == {"popup": False} and s["updates"] == {"flatpak": False}, "Unwetter/Updates-Optionen gespeichert")
+    ok(s["warnings"] == {"popup": False} and s["updates"] == {"flatpak": False, "g19s": True}, "Unwetter/Updates-Optionen gespeichert")
     ok(s["network"]["hosts"][-1] == {"name": "NAS", "host": "10.0.0.99"}, "Gerät gespeichert")
     # neue Seiten in der Seitenliste und Vorschau
-    pg.click("nav >> text=Beleuchtung"); pg.wait_for_timeout(400)
+    pg.click("nav >> text=Beleuchtung"); pg.evaluate("document.querySelectorAll('#tab-settings .card[data-sub]').forEach(c => c.hidden = false)"); pg.wait_for_timeout(400)
     names = pg.locator(".pagerow .pn").all_inner_texts()
     ok(all(n in names for n in ["Nachrichten", "Unwetter", "Netzwerk", "Updates"]), "Neue Seiten in der Liste")
     ok(pg.locator(".pagerow.off", has_text="Nachrichten").count() == 1, "Neue Seiten zunächst aus")

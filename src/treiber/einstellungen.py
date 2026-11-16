@@ -247,6 +247,7 @@ def _visual_section():
     return Section(dict(style=Choice("eq", lambda: list(VISUAL_STYLES)), backlight=Bool(True), title=Bool(True),
                         talk_words=Str(TALK_WORDS, maxlen=300),
                         fps=Choice(str(VISUAL_FPS), lambda: ["10", "15", "20", "25"]),   # Bildrate (Rechenzeit!)
+                        adaptive=Bool(True),           # anpassende Bildrate (Stille, Lastbremse)
                         xmas_auto=Bool(True),          # vom 1. Advent bis 6. Januar Stil „Weihnachten“
                         xmas_skip=Int(0, 0, 9999),     # Jahr, in dem der Nutzer in der Weihnachtszeit einen anderen Stil wählte
                         fest_skip=Str("", maxlen=20),  # Anlass (Geburtstag, Freitag der 13.), an dem ein anderer Stil gewählt wurde
@@ -318,7 +319,7 @@ SCHEMA = {
         "hosts": Items([{"name": "Router", "host": "gateway"}, {"name": "Internet", "host": "1.1.1.1"}],
                        Entry({"name": Str(maxlen=30), "host": Str()}), required="host", limit=12),
     }),
-    "updates": Section({"flatpak": Bool(True, only_false=True)}),
+    "updates": Section({"flatpak": Bool(True, only_false=True), "g19s": Bool(True, only_false=True)}),
     "backup": Section({"enabled": Bool(False),
                        "target": Choice("folder", lambda: ("folder", "nextcloud", "smb", "webdav")),
                        "folder": Str(),                       # target folder

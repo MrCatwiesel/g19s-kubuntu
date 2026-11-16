@@ -461,19 +461,25 @@ class BalletVisual:
             self._bal_pole(fig, fd, BAL_POLE_X)
         fig = self._fx_figure(fig, st)                            # Silhouette im Gegenlicht
         x0, y0, x1, y1 = BAL_MIRROR                               # Spiegelbild: kleiner, gespiegelt, gedämpft
-        sc = 0.72
-        small = fig.resize((int(WIDTH * sc), int(HEIGHT * sc)), Image.BILINEAR).transpose(Image.FLIP_LEFT_RIGHT)
-        r, g_, b, a = small.split()
-        a = a.point(lambda v: v * 0.55)
-        small = Image.merge("RGBA", (r.point(lambda v: v * 0.8), g_.point(lambda v: v * 0.82),
-                                     b.point(lambda v: v * 0.95), a))
-        mx = int(x0 + (x1 - x0) * 0.42 - (WIDTH - BAL_POLE_X) * sc)
-        my = int(y1 - 4 - BAL_FLOOR * sc)
-        mirror = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
-        mirror.paste(small, (mx, my))
-        clip = Image.new("L", (WIDTH, HEIGHT), 0)
-        ImageDraw.Draw(clip).rectangle([x0, y0, x1, y1], fill=255)
-        mirror.putalpha(ImageChops.multiply(mirror.getchannel("A"), clip))
+        st["mframe"] = st.get("mframe", 0) + 1                    # nur jedes 2. Bild neu (spart ≈ ein Drittel)
+        mirror = st.get("mirror")
+        if mirror is None or st["mframe"] % 2 == 1 or s.get("demo"):
+            sc = 0.72
+            small = fig.resize((int(WIDTH * sc), int(HEIGHT * sc)), Image.BILINEAR).transpose(Image.FLIP_LEFT_RIGHT)
+            r, g_, b, a = small.split()
+            a = a.point(lambda v: v * 0.55)
+            small = Image.merge("RGBA", (r.point(lambda v: v * 0.8), g_.point(lambda v: v * 0.82),
+                                         b.point(lambda v: v * 0.95), a))
+            mx = int(x0 + (x1 - x0) * 0.42 - (WIDTH - BAL_POLE_X) * sc)
+            my = int(y1 - 4 - BAL_FLOOR * sc)
+            mirror = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
+            mirror.paste(small, (mx, my))
+            clip = self.__dict__.get("_bal_mirror_clip")
+            if clip is None:
+                clip = self._bal_mirror_clip = Image.new("L", (WIDTH, HEIGHT), 0)
+                ImageDraw.Draw(clip).rectangle([x0, y0, x1, y1], fill=255)
+            mirror.putalpha(ImageChops.multiply(mirror.getchannel("A"), clip))
+            st["mirror"] = mirror
         img.paste(mirror, (0, 0), mirror)
         img.paste(fig, (0, 0), fig)
         if show == "club" and "ball" not in fx:

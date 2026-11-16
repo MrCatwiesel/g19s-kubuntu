@@ -65,6 +65,16 @@ class HardwarePage:
                 break
             self._usage_row(d, y, label, pct, f"{pct:.0f} % v. {total / 1e9:.0f} GB", profile)
             y += row
+        diag = self.__dict__.get("g19s_diag")
+        if diag and y <= HEIGHT - 48:                            # eigene Last (Diagnose)
+            parts = [f"{diag.get('cpu', 0):.0f} % CPU"]
+            if diag.get("rss"):
+                parts.append(f"{diag['rss']:.0f} MB")
+            if diag.get("ms") is not None and diag.get("vis_t") is not None and diag["now"] - diag["vis_t"] < 120:
+                parts.append(f"Vis. {diag['ms']:.1f} ms, {diag.get('fps') or 0:.0f}/s")
+            d.text((12, y), "G19s", font=self.f_small_b, fill=self.FG)
+            d.text((80, y), self._fit(d, " · ".join(parts), self.f_small, WIDTH - 92), font=self.f_small, fill=self.DIM)
+            y += row
         l1, l5, l15 = self.stats.load()
         if y <= HEIGHT - 48:
             d.text((12, y), "Last", font=self.f_small_b, fill=self.FG)

@@ -30,7 +30,7 @@ with sync_playwright() as p:
     ok(mac()["profiles"][0]["keys"]["M1"].get("G11") == {"media": "remember"}, "G11 = Song merken")
     ok("Song merken" in pg.inner_text(".gkey >> nth=10"), "Kachel „Song merken“")
     # Seiten je Profil
-    pg.click("nav >> text=Beleuchtung"); pg.wait_for_timeout(400)
+    pg.click("nav >> text=Beleuchtung"); pg.evaluate("document.querySelectorAll('#tab-settings .card[data-sub]').forEach(c => c.hidden = false)"); pg.wait_for_timeout(400)
     ok(pg.locator("#plScope option").count() == 2, "Auswahl: Standard + 1 Profil")
     pg.select_option("#plScope", "0"); pg.wait_for_timeout(200)
     ok("verwendet die Standard-Seiten" in pg.inner_text("#pageList"), "Profil nutzt zunächst Standard")

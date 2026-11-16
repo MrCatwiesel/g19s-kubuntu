@@ -29,14 +29,33 @@ function renderClockOptions() {
   box.replaceChildren(...optionFields(opts, d, () => { touchSettings(); clockPreview(); }));
 }
 // Formularfelder für Optionen (CLOCK_OPTIONS/VISUAL_OPTIONS): d = Entwurf des Zifferblatts bzw. Stils
+// Wirkt die Option bei den aktuellen Werten? (when: {key, in} bzw. {key, not}; sonst ausgeblendet)
+function optionVisible(o, d, opts) {
+  const w = o.when; if (!w) return true;
+  const ref = opts.find(x => x.key === w.key);
+  const v = w.key in d ? d[w.key] : ref && ref.default;
+  return w.in ? w.in.includes(v) : !(w.not || []).includes(v);
+}
+function helpMark(o) { return o.help ? el("i", {class: "helpi", title: o.help, text: "i"}) : null; }
 function optionFields(opts, d, changed) {
-  return opts.map(o => {
+  let group = null;
+  const groups = new Set(opts.map(o => o.group).filter(Boolean));
+  return opts.flatMap(o => {
+    if (!optionVisible(o, d, opts)) return [];
+    const head = groups.size > 1 && o.group && o.group !== group ? [el("div", {class: "optgroup", text: o.group})] : [];
+    if (o.group) group = o.group;
+    const field = optionField(o, d, () => changed(o.key));
+    return field ? [...head, field] : head;
+  });
+}
+function optionField(o, d, changed) {
+  {
     const val = o.key in d ? d[o.key] : o.default;
     if (o.type === "bool")
       return el("label", {class: "check clkopt"}, el("input", {type: "checkbox", checked: !!val,
-        onchange: e => { d[o.key] = e.target.checked; changed(); }}), " " + o.label);
+        onchange: e => { d[o.key] = e.target.checked; changed(); }}), " " + o.label, helpMark(o));
     if (o.type === "choice")
-      return el("label", {class: "field clkopt", style: {maxWidth: "300px"}}, el("span", {text: o.label}),
+      return el("label", {class: "field clkopt", style: {maxWidth: "300px"}}, el("span", {}, o.label, helpMark(o)),
         el("select", {value: val, onchange: e => { d[o.key] = e.target.value; changed(); }},
           o.choices.map(([v, l]) => el("option", {value: v, text: l}))));
     if (o.type === "color") {
@@ -62,7 +81,7 @@ function optionFields(opts, d, changed) {
     }
     if (o.type === "birthdays") return birthdayFields(o, d, changed);
     return null;
-  });
+  }
 }
 // Geburtstagsliste (Überraschungsparty, Festkalender): Name, Tag, Monat, Geburtsjahr (leer = Alter unbekannt)
 function birthdayFields(o, d, changed) {

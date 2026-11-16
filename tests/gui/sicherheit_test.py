@@ -40,7 +40,7 @@ with sync_playwright() as p:
     ok(pg.locator(".gkey").count() == 12, "Neuladen bleibt angemeldet (Schlüssel im Tab)")
     pg2 = b.new_page(); pg2.goto(f"{BASE}/#k={ticket}"); pg2.wait_for_timeout(1500)
     ok(pg2.locator(".gkey").count() == 0 and pg2.is_visible("#overlay"), "Code ein zweites Mal ungültig")
-    pg.click("nav >> text=Beleuchtung"); pg.wait_for_timeout(800)
+    pg.click("nav >> text=Beleuchtung"); pg.evaluate("document.querySelectorAll('#tab-settings .card[data-sub]').forEach(c => c.hidden = false)"); pg.wait_for_timeout(800)
     b.close()
 ok(not csp_msgs, "keine CSP-Verstöße: " + "; ".join(csp_msgs)[:200])
 ok(not errors, "keine JavaScript-Fehler")

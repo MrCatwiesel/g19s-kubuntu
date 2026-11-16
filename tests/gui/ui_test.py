@@ -126,7 +126,7 @@ with sync_playwright() as p:
     ok(pg.locator("#results .warnbox, #results .res").count() >= 1, "Suche liefert Ergebnis oder saubere Fehlermeldung: " + pg.inner_text("#results")[:90].replace("\n", " "))
 
     # Einstellungen
-    pg.click("nav >> text=Beleuchtung")
+    pg.click("nav >> text=Beleuchtung"); pg.evaluate("document.querySelectorAll('#tab-settings .card[data-sub]').forEach(c => c.hidden = false)")  # alle Unterreiter
     for _ in range(40):
         if (pg.get_attribute("#lcd", "src") or "").startswith("data:image/png"): break
         pg.wait_for_timeout(100)

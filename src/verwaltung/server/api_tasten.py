@@ -17,6 +17,7 @@ class ApiKeys:
             "entry_types": g.ENTRY_TYPES,
             "clock_faces": list(g.CLOCK_FACES.items()), "clock_options": g.CLOCK_OPTIONS,
             "visual_styles": list(g.VISUAL_STYLES.items()), "visual_options": g.VISUAL_OPTIONS,
+            "visual_scenes": {st: g.vis_scenes(st) for st in g.VISUAL_STYLES},
             "world_cities": g.WORLD_CITIES,
             "mtimes": {"macros": mtime(g.MACRO_FILE), "settings": mtime(g.SETTINGS_FILE)},
             "paths": {"macros": g.MACRO_FILE, "settings": g.SETTINGS_FILE,
@@ -54,6 +55,12 @@ class ApiKeys:
         self._send(200, {"ok": True, "settings": data, "mtime": mtime(g.SETTINGS_FILE)})
 
     # -- API: Vorschau ----------------------------------------------------- #
+    def api_post_vis_scene(self, q):
+        body = self._json()
+        png = render_scene(body.get("style"), body.get("settings"), str(body.get("scene") or "play"),
+                           int(body.get("step") or 0))
+        self._send(200, {"image": "data:image/png;base64," + base64.b64encode(png).decode()})
+
     def api_post_preview(self, q):
         body = self._json()
         png = render_preview(body.get("page", 0), body.get("profile", "M1"), body.get("settings"),

@@ -208,6 +208,8 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
 .clkopt { margin-bottom: 10px; }
 .clkopt .row { gap: 8px; }
 .clkopt input[type=color] { width: 42px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; }
+.visscene { margin-top: 6px; gap: 6px; flex-wrap: wrap; }
+.visscene select { max-width: 200px; }
 .bdayrow { margin: 4px 0; gap: 6px; align-items: center; }
 .clkcities { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; max-width: 360px; }
 .okbox { background: color-mix(in srgb, #3ecf7e 12%, transparent); border: 1px solid color-mix(in srgb, #3ecf7e 45%, transparent);
@@ -219,3 +221,24 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
 .relnotes a { color: var(--accent); }
 .relnotes ul { margin: 2px 0; padding-left: 20px; }
 .snip select.pasteMode { max-width: 440px; }
+
+/* Unterreiter, einklappbare Karten, Änderungspunkt, Optionsgruppen, Hilfe */
+.subnav { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 12px; }
+.subnav button { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 5px 14px;
+  color: inherit; cursor: pointer; font: inherit; }
+.subnav button.active { background: var(--accent, #3a7bd5); color: #fff; border-color: transparent; }
+.subnav button .badge, .card h2 .dot { display: none; width: 7px; height: 7px; border-radius: 50%;
+  background: #e8a13a; margin-left: 6px; vertical-align: middle; }
+.subnav button.dirty .badge, .card.dirty h2 .dot { display: inline-block; }
+.subnav input[type=search] { margin-left: auto; max-width: 220px; }
+.card h2 { cursor: pointer; user-select: none; }
+.card h2::before { content: "▾ "; color: var(--muted); font-size: 12px; }
+.card.collapsed h2::before { content: "▸ "; }
+.card.collapsed > :not(h2):not(.cardhead) { display: none !important; }
+.card.collapsed .cardhead > :not(h2) { display: none !important; }
+.card[hidden], .card.nomatch { display: none !important; }
+.optgroup { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 12px 0 4px; }
+.optgroup:first-child { margin-top: 0; }
+.helpi { display: inline-block; margin-left: 4px; width: 15px; height: 15px; border-radius: 50%; font-size: 11px;
+  line-height: 15px; text-align: center; background: var(--line); color: var(--muted); cursor: help; font-style: normal; }
+[hidden] { display: none !important; }

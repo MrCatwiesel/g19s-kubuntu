@@ -121,13 +121,48 @@ class App(AppCore, KeyHandling, TimedTasks):
         if self._visual_shown():
             self.visual.want()              # Ausgang mithören, solange die Visualisierung zu sehen ist
             if not fast:
-                fps = int((self.settings().get("visual") or {}).get("fps") or VISUAL_FPS)
+                vis = self.settings().get("visual") or {}
+                fps = int(vis.get("fps") or VISUAL_FPS)
+                if vis.get("adaptive", True):           # Stille/Wortbeitrag langsamer, Lastbremse
+                    snap = self.visual.snapshot()
+                    fps = visual_fps(fps, r.__dict__.get("vis_ms"), not snap.get("active") or bool(snap.get("talk")))
+                r.vis_fps_now = fps
                 self.next_draw = now + 1.0 / fps
+                last = self.__dict__.get("_vis_frame_t")      # tatsächliche Bildrate (Diagnose)
+                if last is not None and 0 < now - last < 1.0:
+                    self.vis_rate = self.__dict__.get("vis_rate", fps) * 0.9 + 0.1 / (now - last)
+                self._vis_frame_t = now
             self._visual_backlight(now)
         else:
             self._visual_backlight_off()
+        self._diag_tick(now)
         if self.settings_down is not None:
             self.next_draw = min(self.next_draw, now + 0.05)    # Haltebalken von SETTINGS füllt sich
+
+    def _diag_tick(self, now):
+        """Eigene Last einmal je Sekunde für die Hardware-Seite (CPU %, Arbeitsspeicher, Zeichenzeit und Bildrate der
+        Visualisierung); solange die Visualisierung läuft, alle DIAG_LOG_EVERY Sekunden eine Zeile ins Protokoll."""
+        last = self.__dict__.get("_diag_mark")
+        if last and now - last[0] < 1.0:
+            return
+        cpu_t = time.process_time()
+        diag = self.__dict__.get("diag") or {"cpu": 0.0}
+        if last:
+            cpu = max(0.0, (cpu_t - last[1]) / (now - last[0]) * 100)
+            diag["cpu"] = cpu if diag.get("n", 0) < 3 else diag["cpu"] * 0.8 + cpu * 0.2
+            diag["n"] = diag.get("n", 0) + 1
+        self._diag_mark = (now, cpu_t)
+        r = self.renderer
+        shown = self._visual_shown()
+        diag.update(rss=own_rss_mb(), ms=r.__dict__.get("vis_ms"), fps=self.__dict__.get("vis_rate"),
+                    style=self.visual_style(), vis_t=now if shown else diag.get("vis_t"), now=now)
+        self.diag = r.g19s_diag = diag
+        if shown and diag.get("ms") is not None and now - self.__dict__.get("_diag_log_t", now - DIAG_LOG_EVERY + 30) \
+                >= DIAG_LOG_EVERY:
+            self._diag_log_t = now
+            self.log(f"Visualisierung: Stil {VISUAL_STYLES.get(diag['style'], diag['style'])}, "
+                     f"{diag['ms']:.1f} ms je Bild, {diag.get('fps') or 0:.0f} Bilder/s, CPU {diag['cpu']:.0f} %, "
+                     f"{diag.get('rss') or 0:.0f} MB")
 
     def _visual_shown(self):
         if self.menu is not None:

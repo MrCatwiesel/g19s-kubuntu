@@ -62,7 +62,7 @@ Für die G19s gibt es unter Linux keinen offiziellen Treiber. Die normalen Taste
 |-
 | <code>~/.config/g19s/settings.json</code> || Farben, Helligkeit, Displayseiten, Radiosender, Diashow, Wetterort, Kalender, Benachrichtigungen, Nachtmodus, Bildschirmschoner (enthält Zugangsdaten, daher nur für den Benutzer lesbar)
 |-
-| <code>~/.cache/g19s/piwigo/</code> || Zwischenspeicher der Diashow-Bilder (verkleinert, max. 400 Bilder, darf gelöscht werden)
+| <code>~/.cache/g19s/piwigo/</code> || Zwischenspeicher der Diashow-Bilder (verkleinert, max. 400 Bilder bzw. 80 MB, darf gelöscht werden)
 |-
 | <code>~/.local/bin/g19s-gui.py</code> || Verwaltungsoberfläche
 |-
@@ -229,7 +229,7 @@ Geänderte Einstellungen (alle Reiter außer „Tasten“) speichert '''Änderun
 |-
 | '''Textbausteine''' || Texte für die Auswahl am Display anlegen, sortieren, in Gruppen ordnen; je Text die Einfügeart (Zwischenablage oder tippen); Schalter „vorherigen Inhalt der Zwischenablage zurückholen“.
 |-
-| '''Beleuchtung & Display''' || Beleuchtung beibehalten, Displayhelligkeit, Startseite, '''Displayseiten''' je Ebene M1/M2/M3 (ein-/ausschalten per Häkchen, Reihenfolge mit ↑↓), '''Nachtmodus''', '''Bildschirmschoner''', Schrittweite der Lautstärke, Medientasten der Tastatur vom Treiber steuern, Signalton für Timer – mit Live-Vorschau jeder Displayseite (für das im Reiter „Tasten“ gewählte Profil).
+| '''Beleuchtung & Display''' || Beleuchtung beibehalten, Displayhelligkeit, Startseite, '''Displayseiten''' je Ebene M1/M2/M3 (ein-/ausschalten per Häkchen, Reihenfolge mit ↑↓), '''Nachtmodus''', '''Bildschirmschoner''', Schrittweite der Lautstärke, Medientasten der Tastatur vom Treiber steuern, Signalton für Timer – mit Live-Vorschau jeder Displayseite (für das im Reiter „Tasten“ gewählte Profil). Gegliedert in die Unterreiter '''Display & Seiten''', '''Uhr''', '''Visualisierung''' und '''Licht & Nacht''' (der zuletzt gewählte bleibt gemerkt); das Suchfeld rechts zeigt nur passende Karten. Karten lassen sich per Klick auf die Überschrift einklappen, ein oranger Punkt markiert ungespeicherte Änderungen. Bei den Stilen der Visualisierung erscheinen nur die Optionen, die gerade wirken (z. B. Stroboskop-Feinheiten erst bei eingeschaltetem Stroboskop), gruppiert und mit (i)-Hilfe; „Fertige Kombinationen“ stellen Stil und Optionen auf einen Klick ein (Ruhiger Abend, Party, Weihnachtsfeier, Gruselabend, Ritterfest).
 |-
 | '''Diashow''' || Bildquelle wählen: '''Piwigo-Galerie''' (Adresse, Zugangsdaten, '''Alben laden''', Alben per Häkchen) oder '''Ordner auf diesem Rechner''' (mit '''Durchsuchen …'''). Dazu Wechselzeit, Zufallsreihenfolge, Unteralben/Unterordner, Bildtitel, Darstellung („Ganzes Bild“ oder „Display füllen“). '''Testen''' zeigt ein Beispielbild und die Anzahl der gefundenen Bilder. '''Lieblingsbilder''': Liste, entfernen, „Diashow zeigt nur Lieblingsbilder“.
 |-
@@ -288,7 +288,7 @@ Startet eine neue Oberfläche nicht, stellt die Verwaltung automatisch die vorhe
 == Bedienung an der Tastatur ==
 
 === Profile (Displaytaste SETTINGS) ===
-Bis zu 10 Profile. '''SETTINGS lang drücken''' (1 Sekunde) öffnet auf jeder Seite die Profilliste auf dem Display – sie erscheint schon, während die Taste noch gehalten wird. '''Kurz''' gedrückt öffnet SETTINGS auf der Seite '''Uhr''' die Liste der Zifferblätter (wie MENU), auf der Seite '''Visualisierung''' die Liste der Stile, auf allen anderen Seiten ebenfalls die Profilliste.
+Bis zu 10 Profile. '''SETTINGS lang drücken''' (1 Sekunde) öffnet auf jeder Seite die Profilliste auf dem Display – sie erscheint schon, während die Taste noch gehalten wird. '''Kurz''' gedrückt öffnet SETTINGS auf der Seite '''Uhr''' die Liste der Zifferblätter (wie MENU), auf der Seite '''Visualisierung''' die Liste der Stile, auf allen anderen Seiten das '''Schnellmenü''' (Helligkeit, Nachtmodus, Diashow, Bildschirmschoner, Profil).
 {| class="wikitable"
 ! Taste !! Funktion
 |-
@@ -360,7 +360,7 @@ Hoch/Runter wählen, '''BACK''', '''MENU''' oder '''SETTINGS''' schließen. Nach
 |-
 | Termine || die nächsten Termine aus den eingetragenen Kalendern, farbig je Kalender (Serientermine werden berücksichtigt)
 |-
-| Hardware || Prozessor (Temperatur und Auslastung), Grafikkarte, SSD, Arbeitsspeicher, Lüfter, Netzwerkdurchsatz, Belegung der Datenträger, Systemlast. Die frühere Seite „System“ ist hier enthalten; wo sie eingeschaltet war, erscheint beim Update automatisch „Hardware“.
+| Hardware || Prozessor (Temperatur und Auslastung), Grafikkarte, SSD, Arbeitsspeicher, Lüfter, Netzwerkdurchsatz, Belegung der Datenträger, Systemlast. Die Zeile '''G19s''' zeigt die eigene CPU-Last und den Arbeitsspeicher des Treibers, nach der Visualisierung auch Zeichenzeit je Bild und Bildrate. Die frühere Seite „System“ ist hier enthalten; wo sie eingeschaltet war, erscheint beim Update automatisch „Hardware“.
 |-
 | Makros || Belegung der G-Tasten in der aktiven Ebene
 |-
@@ -372,7 +372,7 @@ Hoch/Runter wählen, '''BACK''', '''MENU''' oder '''SETTINGS''' schließen. Nach
 |-
 | Netzwerk || Erreichbarkeit von Router, NAS, Servern mit Antwortzeit (jede Minute), eigene IP-Adresse
 |-
-| Updates || Anzahl verfügbarer Paket- und Flatpak-Updates, Sicherheitsupdates, „Neustart erforderlich“; '''OK''' öffnet Discover
+| Updates || Anzahl verfügbarer Paket- und Flatpak-Updates, Sicherheitsupdates, „Neustart erforderlich“ und – einmal am Tag bei GitHub geprüft – „G19s … verfügbar“ (abschaltbar); '''OK''' öffnet Discover, die neue G19s-Version holt man in der Verwaltung unter „Dienst & Sicherung → Nach Updates suchen“
 |}
 Die vier Seiten Nachrichten, Unwetter, Netzwerk und Updates sind anfangs ausgeschaltet und werden unter '''Beleuchtung & Display → Displayseiten''' eingeschaltet. Auf diesen Seiten fragt '''MENU''' die Daten sofort neu ab.
 Auf den Seiten ohne eigene Tastenbelegung blättern auch '''Hoch/Runter'''.
@@ -539,7 +539,9 @@ Der Tanz-Modus gilt dabei nicht, die beiden sind immer zu zweit. Bei Wortbeiträ
 '''Weihnachtszeit:''' Vom 1. Advent bis zum 6. Januar zeigt die Visualisierung automatisch den Stil „Weihnachten“, egal welcher Stil gewählt ist (abschaltbar unter '''Beleuchtung & Display → Visualisierung'''). Wählt man in dieser Zeit am Display einen anderen Stil, bleibt dieser bis zum Ende der Weihnachtszeit; im nächsten Advent kommt „Weihnachten“ wieder.
 
 '''Festkalender:''' Hat jemand aus der Geburtstagsliste der Überraschungsparty heute Geburtstag, zeigt die Visualisierung automatisch die Party – mit Namen auf dem Banner (bei zwei Geburtstagskindern beide) und, wenn das Geburtsjahr eingetragen ist, dem Alter als Zahlenballons; am 29. Februar Geborene feiern in Nicht-Schaltjahren am 28. Februar. An jedem Freitag, dem 13., erscheint auf Wunsch die Kellertreppe (Schalter in deren Optionen, ab Werk aus). Ein Geburtstag geht vor Freitag, dem 13., beide gehen vor Weihnachten. Wählt man an so einem Tag am Display einen anderen Stil, bleibt dieser bis Mitternacht.
-Oben steht der laufende Titel (abschaltbar). Ohne Ton bleibt das letzte Bild abgedunkelt stehen und zeigt „Keine Wiedergabe“; ist der Ausgang stumm geschaltet (oder auf 0 %), „Ton stumm“. Sobald wieder Musik kommt, geht es sofort weiter – der mitgehörte Ausgang selbst merkt vom Stummschalten nichts, deshalb fragt der Treiber jede Sekunde nach. Die '''Tastaturbeleuchtung pulsiert''' in der Farbe der Ebene mit dem Bass, solange die Seite zu sehen ist (nicht nachts, nicht bei „Beleuchtung nicht umfärben“). Alles einstellbar unter '''Beleuchtung & Display → Visualisierung''' mit Vorschau – dort auch die '''Bildrate''' (10, 15, 20 oder 25 Bilder je Sekunde; Standard 15). Mehr Bilder wirken flüssiger, brauchen aber mehr Rechenzeit; die Visualisierung ist die rechenintensivste Seite.
+Oben steht der laufende Titel (abschaltbar). Ohne Ton bleibt das letzte Bild abgedunkelt stehen und zeigt „Keine Wiedergabe“; ist der Ausgang stumm geschaltet (oder auf 0 %), „Ton stumm“. Sobald wieder Musik kommt, geht es sofort weiter – der mitgehörte Ausgang selbst merkt vom Stummschalten nichts, deshalb fragt der Treiber jede Sekunde nach. Die '''Tastaturbeleuchtung pulsiert''' in der Farbe der Ebene mit dem Bass, solange die Seite zu sehen ist (nicht nachts, nicht bei „Beleuchtung nicht umfärben“). Alles einstellbar unter '''Beleuchtung & Display → Visualisierung''' mit Vorschau – dort auch die '''Bildrate''' (10, 15, 20 oder 25 Bilder je Sekunde; Standard 15). Mehr Bilder wirken flüssiger, brauchen aber mehr Rechenzeit; die Visualisierung ist die rechenintensivste Seite. Die '''anpassende Bildrate''' (Standard an) zeichnet bei Stille und Wortbeiträgen nur 8 Bilder je Sekunde und bremst, wenn ein Bild länger als die halbe Bildzeit braucht. Alle 10 Minuten steht eine Zeile mit Zeichenzeit, Bildrate, CPU und Arbeitsspeicher im Protokoll.
+
+'''Bewegte Vorschau:''' Unter dem Vorschaubild in der Verwaltung spielen „▶ Abspielen“, „Höhepunkt“ und „Wortbeitrag“ den Stil einige Sekunden bewegt ab; „Gag zeigen“ führt einen bestimmten Gag aus der Liste vor (Kellertreppe, Mittelalter-Metal, Überraschungsparty, Weihnachten einschließlich Feierabend). „■ Stopp“ beendet die Szene.
 
 '''Wortbeiträge''' (Nachrichten, Moderation, Werbung): Die Visualisierung erkennt Sprache am Klang – viele kurze Pausen, stark schwankende Lautstärke, kaum Bass. Nach etwa 4–6 Sekunden Sprache gilt es als Wortbeitrag, nach etwa 3 Sekunden Musik wieder als Musik (beides steht im Protokoll, mit den Messwerten). Zusätzlich zählt der Titel des Senders: Enthält er eines der Stichwörter aus '''Beleuchtung & Display → Visualisierung''' (Standard: Nachrichten, News, Werbung, Werbepause, Verkehr, Wetter – ganze Wörter, Groß-/Kleinschreibung egal), ist es sofort ein Wortbeitrag. Werbung mit Musik darunter erkennt nur das Stichwort. Während eines Wortbeitrags pulsiert die Tastatur nicht, und das '''tanzende Mädchen''' langweilt sich: Es verschränkt die Arme, gähnt („Gähn …“), stemmt die Hände in die Hüften, schaut auf die Uhr und tippt mit dem Fuß; nach 30 Sekunden setzt es sich auf den Bühnenrand und döst („Zzz“), das Bühnenlicht ist gedimmt. Kommt wieder Musik, tanzt es sofort weiter.
 

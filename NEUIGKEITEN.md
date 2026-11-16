@@ -3,6 +3,21 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.16-5
+- **Bewegte Vorschau in der Verwaltung** (Beleuchtung & Display → Visualisierung): Knöpfe „▶ Abspielen“, „Höhepunkt“ und „Wortbeitrag“ sowie eine Liste „Gag zeigen“ – so lässt sich jeder Gag (Vampir, Mumie, Hund frisst die Torte, Schornstein, Drache …) gezielt ansehen, ohne zu warten. „■ Stopp“ beendet die Szene.
+- **Anpassende Bildrate** (Standard an): Bei Stille und Wortbeiträgen läuft die Visualisierung mit 8 Bildern/s; braucht das Zeichnen zu lange, bremst sie die Bildrate, statt den Rechner zu belasten.
+- **Schneller:** Lichtkegel der Lichtshow und der Tänzerin werden in halber Auflösung berechnet (Lichtshow etwa 2,5-mal so schnell), das Spiegelbild der Tänzerin nur jedes zweite Bild.
+- **Diagnose:** Die Hardware-Seite zeigt eine Zeile „G19s“ mit eigener CPU-Last, Arbeitsspeicher und – nach der Visualisierung – Zeichenzeit und Bildrate. Alle 10 Minuten Visualisierung steht eine Zeile mit diesen Werten im Protokoll.
+- **Hinweis auf neue Versionen:** Die Seite „Updates“ sieht einmal am Tag bei GitHub nach und zeigt „G19s … verfügbar“ (abschaltbar unter Infoseiten → Updates).
+- **SETTINGS kurz** öffnet außerhalb von Uhr und Visualisierung jetzt das Schnellmenü (Helligkeit, Nachtmodus, Diashow, Bildschirmschoner, Profil) statt der Profilliste. Lang gedrückt bleibt es die Profilliste.
+- Diashow: Der Bildspeicher ist zusätzlich auf 80 MB begrenzt.
+- **Verwaltung übersichtlicher** („Beleuchtung & Display“):
+  - **Unterreiter** „Display & Seiten“, „Uhr“, „Visualisierung“, „Licht & Nacht“ – der zuletzt gewählte bleibt gemerkt.
+  - **Suchfeld** „Einstellung suchen …“ zeigt nur die passenden Karten.
+  - **Karten einklappen** per Klick auf die Überschrift (bleibt gemerkt); ein **oranger Punkt** zeigt Karten und Unterreiter mit ungespeicherten Änderungen.
+  - Optionen der Stile in **Gruppen** (Aussehen, Licht, Stroboskop, Tastatur, Ablauf …), mit **(i)-Hilfetexten**, und nur die **wirksamen Optionen**: z. B. die Einzeleffekte der Tänzerin erst bei „Eigene Auswahl“, Stroboskop-Einstellungen erst bei eingeschaltetem Stroboskop, Feierabend-Dauer nur mit Feierabend. Dasselbe gilt im Optionsmenü am Display (Tänzerin: 6 statt 21 Einträge).
+  - **Fertige Kombinationen** für die Visualisierung: „Ruhiger Abend“, „Party“, „Weihnachtsfeier“, „Gruselabend“, „Ritterfest“.
+
 ## 2026.11.16-4
 - **Neuer Stil „Mittelalter-Metal“:** Eine Ritterband spielt nachts im Burghof – Sänger in Rüstung mit Federbusch (die Lanze ist der Mikrofonständer), Gitarrist im Kettenhemd mit fliegenden Haaren und Flying-V, Dudelsackspieler (der Sack bläht sich mit der Lautstärke), Trommler mit Hörnerhelm an zwei Fasstrommeln. Feuerkörbe lodern mit dem Bass, Funken stieben auf hohe Schläge, vorn headbangt das Publikum mit der Pommesgabel.
   - Beim Höhepunkt gibt es Pyro: Ein Drache auf dem Turm speit Feuer über die Bühne (oder Flammensäulen aus den Feuerkörben, oder aus).

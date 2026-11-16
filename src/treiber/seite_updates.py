@@ -29,6 +29,10 @@ class UpdatesPage:
         if data.get("reboot"):
             d.rounded_rectangle([40, y, WIDTH - 40, y + 22], radius=6, fill=(150, 40, 40))
             self._center(d, y + 2, "Neustart erforderlich", self.f_small_b, (255, 255, 255))
+            y += 26
+        if data.get("g19s"):                                       # neue G19s-Version (täglich geprüft)
+            d.rounded_rectangle([20, y, WIDTH - 20, y + 22], radius=6, fill=(40, 90, 160))
+            self._center(d, y + 2, f"G19s {data['g19s']} verfügbar", self.f_small_b, (255, 255, 255))
         return img
 
 

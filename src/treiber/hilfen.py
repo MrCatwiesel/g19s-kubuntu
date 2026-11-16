@@ -16,6 +16,26 @@ def xmas_season(day=None):
     return day.year if day >= advent1 else None
 
 
+def visual_fps(base, draw_ms=None, quiet=False):
+    """Anpassende Bildrate: bei Stille oder Wortbeiträgen höchstens VISUAL_FPS_QUIET; braucht das Zeichnen mehr als
+    VISUAL_LOAD_SHARE der Bildzeit, so weit herunter, dass es passt (nicht unter VISUAL_FPS_MIN)."""
+    fps = max(1, int(base))
+    if quiet:
+        fps = min(fps, VISUAL_FPS_QUIET)
+    if draw_ms and draw_ms > VISUAL_LOAD_SHARE * 1000.0 / fps:
+        fps = max(min(fps, VISUAL_FPS_MIN), int(VISUAL_LOAD_SHARE * 1000.0 / draw_ms))
+    return fps
+
+
+def own_rss_mb():
+    """Arbeitsspeicher des eigenen Prozesses (MB) oder None."""
+    try:
+        with open("/proc/self/statm") as f:
+            return int(f.read().split()[1]) * os.sysconf("SC_PAGE_SIZE") / 1048576
+    except (OSError, ValueError, IndexError):
+        return None
+
+
 def fest_today():
     """Heutiges Datum für den Festkalender (in Tests ersetzbar)."""
     import datetime as _dt

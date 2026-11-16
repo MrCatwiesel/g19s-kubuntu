@@ -40,7 +40,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.16-4"
+VERSION = "2026.11.16-5"
 
 # Weitere Importe der Module
 import select
@@ -227,6 +227,10 @@ VISUAL_STYLES = {
     "metal": "Mittelalter-Metal",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
+VISUAL_FPS_QUIET = 8        # anpassende Bildrate (visual.adaptive): bei Stille/Wortbeitrag …
+VISUAL_FPS_MIN = 8          # … und als Untergrenze der Lastbremse
+VISUAL_LOAD_SHARE = 0.5     # Lastbremse: Zeichnen darf höchstens diesen Anteil der Bildzeit brauchen
+DIAG_LOG_EVERY = 600        # Diagnosewerte der Visualisierung so oft (s) ins Protokoll
 # Stichwörter im Titel des Senders, die einen Wortbeitrag anzeigen (Tänzerin langweilt sich); änderbar
 TALK_WORDS = "Nachrichten, News, Werbung, Werbepause, Verkehr, Wetter"
 # Stroboskop (Lichtshow und Tänzerin): höchstens 3 Blitze je Sekunde – mehr gilt als riskant für Lichtempfindliche
@@ -352,6 +356,54 @@ VISUAL_OPTIONS = {
          "choices": [["fire", "Feuer im Takt"], ["layer", "Farbe der Ebene"]]},
     ],
 }
+
+
+# Wann eine Option wirkt (B8: sonst ausgeblendet – in der Verwaltung und im Display-Menü), Gruppen (B9) und
+# Hilfetexte. when: {"key": Option, "in": [Werte]} oder {"key": Option, "not": [Werte]}.
+_OPTION_WHEN = {
+    ("dancer", "beams"): {"key": "show", "in": ["beams", "club", "custom"]},
+    ("xmas", "every"): {"key": "dance", "in": ["auto"]},
+    ("xmas", "party_len"): {"key": "party", "not": ["off"]},
+    ("xmas", "party_meter"): {"key": "party", "not": ["off"]},
+}
+for _k in ("follow", "heads", "laser", "haze", "chase", "silhouette", "uv", "mood", "ball", "blinder", "beams"):
+    _OPTION_WHEN[("dancer", "fx_" + _k)] = {"key": "show", "in": ["custom"]}
+for _st in ("dancer", "lights"):
+    for _k in ("strobe_rate", "strobe_color", "strobe_keys"):
+        _OPTION_WHEN[(_st, _k)] = {"key": "strobe", "not": ["off"]}
+_OPTION_GROUP = {"keys": "Tastatur", "strobe": "Stroboskop", "strobe_rate": "Stroboskop", "strobe_color": "Stroboskop",
+                 "strobe_keys": "Stroboskop", "stage": "Licht", "show": "Licht", "beams": "Licht", "flash": "Licht",
+                 "fx": "Licht", "lights": "Licht", "pyro": "Licht", "dance": "Ablauf", "every": "Ablauf",
+                 "gags": "Ablauf", "party": "Feierabend", "party_len": "Feierabend", "party_meter": "Feierabend",
+                 "round": "Ablauf", "auto": "Festkalender", "birthdays": "Festkalender", "fri13": "Festkalender",
+                 "level": "Ablauf", "dog": "Ablauf", "confetti": "Aussehen", "crowd": "Aussehen"}
+_OPTION_HELP = {
+    "strobe": "Harte Blitze, höchstens 3 je Sekunde. Vorsicht bei Lichtempfindlichkeit (Epilepsie).",
+    "show": "Lichtprogramm der Bühne. „Eigene Auswahl“ blendet die einzelnen Effekte zum An- und Abschalten ein.",
+    "party": "Derber Humor rund um Glühwein – ab Werk aus. „Nur abends“: 20 bis 4 Uhr.",
+    "gags": "Kleine Szenen zwischendurch, etwa alle 15–25 Sekunden Musik.",
+    "level": "Stufe 3 bringt rote Augen, Herzschlag am Bildrand und einen kurzen Schreckmoment im Dunkeln.",
+    "pyro": "Beim Höhepunkt der Musik (wenn es deutlich lauter wird).",
+    "every": "Wie lange ein Tanz läuft, bevor die Figuren wechseln.",
+    "fri13": "An jedem Freitag, dem 13., zeigt die Visualisierung automatisch die Kellertreppe.",
+    "auto": "Hat jemand aus der Liste heute Geburtstag, erscheint die Party automatisch.",
+}
+for _st, _opts in VISUAL_OPTIONS.items():
+    for _o in _opts:
+        if (_st, _o["key"]) in _OPTION_WHEN:
+            _o["when"] = _OPTION_WHEN[(_st, _o["key"])]
+        _o.setdefault("group", "Licht" if _o["key"].startswith("fx_") else _OPTION_GROUP.get(_o["key"], "Aussehen"))
+        if _o["key"] in _OPTION_HELP:
+            _o.setdefault("help", _OPTION_HELP[_o["key"]])
+
+
+def option_visible(o, values):
+    """Wirkt die Option bei diesen Werten (sonst ausblenden)?"""
+    w = o.get("when")
+    if not w:
+        return True
+    v = (values or {}).get(w["key"])
+    return v in w["in"] if "in" in w else v not in w.get("not", [])
 OLD_CLOCK_PAGES = {"clock_chrono": "chrono", "clock_steampunk": "steampunk",      # Version 2026.09.28-8/-9
                    "clock_station": "station", "clock_binary": "binary"}
 DEFAULT_PAGE_ORDER = ["clock", "music", "weather", "calendar", "hardware", "macros", "slides"]
@@ -622,6 +674,7 @@ def _visual_section():
     return Section(dict(style=Choice("eq", lambda: list(VISUAL_STYLES)), backlight=Bool(True), title=Bool(True),
                         talk_words=Str(TALK_WORDS, maxlen=300),
                         fps=Choice(str(VISUAL_FPS), lambda: ["10", "15", "20", "25"]),   # Bildrate (Rechenzeit!)
+                        adaptive=Bool(True),           # anpassende Bildrate (Stille, Lastbremse)
                         xmas_auto=Bool(True),          # vom 1. Advent bis 6. Januar Stil „Weihnachten“
                         xmas_skip=Int(0, 0, 9999),     # Jahr, in dem der Nutzer in der Weihnachtszeit einen anderen Stil wählte
                         fest_skip=Str("", maxlen=20),  # Anlass (Geburtstag, Freitag der 13.), an dem ein anderer Stil gewählt wurde
@@ -693,7 +746,7 @@ SCHEMA = {
         "hosts": Items([{"name": "Router", "host": "gateway"}, {"name": "Internet", "host": "1.1.1.1"}],
                        Entry({"name": Str(maxlen=30), "host": Str()}), required="host", limit=12),
     }),
-    "updates": Section({"flatpak": Bool(True, only_false=True)}),
+    "updates": Section({"flatpak": Bool(True, only_false=True), "g19s": Bool(True, only_false=True)}),
     "backup": Section({"enabled": Bool(False),
                        "target": Choice("folder", lambda: ("folder", "nextcloud", "smb", "webdav")),
                        "folder": Str(),                       # target folder
@@ -869,6 +922,26 @@ def xmas_season(day=None):
     xmas = _dt.date(day.year, 12, 25)
     advent1 = xmas - _dt.timedelta(days=(xmas.weekday() + 1) % 7 or 7) - _dt.timedelta(weeks=3)
     return day.year if day >= advent1 else None
+
+
+def visual_fps(base, draw_ms=None, quiet=False):
+    """Anpassende Bildrate: bei Stille oder Wortbeiträgen höchstens VISUAL_FPS_QUIET; braucht das Zeichnen mehr als
+    VISUAL_LOAD_SHARE der Bildzeit, so weit herunter, dass es passt (nicht unter VISUAL_FPS_MIN)."""
+    fps = max(1, int(base))
+    if quiet:
+        fps = min(fps, VISUAL_FPS_QUIET)
+    if draw_ms and draw_ms > VISUAL_LOAD_SHARE * 1000.0 / fps:
+        fps = max(min(fps, VISUAL_FPS_MIN), int(VISUAL_LOAD_SHARE * 1000.0 / draw_ms))
+    return fps
+
+
+def own_rss_mb():
+    """Arbeitsspeicher des eigenen Prozesses (MB) oder None."""
+    try:
+        with open("/proc/self/statm") as f:
+            return int(f.read().split()[1]) * os.sysconf("SC_PAGE_SIZE") / 1048576
+    except (OSError, ValueError, IndexError):
+        return None
 
 
 def fest_today():
@@ -3329,7 +3402,8 @@ class Slideshow(threading.Thread):
     AREA = (WIDTH, HEIGHT - FOOTER_H)  # Fläche über der Fußzeile
     LIST_REFRESH = 1800               # Bildliste alle 30 Minuten neu laden
     RETRY = 60                        # nach einem Fehler erneut versuchen
-    CACHE_MAX = 400                   # höchstens so viele Bilder zwischenspeichern
+    CACHE_MAX = 400                   # höchstens so viele Bilder zwischenspeichern …
+    CACHE_MAX_MB = 80                 # … und höchstens so viele MB
 
     def __init__(self, get_settings, log=print):
         super().__init__(daemon=True)
@@ -3581,10 +3655,12 @@ class Slideshow(threading.Thread):
     def _prune_cache(self):
         try:
             files = [os.path.join(self.cache_dir, f) for f in os.listdir(self.cache_dir)]
-            if len(files) > self.CACHE_MAX:
-                files.sort(key=os.path.getmtime)
-                for f in files[:len(files) - self.CACHE_MAX]:
-                    os.remove(f)
+            files.sort(key=os.path.getmtime)                    # älteste zuerst löschen
+            total = sum(os.path.getsize(f) for f in files)
+            while files and (len(files) > self.CACHE_MAX or total > self.CACHE_MAX_MB * 1024 * 1024):
+                f = files.pop(0)
+                total -= os.path.getsize(f)
+                os.remove(f)
         except OSError:
             pass
 
@@ -4017,16 +4093,62 @@ class NetworkPoller(Poller):
 # ═══════════════════════════════════════════════════════════════════════════
 
 # --- Systemupdates (apt, Flatpak) -----------------------------------------------
+G19S_RELEASES_URL = os.environ.get("G19S_UPDATE_URL",
+                                   "https://api.github.com/repos/MrCatwiesel/g19s-kubuntu/releases")
+
+
+def g19s_version_key(v):
+    """„2026.09.30-5“ → (2026, 9, 30, 5); unbekannt → ()."""
+    return tuple(int(x) for x in re.findall(r"\d+", v or "")) if re.match(r"\d", v or "") else ()
+
+
+def g19s_newest(raw, current=None):
+    """Neueste veröffentlichte G19s-Version aus der Antwort von GitHub, wenn sie neuer ist als current; sonst None."""
+    try:
+        data = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+    except (ValueError, UnicodeDecodeError):
+        return None
+    best = None
+    for r in data if isinstance(data, list) else []:
+        if not isinstance(r, dict) or r.get("draft") or r.get("prerelease"):
+            continue
+        v = str(r.get("tag_name") or "").lstrip("vV")
+        if g19s_version_key(v) and (best is None or g19s_version_key(v) > g19s_version_key(best)):
+            best = v
+    if best and g19s_version_key(best) > g19s_version_key(current or VERSION):
+        return best
+    return None
+
+
 class UpdatesPoller(Poller):
     FLATPAK_INTERVAL = 6 * 3600     # flatpak remote-ls fragt die Server im Netz ab – seltener als apt
+    G19S_INTERVAL = 24 * 3600       # neue G19s-Version: einmal am Tag bei GitHub nachsehen
 
     def __init__(self, get_settings, log=print):
         super().__init__(get_settings, 3600, log)
         self._flatpak = (-1e9, None)             # (Zeitpunkt, Anzahl)
+        self._g19s = (-1e9, None)                # (Zeitpunkt, neuere Version oder None)
 
     def refresh(self):
         self._flatpak = (-1e9, None)             # MENU auf der Seite: alles neu abfragen
+        self._g19s = (-1e9, None)
         super().refresh()
+
+    def _check_g19s(self):
+        """Täglicher Hinweis auf eine neue G19s-Version (Einstellung updates.g19s, Standard an)."""
+        if not (self.get_settings().get("updates") or {}).get("g19s", True):
+            return None
+        if time.monotonic() - self._g19s[0] < self.G19S_INTERVAL:
+            return self._g19s[1]
+        try:
+            newest = g19s_newest(http_get(G19S_RELEASES_URL + "?per_page=10", timeout=15, limit=4 * 1024 * 1024))
+        except Exception as ex:                 # kein Netz: morgen wieder
+            self.log(f"Updates: GitHub nicht erreichbar ({err_text(ex)})")
+            newest = None
+        if newest and newest != self._g19s[1]:
+            self.log(f"Updates: neue G19s-Version {newest} verfügbar")
+        self._g19s = (time.monotonic(), newest)
+        return newest
 
     def enabled(self):
         return "updates" in (self.get_settings().get("pages") or [])
@@ -4056,7 +4178,7 @@ class UpdatesPoller(Poller):
                     self._flatpak = (time.monotonic(), flatpak)
         reboot = os.path.exists("/var/run/reboot-required")
         return {"apt": len(pkgs), "security": security, "packages": pkgs[:60], "flatpak": flatpak,
-                "reboot": reboot, "checked": time.strftime("%H:%M"), "apt_ok": bool(shutil.which("apt"))}
+                "reboot": reboot, "g19s": self._check_g19s(), "checked": time.strftime("%H:%M"), "apt_ok": bool(shutil.which("apt"))}
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -9350,6 +9472,16 @@ class HardwarePage:
                 break
             self._usage_row(d, y, label, pct, f"{pct:.0f} % v. {total / 1e9:.0f} GB", profile)
             y += row
+        diag = self.__dict__.get("g19s_diag")
+        if diag and y <= HEIGHT - 48:                            # eigene Last (Diagnose)
+            parts = [f"{diag.get('cpu', 0):.0f} % CPU"]
+            if diag.get("rss"):
+                parts.append(f"{diag['rss']:.0f} MB")
+            if diag.get("ms") is not None and diag.get("vis_t") is not None and diag["now"] - diag["vis_t"] < 120:
+                parts.append(f"Vis. {diag['ms']:.1f} ms, {diag.get('fps') or 0:.0f}/s")
+            d.text((12, y), "G19s", font=self.f_small_b, fill=self.FG)
+            d.text((80, y), self._fit(d, " · ".join(parts), self.f_small, WIDTH - 92), font=self.f_small, fill=self.DIM)
+            y += row
         l1, l5, l15 = self.stats.load()
         if y <= HEIGHT - 48:
             d.text((12, y), "Last", font=self.f_small_b, fill=self.FG)
@@ -9569,6 +9701,10 @@ class UpdatesPage:
         if data.get("reboot"):
             d.rounded_rectangle([40, y, WIDTH - 40, y + 22], radius=6, fill=(150, 40, 40))
             self._center(d, y + 2, "Neustart erforderlich", self.f_small_b, (255, 255, 255))
+            y += 26
+        if data.get("g19s"):                                       # neue G19s-Version (täglich geprüft)
+            d.rounded_rectangle([20, y, WIDTH - 20, y + 22], radius=6, fill=(40, 90, 160))
+            self._center(d, y + 2, f"G19s {data['g19s']} verfügbar", self.f_small_b, (255, 255, 255))
         return img
 
 
@@ -9723,7 +9859,12 @@ class VisualPage:
             self._title_talk_t = None
         self.vis_talk = bool(snap.get("talk"))
         self._vis_song = " – ".join(x for x in (info.get("artist"), info.get("title")) if x) if info else ""
+        t0 = time.perf_counter()
         img = VISUAL_RENDERERS[style](self, snap, visual_options(self.settings, style), color)
+        ms = (time.perf_counter() - t0) * 1000                # Zeichenzeit (Lastbremse, Diagnose)
+        prev = self.__dict__.get("vis_ms")
+        self.vis_ms = ms if prev is None or self.__dict__.get("_vis_ms_style") != style else prev * 0.9 + ms * 0.1
+        self._vis_ms_style = style
         self._vis_last = (style, profile, img.copy())      # für das Standbild, wenn der Ton aufhört
         d = ImageDraw.Draw(img)
         if info and info.get("title") and vis.get("title", True):
@@ -9869,22 +10010,30 @@ class VisualPage:
     def _lights_beams(self, s, t, n, beams, dots=40):
         """Scheinwerferkegel (n Stück, schwenken, Farbe wechselt mit dem Takt) und Lichtpunkte auf das Bild beams
         (WIDTH × VIS_H) addieren – auch für die Lichtshow der Tänzerin."""
-        fall = self.__dict__.get("_lights_fall")
+        hw, hh = WIDTH // 2, VIS_H // 2                     # Kegel in halber Auflösung (¼ der Pixel), einmal skaliert
+        fall = self.__dict__.get("_lights_fall_half")
         if fall is None:                                    # Kegel werden nach unten schwächer
-            fall = self._lights_fall = Image.fromarray(
-                np.broadcast_to(np.linspace(255, 89, VIS_H)[:, None], (VIS_H, WIDTH)).astype(np.uint8), "L")
+            fall = self._lights_fall_half = Image.fromarray(np.broadcast_to(
+                np.linspace(255, 89, hh)[:, None, None], (hh, hw, 3)).astype(np.uint8), "RGB")
         bright = 0.35 + 0.65 * s["bass"]
+        layer = Image.new("RGB", (hw, hh))
         for i in range(n):
-            ox = 30 + i * (WIDTH - 60) / max(1, n - 1)
+            ox = (30 + i * (WIDTH - 60) / max(1, n - 1)) / 2
             ang = math.sin(t * (0.8 + 0.13 * i) + i * 1.7) * 38
-            dx1, dy1 = _vec(ang - 8, 300)
-            dx2, dy2 = _vec(ang + 8, 300)
-            mask = Image.new("L", (WIDTH, VIS_H), 0)
-            ImageDraw.Draw(mask).polygon([(ox - 3, 0), (ox + 3, 0), (ox + dx2, dy2), (ox + dx1, dy1)],
-                                         fill=int(150 * bright))
-            mask = ImageChops.multiply(mask, fall)
+            dx1, dy1 = _vec(ang - 8, 150)
+            dx2, dy2 = _vec(ang + 8, 150)
             c = _hue(i / n + s["beats"] * 0.13, 0.85, 1.0)
-            beams = ImageChops.add(beams, ImageChops.multiply(Image.new("RGB", beams.size, c), mask.convert("RGB")))
+            k = 150 * bright / 255
+            beam = Image.new("RGB", (hw, hh))
+            ImageDraw.Draw(beam).polygon([(ox - 1.5, 0), (ox + 1.5, 0), (ox + dx2, dy2), (ox + dx1, dy1)],
+                                         fill=tuple(int(v * k) for v in c))
+            layer = ImageChops.add(layer, beam)
+        layer = ImageChops.multiply(layer, fall).resize((WIDTH, VIS_H), Image.BILINEAR)
+        if beams.size != layer.size:
+            full = Image.new("RGB", beams.size)
+            full.paste(layer, (0, 0))
+            layer = full
+        beams = ImageChops.add(beams, layer)
         d = ImageDraw.Draw(beams)
         rng = random.Random(s["beats"])                     # Lichtpunkte, neu bei jedem Schlag
         for _ in range(dots):
@@ -9945,7 +10094,8 @@ class VisualPage:
             st["strobe"] = last = t
             self.vis_strobe_t = t
         age = t - last
-        frame = 1.0 / max(1, int((self.settings or {}).get("visual", {}).get("fps") or VISUAL_FPS))
+        frame = 1.0 / max(1, self.__dict__.get("vis_fps_now") or
+                          int((self.settings or {}).get("visual", {}).get("fps") or VISUAL_FPS))
         if 0 <= age < frame * 0.99:
             return 1.0, o.get("strobe_color", "white")
         if age < frame * 1.99:
@@ -13712,19 +13862,25 @@ class BalletVisual:
             self._bal_pole(fig, fd, BAL_POLE_X)
         fig = self._fx_figure(fig, st)                            # Silhouette im Gegenlicht
         x0, y0, x1, y1 = BAL_MIRROR                               # Spiegelbild: kleiner, gespiegelt, gedämpft
-        sc = 0.72
-        small = fig.resize((int(WIDTH * sc), int(HEIGHT * sc)), Image.BILINEAR).transpose(Image.FLIP_LEFT_RIGHT)
-        r, g_, b, a = small.split()
-        a = a.point(lambda v: v * 0.55)
-        small = Image.merge("RGBA", (r.point(lambda v: v * 0.8), g_.point(lambda v: v * 0.82),
-                                     b.point(lambda v: v * 0.95), a))
-        mx = int(x0 + (x1 - x0) * 0.42 - (WIDTH - BAL_POLE_X) * sc)
-        my = int(y1 - 4 - BAL_FLOOR * sc)
-        mirror = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
-        mirror.paste(small, (mx, my))
-        clip = Image.new("L", (WIDTH, HEIGHT), 0)
-        ImageDraw.Draw(clip).rectangle([x0, y0, x1, y1], fill=255)
-        mirror.putalpha(ImageChops.multiply(mirror.getchannel("A"), clip))
+        st["mframe"] = st.get("mframe", 0) + 1                    # nur jedes 2. Bild neu (spart ≈ ein Drittel)
+        mirror = st.get("mirror")
+        if mirror is None or st["mframe"] % 2 == 1 or s.get("demo"):
+            sc = 0.72
+            small = fig.resize((int(WIDTH * sc), int(HEIGHT * sc)), Image.BILINEAR).transpose(Image.FLIP_LEFT_RIGHT)
+            r, g_, b, a = small.split()
+            a = a.point(lambda v: v * 0.55)
+            small = Image.merge("RGBA", (r.point(lambda v: v * 0.8), g_.point(lambda v: v * 0.82),
+                                         b.point(lambda v: v * 0.95), a))
+            mx = int(x0 + (x1 - x0) * 0.42 - (WIDTH - BAL_POLE_X) * sc)
+            my = int(y1 - 4 - BAL_FLOOR * sc)
+            mirror = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
+            mirror.paste(small, (mx, my))
+            clip = self.__dict__.get("_bal_mirror_clip")
+            if clip is None:
+                clip = self._bal_mirror_clip = Image.new("L", (WIDTH, HEIGHT), 0)
+                ImageDraw.Draw(clip).rectangle([x0, y0, x1, y1], fill=255)
+            mirror.putalpha(ImageChops.multiply(mirror.getchannel("A"), clip))
+            st["mirror"] = mirror
         img.paste(mirror, (0, 0), mirror)
         img.paste(fig, (0, 0), fig)
         if show == "club" and "ball" not in fx:
@@ -16186,6 +16342,80 @@ class MetalVisual:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Modul seite_visual_szenen
+#   Szenen für die bewegte Vorschau der Verwaltung: Höhepunkt, Wortbeitrag oder ein bestimmter Gag eines Stils
+#   gezielt zeigen (vis_scenes liefert die Auswahl, vis_force stellt den Zustand nach kurzem Vorlauf ein).
+# ═══════════════════════════════════════════════════════════════════════════
+
+VIS_GAG_LABELS = {
+    # Kellertreppe
+    "spinne": "Spinne mit Kopfhörern", "maeuse": "Mäuse-Polonaise", "staub": "Hand mit Staubwedel",
+    "socke": "Waschmaschine frisst Socke", "arm": "Zombie verliert den Arm", "glas": "Zombie futtert Einmachglas",
+    "polonaise": "Zombie in der Polonaise", "xylophon": "Skelett-Xylophon", "zerfall": "Skelett zerfällt",
+    "hausverwalter": "Hausverwalter-Zombie", "vampir": "Graf Kellerstein", "mumie": "Mumie wickelt sich ab",
+    # Mittelalter-Metal
+    "visier": "Visier klappt zu", "moench": "Mönch beim Crowdsurfen", "steckenpferd": "Steckenpferd-Ritter",
+    "katapult": "Katapult mit Kohlkopf", "solo": "Gitarrensolo", "walldeath": "Wall of Death",
+    "fraeulein": "Burgfräulein wirft Rose", "drache": "Drache headbangt mit", "met": "Trommler trinkt Met",
+    # Überraschungsparty
+    "hund": "Hund frisst die Torte", "kerzen": "Trickkerzen", "geschenk": "Kastenteufel im Geschenk",
+    # Weihnachten (jugendfrei)
+    "schornstein": "Schornstein", "plaetzchen": "Plätzchen", "geschenketurm": "Geschenketurm",
+    "wunschzettel": "Wunschzettel", "schlitten": "Schlitten einparken", "lebkuchen": "Lebkuchenmann",
+    "katze": "Katze im Baum", "stromausfall": "Stromausfall", "glatteis": "Glatteis", "wichtelchor": "Wichtel-Chor",
+}
+
+
+def vis_scenes(style):
+    """Auswahl für die bewegte Vorschau: [[id, Beschriftung], …]; Gags als "gag:<name>"."""
+    out = [["play", "Abspielen"], ["boom", "Höhepunkt"], ["talk", "Wortbeitrag"]]
+    gags = {"cellar": CL_GAGS, "metal": MT_GAGS, "party": PT_GAGS, "xmas": FUN_GAGS}.get(style, {})
+    out += [["gag:" + n, VIS_GAG_LABELS.get(n, n.capitalize())] for n in gags]
+    if style == "xmas":                                             # Feierabend-Gags (schaltet ihn für die Vorschau an)
+        out += [["feier:" + n, "Feierabend: " + VIS_GAG_LABELS.get(n, n.capitalize())]
+                for n in PARTY_GAGS if n not in FUN_GAGS]
+    return out
+
+
+def vis_force(r, style, scene, t):
+    """Zustand des Stils für eine Szene einstellen (nach dem Vorlauf; r._vis_states ist gefüllt)."""
+    st = r._vis_states.get(style)
+    if st is None or scene in ("play", "talk"):
+        return
+    kind, _, name = scene.partition(":")
+    if style == "cellar":
+        for c in st.get("crew") or []:
+            c["mode"] = "idle"
+        if kind == "boom":
+            st["boom"], st["booms"], st["gag"] = t, st.get("booms", 0) + 1, None
+        elif kind == "gag":
+            st["gag"], st["next_gag"] = (name, t), t + 99
+    elif style == "metal":
+        if kind == "boom":
+            st["boom"], st["gag"] = t, None
+        elif kind == "gag":
+            st["gag"], st["next_gag"], st["boom"] = (name, t), t + 99, -99.0
+    elif style == "party":
+        if kind == "boom":
+            st.update(phase="surprise", phase_t=t)
+        elif kind == "gag":
+            st.update(phase="party", phase_t=t - 30, gag=(name, t), next_gag=t + 99)
+            if name == "hund":
+                st["eaten"], st["dog"] = 0.0, None
+    elif style == "xmas":
+        if kind == "gag" and "fun" in st:
+            r._xmas_fun_start(st["fun"], name)
+            st["fun"]["next"] = 1e9
+        elif kind == "feier" and "party" in st:
+            ps = st["party"]
+            ps.update(phase="mid", next=1e9, micro_at=1e9, pegel=max(ps.get("pegel", 0), 0.7))
+            ps["props"].update({"puddle", "sign"})
+            r._xmas_party_start(ps, name)
+    elif style == "dancer" and kind == "boom":
+        st["spin_t"] = t
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Modul menues
 #   Auswahllisten auf dem Display: Profile, Kalender, Alben und allgemeine Listen (Sender, Textbausteine).
 # ═══════════════════════════════════════════════════════════════════════════
@@ -16699,11 +16929,12 @@ class ProfileMenu(Menu):
                                                 self.cursor, app.prof_idx, app.profile_colors)
 
 
-def option_list(section, item):
-    """Am Display änderbare Optionen eines Zifferblatts ("clock") bzw. Stils ("visual");
-    die Städteliste der Weltuhr nur in der Verwaltung."""
+def option_list(section, item, values=None):
+    """Am Display änderbare Optionen eines Zifferblatts ("clock") bzw. Stils ("visual"); die Städteliste der Weltuhr
+    nur in der Verwaltung. Mit values nur die Optionen, die bei diesen Werten wirken (option_visible)."""
     src = CLOCK_OPTIONS if section == "clock" else VISUAL_OPTIONS
-    return [o for o in src.get(item, []) if o["type"] in ("bool", "choice", "color")]
+    return [o for o in src.get(item, []) if o["type"] in ("bool", "choice", "color")
+            and (values is None or option_visible(o, values))]
 
 
 def clock_option_list(face):
@@ -16802,7 +17033,7 @@ class OptionsMenu(Menu):
         self.kind = "clock_options" if section == "clock" else "visual_options"
 
     def on_key(self, app, pressed):
-        opts = option_list(self.section, self.item)
+        opts = option_list(self.section, self.item, item_options(app.settings(), self.section, self.item))
         self.cursor = self.step(self.cursor, pressed, len(opts))
         step = -1 if pressed & LKEY_BITS["LEFT"] else 1 if pressed & (LKEY_BITS["RIGHT"] | LKEY_BITS["OK"]) else 0
         if step:
@@ -16819,7 +17050,7 @@ class OptionsMenu(Menu):
         app.next_draw = 0
 
     def draw(self, app, now):
-        opts = option_list(self.section, self.item)
+        opts = option_list(self.section, self.item, item_options(app.settings(), self.section, self.item))
         self.cursor = min(self.cursor, len(opts) - 1)
         opt = opts[self.cursor]
         value = item_options(app.settings(), self.section, self.item)[opt["key"]]
@@ -18033,12 +18264,15 @@ class KeyHandling:
                 self._settings_key(long=True)
 
     def _settings_key(self, long):
-        """SETTINGS lang: Profilauswahl. Kurz: auf der Uhrseite die Zifferblätter, sonst die Profilauswahl."""
+        """SETTINGS lang: Profilauswahl. Kurz: auf der Uhrseite die Zifferblätter, auf der Visualisierung die Stile,
+        sonst das Schnellmenü (Helligkeit, Nachtmodus, Diashow, Bildschirmschoner, Profil)."""
         page = PAGE_IDS[self.page % len(PAGE_IDS)]
         if not long and page == "clock":
             self.menu = ClockMenu(self)
         elif not long and page == "visual":
             self.menu = VisualMenu(self)
+        elif not long:
+            self.menu = QuickMenu()
         else:
             self.menu = ProfileMenu(self.prof_idx)
         if self.args.debug:
@@ -18477,13 +18711,48 @@ class App(AppCore, KeyHandling, TimedTasks):
         if self._visual_shown():
             self.visual.want()              # Ausgang mithören, solange die Visualisierung zu sehen ist
             if not fast:
-                fps = int((self.settings().get("visual") or {}).get("fps") or VISUAL_FPS)
+                vis = self.settings().get("visual") or {}
+                fps = int(vis.get("fps") or VISUAL_FPS)
+                if vis.get("adaptive", True):           # Stille/Wortbeitrag langsamer, Lastbremse
+                    snap = self.visual.snapshot()
+                    fps = visual_fps(fps, r.__dict__.get("vis_ms"), not snap.get("active") or bool(snap.get("talk")))
+                r.vis_fps_now = fps
                 self.next_draw = now + 1.0 / fps
+                last = self.__dict__.get("_vis_frame_t")      # tatsächliche Bildrate (Diagnose)
+                if last is not None and 0 < now - last < 1.0:
+                    self.vis_rate = self.__dict__.get("vis_rate", fps) * 0.9 + 0.1 / (now - last)
+                self._vis_frame_t = now
             self._visual_backlight(now)
         else:
             self._visual_backlight_off()
+        self._diag_tick(now)
         if self.settings_down is not None:
             self.next_draw = min(self.next_draw, now + 0.05)    # Haltebalken von SETTINGS füllt sich
+
+    def _diag_tick(self, now):
+        """Eigene Last einmal je Sekunde für die Hardware-Seite (CPU %, Arbeitsspeicher, Zeichenzeit und Bildrate der
+        Visualisierung); solange die Visualisierung läuft, alle DIAG_LOG_EVERY Sekunden eine Zeile ins Protokoll."""
+        last = self.__dict__.get("_diag_mark")
+        if last and now - last[0] < 1.0:
+            return
+        cpu_t = time.process_time()
+        diag = self.__dict__.get("diag") or {"cpu": 0.0}
+        if last:
+            cpu = max(0.0, (cpu_t - last[1]) / (now - last[0]) * 100)
+            diag["cpu"] = cpu if diag.get("n", 0) < 3 else diag["cpu"] * 0.8 + cpu * 0.2
+            diag["n"] = diag.get("n", 0) + 1
+        self._diag_mark = (now, cpu_t)
+        r = self.renderer
+        shown = self._visual_shown()
+        diag.update(rss=own_rss_mb(), ms=r.__dict__.get("vis_ms"), fps=self.__dict__.get("vis_rate"),
+                    style=self.visual_style(), vis_t=now if shown else diag.get("vis_t"), now=now)
+        self.diag = r.g19s_diag = diag
+        if shown and diag.get("ms") is not None and now - self.__dict__.get("_diag_log_t", now - DIAG_LOG_EVERY + 30) \
+                >= DIAG_LOG_EVERY:
+            self._diag_log_t = now
+            self.log(f"Visualisierung: Stil {VISUAL_STYLES.get(diag['style'], diag['style'])}, "
+                     f"{diag['ms']:.1f} ms je Bild, {diag.get('fps') or 0:.0f} Bilder/s, CPU {diag['cpu']:.0f} %, "
+                     f"{diag.get('rss') or 0:.0f} MB")
 
     def _visual_shown(self):
         if self.menu is not None:

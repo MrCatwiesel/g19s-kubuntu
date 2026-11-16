@@ -136,7 +136,12 @@ class VisualPage:
             self._title_talk_t = None
         self.vis_talk = bool(snap.get("talk"))
         self._vis_song = " – ".join(x for x in (info.get("artist"), info.get("title")) if x) if info else ""
+        t0 = time.perf_counter()
         img = VISUAL_RENDERERS[style](self, snap, visual_options(self.settings, style), color)
+        ms = (time.perf_counter() - t0) * 1000                # Zeichenzeit (Lastbremse, Diagnose)
+        prev = self.__dict__.get("vis_ms")
+        self.vis_ms = ms if prev is None or self.__dict__.get("_vis_ms_style") != style else prev * 0.9 + ms * 0.1
+        self._vis_ms_style = style
         self._vis_last = (style, profile, img.copy())      # für das Standbild, wenn der Ton aufhört
         d = ImageDraw.Draw(img)
         if info and info.get("title") and vis.get("title", True):
@@ -282,22 +287,30 @@ class VisualPage:
     def _lights_beams(self, s, t, n, beams, dots=40):
         """Scheinwerferkegel (n Stück, schwenken, Farbe wechselt mit dem Takt) und Lichtpunkte auf das Bild beams
         (WIDTH × VIS_H) addieren – auch für die Lichtshow der Tänzerin."""
-        fall = self.__dict__.get("_lights_fall")
+        hw, hh = WIDTH // 2, VIS_H // 2                     # Kegel in halber Auflösung (¼ der Pixel), einmal skaliert
+        fall = self.__dict__.get("_lights_fall_half")
         if fall is None:                                    # Kegel werden nach unten schwächer
-            fall = self._lights_fall = Image.fromarray(
-                np.broadcast_to(np.linspace(255, 89, VIS_H)[:, None], (VIS_H, WIDTH)).astype(np.uint8), "L")
+            fall = self._lights_fall_half = Image.fromarray(np.broadcast_to(
+                np.linspace(255, 89, hh)[:, None, None], (hh, hw, 3)).astype(np.uint8), "RGB")
         bright = 0.35 + 0.65 * s["bass"]
+        layer = Image.new("RGB", (hw, hh))
         for i in range(n):
-            ox = 30 + i * (WIDTH - 60) / max(1, n - 1)
+            ox = (30 + i * (WIDTH - 60) / max(1, n - 1)) / 2
             ang = math.sin(t * (0.8 + 0.13 * i) + i * 1.7) * 38
-            dx1, dy1 = _vec(ang - 8, 300)
-            dx2, dy2 = _vec(ang + 8, 300)
-            mask = Image.new("L", (WIDTH, VIS_H), 0)
-            ImageDraw.Draw(mask).polygon([(ox - 3, 0), (ox + 3, 0), (ox + dx2, dy2), (ox + dx1, dy1)],
-                                         fill=int(150 * bright))
-            mask = ImageChops.multiply(mask, fall)
+            dx1, dy1 = _vec(ang - 8, 150)
+            dx2, dy2 = _vec(ang + 8, 150)
             c = _hue(i / n + s["beats"] * 0.13, 0.85, 1.0)
-            beams = ImageChops.add(beams, ImageChops.multiply(Image.new("RGB", beams.size, c), mask.convert("RGB")))
+            k = 150 * bright / 255
+            beam = Image.new("RGB", (hw, hh))
+            ImageDraw.Draw(beam).polygon([(ox - 1.5, 0), (ox + 1.5, 0), (ox + dx2, dy2), (ox + dx1, dy1)],
+                                         fill=tuple(int(v * k) for v in c))
+            layer = ImageChops.add(layer, beam)
+        layer = ImageChops.multiply(layer, fall).resize((WIDTH, VIS_H), Image.BILINEAR)
+        if beams.size != layer.size:
+            full = Image.new("RGB", beams.size)
+            full.paste(layer, (0, 0))
+            layer = full
+        beams = ImageChops.add(beams, layer)
         d = ImageDraw.Draw(beams)
         rng = random.Random(s["beats"])                     # Lichtpunkte, neu bei jedem Schlag
         for _ in range(dots):
@@ -358,7 +371,8 @@ class VisualPage:
             st["strobe"] = last = t
             self.vis_strobe_t = t
         age = t - last
-        frame = 1.0 / max(1, int((self.settings or {}).get("visual", {}).get("fps") or VISUAL_FPS))
+        frame = 1.0 / max(1, self.__dict__.get("vis_fps_now") or
+                          int((self.settings or {}).get("visual", {}).get("fps") or VISUAL_FPS))
         if 0 <= age < frame * 0.99:
             return 1.0, o.get("strobe_color", "white")
         if age < frame * 1.99:
