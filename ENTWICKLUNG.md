@@ -66,6 +66,7 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
       seite_visual_western    Stil „Western-Saloon“ (western): Klavier, Schwingtüren, Tresen, WS_GAGS
       seite_visual_lagerfeuer Stil „Lagerfeuer“ (campfire): ruhig, ohne Gags; Feuer st["flame"], Glühwürmchen, Eule
       seite_visual_katzen     Stil „Katzenchor“ (cats): vier Katzen = Frequenzbänder, KC_GAGS
+      seite_visual_stimmung   Stimmungsbilder silk, ember, pulse (Mixin MoodVisual): ruhig, ohne Gags, Bass träge (_mood_state)
       seite_visual_szenen     Szenen der bewegten Vorschau (vis_scenes, vis_force; Server: vorschau.render_scene)
       seite_visual_party      Stil „Überraschungsparty“ (party, Mixin PartyVisual): Phasen hide/surprise/party
                               (_pt_new_round), Gags PT_GAGS, Gäste _pt_guest, Hund, Torte, Kastenteufel, Konfetti

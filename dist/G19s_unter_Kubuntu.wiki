@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.11.16-16)
+| 28.09.2026 (Version 2026.11.16-17)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -32,7 +32,7 @@ Für die G19s gibt es unter Linux keinen offiziellen Treiber. Die normalen Taste
 * '''Terminerinnerung''' vor Terminbeginn, '''Radiowecker''' und '''Einschlaftimer''', '''Song merken''' (Radiotitel in eine Liste), '''Lieblingsbilder''' in der Diashow, '''Mikrofon stumm''' per G-Taste (MR-Leuchte als Anzeige).
 * Displayseiten je Ebene '''und''' je Profil einstellbar, '''automatische Sicherung''' in einen Ordner.
 * '''25 Zifferblätter''' für die Uhr (u. a. Chronometer, Bahnhofsuhr, Pendel- und Kuckucksuhr, Astro- und Sonnenuhr, Weltzeituhr, Nixie-Röhren, Wortuhr) – Auswahl am Display mit MENU oder SETTINGS (kurz) je Profil und Ebene, Aussehen in der Verwaltung einstellbar.
-* '''Visualisierung''' zur laufenden Musik in dreißig Stilen: Grafik-Equalizer, Tänzerin an der Stange, Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm, Feuerwerk, Weihnachten, Überraschungsparty, Kellertreppe, Mittelalter-Metal, Ostern, Halloween, Horror, Geburtstag, Muttertag, Männertag, Silvester, Fasching, Oktoberfest, St. Martin, Valentinstag, Unterwasser-Band, Bauernhof-Band, Weltraum-Disco, Retro-Arcade, Western-Saloon, Lagerfeuer, Katzenchor – die Tastaturbeleuchtung pulsiert auf Wunsch im Takt.
+* '''Visualisierung''' zur laufenden Musik in dreiunddreißig Stilen: Grafik-Equalizer, Tänzerin an der Stange, Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm, Feuerwerk, Weihnachten, Überraschungsparty, Kellertreppe, Mittelalter-Metal, Ostern, Halloween, Horror, Geburtstag, Muttertag, Männertag, Silvester, Fasching, Oktoberfest, St. Martin, Valentinstag, Unterwasser-Band, Bauernhof-Band, Weltraum-Disco, Retro-Arcade, Western-Saloon, Lagerfeuer, Katzenchor sowie die ruhigen Stimmungsbilder Seidenschleier, Abendglut und Herzschlag-Aura – die Tastaturbeleuchtung pulsiert auf Wunsch im Takt.
 * Weitere Seiten: '''Nachrichten''' (RSS/Atom), '''Unwetter''' (amtliche DWD-Warnungen), '''Netzwerk''' (Erreichbarkeit von Router, NAS …), '''Updates''' (Paket- und Flatpak-Updates, Neustart nötig).
 * '''Display''' mit sieben Standardseiten: Uhr, Musik (inkl. Internetradio), Wetter, Termine, Hardware (Auslastung, Temperaturen, Arbeitsspeicher, Lüfter, Netz, Datenträger), Makro-Übersicht, Bilder. Welche Seiten in welcher Reihenfolge erscheinen, ist frei wählbar.
 * '''Diashow''' mit Bildern aus Piwigo-Alben (auch private Alben) oder aus einem Ordner auf dem Rechner – auf Wunsch als '''Bildschirmschoner'''.
@@ -182,7 +182,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.16-16"
+VERSION = "2026.11.16-17"
 
 # Weitere Importe der Module
 import select
@@ -381,6 +381,9 @@ VISUAL_STYLES = {
     "western": "Western-Saloon",
     "campfire": "Lagerfeuer",
     "cats": "Katzenchor",
+    "silk": "Seidenschleier",
+    "ember": "Abendglut",
+    "pulse": "Herzschlag-Aura",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 VISUAL_FPS_QUIET = 8        # anpassende Bildrate (visual.adaptive): bei Stille/Wortbeitrag …
@@ -610,6 +613,28 @@ VISUAL_OPTIONS = {
     "cats": [
         {"key": "gags", "label": "Gags (Schuh, Hund, Mond, Gräte)", "type": "bool", "default": True},
         {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "eyes", "choices": [["eyes", "Katzenaugen-Gelb"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "silk": [
+        {"key": "colors", "label": "Farben", "type": "choice", "default": "ruby",
+         "choices": [["ruby", "Rubin, Bordeaux und Gold"], ["night", "Nachtblau und Flieder"], ["layer", "Farbe der Ebene"]]},
+        {"key": "veil", "label": "Bänder durchscheinend (Schleier)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "glow",
+         "choices": [["glow", "Farbe der Seide, atmet mit dem Bass"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "ember": [
+        {"key": "colors", "label": "Farben", "type": "choice", "default": "warm",
+         "choices": [["warm", "Warme Glut"], ["layer", "Farbe der Ebene"]]},
+        {"key": "sparks", "label": "Funken", "type": "choice", "default": "normal",
+         "choices": [["few", "Wenige"], ["normal", "Normal"], ["many", "Viele"]]},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "glow",
+         "choices": [["glow", "Glut, atmet mit dem Bass"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "pulse": [
+        {"key": "colors", "label": "Farben", "type": "choice", "default": "warm",
+         "choices": [["warm", "Warmes Rosé"], ["layer", "Farbe der Ebene"]]},
+        {"key": "beat", "label": "Heller Ring bei jedem Schlag", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "glow",
+         "choices": [["glow", "Farbe der Aura, pulsiert im Takt"], ["layer", "Farbe der Ebene"]]},
     ],
 }
 
@@ -22430,6 +22455,151 @@ class CatsVisual:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Modul seite_visual_stimmung
+#   Visualisierungen der Gruppe „Stimmung“ (Mixin MoodVisual): ruhige, abstrakte Lichtbilder ohne Gags.
+#   silk  „Seidenschleier“  – halbtransparente Lichtbänder in Rubin, Bordeaux und Gold wogen ineinander, der Bass hebt
+#                             sie langsam an.
+#   ember „Abendglut“       – Glut am unteren Rand atmet mit dem Bass, warme Funken steigen auf und verglimmen.
+#   pulse „Herzschlag-Aura“ – weiche Lichtringe laufen vom Zentrum nach außen, jeder Schlag schickt einen hellen Ring los.
+#   Alle drei folgen dem Bass bewusst träge (sanft statt zappelig) und kommen bei einem Wortbeitrag zur Ruhe.
+#   Gezeichnet wird doppelt aufgelöst und danach verkleinert (weiche Kanten).
+# ═══════════════════════════════════════════════════════════════════════════
+
+MOOD_SS = 2                                     # Überabtastung für weiche Kanten
+SILK_PALETTES = {"ruby": [(140, 20, 50), (195, 45, 75), (235, 130, 90), (255, 195, 130)],
+                 "night": [(30, 40, 120), (60, 70, 170), (120, 110, 210), (200, 180, 250)]}
+EMBER_SPARKS = {"few": 16, "normal": 28, "many": 44}
+PULSE_RINGS, PULSE_REACH = 7, 190               # Ringe gleichzeitig, Weg bis zum Verblassen (Pixel)
+
+
+def _mood_layer_palette(color, n):
+    """n Abstufungen der Ebenenfarbe von dunkel nach hell (für „Farbe der Ebene“)."""
+    return [tuple(int(min(255, c * (0.35 + 0.55 * k / max(1, n - 1)) + 40 * k / max(1, n - 1))) for c in color)
+            for k in range(n)]
+
+
+class MoodVisual:
+    vis_col_silk = None
+    vis_col_ember = None
+    vis_col_pulse = None
+
+    def _mood_state(self, style, s):
+        """Gemeinsamer Zustand: Bass träge nachgeführt, bei Stille/Wortbeitrag gegen 0."""
+        st = self._vstate(style, lambda: {"bass": 0.0, "level": 0.0, "beats": s["beats"], "rings": []})
+        dt = self._vis_dt(st, s["t"])
+        playing = (s.get("active") or s.get("demo")) and not s.get("talk")
+        bass = float(s.get("bass") or 0.0) if playing else 0.0
+        level = float(s.get("level") or 0.0) if playing else 0.0
+        if not math.isfinite(bass):
+            bass = 0.0
+        if not math.isfinite(level):
+            level = 0.0
+        st["bass"] += (bass - st["bass"]) * min(1.0, dt / (0.25 if bass > st["bass"] else 0.9))
+        st["level"] += (level - st["level"]) * min(1.0, dt / 0.8)
+        new_beat = s["beats"] != st["beats"]
+        st["beats"] = s["beats"]
+        return st, dt, playing, new_beat and playing
+
+    # -- Seidenschleier ----------------------------------------------------- #
+    @vis_style("silk")
+    def vis_silk(self, s, o, color):
+        t = s["t"]
+        st, dt, playing, beat = self._mood_state("silk", s)
+        bass = st["bass"]
+        S = MOOD_SS
+        img = Image.new("RGB", (WIDTH * S, VIS_H * S), (14, 4, 10))
+        d = ImageDraw.Draw(img, "RGBA")
+        pal = _mood_layer_palette(color, 4) if o.get("colors") == "layer" else \
+            SILK_PALETTES.get(o.get("colors"), SILK_PALETTES["ruby"])
+        alpha = 150 if o.get("veil", True) else 255
+        for layer, col in enumerate(pal):
+            amp = (14 + layer * 6 + bass * 22) * S
+            freq = (0.012 + layer * 0.003) / S
+            phase = t * (0.45 + layer * 0.12)
+            base_y = VIS_H * S * (0.30 + layer * 0.16) - bass * 10 * S
+            pts = [(x, base_y + math.sin(x * freq + phase) * amp + math.cos(x * 0.007 / S - phase * 0.6) * 10 * S)
+                   for x in range(0, WIDTH * S + 8 * S, 8 * S)]
+            d.polygon(pts + [(WIDTH * S, VIS_H * S), (0, VIS_H * S)], fill=(*col, alpha))
+            glow = tuple(min(255, c + 50) for c in col)                         # Glanzkante oben am Band
+            d.line(pts, fill=(*glow, int(90 + 120 * bass)), width=S)
+        out = Image.new("RGB", (WIDTH, HEIGHT), (0, 0, 0))
+        out.paste(img.reduce(S), (0, 0))
+        self.vis_col_silk = tuple(int(c * (0.35 + 0.65 * min(1.0, bass * 1.2))) for c in pal[1])
+        return out
+
+    # -- Abendglut ---------------------------------------------------------- #
+    @vis_style("ember")
+    def vis_ember(self, s, o, color):
+        t = s["t"]
+        st, dt, playing, beat = self._mood_state("ember", s)
+        bass = st["bass"]
+        S = MOOD_SS
+        W, H = WIDTH * S, VIS_H * S
+        img = Image.new("RGB", (W, H), (12, 5, 3))
+        d = ImageDraw.Draw(img, "RGBA")
+        warm = o.get("colors") != "layer"
+        base = (255, 110, 30) if warm else color
+        for i in range(6):                                                      # Glut-Horizont, außen dunkler
+            r = (150 + i * 26 + bass * 40) * S
+            tone = max(0.1, 0.95 - i * 0.15) * (0.55 + 0.45 * min(1.0, bass * 1.3 + 0.2))
+            col = tuple(int(c * tone * (0.75 if warm and k == 1 else 1.0)) for k, c in enumerate(base))
+            y0 = H - (26 + i * 11) * S - bass * 10 * S
+            d.ellipse((W / 2 - r, y0, W / 2 + r, H + 90 * S), fill=(*col, 70))
+        n = EMBER_SPARKS.get(o.get("sparks"), EMBER_SPARKS["normal"])
+        for i in range(n):                                                      # aufsteigende Funken
+            speed = (14 + (i % 7) * 4) * (1 + bass * 0.6)
+            y = VIS_H - ((t * speed + i * 37) % (VIS_H + 20))
+            x = ((i * 53) % WIDTH) + math.sin(t * 1.1 + i) * 12
+            size = (1.3 + (i % 3) * 0.7) * S
+            fade = max(0.0, min(1.0, y / VIS_H)) ** 0.7                         # oben verglimmen sie
+            col = (255, int(120 + 90 * fade), int(40 + 60 * fade)) if warm else \
+                tuple(min(255, int(c * 0.7 + 90 * fade)) for c in color)
+            X, Y = x * S, y * S
+            d.ellipse((X - size * 3, Y - size * 3, X + size * 3, Y + size * 3), fill=(*col, int(35 * fade)))
+            d.ellipse((X - size, Y - size, X + size, Y + size), fill=(*col, int(255 * fade)))
+        out = Image.new("RGB", (WIDTH, HEIGHT), (0, 0, 0))
+        out.paste(img.reduce(S), (0, 0))
+        k = 0.3 + 0.7 * min(1.0, bass * 1.3)
+        self.vis_col_ember = tuple(int(c * k) for c in ((255, 90, 20) if warm else color))
+        return out
+
+    # -- Herzschlag-Aura ---------------------------------------------------- #
+    @vis_style("pulse")
+    def vis_pulse(self, s, o, color):
+        t = s["t"]
+        st, dt, playing, beat = self._mood_state("pulse", s)
+        bass = st["bass"]
+        S = MOOD_SS
+        W, H = WIDTH * S, VIS_H * S
+        img = Image.new("RGB", (W, H), (16, 6, 14))
+        d = ImageDraw.Draw(img, "RGBA")
+        warm = o.get("colors") != "layer"
+        base = (220, 55, 95) if warm else color
+        cx, cy = W / 2, H / 2
+        if beat and o.get("beat", True):                                       # jeder Schlag: ein heller Ring
+            st["rings"].append(t)
+        st["rings"] = [b for b in st["rings"] if t - b < 2.0][-6:]
+        d.ellipse((cx - (30 + bass * 26) * S, cy - (22 + bass * 20) * S, cx + (30 + bass * 26) * S,
+                   cy + (22 + bass * 20) * S), fill=(*base, int(40 + 90 * bass)))   # warmer Kern
+        for ring in range(PULSE_RINGS, 0, -1):                                  # gleichmäßig wandernde Ringe
+            radius = ((t * 22 + ring * PULSE_REACH / PULSE_RINGS) % PULSE_REACH) + bass * 18
+            k = max(0.0, 1.0 - radius / PULSE_REACH)
+            r = radius * S
+            d.ellipse((cx - r, cy - r * 0.75, cx + r, cy + r * 0.75), outline=(*base, int(230 * k)), width=3 * S)
+        for b in st["rings"]:                                                   # Schlag-Ringe, schneller und heller
+            age = t - b
+            r = (20 + age * 110) * S
+            k = max(0.0, 1.0 - age / 2.0)
+            hi = tuple(min(255, int(c * 0.6 + 120)) for c in base)
+            d.ellipse((cx - r, cy - r * 0.75, cx + r, cy + r * 0.75), outline=(*hi, int(200 * k)), width=2 * S)
+        out = Image.new("RGB", (WIDTH, HEIGHT), (0, 0, 0))
+        out.paste(img.reduce(S), (0, 0))
+        k = 0.25 + 0.75 * min(1.0, bass * 1.2 + (0.3 if st["rings"] and t - st["rings"][-1] < 0.25 else 0.0))
+        self.vis_col_pulse = tuple(int(c * min(1.0, k)) for c in base)
+        return out
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Modul seite_visual_szenen
 #   Szenen für die bewegte Vorschau der Verwaltung: Höhepunkt, Wortbeitrag oder ein bestimmter Gag eines Stils
 #   gezielt zeigen (vis_scenes liefert die Auswahl, vis_force stellt den Zustand nach kurzem Vorlauf ein).
@@ -22998,7 +23168,7 @@ class Renderer(RendererBase,
                ClockPage, ClockBase, StandardFaces, MechanicalFaces, SkyFaces, DisplayFaces, InfoFaces,
                MacrosPage, MusicPage, SlidesPage, WeatherPage, CalendarPage, HardwarePage,
                NewsPage, WarningsPage, NetworkPage, UpdatesPage, VisualPage, XmasVisual, XmasParty, XmasFun, BalletVisual, StageFx,
-               PartyVisual, CellarVisual, CellarCrew, MetalVisual, EasterVisual, HalloweenVisual, HorrorVisual, BirthdayVisual, MotherVisual, FatherVisual, FigureKit, NewYearVisual, CarnivalVisual, OktoberfestVisual, MartinVisual, ValentineVisual, UnderwaterVisual, FarmVisual, SpaceVisual, ArcadeVisual, WesternVisual, CampfireVisual, CatsVisual,
+               PartyVisual, CellarVisual, CellarCrew, MetalVisual, EasterVisual, HalloweenVisual, HorrorVisual, BirthdayVisual, MotherVisual, FatherVisual, FigureKit, NewYearVisual, CarnivalVisual, OktoberfestVisual, MartinVisual, ValentineVisual, UnderwaterVisual, FarmVisual, SpaceVisual, ArcadeVisual, WesternVisual, CampfireVisual, CatsVisual, MoodVisual,
                MenuViews, OverlayViews):
     PAGES = len(PAGE_IDS)
     MUSIC_PAGE = PAGE_IDS.index("music")
@@ -25020,6 +25190,11 @@ class App(AppCore, KeyHandling, TimedTasks):
         if style == "cats" and not quiet and visual_options(s, "cats").get("keys", "eyes") == "eyes" \
                 and self.renderer.vis_col_cats:
             base = self.renderer.vis_col_cats
+        if style in ("silk", "ember", "pulse") and not quiet \
+                and visual_options(s, style).get("keys", "glow") == "glow":       # Stimmung: Farbe des Bildes
+            col = getattr(self.renderer, "vis_col_" + style, None)
+            if col:
+                base, k = tuple(c // 8 * 8 for c in col), 1.0              # Helligkeit steckt in der Farbe (gestuft)
         if style == "metal" and visual_options(s, "metal").get("keys", "fire") == "fire":   # Feuerkörbe
             k, base = round(max(0.12, self.renderer.vis_fire) * 20) / 20, (255, 100, 16)
         color = tuple(int(c * k) for c in base)
@@ -25204,7 +25379,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.16-16"
+VERSION = "2026.11.16-17"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -29732,6 +29907,12 @@ Die Seite '''Visualisierung''' bewegt sich zu allem, was der Rechner gerade absp
 | Lagerfeuer || Der ruhige Stil für den Abend, ohne Gags: Am See im Wald brennt ein Lagerfeuer – die Flammen wachsen mit der Lautstärke, Funken stieben auf hohe Schläge, das Feuer spiegelt sich im Wasser. Glühwürmchen, langsam kreisende Sterne, ab und zu eine Sternschnuppe, eine Eule blinzelt. Auf Wunsch rösten zwei Leute Marshmallows (die langsam braun werden). Höhepunkt: Das Feuer lodert auf, die Funken steigen in einer Spirale. Wortbeitrag: Das Feuer wird ruhig, die Eule ruft leise || Leute am Feuer, Tastaturbeleuchtung (Feuerschein oder Farbe der Ebene)
 |-
 | Katzenchor || Vier Katzen singen bei Vollmond auf dem Dach – jede Katze ein Frequenzband, die schwarze dirigiert mit dem Schwanz. Höhepunkt: der hohe Ton „MIAUUU!“, das Fell sträubt sich, der Mond wackelt. Wortbeitrag: Die Katzen putzen sich („Pause. Miau.“). Gags: Ein Fenster geht auf („Ruhe da oben!“) und ein Schuh fliegt („Daneben! Zugabe!“), der Hund unten bellt (Katzenbuckel), der Mond singt mit, eine Gräte an der Angel || Gags, Tastaturbeleuchtung (Katzenaugen-Gelb oder Farbe der Ebene)
+|-
+| Seidenschleier || Ruhiges Stimmungsbild ohne Gags: halbtransparente Lichtbänder in Rubin, Bordeaux und Gold wogen ineinander, der Bass hebt sie langsam an || Farben (Rubin und Gold, Nachtblau und Flieder, Farbe der Ebene), Schleier durchscheinend, Tastaturbeleuchtung (Farbe der Seide oder der Ebene)
+|-
+| Abendglut || Ruhiges Stimmungsbild: Glut am unteren Rand atmet mit dem Bass, warme Funken steigen auf und verglimmen || Farben (warme Glut oder Farbe der Ebene), Funken (wenige, normal, viele), Tastaturbeleuchtung (Glut oder Farbe der Ebene)
+|-
+| Herzschlag-Aura || Ruhiges Stimmungsbild: weiche Lichtringe laufen vom Zentrum nach außen, jeder Schlag schickt einen hellen Ring hinterher || Farben (warmes Rosé oder Farbe der Ebene), heller Ring bei jedem Schlag, Tastaturbeleuchtung (Farbe der Aura oder der Ebene)
 |}
 '''Feierabend (Weihnachten):''' Eine Option mit derbem Humor, ab Werk aus. Eingeschaltet (oder nur abends von 20 bis 4 Uhr) trinken die beiden Glühwein über den Durst. Eine Runde läuft, solange Musik spielt, und dauert etwa die eingestellte Zeit:
 * '''Auftakt:''' tanzen und prosten. Jedes Prosten hebt den Pegel – bei lauter, schneller Musik prosten sie öfter, bei ruhiger Musik schunkeln sie nur.

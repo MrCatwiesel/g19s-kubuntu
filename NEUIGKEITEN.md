@@ -3,6 +3,13 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.16-17
+- **Drei neue ruhige Stile – Stimmungsbilder ohne Gags:**
+  - **Seidenschleier:** Halbtransparente Lichtbänder in Rubin, Bordeaux und Gold wogen ineinander, der Bass hebt sie langsam an. Wahlweise in Nachtblau und Flieder oder in der Farbe der Ebene.
+  - **Abendglut:** Die Glut am unteren Rand atmet mit dem Bass, warme Funken steigen auf und verglimmen. Funkenmenge einstellbar.
+  - **Herzschlag-Aura:** Weiche Lichtringe laufen vom Zentrum nach außen, jeder Schlag schickt einen hellen Ring hinterher.
+- Bei allen drei folgt die Tastaturbeleuchtung auf Wunsch der Farbe des Bildes; bei Gesprochenem kommen sie zur Ruhe.
+
 ## 2026.11.16-16
 - **Retro-Arcade repariert:** Beim Umschalten auf Retro-Arcade und in der Vorschau erschien manchmal „Anzeige-Fehler“ bzw. „Vorschau-Fehler“ (SystemError beim Vergrößern des Pixelbildes). Ursache war die Pillow-Version von Kubuntu; Retro-Arcade verdoppelt die Pixel jetzt selbst – gleiches Bild, etwas weniger Rechenzeit.
 - Retro-Arcade übersteht auch ungültige Messwerte der Klanganalyse, ohne dass das Raumschiff verschwindet.

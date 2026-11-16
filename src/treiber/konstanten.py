@@ -175,6 +175,9 @@ VISUAL_STYLES = {
     "western": "Western-Saloon",
     "campfire": "Lagerfeuer",
     "cats": "Katzenchor",
+    "silk": "Seidenschleier",
+    "ember": "Abendglut",
+    "pulse": "Herzschlag-Aura",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 VISUAL_FPS_QUIET = 8        # anpassende Bildrate (visual.adaptive): bei Stille/Wortbeitrag …
@@ -404,6 +407,28 @@ VISUAL_OPTIONS = {
     "cats": [
         {"key": "gags", "label": "Gags (Schuh, Hund, Mond, Gräte)", "type": "bool", "default": True},
         {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "eyes", "choices": [["eyes", "Katzenaugen-Gelb"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "silk": [
+        {"key": "colors", "label": "Farben", "type": "choice", "default": "ruby",
+         "choices": [["ruby", "Rubin, Bordeaux und Gold"], ["night", "Nachtblau und Flieder"], ["layer", "Farbe der Ebene"]]},
+        {"key": "veil", "label": "Bänder durchscheinend (Schleier)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "glow",
+         "choices": [["glow", "Farbe der Seide, atmet mit dem Bass"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "ember": [
+        {"key": "colors", "label": "Farben", "type": "choice", "default": "warm",
+         "choices": [["warm", "Warme Glut"], ["layer", "Farbe der Ebene"]]},
+        {"key": "sparks", "label": "Funken", "type": "choice", "default": "normal",
+         "choices": [["few", "Wenige"], ["normal", "Normal"], ["many", "Viele"]]},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "glow",
+         "choices": [["glow", "Glut, atmet mit dem Bass"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "pulse": [
+        {"key": "colors", "label": "Farben", "type": "choice", "default": "warm",
+         "choices": [["warm", "Warmes Rosé"], ["layer", "Farbe der Ebene"]]},
+        {"key": "beat", "label": "Heller Ring bei jedem Schlag", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "glow",
+         "choices": [["glow", "Farbe der Aura, pulsiert im Takt"], ["layer", "Farbe der Ebene"]]},
     ],
 }
 

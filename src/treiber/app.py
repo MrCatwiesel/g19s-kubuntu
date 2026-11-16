@@ -260,6 +260,11 @@ class App(AppCore, KeyHandling, TimedTasks):
         if style == "cats" and not quiet and visual_options(s, "cats").get("keys", "eyes") == "eyes" \
                 and self.renderer.vis_col_cats:
             base = self.renderer.vis_col_cats
+        if style in ("silk", "ember", "pulse") and not quiet \
+                and visual_options(s, style).get("keys", "glow") == "glow":       # Stimmung: Farbe des Bildes
+            col = getattr(self.renderer, "vis_col_" + style, None)
+            if col:
+                base, k = tuple(c // 8 * 8 for c in col), 1.0              # Helligkeit steckt in der Farbe (gestuft)
         if style == "metal" and visual_options(s, "metal").get("keys", "fire") == "fire":   # Feuerkörbe
             k, base = round(max(0.12, self.renderer.vis_fire) * 20) / 20, (255, 100, 16)
         color = tuple(int(c * k) for c in base)
