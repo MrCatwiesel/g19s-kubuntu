@@ -623,6 +623,16 @@ scenes["vis_halloween_zerfall"] = lambda r: _fest(r, "halloween", 1.4, _mt_boom)
 scenes["vis_halloween_gespenst"] = lambda r: _fest(r, "halloween", 3.0, _mt_gag(None), talk=True)
 for _gag, _at in (("hexe", 5.0), ("suesses", 5.0), ("kopf", 6.0), ("kuerbis", 2.0), ("fenster", 6.0)):
     scenes[f"vis_halloween_{_gag}"] = lambda r, gag=_gag, at=_at: _fest(r, "halloween", at, _mt_gag(gag))
+for _pl in ("house", "dolls"):
+    scenes[f"vis_horror_{_pl}"] = lambda r, pl=_pl: _fest(r, "horror", 6.0, _mt_gag(None), {"place": pl})
+    scenes[f"vis_horror_{_pl}_boom"] = lambda r, pl=_pl: _fest(r, "horror", 1.4, _mt_boom, {"place": pl})
+    scenes[f"vis_horror_{_pl}_talk"] = lambda r, pl=_pl: _fest(r, "horror", 2.0, _mt_gag(None), {"place": pl},
+                                                               talk=True)
+for _gag, _at, _pl in (("hund", 4.0, "house"), ("pizza", 5.0, "house"), ("augen", 4.0, "house"),
+                       ("teeparty", 4.6, "dolls"), ("kasten", 3.0, "dolls"), ("drehen", 3.0, "dolls"),
+                       ("licht", 4.0, "dolls")):
+    scenes[f"vis_horror_{_gag}"] = lambda r, gag=_gag, at=_at, pl=_pl: _fest(r, "horror", at, _mt_gag(gag),
+                                                                            {"place": pl})
 scenes["vis_keller_gewitter"] = lambda r: _fest(r, "cellar", 4.07, weather=("thunder", 12.0, 10.0))
 
 

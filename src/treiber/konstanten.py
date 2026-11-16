@@ -161,7 +161,7 @@ VISUAL_STYLES = {
     "ring": "Kreis-Spektrum", "vu": "VU-Meter", "spectro": "Spektrogramm", "fireworks": "Feuerwerk",
     "xmas": "Weihnachten", "party": "Überraschungsparty", "cellar": "Kellertreppe",
     "metal": "Mittelalter-Metal", "easter": "Ostern",
-    "halloween": "Halloween",
+    "halloween": "Halloween", "horror": "Horror",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 VISUAL_FPS_QUIET = 8        # anpassende Bildrate (visual.adaptive): bei Stille/Wortbeitrag …
@@ -306,6 +306,17 @@ VISUAL_OPTIONS = {
         {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "glow",
          "choices": [["glow", "Kürbisleuchten (flackert)"], ["layer", "Farbe der Ebene"]]},
     ],
+    "horror": [
+        {"key": "place", "label": "Schauplatz", "type": "choice", "default": "switch",
+         "choices": [["switch", "Abwechselnd (bei jedem Liedwechsel)"], ["house", "Das Haus am Ende der Straße"],
+                     ["dolls", "Das Puppenzimmer"]]},
+        {"key": "gags", "label": "Gags (Nachbar mit Hund, Pizzabote, Teeparty, Springteufel …)", "type": "bool",
+         "default": True},
+        {"key": "spooky", "label": "Gänsehaut-Gags (Augen in den Fenstern, Puppen drehen sich, Licht aus)",
+         "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "scene",
+         "choices": [["scene", "Licht des Schauplatzes"], ["layer", "Farbe der Ebene"]]},
+    ],
 }
 
 
@@ -318,6 +329,7 @@ _OPTION_WHEN = {
     ("xmas", "party_meter"): {"key": "party", "not": ["off"]},
     ("easter", "spooky"): {"key": "gags", "in": [True]},
     ("halloween", "spooky"): {"key": "gags", "in": [True]},
+    ("horror", "spooky"): {"key": "gags", "in": [True]},
 }
 for _k in ("follow", "heads", "laser", "haze", "chase", "silhouette", "uv", "mood", "ball", "blinder", "beams"):
     _OPTION_WHEN[("dancer", "fx_" + _k)] = {"key": "show", "in": ["custom"]}

@@ -3,6 +3,12 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.16-8
+- **Neuer Stil „Horror“** mit zwei Schauplätzen, die bei jedem Liedwechsel wechseln (oder fest einstellbar):
+  - **Das Haus am Ende der Straße:** Die Fenster leuchten je Frequenzband, dahinter tanzen Schatten, die Laterne flackert. Beim Höhepunkt erwacht das Haus – Fenster werden Augen, die Tür ein Mund, das Dach hebt sich wie ein Hut („HAUSPARTY!“). Bei Wortbeiträgen sitzt ein Rabe auf dem Briefkasten („Krah! Durchsage!“). Gags: Der Nachbar im Bademantel will mit dem Hund vorbei („Komm schon, Bello!“ – „Wuff … nö.“), der Pizzabote liefert an eine sehr lange Hand, und mit Gänsehaut: In allen Fenstern blinzeln Augen.
+  - **Das Puppenzimmer:** Porzellanpuppen nicken im Regal, das Schaukelpferd schaukelt im Takt, die Spieluhr dreht sich. Höhepunkt: Das Schaukelpferd galoppiert, die Puppen headbangen. Bei Wortbeiträgen zieht eine Puppe an ihrer Schnur („Ma-ma!“). Gags: Teeparty mit dem Teddy, ein Springteufel mit Drehwurm, und mit Gänsehaut: Alle Puppen drehen sich gleichzeitig zu dir („Spiel mit uns …“) – oder das Licht geht aus, und danach sitzen sie ganz vorn („Wir waren das nicht.“).
+  - Die Gänsehaut-Gags lassen sich abschalten. Tastatur: Fensterlicht bzw. Puppenrosa.
+
 ## 2026.11.16-7
 - **Neuer Stil „Halloween“:** Eine Skelettband spielt im Mondlicht auf dem Friedhof – der Sänger an einer Schaufel als Mikrofonständer (der Kiefer klappert mit der Lautstärke), einer spielt Xylophon auf den eigenen Rippen, der Trommler haut mit Knochen auf zwei Grabsteine. Vorn singt der Kürbischor: Jeder Kürbis ist ein Frequenzband und leuchtet von innen. Fledermäuse flattern auf hohe Schläge, Bodennebel zieht vorbei.
   - Höhepunkt: Die Skelette fallen auseinander, die Kürbisse lodern – dann „Alle wieder zusammen!“.
