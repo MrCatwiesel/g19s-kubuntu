@@ -209,6 +209,9 @@ class App(AppCore, KeyHandling, TimedTasks):
         if style == "easter" and not quiet and visual_options(s, "easter").get("keys", "pastel") == "pastel" \
                 and self.renderer.vis_pastel:                       # Farbe des zuletzt bemalten Eis
             base = self.renderer.vis_pastel
+        if style == "halloween" and not quiet and visual_options(s, "halloween").get("keys", "glow") == "glow" \
+                and self.renderer.vis_glow:                         # Kürbisleuchten
+            base = self.renderer.vis_glow
         if style == "metal" and visual_options(s, "metal").get("keys", "fire") == "fire":   # Feuerkörbe
             k, base = round(max(0.12, self.renderer.vis_fire) * 20) / 20, (255, 100, 16)
         color = tuple(int(c * k) for c in base)

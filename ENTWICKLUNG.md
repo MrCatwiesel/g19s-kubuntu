@@ -48,6 +48,7 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
       seite_visual_burg       Stil „Mittelalter-Metal“ (metal, Mixin MetalVisual): Band MT_BAND, Feuerkörbe, Publikum,
                               Pyro/Drache beim Höhepunkt, Gags MT_GAGS, Herold, Hofnarr, Blitz bei Gewitter
       seite_visual_ostern     Stil „Ostern“ (easter, Mixin EasterVisual): Eierfabrik, ES_GAGS; Festkalender fest_days()
+      seite_visual_halloween  Stil „Halloween“ (halloween, Mixin HalloweenVisual): Skelettband HW_BAND, Kürbischor, HW_GAGS
       seite_visual_szenen     Szenen der bewegten Vorschau (vis_scenes, vis_force; Server: vorschau.render_scene)
       seite_visual_party      Stil „Überraschungsparty“ (party, Mixin PartyVisual): Phasen hide/surprise/party
                               (_pt_new_round), Gags PT_GAGS, Gäste _pt_guest, Hund, Torte, Kastenteufel, Konfetti

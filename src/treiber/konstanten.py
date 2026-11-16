@@ -161,6 +161,7 @@ VISUAL_STYLES = {
     "ring": "Kreis-Spektrum", "vu": "VU-Meter", "spectro": "Spektrogramm", "fireworks": "Feuerwerk",
     "xmas": "Weihnachten", "party": "Überraschungsparty", "cellar": "Kellertreppe",
     "metal": "Mittelalter-Metal", "easter": "Ostern",
+    "halloween": "Halloween",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 VISUAL_FPS_QUIET = 8        # anpassende Bildrate (visual.adaptive): bei Stille/Wortbeitrag …
@@ -298,6 +299,13 @@ VISUAL_OPTIONS = {
         {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "pastel",
          "choices": [["pastel", "Farbe des zuletzt bemalten Eis"], ["layer", "Farbe der Ebene"]]},
     ],
+    "halloween": [
+        {"key": "gags", "label": "Gags (Hexenküche, Süßes oder Saures, Kopf ab, Kürbis-Solo, Fenster)", "type": "bool",
+         "default": True},
+        {"key": "spooky", "label": "Gänsehaut: Hand an der beschlagenen Scheibe", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "glow",
+         "choices": [["glow", "Kürbisleuchten (flackert)"], ["layer", "Farbe der Ebene"]]},
+    ],
 }
 
 
@@ -309,6 +317,7 @@ _OPTION_WHEN = {
     ("xmas", "party_len"): {"key": "party", "not": ["off"]},
     ("xmas", "party_meter"): {"key": "party", "not": ["off"]},
     ("easter", "spooky"): {"key": "gags", "in": [True]},
+    ("halloween", "spooky"): {"key": "gags", "in": [True]},
 }
 for _k in ("follow", "heads", "laser", "haze", "chase", "silhouette", "uv", "mood", "ball", "blinder", "beams"):
     _OPTION_WHEN[("dancer", "fx_" + _k)] = {"key": "show", "in": ["custom"]}

@@ -3,6 +3,15 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.16-7
+- **Neuer Stil „Halloween“:** Eine Skelettband spielt im Mondlicht auf dem Friedhof – der Sänger an einer Schaufel als Mikrofonständer (der Kiefer klappert mit der Lautstärke), einer spielt Xylophon auf den eigenen Rippen, der Trommler haut mit Knochen auf zwei Grabsteine. Vorn singt der Kürbischor: Jeder Kürbis ist ein Frequenzband und leuchtet von innen. Fledermäuse flattern auf hohe Schläge, Bodennebel zieht vorbei.
+  - Höhepunkt: Die Skelette fallen auseinander, die Kürbisse lodern – dann „Alle wieder zusammen!“.
+  - Wortbeitrag: Ein Gespenst steigt aus dem Grab („Buuuh – Durchsage!“).
+  - Gags: Hexenküche (im Kessel steckt ein Weihnachtsmann-Stiefel – „Huch – falsche Saison!“), Süßes oder Saures (der Trommler reicht Süßes, die Kinder rennen mit seinem Arm davon), dem Sänger fällt der Kopf ab und ein Kürbis springt ein („Passt!“), Kürbis-Solo („Psst!“).
+  - Mit Gänsehaut (abschaltbar): Die Scheibe beschlägt, eine Hand drückt sich von innen dagegen, die Finger ziehen Spuren und schreiben „LASS MICH REIN …“.
+  - Tastatur: flackerndes Kürbisleuchten.
+- **Festkalender:** Vom 25. Oktober bis 1. November erscheint automatisch „Halloween“.
+
 ## 2026.11.16-6
 - **Neuer Stil „Ostern“ – die Eierfabrik:** Auf der Frühlingswiese legen die Hühner bei jedem Bassschlag ein Ei aufs Fließband, der Osterhase bemalt jedes Ei im Takt (Streifen, Punkte, Zickzack), die bunten Eier purzeln in den Korb.
   - Höhepunkt: Das Band rast, die Eier fliegen durch die Luft, der Hase hechtet hinterher („Halt! Zu schnell!“).
