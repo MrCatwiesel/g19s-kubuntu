@@ -3,6 +3,14 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.16-10
+- **Neuer Stil „Muttertag“ – Multitasking in der Küche:** Mama wendet Pfannkuchen im Takt (sie fliegen auf den Bass und landen auf dem Stapel), bügelt auf hohe Schläge, telefoniert („Ja … mhm … ja …“) und gießt die Blumen. Je lauter die Musik, desto mehr Arme wachsen ihr – 2, 4, 6. Die Wanduhr rast mit.
+  - Höhepunkt: Super-Mama mit Umhang („Alles erledigt!“).
+  - Wortbeitrag: Füße hoch, Kaffee – „Fünf Minuten Ruhe …“.
+  - Gags: Die Kinder bringen Frühstück (verkohlter Toast, die Küche qualmt – „Die Küche räumen wir später auf!“), das Blumenbeet vor dem Fenster wächst im Zeitraffer, bis eine Riesenblume hereinschnüffelt, ein selbstgemaltes Bild mit acht Armen („Das bist du!“ – „Wie … treffend.“), die Waschmaschine hüpft durch die Küche und frisst eine Socke.
+  - Tastatur: Rosa im Takt.
+- **Festkalender:** Am 2. Sonntag im Mai erscheint automatisch „Muttertag“.
+
 ## 2026.11.16-9
 - **Neuer Stil „Geburtstag“ – die lebende Torte:** Auf dem Festtisch singt eine zweistöckige Torte mit Gesicht mit und hüpft im Takt, die Kerzen flackern. Daneben tanzt das Geburtstagskind mit Partyhut, die Geschenke hüpfen. Name und Kerzen kommen aus der Geburtstagsliste der Überraschungsparty (ab 13 Jahren als Zahlenkerzen).
   - Höhepunkt: Konfettikanonen, die Kerzen werden zu Wunderkerzen („Hoch – hoch – hoch!“).
