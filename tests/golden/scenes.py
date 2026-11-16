@@ -613,6 +613,11 @@ scenes["vis_metal_gewitter"] = lambda r: _fest(r, "metal", 6.4, _mt_gag(None), w
 for _gag, _at in (("visier", 2.0), ("moench", 4.0), ("steckenpferd", 3.0), ("katapult", 2.6), ("solo", 3.0),
                   ("walldeath", 3.0), ("fraeulein", 2.6), ("drache", 2.4), ("met", 3.0)):
     scenes[f"vis_metal_{_gag}"] = lambda r, gag=_gag, at=_at: _fest(r, "metal", at, _mt_gag(gag))
+scenes["vis_ostern"] = lambda r: _fest(r, "easter", 6.0, _mt_gag(None))
+scenes["vis_ostern_rasant"] = lambda r: _fest(r, "easter", 1.4, _mt_boom)
+scenes["vis_ostern_streik"] = lambda r: _fest(r, "easter", 3.0, _mt_gag(None), talk=True)
+for _gag, _at in (("kueken", 3.6), ("disco", 5.0), ("jonglage", 5.0), ("schokohasen", 4.6)):
+    scenes[f"vis_ostern_{_gag}"] = lambda r, gag=_gag, at=_at: _fest(r, "easter", at, _mt_gag(gag))
 scenes["vis_keller_gewitter"] = lambda r: _fest(r, "cellar", 4.07, weather=("thunder", 12.0, 10.0))
 
 

@@ -206,6 +206,9 @@ class App(AppCore, KeyHandling, TimedTasks):
             elif keys == "red":
                 beat = math.exp(-max(0.0, snap["t"] - snap.get("beat_t", -9)) * 7) if not quiet else 0.0
                 k, base = round(max(0.06, beat) * 20) / 20, (255, 10, 10)
+        if style == "easter" and not quiet and visual_options(s, "easter").get("keys", "pastel") == "pastel" \
+                and self.renderer.vis_pastel:                       # Farbe des zuletzt bemalten Eis
+            base = self.renderer.vis_pastel
         if style == "metal" and visual_options(s, "metal").get("keys", "fire") == "fire":   # Feuerkörbe
             k, base = round(max(0.12, self.renderer.vis_fire) * 20) / 20, (255, 100, 16)
         color = tuple(int(c * k) for c in base)

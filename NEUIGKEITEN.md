@@ -3,6 +3,14 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.16-6
+- **Neuer Stil „Ostern“ – die Eierfabrik:** Auf der Frühlingswiese legen die Hühner bei jedem Bassschlag ein Ei aufs Fließband, der Osterhase bemalt jedes Ei im Takt (Streifen, Punkte, Zickzack), die bunten Eier purzeln in den Korb.
+  - Höhepunkt: Das Band rast, die Eier fliegen durch die Luft, der Hase hechtet hinterher („Halt! Zu schnell!“).
+  - Wortbeitrag: Der Hase macht Pause mit Möhre und hält ein „STREIK“-Schild hoch.
+  - Gags: Ein Küken schlüpft („Nicht anmalen!“), Hühnerdisco mit Spiegelkugel und dem Hahn als DJ („Kikeriki – Bass!“), Jonglage mit Rührei – und mit Gänsehaut die Schokohasen im Regal: Es wird dunkel, alle drehen sich mit glühenden Augen um … „Knack!“ Bei warmem Wetter schmilzt einer. Die Gänsehaut lässt sich abschalten.
+  - Tastatur: Farbe des zuletzt bemalten Eis.
+- **Festkalender erweitert:** Von Gründonnerstag bis Ostermontag erscheint automatisch „Ostern“ (Schalter „Festtage automatisch“ unter Visualisierung). Halloween, Muttertag und Männertag sind vorbereitet und folgen mit ihren Stilen. Geburtstage gehen weiterhin vor.
+
 ## 2026.11.16-5
 - **Bewegte Vorschau in der Verwaltung** (Beleuchtung & Display → Visualisierung): Knöpfe „▶ Abspielen“, „Höhepunkt“ und „Wortbeitrag“ sowie eine Liste „Gag zeigen“ – so lässt sich jeder Gag (Vampir, Mumie, Hund frisst die Torte, Schornstein, Drache …) gezielt ansehen, ohne zu warten. „■ Stopp“ beendet die Szene.
 - **Anpassende Bildrate** (Standard an): Bei Stille und Wortbeiträgen läuft die Visualisierung mit 8 Bildern/s; braucht das Zeichnen zu lange, bremst sie die Bildrate, statt den Rechner zu belasten.

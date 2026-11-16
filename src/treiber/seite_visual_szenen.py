@@ -11,6 +11,9 @@ VIS_GAG_LABELS = {
     "visier": "Visier klappt zu", "moench": "Mönch beim Crowdsurfen", "steckenpferd": "Steckenpferd-Ritter",
     "katapult": "Katapult mit Kohlkopf", "solo": "Gitarrensolo", "walldeath": "Wall of Death",
     "fraeulein": "Burgfräulein wirft Rose", "drache": "Drache headbangt mit", "met": "Trommler trinkt Met",
+    # Ostern
+    "kueken": "Küken schlüpft", "schokohasen": "Schokohasen (Gänsehaut)", "disco": "Hühnerdisco",
+    "jonglage": "Jonglage mit Rührei",
     # Überraschungsparty
     "hund": "Hund frisst die Torte", "kerzen": "Trickkerzen", "geschenk": "Kastenteufel im Geschenk",
     # Weihnachten (jugendfrei)
@@ -23,7 +26,7 @@ VIS_GAG_LABELS = {
 def vis_scenes(style):
     """Auswahl für die bewegte Vorschau: [[id, Beschriftung], …]; Gags als "gag:<name>"."""
     out = [["play", "Abspielen"], ["boom", "Höhepunkt"], ["talk", "Wortbeitrag"]]
-    gags = {"cellar": CL_GAGS, "metal": MT_GAGS, "party": PT_GAGS, "xmas": FUN_GAGS}.get(style, {})
+    gags = {"cellar": CL_GAGS, "metal": MT_GAGS, "party": PT_GAGS, "xmas": FUN_GAGS, "easter": ES_GAGS}.get(style, {})
     out += [["gag:" + n, VIS_GAG_LABELS.get(n, n.capitalize())] for n in gags]
     if style == "xmas":                                             # Feierabend-Gags (schaltet ihn für die Vorschau an)
         out += [["feier:" + n, "Feierabend: " + VIS_GAG_LABELS.get(n, n.capitalize())]
@@ -65,5 +68,10 @@ def vis_force(r, style, scene, t):
             ps.update(phase="mid", next=1e9, micro_at=1e9, pegel=max(ps.get("pegel", 0), 0.7))
             ps["props"].update({"puddle", "sign"})
             r._xmas_party_start(ps, name)
+    elif style == "easter":
+        if kind == "boom":
+            st["boom"], st["gag"] = t, None
+        elif kind == "gag":
+            st["gag"], st["next_gag"], st["boom"] = (name, t), t + 99, -99.0
     elif style == "dancer" and kind == "boom":
         st["spin_t"] = t

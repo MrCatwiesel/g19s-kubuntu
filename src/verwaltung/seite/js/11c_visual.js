@@ -11,6 +11,7 @@ function renderVisual() {
   $("#visFps").value = v.fps || "15";
   $("#visAdaptive").checked = v.adaptive !== false;
   $("#visXmas").checked = v.xmas_auto !== false;
+  $("#visFest").checked = v.fest_auto !== false;
   $("#visTalkWords").value = v.talk_words || "";
   renderVisualOptions();
   renderVisualScenes();
@@ -41,6 +42,7 @@ $("#visTitle").addEventListener("change", e => { UI.sdraft.visual.title = e.targ
 $("#visTalkWords").addEventListener("input", e => { UI.sdraft.visual.talk_words = e.target.value; touchSettings(); });
 $("#visXmas").addEventListener("change", e => { UI.sdraft.visual.xmas_auto = e.target.checked; UI.sdraft.visual.xmas_skip = 0; touchSettings(); });
 $("#visFps").addEventListener("change", e => { UI.sdraft.visual.fps = e.target.value; touchSettings(); });
+$("#visFest").addEventListener("change", e => { UI.sdraft.visual.fest_auto = e.target.checked; UI.sdraft.visual.fest_skip = ""; touchSettings(); });
 $("#visAdaptive").addEventListener("change", e => { UI.sdraft.visual.adaptive = e.target.checked; touchSettings(); });
 // Bewegte Vorschau: Szene (Abspielen, Höhepunkt, Wortbeitrag, Gag) etwa 12 Sekunden lang Bild für Bild abrufen
 let visScene = null;

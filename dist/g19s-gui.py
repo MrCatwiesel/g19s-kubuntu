@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.16-5"
+VERSION = "2026.11.16-6"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -1997,7 +1997,8 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
           <label class="check"><input type="checkbox" id="visBacklight"> Tastaturbeleuchtung pulsiert im Takt</label>
           <label class="check"><input type="checkbox" id="visTitle"> Laufenden Titel oben anzeigen</label>
           <label class="check"><input type="checkbox" id="visXmas"> In der Weihnachtszeit (1. Advent bis 6. Januar) automatisch den Stil „Weihnachten“ zeigen – wer dann am Display einen anderen Stil wählt, behält diesen bis zum Ende der Weihnachtszeit</label>
-          <p class="hint" style="max-width:360px">Festkalender: An Geburtstagen aus der Liste des Stils „Überraschungsparty“ erscheint automatisch die Party, an jedem Freitag, dem 13., auf Wunsch die „Kellertreppe“ (Schalter dort). Wer am Display einen anderen Stil wählt, behält ihn für diesen Tag.</p>
+          <label class="check"><input type="checkbox" id="visFest"> Festtage automatisch: Ostern (Gründonnerstag bis Ostermontag) zeigt „Ostern“ – Halloween, Muttertag und Männertag folgen</label>
+          <p class="hint" style="max-width:360px">Festkalender: An Geburtstagen aus der Liste des Stils „Überraschungsparty“ erscheint automatisch die Party, an jedem Freitag, dem 13., auf Wunsch die „Kellertreppe“ (Schalter dort). Wer am Display einen anderen Stil wählt, behält ihn für diesen Tag bzw. Zeitraum.</p>
           <label class="field" style="max-width:360px"><span>Wortbeitrag, wenn der Titel des Senders eines dieser Wörter enthält (durch Komma getrennt) – die Tänzerin langweilt sich dann</span><input type="text" id="visTalkWords" maxlength="300"></label>
           <p class="hint" style="max-width:360px">Nachrichten und Moderation erkennt die Visualisierung zusätzlich am Klang (Sprache statt Musik). Werbung mit Musik darunter nur über diese Wörter.</p>
         </div>
@@ -3459,6 +3460,7 @@ function renderVisual() {
   $("#visFps").value = v.fps || "15";
   $("#visAdaptive").checked = v.adaptive !== false;
   $("#visXmas").checked = v.xmas_auto !== false;
+  $("#visFest").checked = v.fest_auto !== false;
   $("#visTalkWords").value = v.talk_words || "";
   renderVisualOptions();
   renderVisualScenes();
@@ -3489,6 +3491,7 @@ $("#visTitle").addEventListener("change", e => { UI.sdraft.visual.title = e.targ
 $("#visTalkWords").addEventListener("input", e => { UI.sdraft.visual.talk_words = e.target.value; touchSettings(); });
 $("#visXmas").addEventListener("change", e => { UI.sdraft.visual.xmas_auto = e.target.checked; UI.sdraft.visual.xmas_skip = 0; touchSettings(); });
 $("#visFps").addEventListener("change", e => { UI.sdraft.visual.fps = e.target.value; touchSettings(); });
+$("#visFest").addEventListener("change", e => { UI.sdraft.visual.fest_auto = e.target.checked; UI.sdraft.visual.fest_skip = ""; touchSettings(); });
 $("#visAdaptive").addEventListener("change", e => { UI.sdraft.visual.adaptive = e.target.checked; touchSettings(); });
 // Bewegte Vorschau: Szene (Abspielen, Höhepunkt, Wortbeitrag, Gag) etwa 12 Sekunden lang Bild für Bild abrufen
 let visScene = null;

@@ -160,7 +160,7 @@ VISUAL_STYLES = {
     "eq": "Grafik-Equalizer", "dancer": "Tänzerin an der Stange", "lights": "Lichtshow", "scope": "Oszilloskop",
     "ring": "Kreis-Spektrum", "vu": "VU-Meter", "spectro": "Spektrogramm", "fireworks": "Feuerwerk",
     "xmas": "Weihnachten", "party": "Überraschungsparty", "cellar": "Kellertreppe",
-    "metal": "Mittelalter-Metal",
+    "metal": "Mittelalter-Metal", "easter": "Ostern",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 VISUAL_FPS_QUIET = 8        # anpassende Bildrate (visual.adaptive): bei Stille/Wortbeitrag …
@@ -291,6 +291,13 @@ VISUAL_OPTIONS = {
         {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "fire",
          "choices": [["fire", "Feuer im Takt"], ["layer", "Farbe der Ebene"]]},
     ],
+    "easter": [
+        {"key": "gags", "label": "Gags (Küken, Hühnerdisco, Jonglage, Schokohasen)", "type": "bool", "default": True},
+        {"key": "spooky", "label": "Schokohasen mit Gänsehaut (drehen sich im Dunkeln um)", "type": "bool",
+         "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "pastel",
+         "choices": [["pastel", "Farbe des zuletzt bemalten Eis"], ["layer", "Farbe der Ebene"]]},
+    ],
 }
 
 
@@ -301,6 +308,7 @@ _OPTION_WHEN = {
     ("xmas", "every"): {"key": "dance", "in": ["auto"]},
     ("xmas", "party_len"): {"key": "party", "not": ["off"]},
     ("xmas", "party_meter"): {"key": "party", "not": ["off"]},
+    ("easter", "spooky"): {"key": "gags", "in": [True]},
 }
 for _k in ("follow", "heads", "laser", "haze", "chase", "silhouette", "uv", "mood", "ball", "blinder", "beams"):
     _OPTION_WHEN[("dancer", "fx_" + _k)] = {"key": "show", "in": ["custom"]}
@@ -312,7 +320,7 @@ _OPTION_GROUP = {"keys": "Tastatur", "strobe": "Stroboskop", "strobe_rate": "Str
                  "fx": "Licht", "lights": "Licht", "pyro": "Licht", "dance": "Ablauf", "every": "Ablauf",
                  "gags": "Ablauf", "party": "Feierabend", "party_len": "Feierabend", "party_meter": "Feierabend",
                  "round": "Ablauf", "auto": "Festkalender", "birthdays": "Festkalender", "fri13": "Festkalender",
-                 "level": "Ablauf", "dog": "Ablauf", "confetti": "Aussehen", "crowd": "Aussehen"}
+                 "level": "Ablauf", "dog": "Ablauf", "spooky": "Ablauf", "confetti": "Aussehen", "crowd": "Aussehen"}
 _OPTION_HELP = {
     "strobe": "Harte Blitze, höchstens 3 je Sekunde. Vorsicht bei Lichtempfindlichkeit (Epilepsie).",
     "show": "Lichtprogramm der Bühne. „Eigene Auswahl“ blendet die einzelnen Effekte zum An- und Abschalten ein.",

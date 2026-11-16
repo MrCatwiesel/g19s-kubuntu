@@ -250,7 +250,8 @@ def _visual_section():
                         adaptive=Bool(True),           # anpassende Bildrate (Stille, Lastbremse)
                         xmas_auto=Bool(True),          # vom 1. Advent bis 6. Januar Stil „Weihnachten“
                         xmas_skip=Int(0, 0, 9999),     # Jahr, in dem der Nutzer in der Weihnachtszeit einen anderen Stil wählte
-                        fest_skip=Str("", maxlen=20),  # Anlass (Geburtstag, Freitag der 13.), an dem ein anderer Stil gewählt wurde
+                        fest_skip=Str("", maxlen=20),  # Anlass, an dem am Display ein anderer Stil gewählt wurde
+                        fest_auto=Bool(True),          # Festtage (Ostern, Halloween, Mutter-/Männertag) automatisch
                         **_option_sections(VISUAL_OPTIONS)))
 
 
