@@ -52,6 +52,7 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
       seite_visual_horror     Stil „Horror“ (horror, Mixin HorrorVisual): Haus (_hr_house) und Puppenzimmer (_hr_dolls), HR_GAGS je Schauplatz
       seite_visual_geburtstag Stil „Geburtstag“ (birthday, Mixin BirthdayVisual): lebende Torte, _bd_person(Altersstufe), BD_GAGS
       seite_visual_muttertag  Stil „Muttertag“ (mother, Mixin MotherVisual): Küche, Arme je Lautstärke (st["extra"]), MO_GAGS
+      seite_visual_maennertag Stil „Männertag“ (father, Mixin FatherVisual): Grill, Bollerwagen (_fa_cart), FA_GAGS
       seite_visual_szenen     Szenen der bewegten Vorschau (vis_scenes, vis_force; Server: vorschau.render_scene)
       seite_visual_party      Stil „Überraschungsparty“ (party, Mixin PartyVisual): Phasen hide/surprise/party
                               (_pt_new_round), Gags PT_GAGS, Gäste _pt_guest, Hund, Torte, Kastenteufel, Konfetti

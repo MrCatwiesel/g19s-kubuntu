@@ -162,7 +162,7 @@ VISUAL_STYLES = {
     "xmas": "Weihnachten", "party": "Überraschungsparty", "cellar": "Kellertreppe",
     "metal": "Mittelalter-Metal", "easter": "Ostern",
     "halloween": "Halloween", "horror": "Horror",
-    "birthday": "Geburtstag", "mother": "Muttertag",
+    "birthday": "Geburtstag", "mother": "Muttertag", "father": "Männertag",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 VISUAL_FPS_QUIET = 8        # anpassende Bildrate (visual.adaptive): bei Stille/Wortbeitrag …
@@ -333,6 +333,12 @@ VISUAL_OPTIONS = {
         {"key": "gags", "label": "Gags (Frühstück, Blumenbeet, Bild, Waschmaschine)", "type": "bool", "default": True},
         {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "rose",
          "choices": [["rose", "Rosa im Takt"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "father": [
+        {"key": "gags", "label": "Gags (Baumarkt-Ballett, Bollerwagen, Regenwolke, Zollstock)", "type": "bool",
+         "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "ember",
+         "choices": [["ember", "Grillglut im Bass"], ["layer", "Farbe der Ebene"]]},
     ],
 }
 

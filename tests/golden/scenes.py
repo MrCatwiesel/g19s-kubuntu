@@ -643,6 +643,11 @@ scenes["vis_muttertag_super"] = lambda r: _fest(r, "mother", 1.4, _mt_boom)
 scenes["vis_muttertag_pause"] = lambda r: _fest(r, "mother", 1.0, _mt_gag(None), talk=True)
 for _gag, _at in (("fruehstueck", 5.0), ("blumenbeet", 6.0), ("bild", 4.0), ("waschmaschine", 4.0)):
     scenes[f"vis_muttertag_{_gag}"] = lambda r, gag=_gag, at=_at: _fest(r, "mother", at, _mt_gag(gag))
+scenes["vis_maennertag"] = lambda r: _fest(r, "father", 6.0, _mt_gag(None))
+scenes["vis_maennertag_flambiert"] = lambda r: _fest(r, "father", 1.4, _mt_boom)
+scenes["vis_maennertag_karte"] = lambda r: _fest(r, "father", 1.0, _mt_gag(None), talk=True)
+for _gag, _at in (("ballett", 2.0), ("tour", 7.0), ("regen", 4.0), ("zollstock", 5.0)):
+    scenes[f"vis_maennertag_{_gag}"] = lambda r, gag=_gag, at=_at: _fest(r, "father", at, _mt_gag(gag))
 scenes["vis_keller_gewitter"] = lambda r: _fest(r, "cellar", 4.07, weather=("thunder", 12.0, 10.0))
 
 

@@ -3,6 +3,14 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.16-11
+- **Neuer Stil „Männertag“ – Rast auf der Bollerwagentour:** Der Grillmeister (Schürze „CHEF“) wendet die Würstchen im Takt – sie hüpfen auf dem Rost und werden langsam braun, die Glut glüht mit dem Bass. Zwei Kumpels schunkeln, auf dem Bollerwagen pumpt die Musikbox.
+  - Höhepunkt: Der Grill flambiert, die Würstchen fliegen, der Strohhut qualmt („Medium!“).
+  - Wortbeitrag: Die Kumpels sitzen auf dem Wagen und studieren die Karte („Wo sind wir eigentlich?“).
+  - Gags: **Baumarkt-Ballett** im Tutu mit Akkuschrauber, Zollstock und Wasserwaage („Und eins – und zwei …“), der Bollerwagen rollt allein davon und kommt mit einer Gans zurück, eine Regenwolke nur über dem Grill („Typisch Männertag.“), der Zollstock lässt sich nicht zusammenfalten („Ist der kaputt?“).
+  - Tastatur: Grillglut im Bass.
+- **Festkalender komplett:** An Christi Himmelfahrt erscheint automatisch „Männertag“. Damit kennt der Festkalender Geburtstage, Freitag den 13., Ostern, Muttertag, Männertag, Halloween und Weihnachten.
+
 ## 2026.11.16-10
 - **Neuer Stil „Muttertag“ – Multitasking in der Küche:** Mama wendet Pfannkuchen im Takt (sie fliegen auf den Bass und landen auf dem Stapel), bügelt auf hohe Schläge, telefoniert („Ja … mhm … ja …“) und gießt die Blumen. Je lauter die Musik, desto mehr Arme wachsen ihr – 2, 4, 6. Die Wanduhr rast mit.
   - Höhepunkt: Super-Mama mit Umhang („Alles erledigt!“).

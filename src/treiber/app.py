@@ -221,6 +221,9 @@ class App(AppCore, KeyHandling, TimedTasks):
         if style == "mother" and not quiet and visual_options(s, "mother").get("keys", "rose") == "rose" \
                 and self.renderer.vis_rose:                         # Rosa im Takt
             base = self.renderer.vis_rose
+        if style == "father" and not quiet and visual_options(s, "father").get("keys", "ember") == "ember" \
+                and self.renderer.vis_ember:                        # Grillglut
+            base = self.renderer.vis_ember
         if style == "metal" and visual_options(s, "metal").get("keys", "fire") == "fire":   # Feuerkörbe
             k, base = round(max(0.12, self.renderer.vis_fire) * 20) / 20, (255, 100, 16)
         color = tuple(int(c * k) for c in base)
