@@ -230,6 +230,15 @@ class App(AppCore, KeyHandling, TimedTasks):
         if style == "carnival" and not quiet and visual_options(s, "carnival").get("keys", "bunt") == "bunt" \
                 and self.renderer.vis_cv:
             base = self.renderer.vis_cv
+        if style == "oktoberfest" and not quiet and visual_options(s, "oktoberfest").get("keys", "rauten") == "rauten" \
+                and self.renderer.vis_rauten:
+            base = self.renderer.vis_rauten
+        if style == "martin" and not quiet and visual_options(s, "martin").get("keys", "lantern") == "lantern" \
+                and self.renderer.vis_lantern:
+            base = self.renderer.vis_lantern
+        if style == "valentine" and not quiet and visual_options(s, "valentine").get("keys", "heart") == "heart" \
+                and self.renderer.vis_heart:
+            base = self.renderer.vis_heart
         if style == "metal" and visual_options(s, "metal").get("keys", "fire") == "fire":   # Feuerkörbe
             k, base = round(max(0.12, self.renderer.vis_fire) * 20) / 20, (255, 100, 16)
         color = tuple(int(c * k) for c in base)

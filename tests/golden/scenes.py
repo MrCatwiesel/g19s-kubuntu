@@ -661,6 +661,15 @@ scenes["vis_fasching_polonaise"] = lambda r: _fest(r, "carnival", 2.4, _mt_boom,
 scenes["vis_fasching_buett"] = lambda r: _fest(r, "carnival", 1.0, _mt_gag(None), talk=True)
 for _gag, _at in (("pferd", 4.6), ("orden", 5.0), ("schirm", 6.0)):
     scenes[f"vis_fasching_{_gag}"] = lambda r, gag=_gag, at=_at: _fest(r, "carnival", at, _mt_gag(gag))
+for _st, _nm, _gags in (("oktoberfest", "oktoberfest", (("stemmen", 5.0), ("bedienung", 4.0), ("plattler", 3.0),
+                                                          ("hendl", 3.0))),
+                        ("martin", "martin", (("gans", 7.0), ("laterne", 3.0), ("weckmann", 4.0))),
+                        ("valentine", "valentin", (("nudel", 5.4), ("ring", 8.0), ("rosen", 6.0)))):
+    scenes[f"vis_{_nm}"] = lambda r, st=_st: _fest(r, st, 6.0, _mt_gag(None))
+    scenes[f"vis_{_nm}_hoehepunkt"] = lambda r, st=_st: _fest(r, st, 1.4, _mt_boom)
+    scenes[f"vis_{_nm}_wort"] = lambda r, st=_st: _fest(r, st, 2.0, _mt_gag(None), talk=True)
+    for _gag, _at in _gags:
+        scenes[f"vis_{_nm}_{_gag}"] = lambda r, st=_st, gag=_gag, at=_at: _fest(r, st, at, _mt_gag(gag))
 scenes["vis_keller_gewitter"] = lambda r: _fest(r, "cellar", 4.07, weather=("thunder", 12.0, 10.0))
 
 

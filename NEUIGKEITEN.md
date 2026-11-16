@@ -3,6 +3,12 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.16-13
+- **Neuer Stil „Oktoberfest“:** Im Festzelt spielt die Blaskapelle – die Tuba pumpt im Bass, die Trompete blitzt auf hohe Schläge –, an den Bierbänken wird im Takt geschunkelt. Höhepunkt: Alle steigen auf die Bänke („Oans, zwoa, g'suffa!“). Wortbeitrag: Brotzeit. Gags: Maßkrugstemmen, die Bedienung mit zehn Krügen im Slalom, Schuhplattler, ein Brathendl haut ab.
+- **Neuer Stil „St. Martin“:** Laternenumzug durchs Dorf – St. Martin reitet voran, jede Laterne leuchtet mit ihrem Frequenzband, das Martinsfeuer sprüht Funken. Ein ruhiger Stil. Wortbeitrag: die Mantelteilung. Gags: Die Gans flüchtet in eine Kiste („Hier ist keine Gans.“), eine Laterne fängt Feuer, der Weckmann wird lebendig.
+- **Neuer Stil „Valentinstag“:** Candle-Light-Dinner mit Geiger und aufsteigenden Herzen; Amor schießt auf den Bass und trifft fast immer daneben – beim Höhepunkt endlich: Herzaugen. Wortbeitrag: die Rechnung. Gags: Die Nudel reißt (Soße auf dem Frack), der Ring fällt in die Suppe, der Rosenverkäufer kommt immer wieder.
+- **Festkalender:** Oktoberfest (Samstag nach dem 15.9. bis erster Oktobersonntag), St. Martin (11.11.) und Valentinstag (14.2.) erscheinen automatisch; fällt der Valentinstag in den Fasching, geht Fasching vor.
+
 ## 2026.11.16-12
 - **Neuer Stil „Silvester“:** Party auf der Dachterrasse über der Stadt – Raketen steigen auf den Bass, hohe Schläge lassen Sterne platzen, Sektkorken knallen. Die Anzeigetafel zählt am 31. Dezember die echte Zeit bis Mitternacht herunter (die letzten zehn Sekunden riesig), danach „Frohes neues Jahr“.
   - Höhepunkt: Countdown 3-2-1 – PROSIT! – mit großem Feuerwerk. Wortbeitrag: ein Trinkspruch („… und aufs alte!“).

@@ -39,6 +39,19 @@ VIS_GAG_LABELS = {
     "pferd": "Pferdekostüm",
     "orden": "Riesenorden",
     "schirm": "Regenschirm voller Kamelle",
+    # Oktoberfest
+    "stemmen": "Maßkrugstemmen",
+    "bedienung": "Bedienung mit zehn Krügen",
+    "plattler": "Schuhplattler",
+    "hendl": "Hendl haut ab",
+    # St. Martin
+    "gans": "Die Gans flüchtet",
+    "laterne": "Laterne brennt",
+    "weckmann": "Weckmann wird lebendig",
+    # Valentinstag
+    "nudel": "Die Nudel reißt",
+    "ring": "Ring in der Suppe",
+    "rosen": "Rosenverkäufer",
     # Überraschungsparty
     "hund": "Hund frisst die Torte", "kerzen": "Trickkerzen", "geschenk": "Kastenteufel im Geschenk",
     # Weihnachten (jugendfrei)
@@ -52,7 +65,7 @@ def vis_scenes(style):
     """Auswahl für die bewegte Vorschau: [[id, Beschriftung], …]; Gags als "gag:<name>"."""
     out = [["play", "Abspielen"], ["boom", "Höhepunkt"], ["talk", "Wortbeitrag"]]
     gags = {"cellar": CL_GAGS, "metal": MT_GAGS, "party": PT_GAGS, "xmas": FUN_GAGS, "easter": ES_GAGS,
-            "newyear": NY_GAGS, "carnival": CV_GAGS, "halloween": HW_GAGS, "horror": {**HR_GAGS["house"], **HR_GAGS["dolls"]},
+            "newyear": NY_GAGS, "carnival": CV_GAGS, "oktoberfest": OK_GAGS, "martin": SM_GAGS, "valentine": VL_GAGS, "halloween": HW_GAGS, "horror": {**HR_GAGS["house"], **HR_GAGS["dolls"]},
             "birthday": BD_GAGS, "mother": MO_GAGS, "father": FA_GAGS}.get(style, {})
     out += [["gag:" + n, VIS_GAG_LABELS.get(n, n.capitalize())] for n in gags]
     if style == "xmas":                                             # Feierabend-Gags (schaltet ihn für die Vorschau an)

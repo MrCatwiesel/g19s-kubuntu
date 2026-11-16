@@ -165,6 +165,9 @@ VISUAL_STYLES = {
     "birthday": "Geburtstag", "mother": "Muttertag", "father": "Männertag",
     "newyear": "Silvester",
     "carnival": "Fasching",
+    "oktoberfest": "Oktoberfest",
+    "martin": "St. Martin",
+    "valentine": "Valentinstag",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 VISUAL_FPS_QUIET = 8        # anpassende Bildrate (visual.adaptive): bei Stille/Wortbeitrag …
@@ -351,6 +354,19 @@ VISUAL_OPTIONS = {
         {"key": "call", "label": "Narrenruf", "type": "choice", "default": "helau", "choices": [["helau", "Helau!"], ["alaaf", "Alaaf!"]]},
         {"key": "gags", "label": "Gags (Pferdekostüm, Orden, Regenschirm)", "type": "bool", "default": True},
         {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "bunt", "choices": [["bunt", "Bunt im Takt"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "oktoberfest": [
+        {"key": "gags", "label": "Gags (Maßkrugstemmen, Bedienung, Schuhplattler, Hendl)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "rauten", "choices": [["rauten", "Weiß-blau im Takt"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "martin": [
+        {"key": "gags", "label": "Gags (Gans, brennende Laterne, Weckmann)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "lantern", "choices": [["lantern", "Laternenschein"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "valentine": [
+        {"key": "cupid", "label": "Amor schießt auf den Bass (meist daneben)", "type": "bool", "default": True},
+        {"key": "gags", "label": "Gags (Nudel, Ring in der Suppe, Rosenverkäufer)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "heart", "choices": [["heart", "Rot-Rosa im Takt"], ["layer", "Farbe der Ebene"]]},
     ],
 }
 
