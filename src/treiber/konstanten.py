@@ -168,6 +168,10 @@ VISUAL_STYLES = {
     "oktoberfest": "Oktoberfest",
     "martin": "St. Martin",
     "valentine": "Valentinstag",
+    "underwater": "Unterwasser-Band",
+    "farm": "Bauernhof-Band",
+    "space": "Weltraum-Disco",
+    "arcade": "Retro-Arcade",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 VISUAL_FPS_QUIET = 8        # anpassende Bildrate (visual.adaptive): bei Stille/Wortbeitrag …
@@ -368,12 +372,31 @@ VISUAL_OPTIONS = {
         {"key": "gags", "label": "Gags (Nudel, Ring in der Suppe, Rosenverkäufer)", "type": "bool", "default": True},
         {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "heart", "choices": [["heart", "Rot-Rosa im Takt"], ["layer", "Farbe der Ebene"]]},
     ],
+    "underwater": [
+        {"key": "gags", "label": "Gags (Flaschenpost, Kugelfisch, Hai)", "type": "bool", "default": True},
+        {"key": "spooky", "label": "Gänsehaut: Ein Hai kreist", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "sea", "choices": [["sea", "Meeresblau im Takt"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "farm": [
+        {"key": "gags", "label": "Gags (Fuchs, Schlammpfütze, Schaf)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "farm", "choices": [["farm", "Rosa und Grün im Takt"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "space": [
+        {"key": "gags", "label": "Gags (Alien, Kakao, Satellit)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "space", "choices": [["space", "Wandernde Discofarben"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "arcade": [
+        {"key": "scanlines", "label": "Röhren-Zeilen (Scanlines)", "type": "bool", "default": True},
+        {"key": "gags", "label": "Gags (Mutterschiff, Glitch, Highscore)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "hit", "choices": [["hit", "Farbe des letzten Treffers"], ["layer", "Farbe der Ebene"]]},
+    ],
 }
 
 
 # Wann eine Option wirkt (B8: sonst ausgeblendet – in der Verwaltung und im Display-Menü), Gruppen (B9) und
 # Hilfetexte. when: {"key": Option, "in": [Werte]} oder {"key": Option, "not": [Werte]}.
 _OPTION_WHEN = {
+    ("underwater", "spooky"): {"key": "gags", "in": [True]},
     ("dancer", "beams"): {"key": "show", "in": ["beams", "club", "custom"]},
     ("xmas", "every"): {"key": "dance", "in": ["auto"]},
     ("xmas", "party_len"): {"key": "party", "not": ["off"]},

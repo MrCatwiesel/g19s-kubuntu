@@ -40,7 +40,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.16-13"
+VERSION = "2026.11.16-14"
 
 # Weitere Importe der Module
 import select
@@ -232,6 +232,10 @@ VISUAL_STYLES = {
     "oktoberfest": "Oktoberfest",
     "martin": "St. Martin",
     "valentine": "Valentinstag",
+    "underwater": "Unterwasser-Band",
+    "farm": "Bauernhof-Band",
+    "space": "Weltraum-Disco",
+    "arcade": "Retro-Arcade",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 VISUAL_FPS_QUIET = 8        # anpassende Bildrate (visual.adaptive): bei Stille/Wortbeitrag …
@@ -432,12 +436,31 @@ VISUAL_OPTIONS = {
         {"key": "gags", "label": "Gags (Nudel, Ring in der Suppe, Rosenverkäufer)", "type": "bool", "default": True},
         {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "heart", "choices": [["heart", "Rot-Rosa im Takt"], ["layer", "Farbe der Ebene"]]},
     ],
+    "underwater": [
+        {"key": "gags", "label": "Gags (Flaschenpost, Kugelfisch, Hai)", "type": "bool", "default": True},
+        {"key": "spooky", "label": "Gänsehaut: Ein Hai kreist", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "sea", "choices": [["sea", "Meeresblau im Takt"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "farm": [
+        {"key": "gags", "label": "Gags (Fuchs, Schlammpfütze, Schaf)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "farm", "choices": [["farm", "Rosa und Grün im Takt"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "space": [
+        {"key": "gags", "label": "Gags (Alien, Kakao, Satellit)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "space", "choices": [["space", "Wandernde Discofarben"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "arcade": [
+        {"key": "scanlines", "label": "Röhren-Zeilen (Scanlines)", "type": "bool", "default": True},
+        {"key": "gags", "label": "Gags (Mutterschiff, Glitch, Highscore)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "hit", "choices": [["hit", "Farbe des letzten Treffers"], ["layer", "Farbe der Ebene"]]},
+    ],
 }
 
 
 # Wann eine Option wirkt (B8: sonst ausgeblendet – in der Verwaltung und im Display-Menü), Gruppen (B9) und
 # Hilfetexte. when: {"key": Option, "in": [Werte]} oder {"key": Option, "not": [Werte]}.
 _OPTION_WHEN = {
+    ("underwater", "spooky"): {"key": "gags", "in": [True]},
     ("dancer", "beams"): {"key": "show", "in": ["beams", "club", "custom"]},
     ("xmas", "every"): {"key": "dance", "in": ["auto"]},
     ("xmas", "party_len"): {"key": "party", "not": ["off"]},
@@ -20696,6 +20719,928 @@ class ValentineVisual:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Modul seite_visual_unterwasser
+#   Visualisierung „Unterwasser“ (underwater, Mixin UnderwaterVisual): Die Band am Meeresgrund. Ein Oktopus trommelt
+#   mit acht Armen auf Muscheln, Quallen pulsieren im Bass (und leuchten bunt), ein Fischschwarm zieht im Takt seine
+#   Bahn, die Krabbe tanzt mit den Scheren, Seegras wiegt sich, Luftblasen steigen auf hohe Schläge, Lichtstrahlen fallen
+#   von oben ein. Höhepunkt: Der Schwarm formt einen riesigen Fisch, die Quallen werden zur Lichtorgel. Wortbeitrag: Ein
+#   Taucher schreibt die Durchsage auf seine Tafel („Blubb.“). Gags: Flaschenpost, ein Kugelfisch erschrickt sich am
+#   Bass, und mit Gänsehaut: Ein Hai kreist – stellt sich aber als Vegetarier heraus.
+# ═══════════════════════════════════════════════════════════════════════════
+
+UW_FLOOR = VIS_H - 20
+UW_OCTO = (160, UW_FLOOR - 30)
+UW_JELLY = [(46, 70), (276, 60), (226, 108)]
+UW_GAGS = {"flaschenpost": 8.0, "kugelfisch": 7.0, "hai": 9.0}
+UW_GAG_FIRST, UW_GAG_PAUSE = 8.0, (12.0, 20.0)
+UW_BOOM = 5.0
+UW_FISH = 22
+
+
+class UnderwaterVisual:
+    vis_sea = None
+
+    def _uw_scene(self):
+        if "_uw_bg" in self.__dict__:
+            return self._uw_bg
+        ys = np.linspace(0, 1, HEIGHT)[:, None, None]
+        top, bot = np.array([40, 140, 190], np.float32), np.array([6, 30, 70], np.float32)
+        img = Image.fromarray(np.clip(np.broadcast_to(top + (bot - top) * ys, (HEIGHT, WIDTH, 3)), 0, 255)
+                              .astype(np.uint8), "RGB")
+        d = ImageDraw.Draw(img)
+        d.polygon([(0, UW_FLOOR - 6), (80, UW_FLOOR - 14), (200, UW_FLOOR - 4), (320, UW_FLOOR - 12), (320, HEIGHT),
+                   (0, HEIGHT)], fill=(194, 176, 120))
+        rng = random.Random(6)
+        for _ in range(60):
+            x, y = rng.uniform(0, WIDTH), rng.uniform(UW_FLOOR - 4, HEIGHT)
+            d.point((x, y), fill=(170, 150, 100))
+        for x, w, h in ((20, 40, 22), (290, 50, 30), (110, 30, 14)):                # Felsen
+            self._blob(img, x, UW_FLOOR - h / 3, w, h, (90, 90, 100), gloss=0.3)
+        for x, c in ((70, (240, 110, 120)), (250, (250, 170, 80)), (200, (190, 110, 220))):   # Korallen
+            for k in range(5):
+                a = -math.pi / 2 + (k - 2) * 0.35
+                d.line([(x, UW_FLOOR - 4), (x + math.cos(a) * 18, UW_FLOOR - 4 + math.sin(a) * 22)], fill=c, width=4)
+                self._blob(img, x + math.cos(a) * 18, UW_FLOOR - 4 + math.sin(a) * 22, 6, 6, c, gloss=0.4)
+        rays = Image.new("L", (WIDTH, HEIGHT), 0)                                   # Lichtstrahlen
+        rd = ImageDraw.Draw(rays)
+        for x in (40, 120, 210, 280):
+            rd.polygon([(x - 6, 0), (x + 10, 0), (x + 40, UW_FLOOR), (x + 10, UW_FLOOR)], fill=26)
+        img.paste((220, 250, 255), (0, 0), rays)
+        self._uw_bg = img
+        return img
+
+    def _uw_fish(self, d, x, y, face, col, s=1.0):
+        d.ellipse([x - 6 * s, y - 3 * s, x + 6 * s, y + 3 * s], fill=col)
+        d.polygon([(x - face * 5 * s, y), (x - face * 10 * s, y - 4 * s), (x - face * 10 * s, y + 4 * s)], fill=col)
+        d.point((x + face * 3 * s, y - 1), fill=(10, 10, 20))
+
+    def _uw_jelly(self, img, d, x, y, t, pulse, col):
+        w = 26 - 8 * pulse
+        h = 16 + 4 * pulse
+        self._blob(img, x, y, w * 2.2, h * 2.2, col, alpha=0.25, flat=True)
+        d.chord([x - w / 2, y - h, x + w / 2, y + h * 0.3], 180, 360, fill=col)
+        for k in range(5):
+            tx = x - w / 2 + 3 + k * (w - 6) / 4
+            pts = [(tx + math.sin(t * 3 + k + j * 0.8) * 3, y + j * 6) for j in range(5)]
+            d.line(pts, fill=col, width=1)
+
+    @vis_style("underwater")
+    def vis_underwater(self, s, o, color):
+        t = s["t"]
+        img = self._uw_scene().copy()
+        d = ImageDraw.Draw(img)
+        demo = bool(s.get("demo"))
+        talk = bool(s.get("talk"))
+        st = self._vstate("underwater", lambda: {"beats": s["beats"], "hats": s.get("hats", 0), "slow": s["level"],
+                                                  "fast": s["level"], "boom": -99.0, "gag": None, "order": [], "k": 0,
+                                                  "next_gag": t + UW_GAG_FIRST, "rng": random.Random(131), "start": t,
+                                                  "bubbles": [], "ph": 0.0, "dir": 1, "puff": -9.0})
+        dt = self._vis_dt(st, t)
+        new_beat = s["beats"] != st["beats"]
+        st["beats"] = s["beats"]
+        new_hat = s.get("hats", 0) != st["hats"]
+        st["hats"] = s.get("hats", 0)
+        playing = (s.get("active") or demo) and not talk
+        period = max(0.3, min(1.2, s.get("period") or 0.5))
+        bang = math.sin(math.pi * min(1.0, (t - s.get("beat_t", t)) / (period * 0.6))) if playing else 0.0
+        level = s["level"] if playing else 0.0
+        st["slow"] += (s["level"] - st["slow"]) * min(1.0, dt / 6)
+        st["fast"] += (s["level"] - st["fast"]) * min(1.0, dt / 0.4)
+        if not demo and playing and st["fast"] > st["slow"] * 1.2 + 0.04 and t - st["boom"] > 15 \
+                and t - st["start"] > 5 and st["gag"] is None:
+            st["boom"] = t
+        bt = t - st["boom"]
+        boom = 0 <= bt < UW_BOOM
+        gag = st["gag"]
+        if gag and t - gag[1] >= UW_GAGS[gag[0]]:
+            st["gag"] = gag = None
+            st["next_gag"] = t + st["rng"].uniform(*UW_GAG_PAUSE)
+        if not demo and o.get("gags", True) and gag is None and playing and not boom and t >= st["next_gag"]:
+            if not st["order"]:
+                pool = [g_ for g_ in UW_GAGS if o.get("spooky", True) or g_ != "hai"]
+                st["order"] = st["rng"].sample(pool, len(pool))
+            st["gag"] = gag = (st["order"].pop(0), t)
+        gname = gag[0] if gag else None
+        gl = t - gag[1] if gag else 0.0
+        rng = st["rng"]
+        say = []
+        if playing and new_beat:
+            st["k"] += 1
+            if st["k"] % 8 == 0:
+                st["dir"] = -st["dir"]
+        dark = 0.0
+        if gname == "hai":
+            dark = min(1.0, gl / 1.0, max(0.0, (6.0 - gl) / 0.8))
+        # Seegras
+        for x in (14, 96, 136, 186, 236, 300):
+            pts = [(x + math.sin(t * 1.5 + x + j * 0.6) * (2 + j) * (1 + level), UW_FLOOR - 4 - j * 10)
+                   for j in range(6)]
+            d.line(pts, fill=(60, 150, 80), width=3)
+        # Quallen
+        for i, (jx, jy) in enumerate(UW_JELLY):
+            pulse = max(0.0, 1 - (t - s.get("beat_t", -9)) / 0.3) if playing else 0.0
+            col = _hue((t * 0.1 + i / 3) % 1.0, 0.5, 1.0) if boom else [(240, 160, 220), (160, 200, 255), (200, 170, 255)][i]
+            self._uw_jelly(img, d, jx + math.sin(t * 0.4 + i) * 10, jy + math.sin(t * 0.7 + i * 2) * 8 - pulse * 6, t,
+                           pulse, col)
+        # Fischschwarm
+        st["ph"] += dt * st["dir"] * (0.4 + level * 1.2) * (0 if gname == "hai" and gl > 1.5 else 1)
+        cols = [(250, 200, 60), (250, 140, 60), (120, 200, 250)]
+        for i in range(UW_FISH):
+            a = st["ph"] + i * 0.28
+            if boom:                                                                # Großer Fisch aus Fischen
+                k = min(1.0, bt / 0.8, (UW_BOOM - bt) / 0.8)
+                u = i / UW_FISH * 6.283
+                bx_, by_ = 160 + math.cos(u) * 70, 80 + math.sin(u) * 26
+                if i > UW_FISH - 5:
+                    bx_, by_ = 90 - (i - UW_FISH + 5) * 6, 80 + ((i % 2) * 2 - 1) * (i - UW_FISH + 5) * 7
+                fx = bx_ * k + (160 + math.cos(a) * 120) * (1 - k)
+                fy = by_ * k + (90 + math.sin(a * 2) * 30) * (1 - k)
+                face = 1
+            else:
+                fx = 160 + math.cos(a) * 120
+                fy = 90 + math.sin(a * 2) * 30 + math.sin(i) * 8
+                if gname == "hai" and gl > 1.5:
+                    fx += math.cos(i) * 200 * min(1.0, (gl - 1.5) / 1.0)
+                face = -1 if math.sin(a) * st["dir"] > 0 else 1
+            self._uw_fish(d, fx, fy, face, cols[i % 3])
+        if boom and 1.0 < bt < 3.6:
+            say.append((160, 40, "Wir sind ein großer Fisch!"))
+        # Oktopus am Muschel-Schlagzeug
+        ox, oy = UW_OCTO
+        for k, sx in enumerate((-40, -20, 20, 40)):                                 # Muscheltrommeln
+            d.chord([ox + sx - 11, oy + 6, ox + sx + 11, oy + 26], 180, 360, fill=[(250, 200, 190), (240, 220, 180)][k % 2])
+            for j in range(4):
+                d.line([(ox + sx, oy + 16), (ox + sx - 10 + j * 7, oy + 8)], fill=(200, 150, 140))
+        for k in range(8):
+            side = -1 if k < 4 else 1
+            base = (ox + side * 8, oy + 2)
+            hit = playing and (st["k"] + k) % 4 == 0
+            tgt = (ox + [-40, -20, 20, 40][(k % 4)] + side * 2, oy + (8 if hit else -2 - 6 * bang))
+            if talk:
+                tgt = (ox + side * (18 + k % 4 * 6), oy + 22)
+            pts = []
+            for j in range(6):
+                f = j / 5
+                pts.append((base[0] + (tgt[0] - base[0]) * f + math.sin(t * 4 + k + f * 3) * 4 * (1 - f),
+                            base[1] + (tgt[1] - base[1]) * f - math.sin(f * math.pi) * 10))
+            d.line(pts, fill=(200, 70, 110), width=5)
+        self._blob(img, ox, oy - 16 - bang * 3, 36, 40, (220, 80, 120), gloss=0.5)
+        for side in (-1, 1):
+            d.ellipse([ox + side * 7 - 5, oy - 20, ox + side * 7 + 5, oy - 10], fill=(255, 255, 255))
+            d.ellipse([ox + side * 7 - 2, oy - 17, ox + side * 7 + 2, oy - 12], fill=(20, 20, 30))
+        d.arc([ox - 6, oy - 10, ox + 6, oy - 2], 10, 170, fill=(120, 30, 60), width=2)
+        # Krabbe tanzt
+        cx = 250 + math.sin(t * 2) * 10
+        self._blob(img, cx, UW_FLOOR - 8, 22, 12, (230, 80, 50), gloss=0.5)
+        for side in (-1, 1):
+            up = (st["k"] % 2 == (side > 0)) and playing
+            d.line([(cx + side * 8, UW_FLOOR - 10), (cx + side * 16, UW_FLOOR - 22 - (8 if up else 0))], fill=(230, 80, 50),
+                   width=3)
+            self._blob(img, cx + side * 17, UW_FLOOR - 26 - (8 if up else 0), 9, 7, (230, 80, 50), gloss=0.5)
+            for j in range(3):
+                d.line([(cx + side * (4 + j * 3), UW_FLOOR - 6), (cx + side * (8 + j * 3), UW_FLOOR)], fill=(200, 60, 40))
+            d.line([(cx + side * 3, UW_FLOOR - 13), (cx + side * 4, UW_FLOOR - 19)], fill=(230, 80, 50))
+            d.ellipse([cx + side * 4 - 1.5, UW_FLOOR - 21, cx + side * 4 + 1.5, UW_FLOOR - 18], fill=(10, 10, 10))
+        # Luftblasen
+        if playing and new_hat:
+            for _ in range(2):
+                st["bubbles"].append([rng.uniform(20, 300), UW_FLOOR - 10, rng.uniform(2, 4)])
+        for b in st["bubbles"]:
+            b[1] -= (30 + b[2] * 6) * dt
+            b[0] += math.sin(t * 3 + b[1] * 0.1) * 0.4
+        st["bubbles"] = [b for b in st["bubbles"] if b[1] > -5][-40:]
+        for x, y, r in st["bubbles"]:
+            d.ellipse([x - r, y - r, x + r, y + r], outline=(220, 240, 255))
+        # Taucher bei Wortbeiträgen
+        if talk:
+            tl = t - s.get("talk_t", t)
+            dx_, dy_ = 70 + math.sin(t * 0.8) * 6, 120 + math.sin(t * 1.3) * 4
+            hc, hands = self._fig(img, d, dx_, dy_, t, (30, 30, 40), {"lh": (-12, 4), "rh": (14, -6),
+                                                                       "lf": (-14, 26), "rf": (10, 30)},
+                                  h=0.85, hat="helmet", hat_col=(200, 220, 240), legs=(30, 30, 40))
+            d.rectangle([dx_ - 18, dy_ - 46, dx_ - 6, dy_ - 22], fill=(240, 200, 40))   # Flasche
+            hx, hy = hands[1]
+            d.rectangle([hx, hy - 20, hx + 40, hy + 4], fill=(240, 240, 240), outline=(100, 100, 110))
+            d.text((hx + 3, hy - 18), "DURCH-", font=self.f_tiny, fill=(20, 40, 120))
+            d.text((hx + 3, hy - 7), "SAGE", font=self.f_tiny, fill=(20, 40, 120))
+            for k in range(3):
+                by = hc[1] - 14 - ((t * 30 + k * 10) % 40)
+                d.ellipse([hc[0] - 2 + k, by - 2, hc[0] + 2 + k, by + 2], outline=(220, 240, 255))
+            if tl < 3.0:
+                say.append((hc[0], hc[1] - 30, "Blubb."))
+        if gname == "flaschenpost":
+            k = min(1.0, gl / 2.0)
+            bx, by = 120, 10 + k * (UW_FLOOR - 16)
+            d.rectangle([bx - 3, by - 14, bx + 3, by], fill=(120, 180, 120), outline=(70, 120, 70))
+            d.rectangle([bx - 1.5, by - 18, bx + 1.5, by - 14], fill=(150, 110, 60))
+            if gl > 2.4:
+                d.rectangle([bx - 50, by - 64, bx + 62, by - 34], fill=(240, 230, 200), outline=(170, 150, 110))
+                d.text((bx - 46, by - 62), "Bitte leiser,", font=self.f_tiny, fill=(60, 40, 30))
+                d.text((bx - 46, by - 49), "die Wale schlafen!", font=self.f_tiny, fill=(60, 40, 30))
+            if gl > 5.0:
+                say.append((cx, UW_FLOOR - 40, "Pfff. Lauter!"))
+        elif gname == "kugelfisch":
+            px, py = 90 + math.sin(gl * 2) * 20, 140
+            puff = 0.0
+            if gl > 1.5:
+                puff = min(1.0, (gl - 1.5) / 0.3) if gl < 5.0 else max(0.0, 1 - (gl - 5.0) / 1.0)
+            r = 8 + 10 * puff
+            self._blob(img, px, py, r * 2, r * 2, (230, 200, 90), gloss=0.5)
+            if puff > 0.3:
+                for k in range(12):
+                    a = k * 0.52
+                    d.line([(px + math.cos(a) * r, py + math.sin(a) * r),
+                            (px + math.cos(a) * (r + 5), py + math.sin(a) * (r + 5))], fill=(200, 160, 60))
+            d.ellipse([px + r * 0.3 - 2, py - r * 0.4 - 2, px + r * 0.3 + 2, py - r * 0.4 + 2], fill=(10, 10, 20))
+            if 1.6 <= gl < 4.0:
+                say.append((px, py - r - 14, "Huch! Der Bass!"))
+        elif gname == "hai" and dark:
+            img = Image.blend(img, Image.new("RGB", img.size, (2, 10, 30)), 0.6 * dark)
+            d = ImageDraw.Draw(img)
+            a = gl * 1.4
+            sx, sy = 160 + math.cos(a) * 110, 70 + math.sin(a) * 20
+            face = -1 if math.sin(a) > 0 else 1
+            self._blob(img, sx, sy, 80, 24, (110, 120, 140), gloss=0.4)
+            d.polygon([(sx - 4, sy - 10), (sx + 8, sy - 10), (sx, sy - 28)], fill=(110, 120, 140))
+            d.polygon([(sx - face * 38, sy), (sx - face * 52, sy - 14), (sx - face * 52, sy + 12)], fill=(110, 120, 140))
+            d.ellipse([sx + face * 26 - 2, sy - 6, sx + face * 26 + 2, sy - 2], fill=(10, 10, 10))
+            if gl > 4.0:
+                mx0, mx1 = sorted((sx + face * 14, sx + face * 34))
+                d.arc([mx0, sy - 2, mx1, sy + 8], 0, 180, fill=(250, 250, 250), width=2)
+        if gname == "hai" and gl > 4.0:
+            say.append((160, 44, "Keine Angst – ich bin Vegetarier!"))
+        for x, y, text in say:
+            self._xmas_party_say(d, x, y, text)
+        self.vis_sea = (0, int(120 + 100 * level), 255) if not boom else _hue((t * 0.2) % 1.0, 0.7, 1.0)
+        return img
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Modul seite_visual_bauernhof
+#   Visualisierung „Bauernhof“ (farm, Mixin FarmVisual): Die Hofband vor der Scheune. Die Kuh spielt Bass (der Bass
+#   lässt die Glocke bimmeln), das Schwein trommelt auf Milchkannen, drei Hühner auf dem Zaun sind der Chor, die
+#   Vogelscheuche wippt mit. Höhepunkt: Der Traktor fährt mit Lichtorgel vor. Wortbeitrag: Der Bauer ruft zur Fütterung.
+#   Gags: Der Fuchs schleicht sich an (und wird von den Hühnern verjagt), das Schwein springt in die Schlammpfütze
+#   (die Kuh wird nass), ein Schaf zählt Menschen und schläft ein.
+# ═══════════════════════════════════════════════════════════════════════════
+
+FM_FLOOR = VIS_H - 20
+FM_COW, FM_PIG = 100, 210
+FM_HENS = (250, 274, 298)
+FM_GAGS = {"fuchs": 8.0, "schlamm": 7.0, "schaf": 8.0}
+FM_GAG_FIRST, FM_GAG_PAUSE = 8.0, (12.0, 20.0)
+FM_BOOM = 5.0
+
+
+class FarmVisual:
+    vis_farm = None
+
+    def _fm_scene(self):
+        if "_fm_bg" in self.__dict__:
+            return self._fm_bg
+        ys = np.linspace(0, 1, HEIGHT)[:, None, None]
+        top, bot = np.array([120, 180, 240], np.float32), np.array([220, 236, 250], np.float32)
+        img = Image.fromarray(np.clip(np.broadcast_to(top + (bot - top) * ys, (HEIGHT, WIDTH, 3)), 0, 255)
+                              .astype(np.uint8), "RGB")
+        d = ImageDraw.Draw(img)
+        self._blob(img, 290, 26, 24, 24, (255, 240, 150), gloss=0.1)
+        d.polygon([(0, FM_FLOOR - 40), (140, FM_FLOOR - 60), (320, FM_FLOOR - 44), (320, HEIGHT), (0, HEIGHT)],
+                  fill=(130, 190, 90))
+        d.rectangle([0, FM_FLOOR - 10, WIDTH, HEIGHT], fill=(120, 176, 80))
+        bx0, bx1 = 120, 236                                                         # Scheune
+        d.rectangle([bx0, FM_FLOOR - 96, bx1, FM_FLOOR - 10], fill=(180, 50, 40))
+        d.polygon([(bx0 - 8, FM_FLOOR - 96), (bx1 + 8, FM_FLOOR - 96), ((bx0 + bx1) / 2, FM_FLOOR - 140)],
+                  fill=(120, 40, 30))
+        for x in range(bx0 + 6, bx1, 10):
+            d.line([(x, FM_FLOOR - 94), (x, FM_FLOOR - 10)], fill=(150, 40, 32))
+        d.rectangle([158, FM_FLOOR - 70, 198, FM_FLOOR - 10], fill=(110, 36, 28), outline=(250, 250, 240), width=3)
+        d.line([(158, FM_FLOOR - 70), (198, FM_FLOOR - 10)], fill=(250, 250, 240), width=3)
+        d.line([(198, FM_FLOOR - 70), (158, FM_FLOOR - 10)], fill=(250, 250, 240), width=3)
+        d.ellipse([170, FM_FLOOR - 124, 186, FM_FLOOR - 108], fill=(250, 250, 240))
+        for x in range(240, WIDTH, 14):                                             # Zaun
+            d.rectangle([x, FM_FLOOR - 30, x + 4, FM_FLOOR - 6], fill=(170, 130, 80))
+        d.rectangle([240, FM_FLOOR - 26, WIDTH, FM_FLOOR - 22], fill=(170, 130, 80))
+        for x, y in ((20, FM_FLOOR - 22), (44, FM_FLOOR - 16)):                     # Strohballen
+            d.rounded_rectangle([x - 16, y - 14, x + 16, y + 6], radius=4, fill=(230, 200, 100), outline=(190, 160, 70))
+        self._fm_bg = img
+        return img
+
+    def _fm_cow(self, img, d, x, y, t, bang, wet=0.0, pluck=0.0):
+        white, spot = (250, 250, 246), (40, 36, 40)
+        self._blob(img, x, y - 40, 34, 46, white, gloss=0.3)
+        for ox, oy, r in ((-6, -50, 6), (8, -36, 5), (-4, -26, 4)):
+            d.ellipse([x + ox - r, y + oy - r, x + ox + r, y + oy + r], fill=spot)
+        for side in (-1, 1):
+            self._limb(img, (x + side * 7, y - 20), (x + side * 8, y), 7, white)
+            d.ellipse([x + side * 8 - 4, y - 3, x + side * 8 + 4, y + 1], fill=spot)
+        hy = y - 74 + bang * 3
+        self._blob(img, x, hy, 28, 26, white, gloss=0.3)
+        self._blob(img, x, hy + 10, 22, 12, (250, 190, 190), gloss=0.3)
+        for side in (-1, 1):
+            d.line([(x + side * 10, hy - 10), (x + side * 16, hy - 18)], fill=(230, 220, 190), width=3)
+            self._blob(img, x + side * 16, hy - 4, 10, 6, white, gloss=0.2)
+            d.ellipse([x + side * 6 - 2, hy - 4, x + side * 6 + 2, hy], fill=(20, 20, 20))
+            d.ellipse([x + side * 4 - 1, hy + 9, x + side * 4 + 1, hy + 11], fill=(150, 80, 80))
+        bell = y - 60
+        d.polygon([(x - 4, bell), (x + 4, bell), (x + 6, bell + 8), (x - 6, bell + 8)], fill=(230, 190, 60))
+        if bang > 0.6:
+            d.text((x + 8, bell), "bim", font=self.f_tiny, fill=(120, 90, 20))
+        gx, gy = x + 4, y - 40                                                      # Bassgitarre
+        d.line([(gx - 22, gy + 12), (gx + 30, gy - 24)], fill=(110, 70, 40), width=4)
+        self._blob(img, gx - 14, gy + 8, 22, 16, (180, 60, 40), gloss=0.5, ang=-0.6)
+        for k in range(2):
+            d.line([(gx - 18 + k * 2, gy + 10), (gx + 30 + k * 2, gy - 22)], fill=(230, 230, 230))
+        self._limb(img, (x - 10, y - 50), (gx - 8, gy + 4 - pluck * 4), 6, white)
+        self._limb(img, (x + 10, y - 50), (gx + 22, gy - 16), 6, white)
+        if wet:
+            for k in range(8):
+                d.ellipse([x - 14 + k * 4, y - 60 + (k * 13 % 40), x - 10 + k * 4, y - 56 + (k * 13 % 40)],
+                          fill=(110, 80, 50))
+
+    def _fm_pig(self, img, d, x, y, t, k, hit, mud=0.0):
+        pink = (250, 170, 180) if not mud else (130, 96, 60)
+        self._blob(img, x, y - 26, 40, 30, pink, gloss=0.4)
+        for side in (-1, 1):
+            self._limb(img, (x + side * 10, y - 14), (x + side * 11, y), 6, pink)
+        hx, hy = x, y - 50
+        self._blob(img, hx, hy, 28, 24, pink, gloss=0.4)
+        self._blob(img, hx, hy + 6, 12, 8, (240, 130, 150), gloss=0.4)
+        for side in (-1, 1):
+            d.polygon([(hx + side * 6, hy - 10), (hx + side * 14, hy - 16), (hx + side * 12, hy - 6)], fill=pink)
+            d.ellipse([hx + side * 5 - 1.5, hy - 3, hx + side * 5 + 1.5, hy], fill=(20, 20, 20))
+            d.ellipse([hx + side * 2 - 1, hy + 5, hx + side * 2 + 1, hy + 7], fill=(160, 70, 90))
+        for side in (-1, 1):                                                        # Arme mit Stöcken
+            down = hit == (side > 0)
+            hand = (x + side * 24, y - (26 if down else 40))
+            self._limb(img, (x + side * 12, y - 34), hand, 6, pink)
+            d.line([hand, (hand[0] + side * 4, hand[1] - 12)], fill=(150, 110, 60), width=2)
+        for side in (-1, 1):                                                        # Milchkannen
+            cx = x + side * 30
+            d.rectangle([cx - 7, y - 26, cx + 7, y], fill=(200, 205, 214), outline=(140, 145, 150))
+            d.ellipse([cx - 8, y - 30, cx + 8, y - 24], fill=(220, 224, 230))
+        d.arc([x + 16, y - 34, x + 26, y - 24], 180, 450, fill=(240, 130, 150), width=2)
+
+    def _fm_hen(self, img, d, x, y, t, sing, face=-1):
+        self._blob(img, x, y - 8, 18, 14, (250, 246, 236), gloss=0.4)
+        self._blob(img, x + face * 7, y - 17, 10, 10, (250, 246, 236), gloss=0.4)
+        d.polygon([(x + face * 11, y - 18), (x + face * (16 + 3 * sing), y - 17 - 2 * sing), (x + face * 11, y - 15)],
+                  fill=(250, 170, 40))
+        if sing > 0.3:
+            d.polygon([(x + face * 11, y - 16), (x + face * (15 + 3 * sing), y - 13), (x + face * 11, y - 14)],
+                      fill=(250, 170, 40))
+        for k in range(3):
+            d.ellipse([x + face * (5 + k * 2) - 2, y - 26 + abs(k - 1), x + face * (5 + k * 2) + 2, y - 22], fill=(220, 40, 40))
+        d.point((x + face * 9, y - 19), fill=(20, 20, 20))
+
+    @vis_style("farm")
+    def vis_farm(self, s, o, color):
+        t = s["t"]
+        img = self._fm_scene().copy()
+        d = ImageDraw.Draw(img)
+        demo = bool(s.get("demo"))
+        talk = bool(s.get("talk"))
+        st = self._vstate("farm", lambda: {"beats": s["beats"], "hats": s.get("hats", 0), "slow": s["level"],
+                                            "fast": s["level"], "boom": -99.0, "gag": None, "order": [], "k": 0,
+                                            "next_gag": t + FM_GAG_FIRST, "rng": random.Random(141), "start": t})
+        dt = self._vis_dt(st, t)
+        new_beat = s["beats"] != st["beats"]
+        st["beats"] = s["beats"]
+        playing = (s.get("active") or demo) and not talk
+        period = max(0.3, min(1.2, s.get("period") or 0.5))
+        bang = math.sin(math.pi * min(1.0, (t - s.get("beat_t", t)) / (period * 0.6))) if playing else 0.0
+        level = s["level"] if playing else 0.0
+        st["slow"] += (s["level"] - st["slow"]) * min(1.0, dt / 6)
+        st["fast"] += (s["level"] - st["fast"]) * min(1.0, dt / 0.4)
+        if not demo and playing and st["fast"] > st["slow"] * 1.2 + 0.04 and t - st["boom"] > 15 \
+                and t - st["start"] > 5 and st["gag"] is None:
+            st["boom"] = t
+        bt = t - st["boom"]
+        boom = 0 <= bt < FM_BOOM
+        gag = st["gag"]
+        if gag and t - gag[1] >= FM_GAGS[gag[0]]:
+            st["gag"] = gag = None
+            st["next_gag"] = t + st["rng"].uniform(*FM_GAG_PAUSE)
+        if not demo and o.get("gags", True) and gag is None and playing and not boom and t >= st["next_gag"]:
+            if not st["order"]:
+                st["order"] = st["rng"].sample(list(FM_GAGS), len(FM_GAGS))
+            st["gag"] = gag = (st["order"].pop(0), t)
+        gname = gag[0] if gag else None
+        gl = t - gag[1] if gag else 0.0
+        if playing and new_beat:
+            st["k"] += 1
+        say = []
+        # Vogelscheuche
+        sx = 64
+        sw = math.sin(t * math.pi / period) * 0.15 if playing else 0.0
+        top = (sx + sw * 30, FM_FLOOR - 92)
+        d.line([(sx, FM_FLOOR - 6), top], fill=(120, 80, 40), width=3)
+        d.line([(top[0] - 22, top[1] + 20 + 6 * bang), (top[0] + 22, top[1] + 20 - 6 * bang)], fill=(120, 80, 40), width=3)
+        d.polygon([(top[0] - 12, top[1] + 14), (top[0] + 12, top[1] + 14), (top[0] + 9, top[1] + 46),
+                   (top[0] - 9, top[1] + 46)], fill=(90, 120, 200))
+        self._blob(img, top[0], top[1] + 4, 16, 16, (230, 200, 130), gloss=0.2)
+        d.ellipse([top[0] - 13, top[1] - 4, top[0] + 13, top[1] + 1], fill=(200, 160, 70))
+        d.chord([top[0] - 8, top[1] - 14, top[0] + 8, top[1] + 1], 180, 360, fill=(200, 160, 70))
+        for side in (-1, 1):
+            d.line([(top[0] + side * 3 - 1.5, top[1] + 2), (top[0] + side * 3 + 1.5, top[1] + 5)], fill=(40, 30, 20))
+            d.line([(top[0] + side * 3 + 1.5, top[1] + 2), (top[0] + side * 3 - 1.5, top[1] + 5)], fill=(40, 30, 20))
+        # Traktor mit Lichtorgel (Höhepunkt)
+        if boom:
+            k = min(1.0, bt / 1.0, (FM_BOOM - bt) / 0.8)
+            tx = WIDTH + 60 - k * 120
+            d.rectangle([tx - 30, FM_FLOOR - 40, tx + 20, FM_FLOOR - 16], fill=(40, 140, 60))
+            d.rectangle([tx - 30, FM_FLOOR - 66, tx - 6, FM_FLOOR - 40], outline=(40, 140, 60), width=3)
+            d.ellipse([tx - 32, FM_FLOOR - 30, tx - 6, FM_FLOOR - 4], fill=(30, 30, 30))
+            d.ellipse([tx + 6, FM_FLOOR - 20, tx + 22, FM_FLOOR - 4], fill=(30, 30, 30))
+            for j in range(6):
+                c = _hue((j / 6 + t * 2) % 1.0, 0.8, 1.0)
+                d.ellipse([tx - 30 + j * 5, FM_FLOOR - 72, tx - 26 + j * 5, FM_FLOOR - 68], fill=c)
+                beam = Image.new("L", img.size, 0)
+                a = -math.pi / 2 + math.sin(t * 3 + j) * 1.0
+                ImageDraw.Draw(beam).polygon([(tx - 28 + j * 5, FM_FLOOR - 70), (tx - 28 + j * 5 + math.cos(a - 0.1) * 200,
+                                              FM_FLOOR - 70 + math.sin(a - 0.1) * 200),
+                                              (tx - 28 + j * 5 + math.cos(a + 0.1) * 200, FM_FLOOR - 70 + math.sin(a + 0.1) * 200)],
+                                             fill=50)
+                img.paste(c, (0, 0), beam)
+            d = ImageDraw.Draw(img)
+            if 1.0 < bt < 3.6:
+                say.append((tx - 10, FM_FLOOR - 92, "Tuuut! Party!"))
+        # Kuh, Schwein, Hühner
+        wet = gname == "schlamm" and gl > 3.0
+        pluck = max(0.0, 1 - (t - s.get("beat_t", -9)) / 0.15) if playing else 0.0
+        self._fm_cow(img, d, FM_COW, FM_FLOOR, t, bang, wet=wet, pluck=pluck)
+        mud = gname == "schlamm" and gl > 2.6
+        if gname == "schlamm":
+            d.ellipse([FM_PIG - 40, FM_FLOOR - 4, FM_PIG + 40, FM_FLOOR + 8], fill=(110, 80, 50))
+            jump = math.sin(min(1.0, max(0.0, gl - 1.6) / 1.0) * math.pi) * 40 if gl < 2.6 else 0
+            self._fm_pig(img, d, FM_PIG, FM_FLOOR - jump, t, st["k"], False, mud=mud)
+            if 2.6 <= gl < 3.2:
+                for k in range(10):
+                    a = -math.pi * (k / 9)
+                    r = (gl - 2.6) * 120
+                    d.ellipse([FM_PIG + math.cos(a) * r - 3, FM_FLOOR + math.sin(a) * r * 0.6 - 3,
+                               FM_PIG + math.cos(a) * r + 3, FM_FLOOR + math.sin(a) * r * 0.6 + 3], fill=(110, 80, 50))
+            if 0.6 <= gl < 2.4:
+                say.append((FM_PIG, FM_FLOOR - 80, "Arschbombe!"))
+            elif gl >= 3.6:
+                say.append((FM_COW, FM_FLOOR - 100, "Muuuh! Danke auch."))
+        else:
+            self._fm_pig(img, d, FM_PIG, FM_FLOOR, t, st["k"], st["k"] % 2 == 0 and playing)
+        fox = gname == "fuchs"
+        for i, hx in enumerate(FM_HENS):
+            sing = min(1.0, level * 1.5) * (0.5 + 0.5 * math.sin(t * 9 + i)) if playing else 0.0
+            if fox and gl > 3.5:                                                    # Hühner verjagen den Fuchs
+                hx2 = hx - (gl - 3.5) * 70 - i * 10
+                hy = FM_FLOOR - 2 - abs(math.sin(t * 14 + i)) * 6
+                self._fm_hen(img, d, hx2, hy, t, 1.0, face=-1)
+            else:
+                self._fm_hen(img, d, hx, FM_FLOOR - 28, t, sing)
+        if playing and not gname and int(t / 2.5) % 3 == 0:
+            say.append((FM_HENS[1], FM_FLOOR - 66, "Gack-gack-gaaack!"))
+        if fox:
+            fx = 330 - gl * 30 if gl < 3.5 else 225 - (gl - 3.5) * 90
+            fy = FM_FLOOR
+            col = (220, 110, 40)
+            self._blob(img, fx, fy - 12, 30, 14, col, gloss=0.4)
+            self._blob(img, fx - 16, fy - 18, 14, 12, col, gloss=0.4)
+            d.polygon([(fx - 24, fy - 18), (fx - 30, fy - 16), (fx - 22, fy - 14)], fill=(40, 30, 30))
+            for side in (-1, 1):
+                d.polygon([(fx - 16 + side * 4, fy - 22), (fx - 16 + side * 6, fy - 30), (fx - 16 + side * 1, fy - 24)],
+                          fill=col)
+            d.line([(fx + 14, fy - 14), (fx + 28, fy - 22)], fill=col, width=5)
+            d.ellipse([fx + 24, fy - 26, fx + 30, fy - 20], fill=(250, 250, 250))
+            for k in (-8, -2, 6, 12):
+                d.line([(fx + k, fy - 6), (fx + k + math.sin(t * 12 + k) * 3, fy)], fill=col, width=2)
+            if 1.0 <= gl < 3.4:
+                say.append((fx, fy - 40, "Psst … nur mal gucken."))
+            elif gl >= 3.6:
+                say.append((fx + 40, fy - 50, "Hilfe! Die sind ja wild!"))
+        if gname == "schaf":
+            shx, shy = 30, FM_FLOOR - 36
+            self._blob(img, shx, shy, 30, 22, (250, 250, 250), gloss=0.2)
+            for k in range(6):
+                self._blob(img, shx - 12 + k * 5, shy - 8 + (k % 2) * 3, 10, 10, (250, 250, 250), gloss=0.2)
+            self._blob(img, shx + 16, shy - 2, 10, 10, (60, 50, 50), gloss=0.3)
+            n = min(3, int(gl / 1.4) + 1)
+            if gl < 5.0:
+                say.append((shx + 30, shy - 30, ["Ein Mensch …", "Zwei Menschen …", "Drei Mensch…"][n - 1]))
+            else:
+                for k in range(3):
+                    zy = shy - 20 - ((gl * 14 + k * 10) % 30)
+                    d.text((shx + 20 + k * 4, zy), "z", font=self.f_small_b, fill=(80, 80, 120))
+        if talk:
+            tl = t - s.get("talk_t", t)
+            hc, hands = self._fig(img, d, 290, FM_FLOOR + 4, t, (60, 110, 190), {"lh": (-14, -16), "rh": (12, 10)},
+                                  h=1.0, hat="cowboy", hat_col=(220, 190, 110), beard=(120, 90, 60), legs=(70, 90, 140))
+            d.line([(hands[1][0], hands[1][1] - 30), (hands[1][0], hands[1][1] + 30)], fill=(140, 100, 60), width=2)
+            for k in range(3):
+                d.line([(hands[1][0] - 4 + k * 4, hands[1][1] - 30), (hands[1][0] - 4 + k * 4, hands[1][1] - 40)],
+                       fill=(170, 170, 180), width=2)
+            if tl < 3.5:
+                say.append((hc[0] - 20, hc[1] - 30, "Fütterung! Alle mal herhören!"))
+        for x, y, text in say:
+            self._xmas_party_say(d, x, y, text)
+        self.vis_farm = (255, 170, 180) if st["k"] % 2 else (120, 200, 90)
+        return img
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Modul seite_visual_weltraum
+#   Visualisierung „Weltraum-Disco“ (space, Mixin SpaceVisual): Ein Ringplanet dient als Spiegelkugel und wirft bunte
+#   Lichtflecken, zwei Astronauten tanzen schwerelos (Saltos in Zeitlupe), die Sterne ziehen je nach Lautstärke schneller
+#   vorbei, Sternschnuppen auf hohe Schläge. Höhepunkt: Turbo-Boost – die Sterne werden zu Streifen. Wortbeitrag: Die
+#   Bodenstation funkt dazwischen. Gags: Ein UFO landet und das Alien tanzt mit, der Kakao schwebt als Kugel davon,
+#   ein Satellit rauscht knapp vorbei.
+# ═══════════════════════════════════════════════════════════════════════════
+
+SP_PLANET = (226, 64)
+SP_ASTRO = [(98, 120), (170, 140)]
+SP_GAGS = {"alien": 9.0, "kakao": 7.0, "satellit": 7.0}
+SP_GAG_FIRST, SP_GAG_PAUSE = 8.0, (12.0, 20.0)
+SP_BOOM = 4.0
+SP_STARS = 90
+
+
+class SpaceVisual:
+    vis_space = None
+
+    def _sp_scene(self):
+        if "_sp_bg" in self.__dict__:
+            return self._sp_bg
+        img = Image.new("RGB", (WIDTH, HEIGHT), (4, 4, 16))
+        neb = Image.new("L", (WIDTH, HEIGHT), 0)
+        nd = ImageDraw.Draw(neb)
+        rng = random.Random(9)
+        for _ in range(14):
+            x, y, r = rng.uniform(0, WIDTH), rng.uniform(0, VIS_H), rng.uniform(30, 70)
+            nd.ellipse([x - r, y - r * 0.6, x + r, y + r * 0.6], fill=rng.randint(10, 26))
+        img.paste((120, 40, 160), (0, 0), neb)
+        self._sp_bg = img
+        rs = random.Random(10)
+        self._sp_stars = [(rs.uniform(0, WIDTH), rs.uniform(0, VIS_H), rs.uniform(0.3, 1.0)) for _ in range(SP_STARS)]
+        return img
+
+    def _sp_astro(self, img, d, x, y, t, ang, wave, col):
+        """Astronaut im Raumanzug, um ang gedreht (schwerelos)."""
+        def R(px, py):
+            return _hr_rot((x + px, y + py), (x, y), ang)
+        suit = (240, 240, 246)
+        self._blob(img, *R(0, 4), 22, 28, suit, gloss=0.4, ang=ang)
+        d.rectangle([R(-6, -2)[0] - 2, R(-6, -2)[1] - 2, R(-6, -2)[0] + 4, R(-6, -2)[1] + 4], fill=col)
+        for side in (-1, 1):
+            a = math.sin(wave + side) * 0.8
+            self._limb(img, R(side * 9, -2), R(side * (16 + 4 * math.cos(a)), -10 + 12 * math.sin(a)), 6, suit)
+            self._limb(img, R(side * 5, 16), R(side * (8 + 4 * math.sin(wave)), 30), 7, suit)
+        hc = R(0, -16)
+        self._blob(img, hc[0], hc[1], 20, 20, suit, gloss=0.4)
+        self._blob(img, hc[0], hc[1] + 1, 14, 12, (40, 60, 110), gloss=0.9)
+        self._blob(img, hc[0] - 3, hc[1] - 2, 4, 3, (255, 255, 255), alpha=0.7, flat=True)
+        d.line([R(9, 0), R(18, -4)], fill=(200, 200, 210), width=2)                  # Antenne/Schlauch
+        return hc
+
+    @vis_style("space")
+    def vis_space(self, s, o, color):
+        t = s["t"]
+        img = self._sp_scene().copy()
+        d = ImageDraw.Draw(img)
+        demo = bool(s.get("demo"))
+        talk = bool(s.get("talk"))
+        st = self._vstate("space", lambda: {"beats": s["beats"], "hats": s.get("hats", 0), "slow": s["level"],
+                                             "fast": s["level"], "boom": -99.0, "gag": None, "order": [], "k": 0,
+                                             "next_gag": t + SP_GAG_FIRST, "rng": random.Random(151), "start": t,
+                                             "drift": 0.0, "shoot": [], "spin": [0.0, 1.5]})
+        dt = self._vis_dt(st, t)
+        new_beat = s["beats"] != st["beats"]
+        st["beats"] = s["beats"]
+        new_hat = s.get("hats", 0) != st["hats"]
+        st["hats"] = s.get("hats", 0)
+        playing = (s.get("active") or demo) and not talk
+        level = s["level"] if playing else 0.0
+        st["slow"] += (s["level"] - st["slow"]) * min(1.0, dt / 6)
+        st["fast"] += (s["level"] - st["fast"]) * min(1.0, dt / 0.4)
+        if not demo and playing and st["fast"] > st["slow"] * 1.2 + 0.04 and t - st["boom"] > 15 \
+                and t - st["start"] > 5 and st["gag"] is None:
+            st["boom"] = t
+        bt = t - st["boom"]
+        boom = 0 <= bt < SP_BOOM
+        gag = st["gag"]
+        if gag and t - gag[1] >= SP_GAGS[gag[0]]:
+            st["gag"] = gag = None
+            st["next_gag"] = t + st["rng"].uniform(*SP_GAG_PAUSE)
+        if not demo and o.get("gags", True) and gag is None and playing and not boom and t >= st["next_gag"]:
+            if not st["order"]:
+                st["order"] = st["rng"].sample(list(SP_GAGS), len(SP_GAGS))
+            st["gag"] = gag = (st["order"].pop(0), t)
+        gname = gag[0] if gag else None
+        gl = t - gag[1] if gag else 0.0
+        rng = st["rng"]
+        say = []
+        if playing and new_beat:
+            st["k"] += 1
+        # Sterne ziehen vorbei (Turbo: Streifen)
+        speed = 6 + 60 * level + (400 if boom and 0.5 < bt < 3.2 else 0)
+        st["drift"] += dt * speed
+        for sx, sy, z in self._sp_stars:
+            x = (sx - st["drift"] * z) % WIDTH
+            c = int(120 + 135 * z)
+            if speed > 120:
+                d.line([(x, sy), (x + speed * 0.04 * z, sy)], fill=(c, c, 255))
+            else:
+                d.point((x, sy), fill=(c, c, c))
+        if playing and new_hat and rng.random() < 0.3:
+            st["shoot"].append([rng.uniform(40, 320), rng.uniform(0, 60), t])
+        for sh in list(st["shoot"]):
+            k = (t - sh[2]) / 0.6
+            if k > 1:
+                st["shoot"].remove(sh)
+                continue
+            d.line([(sh[0] - k * 80, sh[1] + k * 40), (sh[0] - k * 80 + 14, sh[1] + k * 40 - 7)], fill=(255, 255, 220),
+                   width=2)
+        # Ringplanet als Spiegelkugel
+        px, py = SP_PLANET
+        d.ellipse([px - 46, py - 8, px + 46, py + 12], outline=(220, 190, 140), width=3)
+        self._blob(img, px, py, 50, 50, (200, 120, 90), gloss=0.5)
+        for k in range(4):
+            d.arc([px - 25, py - 25 + k * 10, px + 25, py - 15 + k * 10], 200, 340, fill=(170, 90, 70))
+        d.arc([px - 46, py - 8, px + 46, py + 12], 0, 180, fill=(230, 200, 150), width=3)
+        if playing:
+            spots = Image.new("L", img.size, 0)
+            sd = ImageDraw.Draw(spots)
+            for k in range(10):
+                a = t * 0.8 + k * 0.63
+                r = 70 + 50 * ((k * 37) % 10) / 10
+                x, y = px + math.cos(a) * r * 1.4, py + 40 + math.sin(a) * r * 0.6
+                sd.ellipse([x - 4, y - 3, x + 4, y + 3], fill=int(140 * level + 40))
+            img.paste(_hue((t * 0.1) % 1.0, 0.6, 1.0), (0, 0), spots)
+            d = ImageDraw.Draw(img)
+        # Astronauten
+        heads = []
+        for i, (ax, ay) in enumerate(SP_ASTRO):
+            st["spin"][i] += dt * (0.3 + level * 1.4) * (1 if i else -1) * (0 if talk else 1)
+            bob = math.sin(t * 0.9 + i * 2) * 10
+            hc = self._sp_astro(img, d, ax + math.sin(t * 0.5 + i) * 12, ay + bob, t, st["spin"][i],
+                                t * 3 + i if playing else 0, [(230, 60, 60), (60, 140, 230)][i])
+            heads.append(hc)
+        if talk:
+            tl = t - s.get("talk_t", t)
+            d.rounded_rectangle([8, VIS_H - 40, 150, VIS_H - 8], radius=4, fill=(20, 30, 40), outline=(90, 200, 120))
+            d.text((14, VIS_H - 38), "BODENSTATION", font=self.f_tiny, fill=(90, 200, 120))
+            n = int(tl * 12)
+            d.text((14, VIS_H - 24), "Achtung, Durchsage …"[:n], font=self.f_tiny, fill=(200, 250, 210))
+            if tl > 2.5:
+                say.append((heads[0][0], heads[0][1] - 20, "Verstanden. Wir schweben."))
+        if boom and 0.5 < bt < 3.0:
+            say.append((160, 30, "Turbo-Boost!"))
+        if gname == "alien":
+            k = min(1.0, gl / 1.5)
+            ux, uy = 60, 20 + k * 30
+            d.ellipse([ux - 30, uy - 6, ux + 30, uy + 8], fill=(160, 170, 190))
+            self._blob(img, ux, uy - 6, 26, 18, (150, 230, 255), gloss=0.8, alpha=0.8)
+            for j in range(5):
+                d.ellipse([ux - 24 + j * 12 - 2, uy + 1, ux - 24 + j * 12 + 2, uy + 5],
+                          fill=_hue((j / 5 + t) % 1.0, 0.8, 1.0))
+            if gl > 1.5:
+                beam = Image.new("L", img.size, 0)
+                ImageDraw.Draw(beam).polygon([(ux - 10, uy + 6), (ux + 10, uy + 6), (ux + 26, uy + 80), (ux - 26, uy + 80)],
+                                             fill=60)
+                img.paste((180, 255, 180), (0, 0), beam)
+                d = ImageDraw.Draw(img)
+                ay = uy + 70 - min(1.0, (gl - 1.5) / 1.5) * 10
+                self._blob(img, ux, ay, 14, 20, (120, 220, 120), gloss=0.4)
+                self._blob(img, ux, ay - 16, 16, 14, (120, 220, 120), gloss=0.4)
+                for side in (-1, 1):
+                    d.ellipse([ux + side * 4 - 3, ay - 20, ux + side * 4 + 3, ay - 14], fill=(10, 10, 10))
+                    d.line([(ux + side * 3, ay - 22), (ux + side * 7, ay - 30)], fill=(120, 220, 120), width=2)
+                    robo = (st["k"] + (side > 0)) % 2
+                    d.line([(ux + side * 6, ay - 6), (ux + side * 14, ay - (16 if robo else 0))], fill=(120, 220, 120),
+                           width=3)
+                if 3.0 <= gl < 5.6:
+                    say.append((ux + 30, ay - 40, "Bliep! Gute Musik!"))
+                elif gl >= 5.8:
+                    say.append((heads[0][0], heads[0][1] - 24, "Kennt der den Roboter?"))
+        elif gname == "kakao":
+            hx, hy = heads[1]
+            k = gl / SP_GAGS["kakao"]
+            bx, by = hx + 20 + k * 120 + math.sin(gl * 3) * 10, hy - 10 - math.sin(gl * 1.7) * 20
+            r = 7 + math.sin(gl * 6) * 1.5
+            self._blob(img, bx, by, r * 2.2, r * 1.8, (130, 80, 40), gloss=0.8)
+            if gl > 0.5:
+                say.append((hx, hy - 24, "Mein Kakao!"))
+        elif gname == "satellit":
+            k = gl / SP_GAGS["satellit"]
+            sx, sy = -40 + k * 420, 40 + k * 60
+            d.rectangle([sx - 8, sy - 6, sx + 8, sy + 6], fill=(200, 190, 120))
+            for side in (-1, 1):
+                p0, p1 = sorted((sx + side * 10, sx + side * 30))
+                d.rectangle([p0, sy - 4, p1, sy + 4], fill=(40, 70, 160), outline=(160, 170, 190))
+            d.line([(sx, sy - 6), (sx + 4, sy - 16)], fill=(200, 200, 200), width=2)
+            if 2.0 <= gl < 4.6:
+                say.append((heads[0][0], heads[0][1] - 24, "Ducken!"))
+        for x, y, text in say:
+            self._xmas_party_say(d, x, y, text)
+        self.vis_space = _hue((t * 0.1) % 1.0, 0.6, 1.0) if playing else (40, 40, 120)
+        return img
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Modul seite_visual_arcade
+#   Visualisierung „Retro-Arcade“ (arcade, Mixin ArcadeVisual): Pixelgrafik wie am Automaten (halbe Auflösung,
+#   hochgezogen). Die Alien-Reihen marschieren Schritt für Schritt im Takt, das Raumschiff folgt der Melodie und feuert
+#   auf hohe Schläge, getroffene Aliens zerplatzen in Pixel, der Punktestand zählt mit. Höhepunkt: MEGA-LASER fegt eine
+#   ganze Reihe weg („COMBO!“). Wortbeitrag: PAUSE – INSERT COIN. Gags: Das Mutterschiff fliegt vorbei (+5000), ein
+#   Glitch zerlegt das Bild, Highscore-Eintrag.
+#   Sparsam: wird in 160×107 Pixeln gezeichnet.
+# ═══════════════════════════════════════════════════════════════════════════
+
+AR_W, AR_H = WIDTH // 2, VIS_H // 2
+AR_COLS, AR_ROWS = 8, 4
+AR_GAGS = {"boss": 8.0, "glitch": 5.0, "highscore": 7.0}
+AR_GAG_FIRST, AR_GAG_PAUSE = 8.0, (12.0, 20.0)
+AR_BOOM = 3.0
+AR_SPRITES = [["..X..X..", "...XX...", "..XXXX..", ".XX.XX.X", "XXXXXXXX", "X.X..X.X"],
+              ["...XX...", "..XXXX..", ".X.XX.X.", "XXXXXXXX", "..X..X..", ".X.XX.X."],
+              [".XX..XX.", "XXXXXXXX", "XX.XX.XX", "XXXXXXXX", ".X....X.", "X......X"]]
+AR_ROWCOL = [(250, 80, 200), (80, 220, 250), (120, 250, 100), (250, 220, 60)]
+
+
+class ArcadeVisual:
+    vis_arcade = None
+
+    def _ar_wave(self, st):
+        st["aliens"] = [[c, r, True] for r in range(AR_ROWS) for c in range(AR_COLS)]
+        st["ax"], st["ay"], st["adir"] = 10, 12, 1
+        st["wave"] = st.get("wave", 0) + 1
+
+    @staticmethod
+    def _ar_sprite(d, x, y, rows, col, frame):
+        for j, line in enumerate(rows):
+            if frame and j == len(rows) - 1:
+                line = line[::-1]
+            for i, ch in enumerate(line):
+                if ch == "X":
+                    d.point((x + i, y + j), fill=col)
+
+    @vis_style("arcade")
+    def vis_arcade(self, s, o, color):
+        t = s["t"]
+        demo = bool(s.get("demo"))
+        talk = bool(s.get("talk"))
+        st = self._vstate("arcade", lambda: {"beats": s["beats"], "hats": s.get("hats", 0), "slow": s["level"],
+                                              "fast": s["level"], "boom": -99.0, "gag": None, "order": [], "k": 0,
+                                              "next_gag": t + AR_GAG_FIRST, "rng": random.Random(161), "start": t,
+                                              "shots": [], "boomp": [], "score": 0, "ship": AR_W / 2, "hi": 9900})
+        if "aliens" not in st:
+            self._ar_wave(st)
+        dt = self._vis_dt(st, t)
+        new_beat = s["beats"] != st["beats"]
+        st["beats"] = s["beats"]
+        new_hat = s.get("hats", 0) != st["hats"]
+        st["hats"] = s.get("hats", 0)
+        playing = (s.get("active") or demo) and not talk
+        level = s["level"] if playing else 0.0
+        st["slow"] += (s["level"] - st["slow"]) * min(1.0, dt / 6)
+        st["fast"] += (s["level"] - st["fast"]) * min(1.0, dt / 0.4)
+        if not demo and playing and st["fast"] > st["slow"] * 1.2 + 0.04 and t - st["boom"] > 15 \
+                and t - st["start"] > 5 and st["gag"] is None:
+            st["boom"] = t
+        bt = t - st["boom"]
+        boom = 0 <= bt < AR_BOOM
+        gag = st["gag"]
+        if gag and t - gag[1] >= AR_GAGS[gag[0]]:
+            st["gag"] = gag = None
+            st["next_gag"] = t + st["rng"].uniform(*AR_GAG_PAUSE)
+        if not demo and o.get("gags", True) and gag is None and playing and not boom and t >= st["next_gag"]:
+            if not st["order"]:
+                st["order"] = st["rng"].sample(list(AR_GAGS), len(AR_GAGS))
+            st["gag"] = gag = (st["order"].pop(0), t)
+        gname = gag[0] if gag else None
+        gl = t - gag[1] if gag else 0.0
+        rng = st["rng"]
+        low = Image.new("RGB", (AR_W, AR_H), (0, 0, 0))
+        d = ImageDraw.Draw(low)
+        for k in range(30):                                                         # Sterne
+            d.point(((k * 53) % AR_W, (k * 29 + int(t * 4)) % AR_H), fill=(60, 60, 90))
+        # Aliens marschieren im Takt
+        if playing and new_beat:
+            st["k"] += 1
+            alive = [a for a in st["aliens"] if a[2]]
+            xs = [a[0] for a in alive]
+            if xs:
+                left, right = st["ax"] + min(xs) * 12, st["ax"] + max(xs) * 12 + 8
+                if (st["adir"] > 0 and right + 3 > AR_W - 2) or (st["adir"] < 0 and left - 3 < 2):
+                    st["adir"] = -st["adir"]
+                    st["ay"] = min(st["ay"] + 3, 40)
+                else:
+                    st["ax"] += 3 * st["adir"]
+        frame = st["k"] % 2
+        for c, r, alive in st["aliens"]:
+            if alive:
+                self._ar_sprite(d, st["ax"] + c * 12, st["ay"] + r * 9, AR_SPRITES[r % 3], AR_ROWCOL[r], frame)
+        if not any(a[2] for a in st["aliens"]):
+            self._ar_wave(st)
+        # Raumschiff folgt der Melodie
+        bands = s.get("bands")
+        if bands is not None and len(bands) and playing:
+            w = np.asarray(bands, dtype=float)
+            target = 10 + (AR_W - 20) * float((w * np.arange(len(w))).sum() / max(1e-6, w.sum()) / max(1, len(w) - 1))
+        else:
+            target = AR_W / 2 + math.sin(t * 0.7) * 30
+        st["ship"] += (target - st["ship"]) * min(1.0, dt * 4)
+        sx, sy = int(st["ship"]), AR_H - 18
+        d.rectangle([sx - 5, sy + 2, sx + 5, sy + 4], fill=(90, 250, 120))
+        d.rectangle([sx - 1, sy - 1, sx + 1, sy + 2], fill=(90, 250, 120))
+        for bx in (24, 64, 104, 144):                                               # Bunker
+            d.rectangle([bx - 6, AR_H - 32, bx + 6, AR_H - 27], fill=(60, 200, 90))
+            d.rectangle([bx - 2, AR_H - 28, bx + 2, AR_H - 27], fill=(0, 0, 0))
+        d.line([(0, AR_H - 12), (AR_W, AR_H - 12)], fill=(60, 200, 90))
+        if playing and new_hat and len(st["shots"]) < 4:
+            st["shots"].append([sx, sy - 2])
+        for sh in st["shots"]:
+            sh[1] -= 90 * dt
+        hit_any = None
+        for sh in st["shots"]:
+            for a in st["aliens"]:
+                if a[2] and abs(sh[0] - (st["ax"] + a[0] * 12 + 4)) < 5 and abs(sh[1] - (st["ay"] + a[1] * 9 + 3)) < 4:
+                    a[2] = False
+                    sh[1] = -10
+                    st["score"] += 100
+                    hit_any = AR_ROWCOL[a[1]]
+                    for _ in range(8):
+                        st["boomp"].append([sh[0], st["ay"] + a[1] * 9 + 3, rng.uniform(-30, 30), rng.uniform(-30, 30),
+                                            0.6, AR_ROWCOL[a[1]]])
+                    break
+        st["shots"] = [sh for sh in st["shots"] if sh[1] > 0]
+        for x, y in st["shots"]:
+            d.line([(x, y), (x, y - 3)], fill=(255, 255, 255))
+        if boom:                                                                    # MEGA-LASER
+            if 0.3 < bt < 1.6:
+                d.rectangle([sx - 2, 0, sx + 2, sy - 2], fill=(255, 120, 255))
+                row = max((a[1] for a in st["aliens"] if a[2]), default=None)
+                if row is not None and bt > 0.6:
+                    for a in st["aliens"]:
+                        if a[2] and a[1] == row:
+                            a[2] = False
+                            st["score"] += 200
+        for p in st["boomp"]:
+            p[0] += p[2] * dt
+            p[1] += p[3] * dt
+            p[4] -= dt
+        st["boomp"] = [p for p in st["boomp"] if p[4] > 0]
+        for x, y, vx, vy, life, col in st["boomp"]:
+            d.point((x, y), fill=col)
+        if gname == "boss":
+            mx = -20 + gl / AR_GAGS["boss"] * (AR_W + 40)
+            if gl < 5.0:
+                d.ellipse([mx - 10, 3, mx + 10, 9], fill=(250, 60, 60))
+                d.rectangle([mx - 4, 1, mx + 4, 4], fill=(250, 120, 120))
+                if gl > 4.4:
+                    d.line([(mx, 9), (mx, AR_H - 18)], fill=(255, 255, 255))
+        big = low.resize((WIDTH, VIS_H), Image.NEAREST)
+        img = Image.new("RGB", (WIDTH, HEIGHT), (0, 0, 0))
+        img.paste(big, (0, 0))
+        if o.get("scanlines", True):                                                # Röhren-Zeilen
+            arr = np.asarray(img).copy()
+            arr[1:VIS_H:2] = (arr[1:VIS_H:2] * 0.72).astype(np.uint8)
+            img = Image.fromarray(arr, "RGB")
+        d = ImageDraw.Draw(img)
+        d.text((8, VIS_H - 18), f"SCORE {st['score']:06d}", font=self.f_tiny, fill=(255, 255, 255))
+        d.text((200, VIS_H - 18), f"HI {max(st['hi'], st['score']):06d}", font=self.f_tiny, fill=(255, 220, 80))
+        d.text((128, VIS_H - 18), f"WAVE {st['wave']}", font=self.f_tiny, fill=(120, 250, 140))
+        if boom and bt < 2.6:
+            d.text((110, 70), "MEGA-LASER!", font=self.f_small_b, fill=(255, 120, 255))
+            d.text((130, 90), "COMBO x8", font=self.f_small_b, fill=(255, 255, 120))
+        if talk:
+            tl = t - s.get("talk_t", t)
+            if int(tl * 2) % 2 == 0:
+                d.text((128, 80), "PAUSE", font=self.f_big, fill=(255, 255, 255))
+            d.text((110, 120), "INSERT COIN", font=self.f_small_b, fill=(255, 200, 60))
+        if gname == "boss" and 4.4 <= gl < 6.4:
+            d.text((140, 26), "+5000", font=self.f_small_b, fill=(255, 80, 80))
+            if gl < 4.5:
+                st["score"] += 5000
+        elif gname == "glitch" and gl < 4.0:
+            arr = np.asarray(img).copy()
+            for k in range(8):
+                y0 = (k * 27 + int(gl * 50)) % (VIS_H - 10)
+                arr[y0:y0 + 6] = np.roll(arr[y0:y0 + 6], int(20 * math.sin(gl * 9 + k)), axis=1)
+            if int(gl * 6) % 3 == 0:
+                arr[:VIS_H] = 255 - arr[:VIS_H]
+            img = Image.fromarray(arr, "RGB")
+            d = ImageDraw.Draw(img)
+            d.text((60, 96), "ERROR 404: BASS NOT FOUND", font=self.f_tiny, fill=(255, 60, 60))
+        elif gname == "highscore":
+            d.rectangle([70, 50, 250, 150], fill=(0, 0, 0), outline=(255, 255, 255))
+            d.text((100, 56), "NEW HIGHSCORE!", font=self.f_small_b, fill=(255, 220, 80))
+            name = "G19"[:max(0, min(3, int(gl / 1.0)))]
+            blink = "_" if int(gl * 3) % 2 and len(name) < 3 else ""
+            d.text((130, 90), name + blink, font=self.f_big, fill=(255, 255, 255))
+            if gl > 4.0:
+                d.text((96, 130), "Gut gemacht, Spieler 1!", font=self.f_tiny, fill=(120, 250, 140))
+        st["hi"] = max(st["hi"], st["score"])
+        self.vis_arcade = hit_any or getattr(self, "vis_arcade", None) or (90, 250, 120)
+        return img
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Modul seite_visual_szenen
 #   Szenen für die bewegte Vorschau der Verwaltung: Höhepunkt, Wortbeitrag oder ein bestimmter Gag eines Stils
 #   gezielt zeigen (vis_scenes liefert die Auswahl, vis_force stellt den Zustand nach kurzem Vorlauf ein).
@@ -20752,6 +21697,22 @@ VIS_GAG_LABELS = {
     "nudel": "Die Nudel reißt",
     "ring": "Ring in der Suppe",
     "rosen": "Rosenverkäufer",
+    # Unterwasser-Band
+    "flaschenpost": "Flaschenpost",
+    "kugelfisch": "Kugelfisch erschrickt",
+    "hai": "Hai (Gänsehaut)",
+    # Bauernhof-Band
+    "fuchs": "Der Fuchs kommt",
+    "schlamm": "Arschbombe in den Schlamm",
+    "schaf": "Schaf zählt Menschen",
+    # Weltraum-Disco
+    "alien": "UFO mit Alien",
+    "kakao": "Kakao schwebt davon",
+    "satellit": "Satellit rauscht vorbei",
+    # Retro-Arcade
+    "boss": "Mutterschiff",
+    "glitch": "Glitch",
+    "highscore": "Highscore-Eintrag",
     # Überraschungsparty
     "hund": "Hund frisst die Torte", "kerzen": "Trickkerzen", "geschenk": "Kastenteufel im Geschenk",
     # Weihnachten (jugendfrei)
@@ -20765,7 +21726,7 @@ def vis_scenes(style):
     """Auswahl für die bewegte Vorschau: [[id, Beschriftung], …]; Gags als "gag:<name>"."""
     out = [["play", "Abspielen"], ["boom", "Höhepunkt"], ["talk", "Wortbeitrag"]]
     gags = {"cellar": CL_GAGS, "metal": MT_GAGS, "party": PT_GAGS, "xmas": FUN_GAGS, "easter": ES_GAGS,
-            "newyear": NY_GAGS, "carnival": CV_GAGS, "oktoberfest": OK_GAGS, "martin": SM_GAGS, "valentine": VL_GAGS, "halloween": HW_GAGS, "horror": {**HR_GAGS["house"], **HR_GAGS["dolls"]},
+            "newyear": NY_GAGS, "carnival": CV_GAGS, "oktoberfest": OK_GAGS, "martin": SM_GAGS, "valentine": VL_GAGS, "underwater": UW_GAGS, "farm": FM_GAGS, "space": SP_GAGS, "arcade": AR_GAGS, "halloween": HW_GAGS, "horror": {**HR_GAGS["house"], **HR_GAGS["dolls"]},
             "birthday": BD_GAGS, "mother": MO_GAGS, "father": FA_GAGS}.get(style, {})
     out += [["gag:" + n, VIS_GAG_LABELS.get(n, n.capitalize())] for n in gags]
     if style == "xmas":                                             # Feierabend-Gags (schaltet ihn für die Vorschau an)
@@ -21237,7 +22198,7 @@ class Renderer(RendererBase,
                ClockPage, ClockBase, StandardFaces, MechanicalFaces, SkyFaces, DisplayFaces, InfoFaces,
                MacrosPage, MusicPage, SlidesPage, WeatherPage, CalendarPage, HardwarePage,
                NewsPage, WarningsPage, NetworkPage, UpdatesPage, VisualPage, XmasVisual, XmasParty, XmasFun, BalletVisual, StageFx,
-               PartyVisual, CellarVisual, CellarCrew, MetalVisual, EasterVisual, HalloweenVisual, HorrorVisual, BirthdayVisual, MotherVisual, FatherVisual, FigureKit, NewYearVisual, CarnivalVisual, OktoberfestVisual, MartinVisual, ValentineVisual,
+               PartyVisual, CellarVisual, CellarCrew, MetalVisual, EasterVisual, HalloweenVisual, HorrorVisual, BirthdayVisual, MotherVisual, FatherVisual, FigureKit, NewYearVisual, CarnivalVisual, OktoberfestVisual, MartinVisual, ValentineVisual, UnderwaterVisual, FarmVisual, SpaceVisual, ArcadeVisual,
                MenuViews, OverlayViews):
     PAGES = len(PAGE_IDS)
     MUSIC_PAGE = PAGE_IDS.index("music")
@@ -23238,6 +24199,18 @@ class App(AppCore, KeyHandling, TimedTasks):
         if style == "valentine" and not quiet and visual_options(s, "valentine").get("keys", "heart") == "heart" \
                 and self.renderer.vis_heart:
             base = self.renderer.vis_heart
+        if style == "underwater" and not quiet and visual_options(s, "underwater").get("keys", "sea") == "sea" \
+                and self.renderer.vis_sea:
+            base = self.renderer.vis_sea
+        if style == "farm" and not quiet and visual_options(s, "farm").get("keys", "farm") == "farm" \
+                and self.renderer.vis_farm:
+            base = self.renderer.vis_farm
+        if style == "space" and not quiet and visual_options(s, "space").get("keys", "space") == "space" \
+                and self.renderer.vis_space:
+            base = self.renderer.vis_space
+        if style == "arcade" and not quiet and visual_options(s, "arcade").get("keys", "hit") == "hit" \
+                and self.renderer.vis_arcade:
+            base = self.renderer.vis_arcade
         if style == "metal" and visual_options(s, "metal").get("keys", "fire") == "fire":   # Feuerkörbe
             k, base = round(max(0.12, self.renderer.vis_fire) * 20) / 20, (255, 100, 16)
         color = tuple(int(c * k) for c in base)

@@ -3,6 +3,12 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.16-14
+- **Neuer Stil „Unterwasser-Band“:** Ein Oktopus trommelt mit acht Armen auf Muscheln, Quallen pulsieren im Bass, ein Fischschwarm zieht im Takt, die Krabbe tanzt. Höhepunkt: Der Schwarm wird zum großen Fisch. Wortbeitrag: der Taucher mit Tafel („Blubb.“). Gags: Flaschenpost, erschrockener Kugelfisch und – abschaltbar – ein Hai, der sich als Vegetarier entpuppt.
+- **Neuer Stil „Bauernhof-Band“:** Die Kuh am Bass, das Schwein an den Milchkannen, drei Hühner im Chor, die Vogelscheuche wippt. Höhepunkt: Der Traktor fährt mit Lichtorgel vor. Gags: Der Fuchs wird von den Hühnern verjagt, Arschbombe in die Schlammpfütze, ein Schaf zählt Menschen und schläft ein.
+- **Neuer Stil „Weltraum-Disco“:** Ein Ringplanet als Spiegelkugel, zwei Astronauten tanzen schwerelos, die Sterne ziehen mit der Lautstärke vorbei. Höhepunkt: Turbo-Boost. Gags: Das Alien tanzt den Roboter, der Kakao schwebt davon, ein Satellit rauscht vorbei.
+- **Neuer Stil „Retro-Arcade“:** Pixelgrafik wie am Automaten – die Aliens marschieren im Takt, das Raumschiff folgt der Melodie und schießt auf hohe Schläge, mit Punktestand und Highscore. Höhepunkt: MEGA-LASER. Gags: Mutterschiff, Glitch, Highscore-Eintrag. Besonders sparsam für die CPU.
+
 ## 2026.11.16-13
 - **Neuer Stil „Oktoberfest“:** Im Festzelt spielt die Blaskapelle – die Tuba pumpt im Bass, die Trompete blitzt auf hohe Schläge –, an den Bierbänken wird im Takt geschunkelt. Höhepunkt: Alle steigen auf die Bänke („Oans, zwoa, g'suffa!“). Wortbeitrag: Brotzeit. Gags: Maßkrugstemmen, die Bedienung mit zehn Krügen im Slalom, Schuhplattler, ein Brathendl haut ab.
 - **Neuer Stil „St. Martin“:** Laternenumzug durchs Dorf – St. Martin reitet voran, jede Laterne leuchtet mit ihrem Frequenzband, das Martinsfeuer sprüht Funken. Ein ruhiger Stil. Wortbeitrag: die Mantelteilung. Gags: Die Gans flüchtet in eine Kiste („Hier ist keine Gans.“), eine Laterne fängt Feuer, der Weckmann wird lebendig.

@@ -239,6 +239,18 @@ class App(AppCore, KeyHandling, TimedTasks):
         if style == "valentine" and not quiet and visual_options(s, "valentine").get("keys", "heart") == "heart" \
                 and self.renderer.vis_heart:
             base = self.renderer.vis_heart
+        if style == "underwater" and not quiet and visual_options(s, "underwater").get("keys", "sea") == "sea" \
+                and self.renderer.vis_sea:
+            base = self.renderer.vis_sea
+        if style == "farm" and not quiet and visual_options(s, "farm").get("keys", "farm") == "farm" \
+                and self.renderer.vis_farm:
+            base = self.renderer.vis_farm
+        if style == "space" and not quiet and visual_options(s, "space").get("keys", "space") == "space" \
+                and self.renderer.vis_space:
+            base = self.renderer.vis_space
+        if style == "arcade" and not quiet and visual_options(s, "arcade").get("keys", "hit") == "hit" \
+                and self.renderer.vis_arcade:
+            base = self.renderer.vis_arcade
         if style == "metal" and visual_options(s, "metal").get("keys", "fire") == "fire":   # Feuerkörbe
             k, base = round(max(0.12, self.renderer.vis_fire) * 20) / 20, (255, 100, 16)
         color = tuple(int(c * k) for c in base)
