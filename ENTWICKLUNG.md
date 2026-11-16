@@ -47,6 +47,9 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
                               (_pt_new_round), Gags PT_GAGS, Gäste _pt_guest, Hund, Torte, Kastenteufel, Konfetti
       seite_visual_keller     Stil „Kellertreppe“ (cellar, Mixin CellarVisual): Pendel der Glühbirne, Licht als
                               Maske mit Wandschatten (_cl_light), Augen CL_EYES, Höhepunkt CL_BOOM, Gags CL_GAGS
+      seite_visual_gruft      Bewohner der Kellertreppe (Mixin CellarCrew): Zombies/Skelett je Stufe (CL_CREW,
+                              Zustände under/rise/idle/sink/gone bzw. hidden/out/flee), Treppenhöhe _cl_surface,
+                              Zombie-Gags _cl_zombie_gag, Besuch _cl_visitor (Hausverwalter, Vampir, Mumie)
       hilfen                  u. a. Festkalender: fest_today() (Tests ersetzen), birthdays_today, fest_occasion
       menues, einblendungen   Zeichnen von Menüs und Einblendungen
       menue_logik             Menü-Klassen (Tasten + draw)

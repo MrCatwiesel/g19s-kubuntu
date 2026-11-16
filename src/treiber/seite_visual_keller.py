@@ -3,6 +3,7 @@ an), Licht und Schatten wandern durch den Keller. In den dunklen Ecken blinzeln 
 Beim Höhepunkt flackert das Licht und geht aus – nur noch Augen –, dann geht es wieder an: ein Monster mit
 Kittelschürze saugt den Keller. Gags: Spinne mit Kopfhörern, Mäuse-Polonaise, Hand mit Staubwedel unter der
 Treppe, die Waschmaschine frisst eine Socke. Bei Wortbeiträgen macht das Monster Pause und liest Zeitung.
+Dazu Zombies, ein Skelett aus dem Kellerschrank und Besuch (Hausverwalter, Vampir, Mumie): seite_visual_gruft.
 Gänsehaut-Stufe (Option level): 1 schaurig-nett (wenige, freundliche Augen), 2 gruselig (mehr, glühende Augen,
 Flackern), 3 Gänsehaut (rote Augen, Herzschlag am Bildrand, kurzer Schreckmoment im Dunkeln).
 Echtes Gewitter laut Wetterseite blitzt durchs Kellerfenster (sanft, höchstens alle paar Sekunden).
@@ -22,8 +23,11 @@ CL_BOXES = (158, 150, 200, CL_FLOOR)
 CL_WINDOW = (250, 8, 292, 28)
 CL_BOOM = 9.5                           # Dauer des Höhepunkts (flackern, dunkel, Monster saugt, geht)
 CL_BOOM_LOCK = 20.0                     # frühestens so lange nach dem letzten Höhepunkt der nächste
-CL_GAGS = {"spinne": 8.0, "maeuse": 7.0, "staub": 7.0, "socke": 8.0}
-CL_GAG_FIRST = 12.0
+CL_GAGS = {"spinne": 8.0, "maeuse": 7.0, "staub": 7.0, "socke": 8.0,          # Gags mit Bewohnern: seite_visual_gruft
+           "arm": 9.5, "glas": 9.5, "polonaise": 9.0, "xylophon": 8.0, "zerfall": 6.0,
+           "hausverwalter": 12.0, "vampir": 11.0, "mumie": 11.0}
+CL_GAG_FIRST = 6.0
+CL_GAG_PAUSE = (8.0, 14.0)              # Pause zwischen zwei Gags (s)
 # Verstecke der Augen (dunkle Ecken); je Stufe sind die ersten 2/4/6 belegt, beim Höhepunkt alle und mehr
 CL_EYES = [(34, 176), (88, 184), (306, 40), (226, 182), (14, 100), (300, 118), (66, 158), (122, 120), (210, 40),
            (144, 30), (40, 130), (276, 132)]
@@ -105,6 +109,16 @@ class CellarVisual:
         od.rectangle([bx0, by0 + 18, bx1, by1], fill=255)
         od.rectangle([bx0 + 6, by0, bx1 - 4, by0 + 18], fill=255)
         od.rectangle(CL_WASHER, fill=255)
+        x0, y0, x1, y1 = CL_CLOSET                                                  # Kellerschrank
+        d.rectangle([x0, y0, x1, y1], fill=(96, 66, 42))
+        d.rectangle([x0 - 2, y0 - 4, x1 + 2, y0 + 2], fill=(116, 80, 50))
+        d.rectangle([x0 + 2, y0 + 6, x1 - 2, y1 - 4], fill=(18, 14, 12))
+        od.rectangle([x0 - 2, y0 - 4, x1 + 2, y1], fill=255)
+        bx0, by0, bx1, by1 = CL_BEAM                                                # Deckenbalken
+        d.rectangle([bx0, by0, bx1, by1], fill=(92, 60, 36))
+        d.line([(bx0, by0 + 1), (bx1, by0 + 1)], fill=(126, 88, 56), width=2)
+        for x in range(bx0 + 10, bx1, 22):
+            d.line([(x, by0 + 3), (x + 6, by1 - 2)], fill=(74, 48, 30))
         self._cl_bg = (img, obj)
         return self._cl_bg
 
@@ -274,6 +288,7 @@ class CellarVisual:
         st = self._vstate("cellar", lambda: {"th": 0.3, "om": 0.0, "beats": s["beats"], "slow": s["level"],
                                               "fast": s["level"], "boom": -99.0, "gag": None, "booms": 0,
                                               "next_gag": t + CL_GAG_FIRST, "order": [], "rng": random.Random(29),
+                                              "zerfall": -99.0, "t_now": t,
                                               "flash": -99.0, "next_flash": t + 4.0, "start": t})
         dt = self._vis_dt(st, t)
         talk = bool(s.get("talk"))
@@ -294,20 +309,31 @@ class CellarVisual:
         st["slow"] += (s["level"] - st["slow"]) * min(1.0, dt / 6)
         st["fast"] += (s["level"] - st["fast"]) * min(1.0, dt / 0.4)
         if not demo and not talk and st["fast"] > st["slow"] * 1.2 + 0.04 and t - st["boom"] > CL_BOOM_LOCK \
-                and t - st["start"] > 5 and st["gag"] is None:
+                and t - st["start"] > 5:
             st["boom"] = t
             st["booms"] += 1
+            if st["gag"]:                                                           # Höhepunkt beendet den Gag
+                for c in st.get("crew") or []:
+                    c.pop("gag_x", None)
+                st["gag"] = None
+            st["next_gag"] = t + CL_BOOM + st["rng"].uniform(*CL_GAG_PAUSE)
         bt = t - st["boom"]
         boom = 0 <= bt < CL_BOOM
         # Gags
         gag = st["gag"]
         if gag and t - gag[1] >= CL_GAGS[gag[0]]:
             st["gag"] = gag = None
-            st["next_gag"] = t + st["rng"].uniform(14, 24)
+            st["next_gag"] = t + st["rng"].uniform(*CL_GAG_PAUSE)
         if not demo and gag is None and not boom and not talk and t >= st["next_gag"]:
             if not st["order"]:
                 st["order"] = st["rng"].sample(list(CL_GAGS), len(CL_GAGS))
-            st["gag"] = gag = (st["order"].pop(0), t)
+            for name in list(st["order"]):                                          # erster Gag, der gerade geht
+                if self._cl_crew_can(st, name):
+                    st["order"].remove(name)
+                    st["gag"] = gag = (name, t)
+                    break
+            else:
+                st["next_gag"] = t + 2.0
         # Licht: an, flackern (hohe Schläge, ab Stufe 2), aus beim Höhepunkt
         bright = 1.0
         if level >= 2 and 0 <= t - s.get("hat_t", -9) < 0.08 and s.get("hat", 0) > 0.7 and \
@@ -325,6 +351,17 @@ class CellarVisual:
         shake = math.sin(t * 50) * 2 * (0.4 + s["bass"]) if gag and gag[0] == "socke" else 0.0
         gl = t - gag[1] if gag else 0.0
         eyes_in = bool(gag and gag[0] == "socke" and level >= 2 and 1.0 <= gl < 3.4)
+        crew = st.get("crew") or []
+        sk_mode = crew[0]["mode"] if crew else "hidden"
+        self._cl_closet(img, d, 1.0 if sk_mode in ("out", "flee") else 0.0)
+        if st.get("note"):                                                          # Zettel vom Hausverwalter
+            d.polygon([(104, 84), (134, 82), (135, 102), (105, 104)], fill=(250, 236, 120))
+            font = self.__dict__.setdefault("_cl_note_font", load_font(7, bold=True))
+            d.text((107, 86), "RUHE-", font=font, fill=(60, 40, 30))
+            d.text((107, 94), "ZEITEN!", font=font, fill=(60, 40, 30))
+        if st.get("jars"):                                                          # leer gefuttertes Glas
+            d.rectangle([255, 124 - 18, 264, 124], fill=(186, 200, 200))
+            d.line([(257, 108), (257, 121)], fill=(240, 246, 246))
         pc = self._cl_washer(img, d, shake, s, t, eyes_in, level)
         if gag and gag[0] == "socke":
             k = max(0.0, min(1.0, (gl - 3.4) / 1.2))
@@ -346,9 +383,12 @@ class CellarVisual:
                 mx = -20 + (WIDTH + 60) * gl / CL_GAGS["maeuse"] - j * 18
                 hop = abs(math.sin(min(1.0, ph) * math.pi)) * 5 if (j + s["beats"]) % 2 else 0
                 self._cl_mouse(img, d, mx, CL_FLOOR - hop, t, hats[j])
+        says = self._cl_crew(img, d, st, s, t, dt, level, gag, gl, boom, bt, talk, demo, bg)
+        if gag and gag[0] in ("hausverwalter", "vampir", "mumie"):
+            says += self._cl_visitor(img, d, st, s, t, level, gag, gl, bx, by)
         monster = None
         if talk:
-            monster = (124, "read")
+            monster = (196, "read")
         elif boom and bt >= 2.2:
             k = (bt - 7.2) / (CL_BOOM - 7.2)
             monster = (150 - 110 * _smooth(k), "walk") if k > 0 else (150, "vacuum")
@@ -398,6 +438,8 @@ class CellarVisual:
                 self._xmas_party_say(d, pc[0], CL_WASHER[1] - 8, "Burp.")
         if gag and gag[0] == "staub" and 3.0 <= gl < 5.0:
             self._xmas_party_say(d, 70, CL_FLOOR - 24, "Hier wird's nie sauber.")
+        for x, y, text in says:
+            self._xmas_party_say(d, x, y, text)
         if level >= 3 and boom and 1.7 <= bt < 1.95:
             img = self._cl_scare(img)                                               # Schreckmoment
         return img
@@ -421,7 +463,7 @@ class CellarVisual:
         lit = mask
         sh = Image.new("L", (WIDTH, VIS_H), 255)                                    # Schatten der Gegenstände
         sd = ImageDraw.Draw(sh)
-        for x0, y0, x1, y1, k in ((*CL_BOXES, 0.2), (*CL_WASHER, 0.14), (238, 46, 312, 128, 0.08)):
+        for x0, y0, x1, y1, k in ((*CL_BOXES, 0.2), (*CL_WASHER, 0.14), (238, 46, 312, 128, 0.08), (*CL_CLOSET, 0.12)):
             ox, oy = self._cl_shadow_offset((x0 + x1) / 2, (y0 + y1) / 2, bx, by, k)
             sd.rectangle([x0 + ox, y0 + oy, x1 + ox, min(CL_FLOOR, y1 + oy)], fill=90)   # nur an der Wand
         mask = ImageChops.multiply(mask, sh)

@@ -27,7 +27,7 @@ vieles mehr – ohne Logitech-Software, in zwei Python-Dateien. Kostenlos und qu
   Sonnenuhr bis Nixie-Röhren und Wortuhr, Auswahl am Display mit MENU und Live-Vorschau
 - **Visualisierung** zu allem, was der Rechner abspielt: Grafik-Equalizer, tanzendes Mädchen,
   Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm, Feuerwerk, eine
-  Überraschungsparty (an Geburtstagen automatisch), eine gruselige Kellertreppe mit Monster und –
+  Überraschungsparty (an Geburtstagen automatisch), eine gruselige Kellertreppe mit Zombies, Skelett und Monster und –
   in der Weihnachtszeit automatisch – tanzende Weihnachtsleute im Schnee; die Tastatur pulsiert im Takt.
   Bei Nachrichten und Werbung langweilt sich die Tänzerin.
 - Bedienung am Display: Zifferblätter und ihre Optionen, Stile, Schnellmenü (Helligkeit, Nachtmodus,

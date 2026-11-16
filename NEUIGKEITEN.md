@@ -3,6 +3,13 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.16-3
+- **Kellertreppe mit Bewohnern:** Zombies steigen aus dem Kellerboden (erst greift eine Hand heraus) und schlurfen im Takt herum, ein Skelett tanzt aus dem neuen Kellerschrank und klappert auf hohe Schläge. Wie viele es sind, hängt von der Gänsehaut-Stufe ab: schaurig-nett nur das Skelett, gruselig dazu zwei Zombies, Gänsehaut eine ganze Horde mit roten Augen.
+  - Kommt das Monster mit dem Staubsauger, flüchten die Zombies zurück in den Boden („Iiih, Staubsauger!“) und das Skelett in den Schrank. Bei Wortbeiträgen sitzen alle auf der Treppe und hören dem Monster beim Zeitunglesen zu. Bei einem Liedwechsel taucht ein Zombie ab und anderswo wieder auf.
+  - Neue Gags: Ein Zombie verliert seinen Arm und eine Maus schleppt ihn weg, ein Zombie futtert die Einmachgläser leer („Gurken von 1987!“), ein Zombie hüpft in der Mäuse-Polonaise mit, das Skelett spielt Xylophon auf den eigenen Rippen und zerfällt bei sehr kräftigem Bass – danach sitzt der Schädel erst einmal am Knie.
+  - Besuch über die Kellertür: der **Hausverwalter-Zombie** im grauen Anzug (Nebenkosten: „Nachzahlung: 3 Seelen“, danach hängt ein Zettel „Ruhezeiten!“ an der Wand), **Graf Kellerstein**, der sich am niedrigen Deckenbalken den Kopf stößt und im Licht als Fledermaus durchs Fenster flieht, und die **Mumie**, die sich beim Tanzen abwickelt, bis nur noch Unterhemd, Boxershorts und Ringelsocken übrig sind.
+  - Es passiert mehr: alle 8–14 Sekunden ein Gag statt alle 14–24 Sekunden.
+
 ## 2026.11.16-2
 - **Neuer Stil „Überraschungsparty“** (Geburtstag): Im dunklen Wohnzimmer verstecken sich drei Gäste und der Hund hinter dem Sofa – man sieht nur ihre Augen, die im Takt blinzeln („Psst!“). Beim ersten Höhepunkt der Musik (spätestens nach 20 Sekunden) geht das Licht an: „ÜBERRASCHUNG!“, Konfetti, dann wird mit Tröten getanzt.
   - Gags: Der Hund frisst die Torte, Trickkerzen gehen immer wieder an (ab 50 piept der Rauchmelder), ein Kastenteufel springt aus dem Geschenk, Luftballons platzen bei kräftigem Bass, manchmal verschläft ein Gast die Überraschung. Bei Wortbeiträgen atmen alle Helium ein und quieken.

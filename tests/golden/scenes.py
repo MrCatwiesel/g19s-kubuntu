@@ -527,11 +527,18 @@ def _pt_phase(phase, gag=None):
 
 def _cl_boom(st, t):
     st["boom"], st["booms"] = t, 1
+    for c in st["crew"]:
+        c["mode"] = "idle"
 
 
-def _cl_gag(name):
+def _cl_gag(name, ready=True):
+    """Gag erzwingen; ready: Bewohner sind schon draußen (sonst steigen sie erst aus Boden und Schrank)."""
     def setup(st, t):
-        st["gag"] = (name, t)
+        st["gag"] = (name, t) if name else None
+        st["next_gag"] = t + 99
+        if ready:
+            for c in st["crew"]:
+                c["mode"] = "idle"
     return setup
 
 
@@ -545,11 +552,22 @@ scenes["vis_party_helium"] = lambda r: _fest(r, "party", 3.0, _pt_phase("party")
 scenes["vis_keller_dunkel"] = lambda r: _fest(r, "cellar", 1.2, _cl_boom)
 scenes["vis_keller_monster"] = lambda r: _fest(r, "cellar", 3.2, _cl_boom)
 scenes["vis_keller_schreck"] = lambda r: _fest(r, "cellar", 1.8, _cl_boom, {"level": "3"})
-scenes["vis_keller_zeitung"] = lambda r: _fest(r, "cellar", 2.0, talk=True)
+scenes["vis_keller_zeitung"] = lambda r: _fest(r, "cellar", 2.0, _cl_gag(None), talk=True)
 scenes["vis_keller_spinne"] = lambda r: _fest(r, "cellar", 4.0, _cl_gag("spinne"), {"level": "3"})
 scenes["vis_keller_maeuse"] = lambda r: _fest(r, "cellar", 3.0, _cl_gag("maeuse"))
 scenes["vis_keller_socke"] = lambda r: _fest(r, "cellar", 4.4, _cl_gag("socke"))
 scenes["vis_keller_staub"] = lambda r: _fest(r, "cellar", 3.6, _cl_gag("staub"), {"level": "1"})
+scenes["vis_keller_zombies"] = lambda r: _fest(r, "cellar", 3.0, _cl_gag(None, ready=False), {"level": "3"})
+scenes["vis_keller_horde"] = lambda r: _fest(r, "cellar", 4.0, _cl_gag(None), {"level": "3"})
+scenes["vis_keller_treppe"] = lambda r: _fest(r, "cellar", 10.0, _cl_gag(None), talk=True)
+scenes["vis_keller_arm"] = lambda r: _fest(r, "cellar", 2.4, _cl_gag("arm"))
+scenes["vis_keller_glas"] = lambda r: _fest(r, "cellar", 5.4, _cl_gag("glas"))
+scenes["vis_keller_polonaise"] = lambda r: _fest(r, "cellar", 4.2, _cl_gag("polonaise"))
+scenes["vis_keller_xylophon"] = lambda r: _fest(r, "cellar", 2.6, _cl_gag("xylophon"))
+scenes["vis_keller_zerfall"] = lambda r: _fest(r, "cellar", 3.0, _cl_gag("zerfall"))
+scenes["vis_keller_hausverwalter"] = lambda r: _fest(r, "cellar", 5.4, _cl_gag("hausverwalter"))
+scenes["vis_keller_vampir"] = lambda r: _fest(r, "cellar", 2.8, _cl_gag("vampir"))
+scenes["vis_keller_mumie"] = lambda r: _fest(r, "cellar", 6.6, _cl_gag("mumie"))
 scenes["vis_keller_gewitter"] = lambda r: _fest(r, "cellar", 4.07, weather=("thunder", 12.0, 10.0))
 
 
