@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.11.16-17)
+| 28.09.2026 (Version 2026.11.16-18)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -32,7 +32,7 @@ Für die G19s gibt es unter Linux keinen offiziellen Treiber. Die normalen Taste
 * '''Terminerinnerung''' vor Terminbeginn, '''Radiowecker''' und '''Einschlaftimer''', '''Song merken''' (Radiotitel in eine Liste), '''Lieblingsbilder''' in der Diashow, '''Mikrofon stumm''' per G-Taste (MR-Leuchte als Anzeige).
 * Displayseiten je Ebene '''und''' je Profil einstellbar, '''automatische Sicherung''' in einen Ordner.
 * '''25 Zifferblätter''' für die Uhr (u. a. Chronometer, Bahnhofsuhr, Pendel- und Kuckucksuhr, Astro- und Sonnenuhr, Weltzeituhr, Nixie-Röhren, Wortuhr) – Auswahl am Display mit MENU oder SETTINGS (kurz) je Profil und Ebene, Aussehen in der Verwaltung einstellbar.
-* '''Visualisierung''' zur laufenden Musik in dreiunddreißig Stilen: Grafik-Equalizer, Tänzerin an der Stange, Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm, Feuerwerk, Weihnachten, Überraschungsparty, Kellertreppe, Mittelalter-Metal, Ostern, Halloween, Horror, Geburtstag, Muttertag, Männertag, Silvester, Fasching, Oktoberfest, St. Martin, Valentinstag, Unterwasser-Band, Bauernhof-Band, Weltraum-Disco, Retro-Arcade, Western-Saloon, Lagerfeuer, Katzenchor sowie die ruhigen Stimmungsbilder Seidenschleier, Abendglut und Herzschlag-Aura – die Tastaturbeleuchtung pulsiert auf Wunsch im Takt.
+* '''Visualisierung''' zur laufenden Musik in vierunddreißig Stilen: Grafik-Equalizer, Tänzerin an der Stange, Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm, Feuerwerk, Weihnachten, Überraschungsparty, Kellertreppe, Mittelalter-Metal, Ostern, Halloween, Horror, Geburtstag, Muttertag, Männertag, Silvester, Fasching, Oktoberfest, St. Martin, Valentinstag, Unterwasser-Band, Bauernhof-Band, Weltraum-Disco, Retro-Arcade, Western-Saloon, Lagerfeuer, Katzenchor, Jazz-Club sowie die ruhigen Stimmungsbilder Seidenschleier, Abendglut und Herzschlag-Aura – die Tastaturbeleuchtung pulsiert auf Wunsch im Takt.
 * Weitere Seiten: '''Nachrichten''' (RSS/Atom), '''Unwetter''' (amtliche DWD-Warnungen), '''Netzwerk''' (Erreichbarkeit von Router, NAS …), '''Updates''' (Paket- und Flatpak-Updates, Neustart nötig).
 * '''Display''' mit sieben Standardseiten: Uhr, Musik (inkl. Internetradio), Wetter, Termine, Hardware (Auslastung, Temperaturen, Arbeitsspeicher, Lüfter, Netz, Datenträger), Makro-Übersicht, Bilder. Welche Seiten in welcher Reihenfolge erscheinen, ist frei wählbar.
 * '''Diashow''' mit Bildern aus Piwigo-Alben (auch private Alben) oder aus einem Ordner auf dem Rechner – auf Wunsch als '''Bildschirmschoner'''.
@@ -182,7 +182,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.16-17"
+VERSION = "2026.11.16-18"
 
 # Weitere Importe der Module
 import select
@@ -384,6 +384,7 @@ VISUAL_STYLES = {
     "silk": "Seidenschleier",
     "ember": "Abendglut",
     "pulse": "Herzschlag-Aura",
+    "jazz": "Lounge / Jazz-Club",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 VISUAL_FPS_QUIET = 8        # anpassende Bildrate (visual.adaptive): bei Stille/Wortbeitrag …
@@ -635,6 +636,20 @@ VISUAL_OPTIONS = {
         {"key": "beat", "label": "Heller Ring bei jedem Schlag", "type": "bool", "default": True},
         {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "glow",
          "choices": [["glow", "Farbe der Aura, pulsiert im Takt"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "jazz": [
+        {"key": "mood", "label": "Club-Licht", "type": "choice", "default": "red",
+         "choices": [["red", "Samtrot (klassisch)"], ["amber", "Bernstein / Whisky"], ["blue", "Midnight Blue"],
+                     ["emerald", "Smaragd-Lounge"]]},
+        {"key": "soloist", "label": "Bühne", "type": "choice", "default": "sax",
+         "choices": [["sax", "Saxophonist und Kontrabass"], ["singer", "Sängerin am Mikrofon und Kontrabass"],
+                     ["bass", "Nur der Kontrabass im Spotlight"]]},
+        {"key": "smoke", "label": "Rauchschwaden", "type": "choice", "default": "normal",
+         "choices": [["off", "Aus"], ["light", "Dezent"], ["normal", "Dicht (Club-Atmosphäre)"]]},
+        {"key": "gags", "label": "Gags (Eiswürfel, Trinkgeld, Rauchringe)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "mood",
+         "choices": [["mood", "Warmes Club-Licht pulsiert zum Bass"], ["brass", "Gold- und Bläser-Akzente zu Mitten und Höhen"],
+                     ["layer", "Farbe der Ebene"]]},
     ],
 }
 
@@ -22600,6 +22615,264 @@ class MoodVisual:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Modul seite_visual_jazz
+#   Visualisierung „Lounge / Jazz-Club“ (jazz, Mixin JazzVisual): Samtvorhang, Holzbühne, ein weicher Spotlight-Kegel.
+#   Links schwingt der Kontrabass im Bass (Saiten vibrieren, der Lichtkreis am Boden weitet sich), in der Mitte wiegt sich
+#   der Saxophonist bzw. die Sängerin mit den Mitten – aus dem Schallbecher steigen goldene Klangfunken –, vorne rechts
+#   glüht die Zigarette im Aschenbecher auf hohe Schläge auf und zieht ihre Rauchfahne, der Eiswürfel im Glas hüpft im
+#   Takt. Höhepunkt: „SOLO!“ – das Licht geht auf, der Solist lehnt sich zurück. Wortbeitrag: Ansage am Mikrofon.
+#   Gags: Der Eiswürfel springt in den Aschenbecher, Trinkgeld klimpert ins Glas, die Zigarette bläst Rauchringe.
+# ═══════════════════════════════════════════════════════════════════════════
+
+JZ_PAL = {
+    "red":     {"bg": (18, 5, 8),  "curtain": (75, 14, 26), "spot": (255, 70, 90),  "accent": (255, 195, 90)},
+    "amber":   {"bg": (20, 12, 4), "curtain": (80, 44, 12), "spot": (255, 165, 50), "accent": (255, 225, 130)},
+    "blue":    {"bg": (6, 10, 24), "curtain": (20, 36, 86), "spot": (70, 135, 255), "accent": (180, 220, 255)},
+    "emerald": {"bg": (5, 18, 14), "curtain": (16, 66, 50), "spot": (55, 210, 150), "accent": (220, 245, 175)},
+}
+JZ_GAGS = {"eis": 6.0, "trinkgeld": 7.0, "rauchring": 6.0}
+JZ_GAG_FIRST, JZ_GAG_PAUSE = 8.0, (14.0, 24.0)
+JZ_BOOM = 4.0
+JZ_SIL = (10, 8, 12)                            # Silhouetten der Musiker
+JZ_STAGE = VIS_H - 38                           # Bühnenkante
+JZ_BASS_X, JZ_SOLO_X, JZ_TABLE_X, JZ_JAR_X = 82, 165, 266, 30
+
+
+class JazzVisual:
+    vis_col_jazz = None
+
+    def _jz_scene(self, mood):
+        """Hintergrund je Clublicht (zwischengespeichert): Samtvorhang mit Falten, Holzbühne."""
+        cache = self.__dict__.setdefault("_jz_bg", {})
+        if mood in cache:
+            return cache[mood]
+        pal = JZ_PAL[mood]
+        img = Image.new("RGB", (WIDTH, HEIGHT), pal["bg"])
+        d = ImageDraw.Draw(img)
+        for x in range(0, WIDTH, 16):
+            for k in range(16):
+                shade = math.cos((k - 7.5) / 8 * math.pi / 2)                 # Falte: in der Mitte hell
+                d.line([(x + k, 0), (x + k, JZ_STAGE)], fill=tuple(int(v * (0.45 + 0.55 * shade)) for v in pal["curtain"]))
+        d.rectangle([0, JZ_STAGE, WIDTH, VIS_H], fill=(24, 15, 10))
+        for y in range(JZ_STAGE + 6, VIS_H, 6):
+            d.line([(0, y), (WIDTH, y)], fill=(32, 20, 13))
+        d.line([(0, JZ_STAGE), (WIDTH, JZ_STAGE)], fill=(65, 42, 26), width=2)
+        cache[mood] = img
+        return img
+
+    @vis_style("jazz")
+    def vis_jazz(self, s, o, color):
+        t = s["t"]
+        mood = o.get("mood") if o.get("mood") in JZ_PAL else "red"
+        pal = JZ_PAL[mood]
+        soloist = o.get("soloist", "sax")
+        demo = bool(s.get("demo"))
+        talk = bool(s.get("talk"))
+        st = self._vstate("jazz", lambda: {"beats": s["beats"], "hats": s.get("hats", 0), "slow": 0.0, "fast": 0.0,
+                                            "boom": -99.0, "gag": None, "order": [], "next_gag": t + JZ_GAG_FIRST,
+                                            "rng": random.Random(73), "start": t, "bass": 0.0, "mid": 0.0,
+                                            "glow": 0.0, "ice": 0.0})
+        dt = self._vis_dt(st, t)
+        new_beat = s["beats"] != st["beats"]
+        st["beats"] = s["beats"]
+        new_hat = s.get("hats", 0) != st["hats"]
+        st["hats"] = s.get("hats", 0)
+        playing = (s.get("active") or demo) and not talk
+
+        def val(key):
+            v = float(s.get(key) or 0.0)
+            return v if playing and math.isfinite(v) else 0.0
+
+        st["bass"] += (val("bass") - st["bass"]) * min(1.0, dt / 0.15)
+        st["mid"] += (val("mid") - st["mid"]) * min(1.0, dt / 0.3)
+        bass, mid, treble = st["bass"], st["mid"], val("treble")
+        st["glow"] = 1.0 if (new_hat and playing) else max(treble, st["glow"] - dt * 2.5)
+        st["ice"] = 1.0 if (new_beat and playing) else max(0.0, st["ice"] - dt * 5)
+        level = val("level")
+        st["slow"] += (level - st["slow"]) * min(1.0, dt / 6)
+        st["fast"] += (level - st["fast"]) * min(1.0, dt / 0.4)
+        if not demo and playing and st["fast"] > st["slow"] * 1.2 + 0.04 and t - st["boom"] > 15 \
+                and t - st["start"] > 5 and st["gag"] is None:
+            st["boom"] = t
+        bt = t - st["boom"]
+        boom = 0 <= bt < JZ_BOOM
+        gag = st["gag"]
+        if gag and t - gag[1] >= JZ_GAGS[gag[0]]:
+            st["gag"] = gag = None
+            st["next_gag"] = t + st["rng"].uniform(*JZ_GAG_PAUSE)
+        if not demo and o.get("gags", True) and gag is None and playing and not boom and t >= st["next_gag"]:
+            if not st["order"]:
+                st["order"] = st["rng"].sample(list(JZ_GAGS), len(JZ_GAGS))
+            st["gag"] = gag = (st["order"].pop(0), t)
+        gname = gag[0] if gag else None
+        gl = t - gag[1] if gag else 0.0
+        say = []
+
+        # 1. Spotlight-Kegel (vor den Figuren, weich über einer RGBA-Ebene)
+        img = self._jz_scene(mood).copy().convert("RGBA")
+        ov = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
+        od = ImageDraw.Draw(ov)
+        spot_x = JZ_BASS_X if soloist == "bass" else JZ_SOLO_X
+        spread = 60 + bass * 22 + (28 if boom else 0)
+        alpha = int(30 + bass * 42 + (45 if boom else 0))
+        od.polygon([(spot_x - 14, 0), (spot_x + 14, 0), (spot_x + spread, VIS_H - 24), (spot_x - spread, VIS_H - 24)],
+                   fill=(*pal["spot"], alpha))
+        od.ellipse([spot_x - spread, VIS_H - 34, spot_x + spread, VIS_H - 14], fill=(*pal["spot"], min(150, alpha + 30)))
+        img = Image.alpha_composite(img, ov)
+        d = ImageDraw.Draw(img)
+
+        # 2. Kontrabass mit Bassist (schwingt im Bass, Saiten vibrieren, rechte Hand zupft im Takt)
+        bx = JZ_BASS_X + int(math.sin(t * 2.2) * (2 + bass * 5))
+        by = VIS_H - 32
+        d.ellipse([bx - 24, by - 102, bx - 8, by - 86], fill=JZ_SIL)                  # Kopf
+        d.line([(bx - 28, by - 96), (bx - 4, by - 98)], fill=JZ_SIL, width=3)          # Hutkrempe
+        d.rectangle([bx - 22, by - 106, bx - 10, by - 97], fill=JZ_SIL)
+        d.polygon([(bx - 26, by - 86), (bx - 6, by - 84), (bx - 4, by - 15), (bx - 28, by - 15)], fill=JZ_SIL)
+        d.line([(bx - 4, by - 114), (bx + 4, by - 55)], fill=(95, 58, 28), width=4)    # Hals
+        d.ellipse([bx - 4, by - 125, bx + 5, by - 115], fill=(95, 58, 28))             # Schnecke
+        pulse = int(bass * 3)
+        d.ellipse([bx - 16 - pulse, by - 64, bx + 20 + pulse, by - 32], fill=(115, 62, 24), outline=(45, 22, 8))
+        d.ellipse([bx - 20 - pulse, by - 40, bx + 24 + pulse, by - 4], fill=(115, 62, 24), outline=(45, 22, 8))
+        d.line([(bx + 2, by - 4), (bx + 2, by + 6)], fill=(180, 180, 180), width=2)    # Stachel
+        vib = math.sin(t * 45) * bass * 2.5
+        for so in (-2, 0, 2):
+            d.line([(bx + so, by - 114), (bx + so + vib, by - 22)], fill=(225, 210, 175))
+        pluck = 4 * st["ice"]
+        d.line([(bx - 12, by - 60), (bx + 2 + pluck, by - 34)], fill=JZ_SIL, width=4)   # Zupfhand
+        d.line([(bx - 14, by - 80), (bx - 2, by - 96)], fill=JZ_SIL, width=4)           # Griffhand
+
+        # 3. Solist in der Bühnenmitte
+        sx, sy = JZ_SOLO_X, VIS_H - 26
+        sway = math.sin(t * (2.6 + mid * 2.0)) * (4 + mid * 7)
+        bell = None
+        head = (JZ_BASS_X - 16, by - 94)
+        if soloist == "sax":
+            lean = int(mid * 6 + (8 if boom and 0.3 < bt < 3.4 else 0))
+            hx, hy = sx + int(sway) - lean, sy - 98
+            head = (hx, hy)
+            d.ellipse([hx - 8, hy - 8, hx + 8, hy + 8], fill=JZ_SIL)                     # Kopf mit Fedora
+            d.line([(hx - 14, hy - 5), (hx + 14, hy - 7)], fill=JZ_SIL, width=3)
+            d.rectangle([hx - 7, hy - 13, hx + 7, hy - 6], fill=JZ_SIL)
+            d.polygon([(hx - 10, hy + 8), (hx + 10, hy + 8), (sx + 13, sy - 35), (sx - 13, sy - 35)], fill=JZ_SIL)
+            d.line([(sx - 6, sy - 35), (sx - 9, sy)], fill=JZ_SIL, width=6)
+            d.line([(sx + 6, sy - 35), (sx + 10, sy)], fill=JZ_SIL, width=6)
+            bell = (hx + 18 + int(mid * 4), hy + 34 - int(mid * 5))
+            d.line([(hx + 4, hy + 4), (hx + 12, hy + 16), (hx + 10, hy + 36), bell], fill=pal["accent"], width=3)
+            d.ellipse([bell[0] - 5, bell[1] - 5, bell[0] + 5, bell[1] + 3], fill=pal["accent"])
+            d.line([(hx + 6, hy + 14), (hx + 12, hy + 24)], fill=JZ_SIL, width=4)         # Hände an den Klappen
+        elif soloist == "singer":
+            hx, hy = sx + int(sway * 0.7), sy - 96
+            head = (hx, hy)
+            d.line([(sx + 16, sy), (sx + 14, hy + 6)], fill=(160, 160, 170), width=2)    # Mikrofonständer
+            d.ellipse([sx + 10, hy + 2, sx + 17, hy + 8], fill=(200, 200, 210))
+            d.ellipse([hx - 7, hy - 8, hx + 7, hy + 8], fill=JZ_SIL)
+            d.polygon([(hx - 7, hy + 9), (hx + 7, hy + 9), (sx + 14, sy), (sx - 14, sy)], fill=JZ_SIL)
+            for k in range(6):                                                          # Pailletten im Licht
+                if (int(t * 6) + k * 3) % 5 == 0:
+                    px, py = hx - 6 + k * 3, hy + 20 + (k * 11) % 50
+                    d.point((px, py), fill=pal["accent"])
+            bell = (sx + 14, hy + 2)
+        # 4. Bistrotisch vorne rechts: Cocktailglas, Aschenbecher, Zigarette
+        tx, ty = JZ_TABLE_X, VIS_H - 6
+        d.line([(tx, ty), (tx, ty - 42)], fill=(35, 25, 22), width=4)
+        d.ellipse([tx - 34, ty - 47, tx + 34, ty - 37], fill=(48, 30, 22), outline=(95, 62, 42))
+        gx, gy = tx - 14, ty - 43
+        d.line([(gx, gy), (gx, gy - 11)], fill=(190, 220, 230))
+        d.line([(gx - 5, gy), (gx + 5, gy)], fill=(190, 220, 230))
+        slosh = math.sin(t * 10) * bass * 2
+        d.polygon([(gx - 6, gy - 19 + slosh), (gx + 6, gy - 19 - slosh), (gx, gy - 12)], fill=pal["spot"])
+        d.polygon([(gx - 9, gy - 22), (gx + 9, gy - 22), (gx, gy - 11)], outline=(200, 230, 240))
+        ax, ay = tx + 13, ty - 42
+        ice_gone = gname == "eis" and gl >= 0.6
+        if o.get("gags", True) and not ice_gone:                                        # Eiswürfel hüpft im Takt
+            iy = gy - 18 - 3 * st["ice"]
+            d.rectangle([gx - 2, iy - 2, gx + 2, iy + 2], fill=(235, 248, 255))
+        if gname == "eis" and 0.6 <= gl < 1.6:                                          # … und springt davon
+            k = (gl - 0.6) / 1.0
+            ix, iy = gx + (ax - gx) * k, gy - 18 - math.sin(k * math.pi) * 26
+            d.rectangle([ix - 2, iy - 2, ix + 2, iy + 2], fill=(235, 248, 255))
+        d.ellipse([ax - 8, ay - 3, ax + 8, ay + 2], fill=(90, 90, 100), outline=(140, 140, 150))
+        cx1, cy1, cx2, cy2 = ax - 2, ay - 2, ax + 14, ay - 6
+        d.line([(cx1, cy1), (cx2, cy2)], fill=(235, 235, 235), width=2)
+        g_ = st["glow"]
+        d.ellipse([cx2 - 2, cy2 - 2, cx2 + 2, cy2 + 2], fill=(255, int(70 + 110 * g_), int(10 + 40 * g_)))
+        if gname == "eis" and 1.6 <= gl < 4.2:
+            say.append((ax, ay - 30, "Zisch!"))
+        # 5. Trinkgeldglas vorne links
+        jx, jy = JZ_JAR_X, VIS_H - 8
+        d.rectangle([jx - 11, jy - 22, jx + 11, jy], outline=(180, 210, 220))
+        d.rectangle([jx - 10, jy - 6, jx + 10, jy - 1], fill=(200, 170, 60))
+        tw = d.textlength("TIP", font=self.f_tiny)
+        d.text((jx - tw / 2, jy - 19), "TIP", font=self.f_tiny, fill=(200, 210, 220))
+        if gname == "trinkgeld":
+            if gl < 1.2:                                                                # Hand von unten
+                d.line([(jx + 30, VIS_H + 4), (jx + 8, jy - 34)], fill=(230, 190, 160), width=5)
+            if 0.8 <= gl < 1.6:
+                cy = jy - 34 + (gl - 0.8) / 0.8 * 28
+                d.ellipse([jx - 3, cy - 3, jx + 3, cy + 3], fill=(255, 215, 80))
+            if 1.6 <= gl < 2.6:
+                d.text((jx + 12, jy - 30), "kling!", font=self.f_tiny, fill=(255, 230, 120))
+            if 2.6 <= gl < 6.0:
+                say.append((head[0], head[1] - 22, "Merci, Madame!"))
+
+        # 6. Rauch, Klangfunken und Neonschild (halbtransparent)
+        ov = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
+        od = ImageDraw.Draw(ov)
+        smoke = o.get("smoke", "normal")
+        if smoke != "off":
+            strands = 1 if smoke == "light" else 2
+            a = 55 if smoke == "light" else 85
+            for k in range(strands):
+                pts = [(cx2 + math.sin(t * 1.9 + f * 5.0 + k * 1.7) * (4 + f * 16) - f * 12, cy2 - 3 - f * 115)
+                       for f in (j / 17.0 for j in range(18))]
+                od.line(pts, fill=(215, 220, 230, a), width=2)
+            if smoke == "normal":                                                       # Raumnebel
+                for k in range(3):
+                    hx_ = (t * (6 + k * 3) + k * 110) % (WIDTH + 160) - 80
+                    od.ellipse([hx_ - 70, 40 + k * 30, hx_ + 70, 70 + k * 30], fill=(200, 200, 220, 14))
+        if gname == "rauchring":
+            for k in range(3):
+                age = gl - k * 1.2
+                if 0 <= age < 3.5:
+                    rr = 4 + age * 5
+                    ry = cy2 - 8 - age * 30
+                    od.ellipse([cx2 - 10 - rr, ry - rr * 0.5, cx2 - 10 + rr, ry + rr * 0.5],
+                               outline=(225, 230, 240, int(200 * (1 - age / 3.5))), width=2)
+        if bell and playing and (mid > 0.25 or boom):                                   # goldene Klangfunken
+            n = 9 if boom else 4
+            for i in range(n):
+                ph = (t * 1.8 + i / n) % 1.0
+                nx = bell[0] + 6 + math.sin(t * 4 + i) * 8 + ph * 18
+                ny = bell[1] - 6 - ph * 42
+                a = int((1.0 - ph) * 210 * (1.0 if boom else min(1.0, mid * 1.4)))
+                od.ellipse([nx - 2, ny - 2, nx + 2, ny + 2], fill=(*pal["accent"], a))
+                if i % 3 == 0:
+                    od.text((nx + 3, ny - 8), "♪", font=self.f_tiny, fill=(*pal["accent"], a))
+        flicker = 0.25 if int(t * 7) % 53 in (0, 2) else 1.0                            # Neon flackert ab und zu
+        na = int((150 + mid * 105) * flicker)
+        od.rounded_rectangle([14, 22, 66, 42], radius=5, outline=(*pal["accent"], na), width=2)
+        od.text((24, 25), "JAZZ", font=self.f_small_b, fill=(*pal["accent"], na))
+        img = Image.alpha_composite(img, ov).convert("RGB")
+        d = ImageDraw.Draw(img)
+        if boom and 0.3 < bt < 3.2:
+            d.text((128, 30), "SOLO!", font=self.f_big, fill=pal["accent"])
+        if talk and (t - s.get("talk_t", t)) % 10.0 < 4.0:                              # Ansage, alle 10 s wieder
+            say.append((head[0], head[1] - 22, "Danke! Der nächste Song ist für alle Nachteulen."))
+        for x, y, text in say:
+            self._xmas_party_say(d, x, y, text)
+
+        # 7. Tastaturbeleuchtung
+        keys = o.get("keys", "mood")
+        if keys == "brass":
+            mix = min(1.0, mid * 0.8 + treble * 0.5)
+            self.vis_col_jazz = tuple(int(pal["spot"][i] * (1 - mix) + pal["accent"][i] * mix) for i in range(3))
+        else:
+            k = 0.35 + 0.65 * min(1.0, bass * 1.15)
+            self.vis_col_jazz = tuple(int(c * k) for c in pal["spot"])
+        return img
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Modul seite_visual_szenen
 #   Szenen für die bewegte Vorschau der Verwaltung: Höhepunkt, Wortbeitrag oder ein bestimmter Gag eines Stils
 #   gezielt zeigen (vis_scenes liefert die Auswahl, vis_force stellt den Zustand nach kurzem Vorlauf ein).
@@ -22682,6 +22955,10 @@ VIS_GAG_LABELS = {
     "hund": "Der Hund bellt",
     "mond": "Der Mond singt mit",
     "graete": "Gräte an der Angel",
+    # Jazz-Club
+    "eis": "Eiswürfel springt",
+    "trinkgeld": "Trinkgeld",
+    "rauchring": "Rauchringe",
     # Überraschungsparty
     "hund": "Hund frisst die Torte", "kerzen": "Trickkerzen", "geschenk": "Kastenteufel im Geschenk",
     # Weihnachten (jugendfrei)
@@ -22695,7 +22972,7 @@ def vis_scenes(style):
     """Auswahl für die bewegte Vorschau: [[id, Beschriftung], …]; Gags als "gag:<name>"."""
     out = [["play", "Abspielen"], ["boom", "Höhepunkt"], ["talk", "Wortbeitrag"]]
     gags = {"cellar": CL_GAGS, "metal": MT_GAGS, "party": PT_GAGS, "xmas": FUN_GAGS, "easter": ES_GAGS,
-            "newyear": NY_GAGS, "carnival": CV_GAGS, "oktoberfest": OK_GAGS, "martin": SM_GAGS, "valentine": VL_GAGS, "underwater": UW_GAGS, "farm": FM_GAGS, "space": SP_GAGS, "arcade": AR_GAGS, "western": WS_GAGS, "cats": KC_GAGS, "halloween": HW_GAGS, "horror": {**HR_GAGS["house"], **HR_GAGS["dolls"]},
+            "newyear": NY_GAGS, "carnival": CV_GAGS, "oktoberfest": OK_GAGS, "martin": SM_GAGS, "valentine": VL_GAGS, "underwater": UW_GAGS, "farm": FM_GAGS, "space": SP_GAGS, "arcade": AR_GAGS, "western": WS_GAGS, "cats": KC_GAGS, "jazz": JZ_GAGS, "halloween": HW_GAGS, "horror": {**HR_GAGS["house"], **HR_GAGS["dolls"]},
             "birthday": BD_GAGS, "mother": MO_GAGS, "father": FA_GAGS}.get(style, {})
     out += [["gag:" + n, VIS_GAG_LABELS.get(n, n.capitalize())] for n in gags]
     if style == "xmas":                                             # Feierabend-Gags (schaltet ihn für die Vorschau an)
@@ -22746,7 +23023,7 @@ def vis_force(r, style, scene, t):
             st["since"] = t - 9
             st["gag"], st["next_gag"], st["boom"] = (name, t), t + 99, -99.0
     elif style in ("newyear", "carnival", "oktoberfest", "martin", "valentine", "underwater", "farm", "space",
-                   "arcade", "western", "campfire", "cats", "easter", "halloween", "birthday", "mother", "father"):
+                   "arcade", "western", "campfire", "cats", "jazz", "easter", "halloween", "birthday", "mother", "father"):
         if kind == "boom":
             st["boom"], st["gag"] = t, None
         elif kind == "gag":
@@ -23168,7 +23445,7 @@ class Renderer(RendererBase,
                ClockPage, ClockBase, StandardFaces, MechanicalFaces, SkyFaces, DisplayFaces, InfoFaces,
                MacrosPage, MusicPage, SlidesPage, WeatherPage, CalendarPage, HardwarePage,
                NewsPage, WarningsPage, NetworkPage, UpdatesPage, VisualPage, XmasVisual, XmasParty, XmasFun, BalletVisual, StageFx,
-               PartyVisual, CellarVisual, CellarCrew, MetalVisual, EasterVisual, HalloweenVisual, HorrorVisual, BirthdayVisual, MotherVisual, FatherVisual, FigureKit, NewYearVisual, CarnivalVisual, OktoberfestVisual, MartinVisual, ValentineVisual, UnderwaterVisual, FarmVisual, SpaceVisual, ArcadeVisual, WesternVisual, CampfireVisual, CatsVisual, MoodVisual,
+               PartyVisual, CellarVisual, CellarCrew, MetalVisual, EasterVisual, HalloweenVisual, HorrorVisual, BirthdayVisual, MotherVisual, FatherVisual, FigureKit, NewYearVisual, CarnivalVisual, OktoberfestVisual, MartinVisual, ValentineVisual, UnderwaterVisual, FarmVisual, SpaceVisual, ArcadeVisual, WesternVisual, CampfireVisual, CatsVisual, MoodVisual, JazzVisual,
                MenuViews, OverlayViews):
     PAGES = len(PAGE_IDS)
     MUSIC_PAGE = PAGE_IDS.index("music")
@@ -25190,6 +25467,9 @@ class App(AppCore, KeyHandling, TimedTasks):
         if style == "cats" and not quiet and visual_options(s, "cats").get("keys", "eyes") == "eyes" \
                 and self.renderer.vis_col_cats:
             base = self.renderer.vis_col_cats
+        if style == "jazz" and not quiet and visual_options(s, "jazz").get("keys", "mood") != "layer" \
+                and self.renderer.vis_col_jazz:                             # Club-Licht bzw. Bläser-Gold
+            base, k = tuple(c // 8 * 8 for c in self.renderer.vis_col_jazz), 1.0
         if style in ("silk", "ember", "pulse") and not quiet \
                 and visual_options(s, style).get("keys", "glow") == "glow":       # Stimmung: Farbe des Bildes
             col = getattr(self.renderer, "vis_col_" + style, None)
@@ -25379,7 +25659,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.16-17"
+VERSION = "2026.11.16-18"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -29908,6 +30188,8 @@ Die Seite '''Visualisierung''' bewegt sich zu allem, was der Rechner gerade absp
 |-
 | Katzenchor || Vier Katzen singen bei Vollmond auf dem Dach – jede Katze ein Frequenzband, die schwarze dirigiert mit dem Schwanz. Höhepunkt: der hohe Ton „MIAUUU!“, das Fell sträubt sich, der Mond wackelt. Wortbeitrag: Die Katzen putzen sich („Pause. Miau.“). Gags: Ein Fenster geht auf („Ruhe da oben!“) und ein Schuh fliegt („Daneben! Zugabe!“), der Hund unten bellt (Katzenbuckel), der Mond singt mit, eine Gräte an der Angel || Gags, Tastaturbeleuchtung (Katzenaugen-Gelb oder Farbe der Ebene)
 |-
+| Lounge / Jazz-Club || Samtvorhang, Holzbühne, weicher Spotlight-Kegel: Links schwingt der Kontrabass im Bass (Saiten vibrieren, der Lichtkreis am Boden weitet sich), in der Mitte wiegt sich der Saxophonist bzw. die Sängerin mit den Mitten, goldene Klangfunken steigen auf; vorne rechts glüht die Zigarette auf hohe Schläge, der Eiswürfel im Cocktailglas hüpft im Takt. Höhepunkt: „SOLO!“ – das Licht geht auf. Wortbeitrag: Ansage am Mikrofon. Gags: Der Eiswürfel springt in den Aschenbecher („Zisch!“), Trinkgeld klimpert ins Glas („Merci, Madame!“), die Zigarette bläst Rauchringe || Club-Licht (Samtrot, Bernstein, Midnight Blue, Smaragd), Bühne (Saxophonist, Sängerin oder nur Kontrabass), Rauchschwaden (aus, dezent, dicht), Gags, Tastaturbeleuchtung (Club-Licht im Bass, Bläser-Gold zu Mitten und Höhen oder Farbe der Ebene)
+|-
 | Seidenschleier || Ruhiges Stimmungsbild ohne Gags: halbtransparente Lichtbänder in Rubin, Bordeaux und Gold wogen ineinander, der Bass hebt sie langsam an || Farben (Rubin und Gold, Nachtblau und Flieder, Farbe der Ebene), Schleier durchscheinend, Tastaturbeleuchtung (Farbe der Seide oder der Ebene)
 |-
 | Abendglut || Ruhiges Stimmungsbild: Glut am unteren Rand atmet mit dem Bass, warme Funken steigen auf und verglimmen || Farben (warme Glut oder Farbe der Ebene), Funken (wenige, normal, viele), Tastaturbeleuchtung (Glut oder Farbe der Ebene)
@@ -29929,7 +30211,7 @@ Der Tanz-Modus gilt dabei nicht, die beiden sind immer zu zweit. Bei Wortbeiträ
 '''Festkalender:''' Hat jemand aus der Geburtstagsliste der Überraschungsparty heute Geburtstag, zeigt die Visualisierung automatisch die Party (oder, wenn beim Stil „Geburtstag“ eingeschaltet, die lebende Torte) – mit Namen auf dem Banner (bei zwei Geburtstagskindern beide) und, wenn das Geburtsjahr eingetragen ist, dem Alter als Zahlenballons; am 29. Februar Geborene feiern in Nicht-Schaltjahren am 28. Februar. An jedem Freitag, dem 13., erscheint auf Wunsch die Kellertreppe (Schalter in deren Optionen, ab Werk aus). Von Gründonnerstag bis Ostermontag zeigt sie „Ostern“, vom 25. Oktober bis 1. November „Halloween“ am 2. Sonntag im Mai „Muttertag“, an Christi Himmelfahrt „Männertag“, von Weiberfastnacht bis Faschingsdienstag „Fasching“, am 14. Februar „Valentinstag“, während des Münchner Oktoberfests (Samstag nach dem 15. September bis zum ersten Oktobersonntag, mindestens bis 3. Oktober) „Oktoberfest“, am 11. November „St. Martin“ und am 31. Dezember „Silvester“ (Schalter „Festtage automatisch“ unter Visualisierung). Ein Geburtstag geht vor Freitag, dem 13., dieser vor den Festtagen, alle gehen vor Weihnachten. Wählt man an so einem Tag am Display einen anderen Stil, bleibt dieser für den Tag bzw. den Festzeitraum.
 Oben steht der laufende Titel (abschaltbar). Ohne Ton bleibt das letzte Bild abgedunkelt stehen und zeigt „Keine Wiedergabe“; ist der Ausgang stumm geschaltet (oder auf 0 %), „Ton stumm“. Sobald wieder Musik kommt, geht es sofort weiter – der mitgehörte Ausgang selbst merkt vom Stummschalten nichts, deshalb fragt der Treiber jede Sekunde nach. Die '''Tastaturbeleuchtung pulsiert''' in der Farbe der Ebene mit dem Bass, solange die Seite zu sehen ist (nicht nachts, nicht bei „Beleuchtung nicht umfärben“). Alles einstellbar unter '''Beleuchtung & Display → Visualisierung''' mit Vorschau – dort auch die '''Bildrate''' (10, 15, 20 oder 25 Bilder je Sekunde; Standard 15). Mehr Bilder wirken flüssiger, brauchen aber mehr Rechenzeit; die Visualisierung ist die rechenintensivste Seite. Die '''anpassende Bildrate''' (Standard an) zeichnet bei Stille und Wortbeiträgen nur 8 Bilder je Sekunde und bremst, wenn ein Bild länger als die halbe Bildzeit braucht. Alle 10 Minuten steht eine Zeile mit Zeichenzeit, Bildrate, CPU und Arbeitsspeicher im Protokoll.
 
-'''Bewegte Vorschau:''' Unter dem Vorschaubild in der Verwaltung spielen „▶ Abspielen“, „Höhepunkt“ und „Wortbeitrag“ den Stil einige Sekunden bewegt ab; „Gag zeigen“ führt einen bestimmten Gag aus der Liste vor (Kellertreppe, Mittelalter-Metal, Ostern, Halloween, Horror, Geburtstag, Muttertag, Männertag, Silvester, Fasching, Oktoberfest, St. Martin, Valentinstag, Unterwasser, Bauernhof, Weltraum, Arcade, Western, Katzenchor, Überraschungsparty, Weihnachten einschließlich Feierabend). „■ Stopp“ beendet die Szene.
+'''Bewegte Vorschau:''' Unter dem Vorschaubild in der Verwaltung spielen „▶ Abspielen“, „Höhepunkt“ und „Wortbeitrag“ den Stil einige Sekunden bewegt ab; „Gag zeigen“ führt einen bestimmten Gag aus der Liste vor (Kellertreppe, Mittelalter-Metal, Ostern, Halloween, Horror, Geburtstag, Muttertag, Männertag, Silvester, Fasching, Oktoberfest, St. Martin, Valentinstag, Unterwasser, Bauernhof, Weltraum, Arcade, Western, Katzenchor, Jazz-Club, Überraschungsparty, Weihnachten einschließlich Feierabend). „■ Stopp“ beendet die Szene.
 
 '''Wortbeiträge''' (Nachrichten, Moderation, Werbung): Die Visualisierung erkennt Sprache am Klang – viele kurze Pausen, stark schwankende Lautstärke, kaum Bass. Nach etwa 4–6 Sekunden Sprache gilt es als Wortbeitrag, nach etwa 3 Sekunden Musik wieder als Musik (beides steht im Protokoll, mit den Messwerten). Zusätzlich zählt der Titel des Senders: Enthält er eines der Stichwörter aus '''Beleuchtung & Display → Visualisierung''' (Standard: Nachrichten, News, Werbung, Werbepause, Verkehr, Wetter – ganze Wörter, Groß-/Kleinschreibung egal), ist es sofort ein Wortbeitrag. Werbung mit Musik darunter erkennt nur das Stichwort. Während eines Wortbeitrags pulsiert die Tastatur nicht, und das '''tanzende Mädchen''' langweilt sich: Es verschränkt die Arme, gähnt („Gähn …“), stemmt die Hände in die Hüften, schaut auf die Uhr und tippt mit dem Fuß; nach 30 Sekunden setzt es sich auf den Bühnenrand und döst („Zzz“), das Bühnenlicht ist gedimmt. Kommt wieder Musik, tanzt es sofort weiter.
 

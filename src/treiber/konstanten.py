@@ -178,6 +178,7 @@ VISUAL_STYLES = {
     "silk": "Seidenschleier",
     "ember": "Abendglut",
     "pulse": "Herzschlag-Aura",
+    "jazz": "Lounge / Jazz-Club",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 VISUAL_FPS_QUIET = 8        # anpassende Bildrate (visual.adaptive): bei Stille/Wortbeitrag …
@@ -429,6 +430,20 @@ VISUAL_OPTIONS = {
         {"key": "beat", "label": "Heller Ring bei jedem Schlag", "type": "bool", "default": True},
         {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "glow",
          "choices": [["glow", "Farbe der Aura, pulsiert im Takt"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "jazz": [
+        {"key": "mood", "label": "Club-Licht", "type": "choice", "default": "red",
+         "choices": [["red", "Samtrot (klassisch)"], ["amber", "Bernstein / Whisky"], ["blue", "Midnight Blue"],
+                     ["emerald", "Smaragd-Lounge"]]},
+        {"key": "soloist", "label": "Bühne", "type": "choice", "default": "sax",
+         "choices": [["sax", "Saxophonist und Kontrabass"], ["singer", "Sängerin am Mikrofon und Kontrabass"],
+                     ["bass", "Nur der Kontrabass im Spotlight"]]},
+        {"key": "smoke", "label": "Rauchschwaden", "type": "choice", "default": "normal",
+         "choices": [["off", "Aus"], ["light", "Dezent"], ["normal", "Dicht (Club-Atmosphäre)"]]},
+        {"key": "gags", "label": "Gags (Eiswürfel, Trinkgeld, Rauchringe)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "mood",
+         "choices": [["mood", "Warmes Club-Licht pulsiert zum Bass"], ["brass", "Gold- und Bläser-Akzente zu Mitten und Höhen"],
+                     ["layer", "Farbe der Ebene"]]},
     ],
 }
 

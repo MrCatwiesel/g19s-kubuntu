@@ -3,6 +3,10 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.16-18
+- **Neuer Stil „Lounge / Jazz-Club“:** Samtvorhang, Holzbühne und ein weicher Spotlight-Kegel. Der Kontrabass schwingt im Bass, der Saxophonist (oder die Sängerin) wiegt sich zur Melodie, goldene Klangfunken steigen auf; die Zigarette im Aschenbecher glüht auf hohe Schläge, der Eiswürfel im Glas hüpft im Takt. Höhepunkt: „SOLO!“. Wortbeitrag: Ansage am Mikrofon. Gags: Eiswürfel springt in den Aschenbecher, Trinkgeld, Rauchringe.
+- Einstellbar: Club-Licht (Samtrot, Bernstein, Midnight Blue, Smaragd), Bühne (Saxophonist, Sängerin oder nur Kontrabass), Rauchschwaden und Tastaturbeleuchtung (Club-Licht im Bass oder Bläser-Gold zu Mitten und Höhen).
+
 ## 2026.11.16-17
 - **Drei neue ruhige Stile – Stimmungsbilder ohne Gags:**
   - **Seidenschleier:** Halbtransparente Lichtbänder in Rubin, Bordeaux und Gold wogen ineinander, der Bass hebt sie langsam an. Wahlweise in Nachtblau und Flieder oder in der Farbe der Ebene.
