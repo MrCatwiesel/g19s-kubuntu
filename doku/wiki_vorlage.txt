@@ -105,7 +105,7 @@ Weicht die ID bei <code>c229</code> ab, muss sie in <code>g19s.py</code> (Konsta
 
 === 2. Pakete installieren ===
 <pre>
-sudo apt install python3-usb python3-evdev python3-pil python3-numpy playerctl mpv mpv-mpris libnotify-bin smbclient
+sudo apt install python3-usb python3-evdev python3-pil python3-numpy playerctl mpv mpv-mpris libnotify-bin smbclient ffmpeg
 </pre>
 {| class="wikitable"
 ! Paket !! Wofür
@@ -125,6 +125,8 @@ sudo apt install python3-usb python3-evdev python3-pil python3-numpy playerctl m
 | <code>mpv-mpris</code> || meldet den Radioplayer bei KDE an, damit die Medientasten das Radio steuern
 |-
 | <code>libnotify-bin</code> || nur für den Knopf „Testbenachrichtigung senden“ in der Verwaltung
+|-
+| <code>ffmpeg</code> || Displayseite „Video“ (z. B. „Tagesschau in 100 Sekunden“): Bild aufs Display, Ton über PipeWire
 |}
 Bei Kubuntu bereits vorhanden und ebenfalls genutzt: <code>pw-record</code> (Paket <code>pipewire-bin</code>, Visualisierung; ersatzweise <code>parec</code>), <code>dbus-monitor</code> (Paket <code>dbus-bin</code>, Benachrichtigungen) und <code>wpctl</code> (Paket <code>wireplumber</code>, Lautstärke). Für Grafikkarten von NVIDIA liest die Hardware-Seite Temperatur und Auslastung über <code>nvidia-smi</code>, falls der NVIDIA-Treiber installiert ist.
 
@@ -270,6 +272,8 @@ Startet eine neue Oberfläche nicht, stellt die Verwaltung automatisch die vorhe
 |-
 | Radiosender || startet den Sender, nochmal drücken = aus || <code>"radio": "https://…"</code> bzw. <code>"stop"</code>
 |-
+| Video abspielen || springt zur Seite „Video“ und spielt die neueste Folge (ab Werk „Tagesschau in 100 Sekunden“), nochmal drücken = Stopp || <code>"video": "latest"</code>
+|-
 | Musiksteuerung || Play/Pause, Titel vor/zurück, Stopp || <code>"media": "play-pause"</code>
 |-
 | Lautstärke || Lauter, Leiser oder Stumm; das Display zeigt kurz einen Balken mit dem neuen Wert || <code>"volume": "up"</code> (bzw. <code>"down"</code>, <code>"mute"</code>)
@@ -373,8 +377,10 @@ Hoch/Runter wählen, '''BACK''', '''MENU''' oder '''SETTINGS''' schließen. Nach
 | Netzwerk || Erreichbarkeit von Router, NAS, Servern mit Antwortzeit (jede Minute), eigene IP-Adresse
 |-
 | Updates || Anzahl verfügbarer Paket- und Flatpak-Updates, Sicherheitsupdates, „Neustart erforderlich“ und – einmal am Tag bei GitHub geprüft – „G19s … verfügbar“ (abschaltbar); '''OK''' öffnet Discover, die neue G19s-Version holt man in der Verwaltung unter „Dienst & Sicherung → Nach Updates suchen“
+|-
+| Video || Folgen aus Video-Podcast-Feeds, ab Werk „Tagesschau in 100 Sekunden“ (stündlich aktualisiert). '''Hoch/Runter''' wählt eine Folge, '''OK''' spielt sie ab: oben das Bild in 16:9, darunter Titel, Zeit und Fortschritt; der Ton läuft über die Lautsprecher, ein laufendes Radio pausiert so lange. Während der Wiedergabe: '''OK''' Pause/Weiter, '''◀ ▶''' zehn Sekunden zurück/vor, '''BACK''' beendet. Benötigt <code>ffmpeg</code>
 |}
-Die vier Seiten Nachrichten, Unwetter, Netzwerk und Updates sind anfangs ausgeschaltet und werden unter '''Beleuchtung & Display → Displayseiten''' eingeschaltet. Auf diesen Seiten fragt '''MENU''' die Daten sofort neu ab.
+Die Seiten Nachrichten, Unwetter, Netzwerk, Updates und Video sind anfangs ausgeschaltet und werden unter '''Beleuchtung & Display → Displayseiten''' eingeschaltet. Auf diesen Seiten fragt '''MENU''' die Daten sofort neu ab.
 Auf den Seiten ohne eigene Tastenbelegung blättern auch '''Hoch/Runter'''.
 
 Auf der Seite '''Termine''':
@@ -753,6 +759,8 @@ Bis zu 10 Einträge in <code>profiles</code>. Optional hat ein Profil eigene Dis
 |-
 | <code>"radio"</code> || Radiosender (Stream-Adresse) bzw. <code>"stop"</code>
 |-
+| <code>"video"</code> || <code>"latest"</code>: neueste Folge der Video-Feeds abspielen
+|-
 | <code>"media"</code> || <code>play-pause</code>, <code>next</code>, <code>previous</code>, <code>stop</code>
 |-
 | <code>"volume"</code> || <code>up</code>, <code>down</code>, <code>mute</code> (Schrittweite in der Verwaltung)
@@ -855,6 +863,12 @@ Danach mit Schritt 3 „udev-Regel“ weitermachen. Treiber und Dienst sind dann
 | Radio zeigt nur Sendernamen || Sender liefert keine Titel im Stream || <code>journalctl --user -u g19s.service -n 20 --no-pager</code>
 |-
 | Radiotaste: Display „Radioplayer startet nicht“ || mpv fehlt || <code>sudo apt install mpv</code>
+|-
+| Videoseite: „ffmpeg fehlt“ || Paket fehlt || <code>sudo apt install ffmpeg</code>
+|-
+| Video: Bild läuft, aber kein Ton || ffmpeg ohne PulseAudio-Ausgabe oder Ausgang stumm || Lautstärke prüfen; im Protokoll steht die Meldung von ffmpeg (<code>journalctl --user -u g19s</code>)
+|-
+| Video: „Feed nicht lesbar“ / keine Folgen || Feed-Adresse geändert || In der Verwaltung unter '''Infoseiten → Video''' die Adresse mit „Testen“ prüfen und ggf. aktualisieren
 |-
 | Medientasten steuern das Radio nicht (bei Elisa usw. schon) || mpv-mpris fehlt || <code>sudo apt install mpv-mpris</code>, danach Radio neu starten; Kontrolle in der Verwaltung unter '''Dienst & Sicherung'''
 |-

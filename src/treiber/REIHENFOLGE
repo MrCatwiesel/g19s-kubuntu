@@ -19,6 +19,7 @@ diashow
 abruf
 wetter
 nachrichten
+videos
 unwetter
 netzwerk
 updates
@@ -42,6 +43,7 @@ seite_wetter
 seite_termine
 seite_hardware
 seite_nachrichten
+seite_video
 seite_unwetter
 seite_netzwerk
 seite_updates

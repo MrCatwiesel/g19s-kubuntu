@@ -81,8 +81,8 @@ class RendererBase:
         self.cal_sel = None          # markierter Termin auf der Terminseite (Index) oder None
         self.cal_items = []          # zuletzt gezeigte (gefilterte) Termine
         self.news = self.alerts = self.net = self.updates = None      # Poller der neuen Seiten
-        self.sel = {"news": None, "warnings": None}                     # markierte Zeile je Seite
-        self.list_items = {"news": [], "warnings": []}
+        self.sel = {"news": None, "warnings": None, "video": None}      # markierte Zeile je Seite
+        self.list_items = {"news": [], "warnings": [], "video": []}
 
     def _center(self, draw, y, text, font, fill):
         w = draw.textlength(text, font=font)

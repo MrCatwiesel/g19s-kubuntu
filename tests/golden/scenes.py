@@ -12,7 +12,7 @@ import json
 import os
 import sys
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 DRIVER, OUT = sys.argv[1], sys.argv[2]
 os.makedirs(OUT, exist_ok=True)
@@ -72,6 +72,8 @@ for i, ev in enumerate(events):
 calendar_data = {"items": events, "errors": [], "calendars": [], "calendar_list": cal_list}
 weather_data = json.load(open(os.path.join(FIX, "wetter.json")))
 news_data = {"items": g.parse_feed(open(os.path.join(FIX, "feed.xml"), "rb").read(), "tagesschau"), "errors": []}
+video_data = {"items": g.parse_video_feed(open(os.path.join(FIX, "video_feed.xml"), "rb").read(), "Tagesschau"),
+              "errors": []}
 alerts_data = {"place": "Leipzig", "alerts": [
     {"id": "a1", "severity": "moderate", "event": "STURMBÖEN", "headline": "Amtliche WARNUNG vor STURMBÖEN",
      "description": "Es treten Sturmböen mit Geschwindigkeiten um 70 km/h auf.", "instruction": "Äste können herabstürzen.",
@@ -104,13 +106,16 @@ def fresh():
     r.stats, r.hw = Stats(), Hw()
     r.weather, r.calendar = Snap(weather_data), Snap(calendar_data)
     r.news, r.alerts, r.net, r.updates = Snap(news_data), Snap(alerts_data), Snap(net_data), Snap(updates_data)
+    r.videos = Snap(video_data)
+    r.video_player = g.VideoPlayer(lambda: {"PATH": "/nonexistent"})
+    r.video_player.available = lambda: True            # ohne Hinweis „ffmpeg fehlt“, unabhängig vom Rechner
     r.media = Snap(None)
     r.media.v = (music_info, cover, None, None)
     sl = Snap(None)
     sl.snapshot = lambda: {"image": photo, "name": "Toskana 2024", "id": 42, "index": 3, "count": 17, "status": "",
                            "error": None, "paused": True, "configured": True}
     r.slideshow = sl
-    r.visible = list(range(len(g.PAGE_IDS)))
+    r.visible = [i for i, p in enumerate(g.PAGE_IDS) if p != "video"]   # Seitenpunkte wie vor der Seite „Video“
     return r
 
 
@@ -121,7 +126,8 @@ def _face(r, face):
 
 scenes = {}
 for i, pid in enumerate(g.PAGE_IDS):
-    scenes[f"seite_{pid}"] = lambda r, i=i: r.render(i, "M1", macros)
+    scenes[f"seite_{pid}"] = lambda r, i=i: (setattr(r, "visible", None) if g.PAGE_IDS[i] == "video" else None,
+                                             r.render(i, "M1", macros))[1]
 for face in g.CLOCK_FACES:
     if face != "digital":
         scenes[f"uhr_{face}"] = lambda r, face=face: _face(r, face)
@@ -389,6 +395,26 @@ def _(r):
     r.cal_hidden = {"k2"}
     r.cal_sel = 2
     return r.render(g.PAGE_IDS.index("calendar"), "M1", macros)
+
+@s("seite_video_laeuft")
+def _video_playing(r):
+    vp = r.video_player
+    vp.item = video_data["items"][0]
+    frame = Image.new("RGB", (g.VIDEO_W, g.VIDEO_H), (20, 40, 90))
+    d = ImageDraw.Draw(frame)
+    d.rectangle([0, 130, g.VIDEO_W, g.VIDEO_H], fill=(230, 230, 235))
+    d.text((12, 140), "tagesschau in 100 Sekunden", fill=(20, 40, 90))
+    vp.frame, vp.base, vp.frames = frame, 42.0, 0
+    r.visible = None
+    return r.render(g.PAGE_IDS.index("video"), "M1", macros)
+
+
+@s("seite_video_pause")
+def _video_paused(r):
+    _video_playing(r)
+    r.video_player.paused = True
+    return r.render(g.PAGE_IDS.index("video"), "M1", macros)
+
 
 @s("seite_news_markiert")
 def _(r):

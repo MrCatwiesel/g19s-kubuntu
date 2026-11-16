@@ -118,6 +118,10 @@ class App(AppCore, KeyHandling, TimedTasks):
                 self.next_draw = now + (1.0 - time.time() % 1.0) + 0.02
         else:
             self.next_draw = now + (0.5 if fast else 1.0)
+        video_tick(self)
+        if not fast and self.menu is None and PAGE_IDS[self.page % len(PAGE_IDS)] == "video" \
+                and self.video.item is not None and not self.video.paused:
+            self.next_draw = now + 1.0 / VIDEO_FPS         # Video läuft: im Takt der Bilder zeichnen
         if self._visual_shown():
             self.visual.want()              # Ausgang mithören, solange die Visualisierung zu sehen ist
             if not fast:

@@ -40,7 +40,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.16-18"
+VERSION = "2026.11.16-19"
 
 # Weitere Importe der Module
 import select
@@ -121,9 +121,12 @@ TAP_MS = 20          # Haltezeit bei Schritten vom Typ "tap"
 TEXT_DELAY_MS = 12   # Pause zwischen zwei Zeichen bei "text"
 
 PAGE_IDS = ["clock", "music", "macros", "slides", "weather", "calendar", "hardware",
-            "news", "warnings", "network", "updates", "visual"]
+            "news", "warnings", "network", "updates", "visual", "video"]
 PAGE_NAMES = ["Uhr", "Musik", "Makros", "Bilder", "Wetter", "Termine", "Hardware",
-              "Nachrichten", "Unwetter", "Netzwerk", "Updates", "Visualisierung"]
+              "Nachrichten", "Unwetter", "Netzwerk", "Updates", "Visualisierung", "Video"]
+# Seite „Video“: ab Werk die „Tagesschau in 100 Sekunden“ (Video-Podcast der ARD)
+VIDEO_DEFAULT_FEED = ("https://www.tagesschau.de/multimedia/sendung/tagesschau_in_100_sekunden/"
+                      "podcast-ts100-video-100~podcast.xml")
 # Zifferblätter der Seite „Uhr“ (Auswahl am Display mit MENU, gespeichert je Profil und Ebene).
 # Reihenfolge = Reihenfolge im Displaymenü und in der Verwaltung.
 CLOCK_FACES = {
@@ -900,6 +903,10 @@ SCHEMA = {
                        Entry({"name": Str(maxlen=30), "url": Str()}), required="url", limit=12),
         "count": Int(30, 5, 100, zero=False),
     }),
+    "video": Section({
+        "feeds": Items([{"name": "Tagesschau in 100 Sekunden", "url": VIDEO_DEFAULT_FEED}],
+                       Entry({"name": Str(maxlen=40), "url": Str()}), required="url", limit=8),
+    }),
     "warnings": Section({"popup": Bool(True, only_false=True)}),   # Unwetterwarnungen (DWD über Bright Sky)
     "network": Section({
         "hosts": Items([{"name": "Router", "host": "gateway"}, {"name": "Internet", "host": "1.1.1.1"}],
@@ -1396,7 +1403,7 @@ def compile_steps(macro, log=print):
 # Arten von Tastenbelegungen in der Reihenfolge, in der sie erkannt werden. Gilt für die Ausführung
 # (aktionen.py), die Beschriftung (entry_label) und die Verwaltung (bekommt die Liste über /api/state).
 # Ein Eintrag hat normalerweise genau eine davon; „timer“ muss ein Objekt sein.
-ENTRY_TYPES = ["timer", "snippets", "open", "run", "radio", "media", "mic", "sleep", "volume",
+ENTRY_TYPES = ["timer", "snippets", "open", "run", "radio", "video", "media", "mic", "sleep", "volume",
                "text", "combo", "steps"]
 
 
@@ -1436,6 +1443,8 @@ def entry_label(entry, settings=None):
             if st.get("url") == entry["radio"]:
                 return st.get("name") or domain_of(entry["radio"])
         return domain_of(entry["radio"])
+    if t == "video":
+        return "Video"
     if t == "media":
         return MEDIA_ACTIONS.get(entry["media"], "Musik")
     if t == "volume":
@@ -4177,6 +4186,254 @@ class NewsPoller(Poller):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Modul videos
+#   Videos: Video-Podcast-Feeds (RSS mit Video-Anhang) abrufen und mit ffmpeg auf dem Display abspielen.
+#   Das Bild kommt als Rohdaten (RGB, 320×180, 15 Bilder je Sekunde) über eine Pipe, der Ton geht im selben ffmpeg-Aufruf
+#   an PipeWire/PulseAudio – so bleiben Bild und Ton beisammen, ohne dass ein Fenster aufgeht.
+# ═══════════════════════════════════════════════════════════════════════════
+
+VIDEO_W, VIDEO_H, VIDEO_FPS = 320, 180, 15
+VIDEO_SEEK = 10                 # Sekunden je Druck auf ◀ / ▶
+
+
+def _duration_s(text):
+    """itunes:duration „1:40“, „00:01:40“ oder „100“ → Sekunden (None, wenn unbekannt)."""
+    parts = str(text or "").strip().split(":")
+    try:
+        nums = [float(p) for p in parts if p != ""]
+    except ValueError:
+        return None
+    if not nums or len(nums) > 3:
+        return None
+    sec = 0.0
+    for n in nums:
+        sec = sec * 60 + n
+    return sec if sec > 0 else None
+
+
+def parse_video_feed(raw, source=""):
+    """RSS/Atom mit Video-Anhang (enclosure bzw. media:content/link rel=enclosure):
+    [{title, url, time, duration, source}] – Einträge ohne Video werden übersprungen."""
+    import xml.etree.ElementTree as ET
+    root = ET.fromstring(raw)
+    local = lambda tag: tag.rsplit("}", 1)[-1]
+    out = []
+    for el in root.iter():
+        if local(el.tag) not in ("item", "entry"):
+            continue
+        title, url, when, dur = "", "", None, None
+        for ch in el.iter():
+            name = local(ch.tag)
+            if name == "title" and not title:
+                import html
+                title = re.sub(r"<[^>]+>", "", html.unescape("".join(ch.itertext()))).strip()
+            elif name in ("enclosure", "content", "link") and not url:
+                href = ch.get("url") or ch.get("href") or ""
+                kind = (ch.get("type") or "").lower()
+                if href and (kind.startswith("video/") or (name == "link" and ch.get("rel") == "enclosure")
+                             or (not kind and re.search(r"\.(mp4|m4v|webm|mov)(\?|$)", href, re.I))):
+                    url = href
+            elif name == "duration" and dur is None:
+                dur = _duration_s(ch.text)
+            elif name in ("pubDate", "date", "updated", "published") and ch.text and when is None:
+                when = _feed_time(ch.text)
+        if title and url.startswith(("http://", "https://")):
+            out.append({"title": " ".join(title.split()), "url": url, "time": when, "duration": dur, "source": source})
+    return out
+
+
+def _feed_time(text):
+    import email.utils
+    import datetime as dt
+    t = text.strip()
+    try:
+        when = email.utils.parsedate_to_datetime(t)
+        return when if when.tzinfo else when.replace(tzinfo=dt.timezone.utc)
+    except (TypeError, ValueError, IndexError):
+        try:
+            when = dt.datetime.fromisoformat(t.replace("Z", "+00:00"))
+            return when if when.tzinfo else when.astimezone()
+        except ValueError:
+            return None
+
+
+class VideoPoller(Poller):
+    """Ruft die Video-Feeds stündlich ab – solange die Seite „Video“ eingeschaltet ist oder eine G-Taste
+    ein Video angefordert hat (wanted)."""
+
+    def __init__(self, get_settings, log=print):
+        super().__init__(get_settings, 3600, log)
+        self.wanted = False
+
+    def cfg(self):
+        return self.get_settings().get("video") or {}
+
+    def enabled(self):
+        return bool(self.cfg().get("feeds")) and (self.wanted or "video" in (self.get_settings().get("pages") or []))
+
+    def signature(self):
+        return json.dumps(self.cfg().get("feeds"), sort_keys=True)
+
+    def fetch(self):
+        import datetime as dt
+        items, errors = [], []
+        for f in self.cfg().get("feeds") or []:
+            url = str(f.get("url") or "").strip()
+            if not url:
+                continue
+            name = str(f.get("name") or domain_of(url))
+            try:
+                items += parse_video_feed(http_get(url, timeout=20), name)[:20]
+            except FEED_ERRORS as ex:
+                errors.append(f"{name}: {err_text(ex)}")
+        if errors and not items:
+            raise RuntimeError("; ".join(errors))
+        old = dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc)
+        items.sort(key=lambda x: x["time"] or old, reverse=True)
+        return {"items": items[:30], "errors": errors}
+
+
+class VideoPlayer:
+    """Spielt ein Video mit ffmpeg ab. Pause und Spulen beenden ffmpeg und starten es an der gemerkten Stelle
+    neu (-ss) – ein angehaltenes ffmpeg mit -re würde nach dem Weiterlaufen im Zeitraffer aufholen."""
+
+    def __init__(self, env, log=print):
+        self.env, self.log = env, log           # env(): Umgebung der Desktop-Sitzung (Ton über PipeWire)
+        self.lock = threading.Lock()
+        self.proc = None
+        self.item = None                        # laufendes bzw. angehaltenes Video
+        self.frame = None                       # letztes Bild (PIL, VIDEO_W×VIDEO_H)
+        self.base, self.frames = 0.0, 0         # Startstelle in Sekunden, seither gelesene Bilder
+        self.paused = self.ended = False
+        self.error = None
+        self.gen = 0                            # zählt ffmpeg-Starts (alte Lesefäden geben auf)
+        self.stderr = []
+
+    def available(self):
+        return shutil.which("ffmpeg", path=self.env().get("PATH")) is not None
+
+    def command(self, url, start):
+        vf = (f"scale={VIDEO_W}:{VIDEO_H}:force_original_aspect_ratio=decrease,"
+              f"pad={VIDEO_W}:{VIDEO_H}:(ow-iw)/2:(oh-ih)/2,fps={VIDEO_FPS}")
+        return ["ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin", "-ss", f"{start:.1f}", "-re", "-i", url,
+                "-map", "0:v:0", "-vf", vf, "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1",
+                "-map", "0:a:0?", "-f", "pulse", "G19s Video"]
+
+    def position(self):
+        with self.lock:
+            return self.base + self.frames / VIDEO_FPS
+
+    def play(self, item, start=0.0):
+        """Video ab start Sekunden abspielen. False = ffmpeg fehlt bzw. startet nicht."""
+        self._kill()
+        env = self.env()
+        with self.lock:
+            self.gen += 1
+            gen = self.gen
+            self.item, self.base, self.frames = item, max(0.0, start), 0
+            self.paused = self.ended = False
+            self.error, self.stderr = None, []
+        try:
+            proc = subprocess.Popen(self.command(item["url"], max(0.0, start)), stdin=subprocess.DEVNULL,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, start_new_session=True)
+        except OSError as ex:
+            with self.lock:
+                self.error = "ffmpeg fehlt – sudo apt install ffmpeg" if isinstance(ex, FileNotFoundError) else str(ex)
+                self.ended = True
+            return False
+        self.proc = proc
+        threading.Thread(target=self._read, args=(proc, gen), daemon=True).start()
+        threading.Thread(target=self._read_err, args=(proc,), daemon=True).start()
+        return True
+
+    def _read(self, proc, gen):
+        size = VIDEO_W * VIDEO_H * 3
+        out = proc.stdout
+        while True:
+            buf = b""
+            while len(buf) < size:
+                chunk = out.read(size - len(buf))
+                if not chunk:
+                    break
+                buf += chunk
+            if len(buf) < size:
+                break
+            img = Image.frombytes("RGB", (VIDEO_W, VIDEO_H), buf)
+            with self.lock:
+                if gen != self.gen:
+                    return
+                self.frame = img
+                self.frames += 1
+        rc = proc.wait()
+        with self.lock:
+            if gen != self.gen:
+                return                          # absichtlich beendet (Pause, Spulen, Stopp)
+            self.proc = None
+            self.ended = True
+            if rc and self.frames == 0:
+                self.error = (self.stderr[-1] if self.stderr else f"ffmpeg beendet ({rc})")[:120]
+        if self.error:
+            self.log(f"Video: {self.error}")
+
+    def _read_err(self, proc):
+        for line in proc.stderr:
+            text = line.decode("utf-8", "replace").strip()
+            if text:
+                with self.lock:
+                    self.stderr = (self.stderr + [text])[-5:]
+
+    def toggle_pause(self):
+        """Anhalten bzw. an der gemerkten Stelle weiterspielen."""
+        if self.item is None:
+            return
+        if self.paused:
+            frame = self.frame
+            self.play(self.item, self.base)
+            self.frame = frame                  # bis zum ersten neuen Bild das alte zeigen
+            return
+        pos = self.position()
+        self._kill()
+        with self.lock:
+            self.base, self.frames, self.paused = pos, 0, True
+
+    def seek(self, delta):
+        if self.item is None:
+            return
+        pos = self.position() + delta
+        dur = self.item.get("duration")
+        if dur:
+            pos = min(pos, max(0.0, dur - 1))
+        pos = max(0.0, pos)
+        if self.paused:
+            with self.lock:
+                self.base, self.frames = pos, 0
+        else:
+            frame = self.frame
+            self.play(self.item, pos)
+            self.frame = frame
+
+    def stop(self):
+        self._kill()
+        with self.lock:
+            self.item, self.frame, self.paused, self.ended, self.error = None, None, False, False, None
+
+    def _kill(self):
+        with self.lock:
+            self.gen += 1
+            proc, self.proc = self.proc, None
+        if proc is None or proc.poll() is not None:
+            return
+        try:
+            os.killpg(proc.pid, signal.SIGTERM)
+            proc.wait(timeout=2)
+        except (OSError, subprocess.TimeoutExpired):
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except OSError:
+                pass
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Modul unwetter
 #   Amtliche Unwetterwarnungen des DWD (über Bright Sky) für den Wetterort.
 # ═══════════════════════════════════════════════════════════════════════════
@@ -5567,8 +5824,8 @@ class RendererBase:
         self.cal_sel = None          # markierter Termin auf der Terminseite (Index) oder None
         self.cal_items = []          # zuletzt gezeigte (gefilterte) Termine
         self.news = self.alerts = self.net = self.updates = None      # Poller der neuen Seiten
-        self.sel = {"news": None, "warnings": None}                     # markierte Zeile je Seite
-        self.list_items = {"news": [], "warnings": []}
+        self.sel = {"news": None, "warnings": None, "video": None}      # markierte Zeile je Seite
+        self.list_items = {"news": [], "warnings": [], "video": []}
 
     def _center(self, draw, y, text, font, fill):
         w = draw.textlength(text, font=font)
@@ -9801,6 +10058,198 @@ def open_list_item(app, page_id, it):
                                "end": it["expires"] or it["onset"], "allday": False, "location": "",
                                "description": body, "color": list(color), "label": f"{label} · {it['event']}"})
         app.flash = None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Modul seite_video
+#   Displayseite „Video“: Folgen aus Video-Podcast-Feeds (ab Werk „Tagesschau in 100 Sekunden“) auswählen und
+#   abspielen. Liste: Hoch/Runter markiert, OK spielt ab, MENU lädt neu. Während der Wiedergabe: OK Pause/Weiter,
+#   ◀ ▶ zehn Sekunden zurück/vor, BACK beendet. Ein laufendes Radio pausiert und läuft danach weiter.
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _mmss(sec):
+    sec = max(0, int(sec or 0))
+    return f"{sec // 60}:{sec % 60:02d}"
+
+
+class VideoPage:
+    video_player = None                         # VideoPlayer (setzt die App)
+    videos = None                               # VideoPoller (setzt die App)
+
+    @page("video")
+    def page_video(self, profile, macros):
+        vp = self.video_player
+        if vp is not None and vp.item is not None:
+            return self._video_playing(vp, profile)
+        cfg = (self.settings or {}).get("video") or {}
+        data, hint = self._poll_state(self.videos, "▶", "Video",
+                                      None if cfg.get("feeds") else "Video-Feeds in der G19s-Verwaltung eintragen")
+        if hint:
+            return hint
+        img = Image.new("RGB", (WIDTH, HEIGHT), self.BG)
+        d = ImageDraw.Draw(img)
+        items = data.get("items") or []
+        self.list_items["video"] = items
+        _, err, _ = self.videos.snapshot()
+        self._header(d, "Video", time.strftime("%H:%M"), bool(err or data.get("errors")))
+        if not items:
+            self._center(d, 100, "Keine Folgen gefunden", self.f_mid, self.DIM)
+            return img
+        import datetime as dt
+        today = dt.date.today()
+        sel = self.sel.get("video")
+        if sel is not None:
+            sel = self.sel["video"] = max(0, min(sel, len(items) - 1))
+        start = max(0, sel - 2) if sel is not None else 0
+        y, bottom = 32, HEIGHT - 44
+        color = PROFILE_COLOR.get(profile, self.FG)
+        for idx, it in enumerate(items[start:], start):
+            lines = self._wrap(d, it["title"], self.f_small, WIDTH - 24, 2)
+            h = 16 + 18 * len(lines) + 4
+            if y + h > bottom:
+                break
+            if idx == sel:
+                d.rounded_rectangle([6, y - 2, WIDTH - 6, y + h - 4], radius=5, fill=(40, 48, 66))
+            meta = "▶ " + (it.get("source") or "")
+            if it.get("time"):
+                t = it["time"].astimezone()
+                meta += " · " + (t.strftime("%H:%M") if t.date() == today else t.strftime("%d.%m. %H:%M"))
+            if it.get("duration"):
+                meta += " · " + _mmss(it["duration"])
+            d.text((12, y), meta, font=self.f_tiny, fill=color)
+            y += 15
+            for line in lines:
+                d.text((12, y), line, font=self.f_small, fill=self.FG if idx == sel else (210, 215, 225))
+                y += 18
+            y += 5
+        msg = vp.error if vp is not None and vp.error else "OK spielt ab · MENU lädt neu"
+        if vp is not None and not vp.available():
+            msg = "ffmpeg fehlt – sudo apt install ffmpeg"
+        self._center(d, HEIGHT - 44, msg, self.f_tiny, (240, 170, 60) if msg != "OK spielt ab · MENU lädt neu" else self.DIM)
+        return img
+
+    def _video_playing(self, vp, profile):
+        img = Image.new("RGB", (WIDTH, HEIGHT), (0, 0, 0))
+        d = ImageDraw.Draw(img)
+        frame = vp.frame
+        if frame is not None:
+            img.paste(frame, (0, 0))
+        else:
+            self._center(d, VIDEO_H // 2 - 8, vp.error or "Lade …", self.f_small, (240, 170, 60) if vp.error else self.DIM)
+        if vp.paused:                                                               # Pausezeichen
+            d.rounded_rectangle([WIDTH // 2 - 22, VIDEO_H // 2 - 22, WIDTH // 2 + 22, VIDEO_H // 2 + 22], radius=8,
+                                fill=(0, 0, 0))
+            d.rectangle([WIDTH // 2 - 11, VIDEO_H // 2 - 13, WIDTH // 2 - 4, VIDEO_H // 2 + 13], fill=(255, 255, 255))
+            d.rectangle([WIDTH // 2 + 4, VIDEO_H // 2 - 13, WIDTH // 2 + 11, VIDEO_H // 2 + 13], fill=(255, 255, 255))
+        item = vp.item or {}
+        pos, dur = vp.position(), item.get("duration")
+        right = _mmss(pos) + (f" / {_mmss(dur)}" if dur else "")
+        rw = d.textlength(right, font=self.f_tiny)
+        title = item.get("title") or ""
+        while title and d.textlength(title, font=self.f_tiny) > WIDTH - 24 - rw:
+            title = title[:-2] + "…" if len(title) > 2 else ""
+        d.text((8, VIDEO_H + 3), title, font=self.f_tiny, fill=(225, 230, 240))
+        d.text((WIDTH - 8 - rw, VIDEO_H + 3), right, font=self.f_tiny, fill=self.DIM)
+        color = PROFILE_COLOR.get(profile, self.FG)
+        d.rectangle([8, VIDEO_H + 22, WIDTH - 8, VIDEO_H + 26], fill=(50, 54, 66))
+        if dur:
+            k = max(0.0, min(1.0, pos / dur))
+            d.rectangle([8, VIDEO_H + 22, 8 + int((WIDTH - 16) * k), VIDEO_H + 26], fill=color)
+        return img
+
+
+@page_keys("video")
+def keys_video(app, pressed):
+    """Liste: Hoch/Runter, OK spielt, MENU lädt neu. Wiedergabe: OK Pause, ◀ ▶ spulen, BACK Stopp."""
+    vp, r = app.video, app.renderer
+    if vp.item is not None:
+        if pressed & LKEY_BITS["OK"]:
+            vp.toggle_pause()
+        elif pressed & LKEY_BITS["LEFT"]:
+            vp.seek(-VIDEO_SEEK)
+        elif pressed & LKEY_BITS["RIGHT"]:
+            vp.seek(VIDEO_SEEK)
+        elif pressed & (LKEY_BITS["BACK"] | LKEY_BITS["MENU"]):
+            video_stop(app)
+        app.next_draw = 0
+        return True                                 # während der Wiedergabe kein Seitenwechsel
+    if pressed & (LKEY_BITS["UP"] | LKEY_BITS["DOWN"] | LKEY_BITS["OK"]):
+        items = r.list_items.get("video") or []
+        if items:
+            sel = move_selection(r.sel.get("video"), pressed, len(items))
+            if pressed & LKEY_BITS["OK"]:
+                sel = sel or 0
+                video_start(app, items[min(sel, len(items) - 1)])
+            r.sel["video"] = sel
+            app.sel_t["video"] = time.monotonic()
+        app.next_draw = 0
+        return True
+    if pressed & LKEY_BITS["MENU"]:
+        refresh_page(app, "video")
+        return True
+    return False
+
+
+def video_start(app, item):
+    """Video abspielen; ein laufendes Radio wird angehalten und danach fortgesetzt."""
+    if app.radio.playing and app.__dict__.get("_video_radio") is None:
+        app._video_radio = app.radio.current()
+        app.radio.stop()
+        app.log("Video: Radio pausiert")
+    if app.video.play(item):
+        app.log(f"Video: {item.get('source') or ''} – {item['title']}")
+    app.next_draw = 0
+
+
+def video_stop(app):
+    app.video.stop()
+    _video_resume_radio(app)
+    app.next_draw = 0
+
+
+def _video_resume_radio(app):
+    station = app.__dict__.pop("_video_radio", None)
+    if station:
+        app.log("Video: Radio läuft weiter")
+        app.radio_play(station, announce=False)
+
+
+def video_tick(app):
+    """Aus der Zeichenschleife: zu Ende gespielt → zurück zur Liste, Radio weiter."""
+    vp = app.video
+    if vp.item is not None and vp.ended and not vp.paused:
+        if vp.error:
+            vp.item = None                          # Liste mit Fehlermeldung zeigen
+            _video_resume_radio(app)
+        else:
+            video_stop(app)
+
+
+def video_play_latest(app):
+    """G-Taste „Video“: zur Seite springen und die neueste Folge abspielen (lädt die Liste bei Bedarf)."""
+    app.videos.wanted = True
+    app.page = PAGE_IDS.index("video")
+    app.flash = None
+    app.next_draw = 0
+
+    def work():
+        data, _, _ = app.videos.snapshot()
+        if not data:
+            try:
+                data = app.videos.fetch()
+                with app.videos.lock:
+                    app.videos.data, app.videos.error, app.videos.updated = data, None, time.time()
+            except Exception as ex:
+                with app.videos.lock:
+                    app.videos.error = err_text(ex)
+                app.log(f"Video: {err_text(ex)}")
+                return
+        items = (data or {}).get("items") or []
+        if items:
+            video_start(app, items[0])
+        else:
+            app.show("Video", ["Keine Folge gefunden"], REC_COLOR, 3)
+    threading.Thread(target=work, daemon=True).start()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -23302,7 +23751,7 @@ class OverlayViews:
 class Renderer(RendererBase,
                ClockPage, ClockBase, StandardFaces, MechanicalFaces, SkyFaces, DisplayFaces, InfoFaces,
                MacrosPage, MusicPage, SlidesPage, WeatherPage, CalendarPage, HardwarePage,
-               NewsPage, WarningsPage, NetworkPage, UpdatesPage, VisualPage, XmasVisual, XmasParty, XmasFun, BalletVisual, StageFx,
+               NewsPage, VideoPage, WarningsPage, NetworkPage, UpdatesPage, VisualPage, XmasVisual, XmasParty, XmasFun, BalletVisual, StageFx,
                PartyVisual, CellarVisual, CellarCrew, MetalVisual, EasterVisual, HalloweenVisual, HorrorVisual, BirthdayVisual, MotherVisual, FatherVisual, FigureKit, NewYearVisual, CarnivalVisual, OktoberfestVisual, MartinVisual, ValentineVisual, UnderwaterVisual, FarmVisual, SpaceVisual, ArcadeVisual, WesternVisual, CampfireVisual, CatsVisual, MoodVisual, JazzVisual,
                MenuViews, OverlayViews):
     PAGES = len(PAGE_IDS)
@@ -23981,6 +24430,15 @@ def act_volume(app, macro, name):
     threading.Thread(target=volume_change, args=(app, macro["volume"], PROFILE_COLOR[app.layer]), daemon=True).start()
 
 
+@gkey_action("video")
+def act_video(app, macro, name):
+    """Zur Seite „Video“ springen und die neueste Folge abspielen; läuft schon ein Video: beenden."""
+    if app.video.item is not None:
+        video_stop(app)
+    else:
+        video_play_latest(app)
+
+
 @gkey_action("text", "combo", "steps")
 def act_keys(app, macro, name):
     if app.args.debug:
@@ -24043,7 +24501,7 @@ class AppCore:
         self.periodic = {"remind": 0.0, "backup": time.monotonic() + 60, "alarm_day": "", "backup_busy": False,
                          "fresh": None}
         self.modal = False                  # nächster Tastendruck schließt nur die Einblendung
-        self.sel_t = {"calendar": 0.0, "news": 0.0, "warnings": 0.0}   # letzte Bewegung der Markierung
+        self.sel_t = {"calendar": 0.0, "news": 0.0, "warnings": 0.0, "video": 0.0}   # letzte Bewegung der Markierung
         self.rec = None                     # None | {"stage": "select"} | {"stage": "record", "gkey", "recorder"}
         self.flash = None                   # (Zeichenfunktion, bis-Zeitpunkt)
         self.menu = None
@@ -24082,6 +24540,8 @@ class AppCore:
         self.weather = r.weather = WeatherPoller(self.settings, log=self.log)
         self.calendar = r.calendar = CalendarPoller(self.settings, log=self.log)
         self.news = r.news = NewsPoller(self.settings, log=self.log)
+        self.videos = r.videos = VideoPoller(self.settings, log=self.log)
+        self.video = r.video_player = VideoPlayer(self.launcher._env, log=self.log)
         self.alerts = r.alerts = WarningsPoller(self.settings, log=self.log)
         self.netpoll = r.net = NetworkPoller(self.settings, log=self.log)
         self.updates = r.updates = UpdatesPoller(self.settings, log=self.log)
@@ -24089,13 +24549,14 @@ class AppCore:
         self.visual = r.visual = SoundAnalyzer(self.launcher._env, log=self.log)
         self._vis_light, self._vis_light_t = None, 0.0     # Tastaturlicht im Takt (zuletzt gesetzte Farbe)
         self.mediakeys = MediaKeys(lambda: self.settings().get("media_keys", True), self.handle_media_key, log=self.log)
-        self.services = [self.media, self.slideshow, self.weather, self.calendar, self.news, self.alerts,
+        self.services = [self.media, self.slideshow, self.weather, self.calendar, self.news, self.videos, self.alerts,
                          self.netpoll, self.updates, self.activity, self.mediakeys]
         for s in self.services:
             s.start()
         self.notifier = NotificationWatcher(self.launcher._env, self._on_notify, log=self.log)
         self.notifier.start()
-        self.refreshers = {"news": self.news, "warnings": self.alerts, "network": self.netpoll, "updates": self.updates}
+        self.refreshers = {"news": self.news, "warnings": self.alerts, "network": self.netpoll, "updates": self.updates,
+                           "video": self.videos}
 
         r.cal_hidden = set(str(k) for k in (load_state().get("calendar_hidden") or []))
         try:
@@ -25183,6 +25644,10 @@ class App(AppCore, KeyHandling, TimedTasks):
                 self.next_draw = now + (1.0 - time.time() % 1.0) + 0.02
         else:
             self.next_draw = now + (0.5 if fast else 1.0)
+        video_tick(self)
+        if not fast and self.menu is None and PAGE_IDS[self.page % len(PAGE_IDS)] == "video" \
+                and self.video.item is not None and not self.video.paused:
+            self.next_draw = now + 1.0 / VIDEO_FPS         # Video läuft: im Takt der Bilder zeichnen
         if self._visual_shown():
             self.visual.want()              # Ausgang mithören, solange die Visualisierung zu sehen ist
             if not fast:

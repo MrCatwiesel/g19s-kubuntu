@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.16-18"
+VERSION = "2026.11.16-19"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -69,7 +69,7 @@ def load_driver():
 
 
 # Alle Namen des Treibers, die die Verwaltung benutzt (g.<name>) – build.py trägt sie beim Bauen ein
-DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD ENTRY_TYPES FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VISUAL_OPTIONS VISUAL_STYLES VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller _clean auto_backup backup_members clean_macros clean_settings demo_snapshot err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed save_json save_state test_backup_target valid_colors vis_force vis_scenes".split()
+DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD ENTRY_TYPES FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VISUAL_OPTIONS VISUAL_STYLES VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller _clean auto_backup backup_members clean_macros clean_settings demo_snapshot err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed parse_video_feed save_json save_state test_backup_target valid_colors vis_force vis_scenes".split()
 
 
 g = load_driver()
@@ -979,6 +979,21 @@ class ApiInfo:
             raise RuntimeError(f"Feed nicht lesbar: {g.err_text(ex)}")
         if not items:
             raise RuntimeError("Keine Meldungen gefunden – ist das ein RSS- oder Atom-Feed?")
+        self._send(200, {"count": len(items), "first": items[0]["title"]})
+
+    def api_post_video_test(self, q):
+        f = self._json()
+        url = str(f.get("url") or "").strip()
+        if not re.match(r"^https?://", url, re.I):
+            raise ValueError("Die Adresse muss mit http:// oder https:// beginnen")
+        if not hasattr(g, "parse_video_feed"):
+            raise RuntimeError("Der installierte Treiber kennt noch keine Videos – bitte g19s.py aktualisieren")
+        try:
+            items = g.parse_video_feed(g.http_get(url, timeout=20), f.get("name") or "")
+        except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
+            raise RuntimeError(f"Feed nicht lesbar: {g.err_text(ex)}")
+        if not items:
+            raise RuntimeError("Keine Videos gefunden – ist das ein Video-Podcast-Feed?")
         self._send(200, {"count": len(items), "first": items[0]["title"]})
 
     def api_post_warnings_test(self, q):
@@ -2153,6 +2168,15 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
       </div>
     </div>
     <div class="card">
+      <h2>Video</h2>
+      <p class="hint">Video-Podcast-Feeds für die Displayseite „Video“ (stündlich aktualisiert, solange die Seite eingeschaltet ist). Am Display: Hoch/Runter wählt eine Folge, OK spielt sie ab, MENU lädt neu; während der Wiedergabe OK Pause/Weiter, ◀ ▶ zehn Sekunden zurück/vor, BACK beendet. Bild und Ton spielt <code>ffmpeg</code> ab (<code>sudo apt install ffmpeg</code>). Mit der G-Tasten-Aktion „Video abspielen“ startet die neueste Folge auf Knopfdruck.</p>
+      <div id="videoFeeds"></div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="videoAdd">+ Feed hinzufügen</button>
+        <span class="muted">Schnell hinzufügen:</span><div class="row" id="videoPresets"></div>
+      </div>
+    </div>
+    <div class="card">
       <h2>Unwetterwarnungen</h2>
       <p class="hint">Amtliche Warnungen des Deutschen Wetterdienstes für den oben gewählten Wetter-Ort (über den freien Dienst Bright Sky, alle 10 Minuten). Die Displayseite heißt „Unwetter“; OK zeigt die Details einer Warnung.</p>
       <label class="check"><input type="checkbox" id="warnPopup"> Neue markante Warnungen und Unwetter groß auf dem Display einblenden (auch wenn die Seite ausgeschaltet ist)</label>
@@ -2319,6 +2343,7 @@ const TYPES = [
   {id: "open", label: "Webseite", icon: "🌐"},
   {id: "run", label: "Programm", icon: "▶"},
   {id: "radio", label: "Radiosender", icon: "📻"},
+  {id: "video", label: "Video abspielen", icon: "🎬"},
   {id: "media", label: "Musiksteuerung", icon: "♫"},
   {id: "volume", label: "Lautstärke", icon: "🔊"},
   {id: "snippets", label: "Textbausteine", icon: "☰"},
@@ -2455,6 +2480,7 @@ function entryLabel(e) {
   const t = typeOf(e);
   if (t === "open") return domainOf(e.open);
   if (t === "radio") return e.radio === "stop" ? "Radio aus" : stationName(e.radio);
+  if (t === "video") return "Video";
   if (t === "media") return S.media[e.media] || "Musik";
   if (t === "volume") return S.volume[e.volume] || "Lautstärke";
   if (t === "snippets") return e.snippet ? String(e.snippet) : e.snippets === "*" ? "Textbausteine" : String(e.snippets);
@@ -2650,7 +2676,7 @@ function renderEditor() {
       oninput: e => { d.name = e.target.value; touchDraft(); }})));
   const body = el("div");
   ({default: edDefault, text: edText, combo: edCombo, steps: edSteps, open: edOpen, run: edRun,
-    radio: edRadio, media: edMedia, volume: edVolume, snippets: edSnippets, timer: edTimer, sleep: edSleep, mic: edMic})[d.type](body, d);
+    radio: edRadio, video: edVideo, media: edMedia, volume: edVolume, snippets: edSnippets, timer: edTimer, sleep: edSleep, mic: edMic})[d.type](body, d);
   box.append(body);
   const exists = !!layerKeys()[UI.gkey];
   box.append(el("div", {class: "actions"},
@@ -2670,6 +2696,13 @@ function edDefault(box) {
   box.append(el("div", {class: "note"}, "Diese Taste sendet ", el("b", {text: fKeyText(UI.gkey, UI.profile)}),
     ". Belege sie in den ", el("b", {text: "KDE-Systemeinstellungen → Tastatur → Kurzbefehle"}),
     " oder direkt in einem Programm (Spiele, OBS …). Ein Name hier erscheint nur als Beschriftung auf dem Display."));
+}
+function edVideo(box, d) {
+  const feeds = ((UI.sdraft || S.settings).video || {}).feeds || [];
+  box.append(el("p", {class: "hint", text: "Springt zur Displayseite „Video“ und spielt die neueste Folge der Video-Feeds ab "
+    + "(ab Werk „Tagesschau in 100 Sekunden“). Nochmal drücken beendet das Video. Am Display: OK Pause/Weiter, ◀ ▶ zehn Sekunden "
+    + "zurück/vor, BACK beendet. Ein laufendes Radio pausiert so lange. Die Feeds stehen im Reiter „Infoseiten“."}));
+  if (!feeds.length) box.append(el("div", {class: "warnbox"}, "Es ist noch kein Video-Feed eingetragen – im Reiter „Infoseiten“ anlegen."));
 }
 function edText(box, d) {
   const warn = el("div");
@@ -2941,6 +2974,7 @@ function draftToEntry(d) {
     case "open": if (d.open) e.open = /^[a-z]+:\/\//i.test(d.open) ? d.open : "https://" + d.open; break;
     case "run": if (d.run.trim()) e.run = d.run.trim(); break;
     case "radio": if (d.radio) e.radio = d.radio; break;
+    case "video": e.video = "latest"; break;
     case "media": if (d.media) e.media = d.media; break;
     case "volume": if (d.volume) e.volume = d.volume; break;
     case "snippets":
@@ -3685,6 +3719,28 @@ function renderNews() {
     el("button", {class: "btn small", onclick: () => { feeds.push({name: n, url: u}); touchSettings(); renderNews(); }}, "+ " + n)));
 }
 $("#newsAdd").addEventListener("click", () => { UI.sdraft.news.feeds.push({name: "", url: ""}); touchSettings(); renderNews(); });
+const VIDEO_PRESETS = [["Tagesschau in 100 Sekunden", "https://www.tagesschau.de/multimedia/sendung/tagesschau_in_100_sekunden/podcast-ts100-video-100~podcast.xml"]];
+function renderVideo() {
+  const sd = UI.sdraft;
+  sd.video = sd.video || {feeds: []};
+  const feeds = sd.video.feeds, box = $("#videoFeeds");
+  box.replaceChildren(...feeds.map((f, i) => {
+    const info = el("span", {class: "muted"});
+    return el("div", {class: "feedrow"},
+      el("div", {class: "row", style: {flexWrap: "nowrap"}},
+        el("input", {type: "text", value: f.name || "", placeholder: "Name", style: {flex: "1"}, oninput: e => { f.name = e.target.value; touchSettings(); }}),
+        el("input", {type: "url", value: f.url || "", placeholder: "https://…/podcast.xml", style: {flex: "3"}, oninput: e => { f.url = e.target.value.trim(); touchSettings(); }}),
+        el("button", {class: "btn small", onclick: async () => { info.textContent = "prüfe …";
+          try { const r = await api("/api/video/test", {body: f}); info.textContent = `✓ ${r.count} Videos – „${r.first}“`; }
+          catch (e) { info.textContent = "✗ " + e.message; } }}, "Testen"),
+        el("button", {class: "btn icon small danger", title: "entfernen", onclick: () => { feeds.splice(i, 1); touchSettings(); renderVideo(); }}, "✕")),
+      info);
+  }));
+  if (!feeds.length) box.append(el("div", {class: "empty", text: "Keine Video-Feeds – unten hinzufügen."}));
+  $("#videoPresets").replaceChildren(...VIDEO_PRESETS.filter(([n, u]) => !feeds.some(f => f.url === u)).map(([n, u]) =>
+    el("button", {class: "btn small", onclick: () => { feeds.push({name: n, url: u}); touchSettings(); renderVideo(); }}, "+ " + n)));
+}
+$("#videoAdd").addEventListener("click", () => { UI.sdraft.video.feeds.push({name: "", url: ""}); touchSettings(); renderVideo(); });
 function renderNet() {
   const sd = UI.sdraft;
   const hosts = sd.network.hosts, box = $("#netHosts");
@@ -3726,7 +3782,7 @@ $("#updTest").addEventListener("click", async () => {
 });
 function renderInfo() {
   const sd = UI.sdraft; if (!sd) return;
-  renderNews(); renderNet();
+  renderNews(); renderVideo(); renderNet();
   $("#warnPopup").checked = sd.warnings.popup;
   $("#updFlatpak").checked = sd.updates.flatpak;
   $("#updG19s").checked = sd.updates.g19s !== false;

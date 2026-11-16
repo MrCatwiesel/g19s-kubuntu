@@ -21,6 +21,28 @@ function renderNews() {
     el("button", {class: "btn small", onclick: () => { feeds.push({name: n, url: u}); touchSettings(); renderNews(); }}, "+ " + n)));
 }
 $("#newsAdd").addEventListener("click", () => { UI.sdraft.news.feeds.push({name: "", url: ""}); touchSettings(); renderNews(); });
+const VIDEO_PRESETS = [["Tagesschau in 100 Sekunden", "https://www.tagesschau.de/multimedia/sendung/tagesschau_in_100_sekunden/podcast-ts100-video-100~podcast.xml"]];
+function renderVideo() {
+  const sd = UI.sdraft;
+  sd.video = sd.video || {feeds: []};
+  const feeds = sd.video.feeds, box = $("#videoFeeds");
+  box.replaceChildren(...feeds.map((f, i) => {
+    const info = el("span", {class: "muted"});
+    return el("div", {class: "feedrow"},
+      el("div", {class: "row", style: {flexWrap: "nowrap"}},
+        el("input", {type: "text", value: f.name || "", placeholder: "Name", style: {flex: "1"}, oninput: e => { f.name = e.target.value; touchSettings(); }}),
+        el("input", {type: "url", value: f.url || "", placeholder: "https://…/podcast.xml", style: {flex: "3"}, oninput: e => { f.url = e.target.value.trim(); touchSettings(); }}),
+        el("button", {class: "btn small", onclick: async () => { info.textContent = "prüfe …";
+          try { const r = await api("/api/video/test", {body: f}); info.textContent = `✓ ${r.count} Videos – „${r.first}“`; }
+          catch (e) { info.textContent = "✗ " + e.message; } }}, "Testen"),
+        el("button", {class: "btn icon small danger", title: "entfernen", onclick: () => { feeds.splice(i, 1); touchSettings(); renderVideo(); }}, "✕")),
+      info);
+  }));
+  if (!feeds.length) box.append(el("div", {class: "empty", text: "Keine Video-Feeds – unten hinzufügen."}));
+  $("#videoPresets").replaceChildren(...VIDEO_PRESETS.filter(([n, u]) => !feeds.some(f => f.url === u)).map(([n, u]) =>
+    el("button", {class: "btn small", onclick: () => { feeds.push({name: n, url: u}); touchSettings(); renderVideo(); }}, "+ " + n)));
+}
+$("#videoAdd").addEventListener("click", () => { UI.sdraft.video.feeds.push({name: "", url: ""}); touchSettings(); renderVideo(); });
 function renderNet() {
   const sd = UI.sdraft;
   const hosts = sd.network.hosts, box = $("#netHosts");
@@ -62,7 +84,7 @@ $("#updTest").addEventListener("click", async () => {
 });
 function renderInfo() {
   const sd = UI.sdraft; if (!sd) return;
-  renderNews(); renderNet();
+  renderNews(); renderVideo(); renderNet();
   $("#warnPopup").checked = sd.warnings.popup;
   $("#updFlatpak").checked = sd.updates.flatpak;
   $("#updG19s").checked = sd.updates.g19s !== false;

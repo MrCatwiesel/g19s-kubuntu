@@ -156,6 +156,18 @@ class H(http.server.BaseHTTPRequestHandler):
                             for i, t in enumerate(["Bundestag beschließt Haushalt für 2027 nach langer Debatte", "Sturmtief zieht über Norddeutschland – Bahn stellt Fernverkehr teilweise ein",
                                                    "DAX schließt mit leichtem Plus", "Neue Regeln für E-Scooter ab Oktober"]))
             return self.send(f'<?xml version="1.0"?><rss version="2.0"><channel><title>tagesschau</title>{items}</channel></rss>', "application/rss+xml")
+        if u.path == "/video.xml":          # Video-Podcast wie „Tagesschau in 100 Sekunden“
+            import datetime as _d
+            now = _d.datetime.now(_d.timezone.utc)
+            items = "".join(
+                f'<item><title>tagesschau in 100 Sekunden, {h:02d}:00 Uhr</title>'
+                f'<enclosure url="http://127.0.0.1:8812/video/folge{k}.mp4" length="12345678" type="video/mp4"/>'
+                f'<itunes:duration>00:01:{40 - k:02d}</itunes:duration>'
+                f'<pubDate>{(now - _d.timedelta(hours=k * 3)).strftime("%a, %d %b %Y %H:%M:%S +0000")}</pubDate></item>'
+                for k, h in enumerate((17, 14, 11)))
+            items += '<item><title>Nur Text, kein Video</title><link>https://example.org/text</link></item>'
+            return self.send('<?xml version="1.0"?><rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">'
+                             f'<channel><title>tagesschau in 100 Sekunden</title>{items}</channel></rss>', "application/rss+xml")
         if u.path == "/atom.xml":
             import datetime as _dt
             ts = (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ")

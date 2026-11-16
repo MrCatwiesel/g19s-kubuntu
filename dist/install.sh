@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# G19s-Treiber für Linux – Installer (Version 2026.11.16-18)
+# G19s-Treiber für Linux – Installer (Version 2026.11.16-19)
 #
 #   Installieren/Aktualisieren:  bash install.sh
 #   ohne Rückfragen:             bash install.sh --ja
@@ -14,7 +14,7 @@
 # udev-Regel (Zugriff auf die Tastatur) und die Gruppe „input“ (Makroaufnahme).
 set -euo pipefail
 
-VERSION="2026.11.16-18"
+VERSION="2026.11.16-19"
 REPO="MrCatwiesel/g19s-kubuntu"
 BIN="$HOME/.local/bin"
 CONF="${XDG_CONFIG_HOME:-$HOME/.config}"
@@ -103,16 +103,16 @@ ask "Fortfahren?" || exit 0
 PM=""; REQ=(); OPT=()
 if command -v apt-get >/dev/null; then
   PM=apt; REQ=(python3-usb python3-evdev python3-pil python3-numpy)
-  OPT=(playerctl mpv mpv-mpris libnotify-bin smbclient pipewire-bin)
+  OPT=(playerctl mpv mpv-mpris libnotify-bin smbclient pipewire-bin ffmpeg)
 elif command -v dnf >/dev/null; then
   PM=dnf; REQ=(python3-pyusb python3-evdev python3-pillow python3-numpy)
-  OPT=(playerctl mpv mpv-mpris libnotify samba-client pipewire-utils)
+  OPT=(playerctl mpv mpv-mpris libnotify samba-client pipewire-utils ffmpeg)
 elif command -v pacman >/dev/null; then
   PM=pacman; REQ=(python-pyusb python-evdev python-pillow python-numpy)
-  OPT=(playerctl mpv mpv-mpris libnotify smbclient pipewire)
+  OPT=(playerctl mpv mpv-mpris libnotify smbclient pipewire ffmpeg)
 elif command -v zypper >/dev/null; then
   PM=zypper; REQ=(python3-pyusb python3-evdev python3-Pillow python3-numpy)
-  OPT=(playerctl mpv mpv-mpris libnotify-tools samba-client pipewire-tools)
+  OPT=(playerctl mpv mpv-mpris libnotify-tools samba-client pipewire-tools ffmpeg)
 fi
 
 pm_install() {   # pm_install paket… → 0 = alle installiert

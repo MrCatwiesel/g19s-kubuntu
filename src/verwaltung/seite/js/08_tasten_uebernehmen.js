@@ -9,6 +9,7 @@ function draftToEntry(d) {
     case "open": if (d.open) e.open = /^[a-z]+:\/\//i.test(d.open) ? d.open : "https://" + d.open; break;
     case "run": if (d.run.trim()) e.run = d.run.trim(); break;
     case "radio": if (d.radio) e.radio = d.radio; break;
+    case "video": e.video = "latest"; break;
     case "media": if (d.media) e.media = d.media; break;
     case "volume": if (d.volume) e.volume = d.volume; break;
     case "snippets":

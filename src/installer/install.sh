@@ -103,16 +103,16 @@ ask "Fortfahren?" || exit 0
 PM=""; REQ=(); OPT=()
 if command -v apt-get >/dev/null; then
   PM=apt; REQ=(python3-usb python3-evdev python3-pil python3-numpy)
-  OPT=(playerctl mpv mpv-mpris libnotify-bin smbclient pipewire-bin)
+  OPT=(playerctl mpv mpv-mpris libnotify-bin smbclient pipewire-bin ffmpeg)
 elif command -v dnf >/dev/null; then
   PM=dnf; REQ=(python3-pyusb python3-evdev python3-pillow python3-numpy)
-  OPT=(playerctl mpv mpv-mpris libnotify samba-client pipewire-utils)
+  OPT=(playerctl mpv mpv-mpris libnotify samba-client pipewire-utils ffmpeg)
 elif command -v pacman >/dev/null; then
   PM=pacman; REQ=(python-pyusb python-evdev python-pillow python-numpy)
-  OPT=(playerctl mpv mpv-mpris libnotify smbclient pipewire)
+  OPT=(playerctl mpv mpv-mpris libnotify smbclient pipewire ffmpeg)
 elif command -v zypper >/dev/null; then
   PM=zypper; REQ=(python3-pyusb python3-evdev python3-Pillow python3-numpy)
-  OPT=(playerctl mpv mpv-mpris libnotify-tools samba-client pipewire-tools)
+  OPT=(playerctl mpv mpv-mpris libnotify-tools samba-client pipewire-tools ffmpeg)
 fi
 
 pm_install() {   # pm_install paket… → 0 = alle installiert

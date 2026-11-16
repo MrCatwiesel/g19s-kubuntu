@@ -57,9 +57,12 @@ TAP_MS = 20          # Haltezeit bei Schritten vom Typ "tap"
 TEXT_DELAY_MS = 12   # Pause zwischen zwei Zeichen bei "text"
 
 PAGE_IDS = ["clock", "music", "macros", "slides", "weather", "calendar", "hardware",
-            "news", "warnings", "network", "updates", "visual"]
+            "news", "warnings", "network", "updates", "visual", "video"]
 PAGE_NAMES = ["Uhr", "Musik", "Makros", "Bilder", "Wetter", "Termine", "Hardware",
-              "Nachrichten", "Unwetter", "Netzwerk", "Updates", "Visualisierung"]
+              "Nachrichten", "Unwetter", "Netzwerk", "Updates", "Visualisierung", "Video"]
+# Seite „Video“: ab Werk die „Tagesschau in 100 Sekunden“ (Video-Podcast der ARD)
+VIDEO_DEFAULT_FEED = ("https://www.tagesschau.de/multimedia/sendung/tagesschau_in_100_sekunden/"
+                      "podcast-ts100-video-100~podcast.xml")
 # Zifferblätter der Seite „Uhr“ (Auswahl am Display mit MENU, gespeichert je Profil und Ebene).
 # Reihenfolge = Reihenfolge im Displaymenü und in der Verwaltung.
 CLOCK_FACES = {

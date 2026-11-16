@@ -3,6 +3,13 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.16-19
+- **Neue Displayseite „Video“ – „Tagesschau in 100 Sekunden“ auf dem Display:** Die Seite zeigt die neuesten Folgen von Video-Podcasts (ab Werk die Tagesschau in 100 Sekunden, stündlich aktualisiert). OK spielt die gewählte Folge ab – das Bild oben in 16:9, darunter Titel, Zeit und Fortschritt, der Ton über die Lautsprecher. Ein laufendes Radio pausiert so lange und läuft danach weiter.
+- Während der Wiedergabe: OK Pause/Weiter, ◀ ▶ zehn Sekunden zurück/vor, BACK beendet.
+- **Neue G-Tasten-Aktion „Video abspielen“:** startet die neueste Folge auf Knopfdruck, nochmal drücken beendet.
+- Weitere Video-Feeds lassen sich in der Verwaltung unter „Infoseiten → Video“ eintragen und testen.
+- Benötigt das Paket ffmpeg (`sudo apt install ffmpeg`); das Installationsskript bringt es künftig mit.
+
 ## 2026.11.16-18
 - **Neuer Stil „Lounge / Jazz-Club“:** Samtvorhang, Holzbühne und ein weicher Spotlight-Kegel. Der Kontrabass schwingt im Bass, der Saxophonist (oder die Sängerin) wiegt sich zur Melodie, goldene Klangfunken steigen auf; die Zigarette im Aschenbecher glüht auf hohe Schläge, der Eiswürfel im Glas hüpft im Takt. Höhepunkt: „SOLO!“. Wortbeitrag: Ansage am Mikrofon. Gags: Eiswürfel springt in den Aschenbecher, Trinkgeld, Rauchringe.
 - Einstellbar: Club-Licht (Samtrot, Bernstein, Midnight Blue, Smaragd), Bühne (Saxophonist, Sängerin oder nur Kontrabass), Rauchschwaden und Tastaturbeleuchtung (Club-Licht im Bass oder Bläser-Gold zu Mitten und Höhen).

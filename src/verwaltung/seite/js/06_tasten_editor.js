@@ -15,7 +15,7 @@ function renderEditor() {
       oninput: e => { d.name = e.target.value; touchDraft(); }})));
   const body = el("div");
   ({default: edDefault, text: edText, combo: edCombo, steps: edSteps, open: edOpen, run: edRun,
-    radio: edRadio, media: edMedia, volume: edVolume, snippets: edSnippets, timer: edTimer, sleep: edSleep, mic: edMic})[d.type](body, d);
+    radio: edRadio, video: edVideo, media: edMedia, volume: edVolume, snippets: edSnippets, timer: edTimer, sleep: edSleep, mic: edMic})[d.type](body, d);
   box.append(body);
   const exists = !!layerKeys()[UI.gkey];
   box.append(el("div", {class: "actions"},
@@ -35,6 +35,13 @@ function edDefault(box) {
   box.append(el("div", {class: "note"}, "Diese Taste sendet ", el("b", {text: fKeyText(UI.gkey, UI.profile)}),
     ". Belege sie in den ", el("b", {text: "KDE-Systemeinstellungen → Tastatur → Kurzbefehle"}),
     " oder direkt in einem Programm (Spiele, OBS …). Ein Name hier erscheint nur als Beschriftung auf dem Display."));
+}
+function edVideo(box, d) {
+  const feeds = ((UI.sdraft || S.settings).video || {}).feeds || [];
+  box.append(el("p", {class: "hint", text: "Springt zur Displayseite „Video“ und spielt die neueste Folge der Video-Feeds ab "
+    + "(ab Werk „Tagesschau in 100 Sekunden“). Nochmal drücken beendet das Video. Am Display: OK Pause/Weiter, ◀ ▶ zehn Sekunden "
+    + "zurück/vor, BACK beendet. Ein laufendes Radio pausiert so lange. Die Feeds stehen im Reiter „Infoseiten“."}));
+  if (!feeds.length) box.append(el("div", {class: "warnbox"}, "Es ist noch kein Video-Feed eingetragen – im Reiter „Infoseiten“ anlegen."));
 }
 function edText(box, d) {
   const warn = el("div");

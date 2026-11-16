@@ -315,6 +315,10 @@ SCHEMA = {
                        Entry({"name": Str(maxlen=30), "url": Str()}), required="url", limit=12),
         "count": Int(30, 5, 100, zero=False),
     }),
+    "video": Section({
+        "feeds": Items([{"name": "Tagesschau in 100 Sekunden", "url": VIDEO_DEFAULT_FEED}],
+                       Entry({"name": Str(maxlen=40), "url": Str()}), required="url", limit=8),
+    }),
     "warnings": Section({"popup": Bool(True, only_false=True)}),   # Unwetterwarnungen (DWD über Bright Sky)
     "network": Section({
         "hosts": Items([{"name": "Router", "host": "gateway"}, {"name": "Internet", "host": "1.1.1.1"}],

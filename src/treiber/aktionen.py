@@ -162,6 +162,15 @@ def act_volume(app, macro, name):
     threading.Thread(target=volume_change, args=(app, macro["volume"], PROFILE_COLOR[app.layer]), daemon=True).start()
 
 
+@gkey_action("video")
+def act_video(app, macro, name):
+    """Zur Seite „Video“ springen und die neueste Folge abspielen; läuft schon ein Video: beenden."""
+    if app.video.item is not None:
+        video_stop(app)
+    else:
+        video_play_latest(app)
+
+
 @gkey_action("text", "combo", "steps")
 def act_keys(app, macro, name):
     if app.args.debug:

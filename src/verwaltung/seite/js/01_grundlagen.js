@@ -30,6 +30,7 @@ const TYPES = [
   {id: "open", label: "Webseite", icon: "🌐"},
   {id: "run", label: "Programm", icon: "▶"},
   {id: "radio", label: "Radiosender", icon: "📻"},
+  {id: "video", label: "Video abspielen", icon: "🎬"},
   {id: "media", label: "Musiksteuerung", icon: "♫"},
   {id: "volume", label: "Lautstärke", icon: "🔊"},
   {id: "snippets", label: "Textbausteine", icon: "☰"},

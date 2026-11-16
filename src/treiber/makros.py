@@ -4,7 +4,7 @@
 # Arten von Tastenbelegungen in der Reihenfolge, in der sie erkannt werden. Gilt für die Ausführung
 # (aktionen.py), die Beschriftung (entry_label) und die Verwaltung (bekommt die Liste über /api/state).
 # Ein Eintrag hat normalerweise genau eine davon; „timer“ muss ein Objekt sein.
-ENTRY_TYPES = ["timer", "snippets", "open", "run", "radio", "media", "mic", "sleep", "volume",
+ENTRY_TYPES = ["timer", "snippets", "open", "run", "radio", "video", "media", "mic", "sleep", "volume",
                "text", "combo", "steps"]
 
 
@@ -44,6 +44,8 @@ def entry_label(entry, settings=None):
             if st.get("url") == entry["radio"]:
                 return st.get("name") or domain_of(entry["radio"])
         return domain_of(entry["radio"])
+    if t == "video":
+        return "Video"
     if t == "media":
         return MEDIA_ACTIONS.get(entry["media"], "Musik")
     if t == "volume":

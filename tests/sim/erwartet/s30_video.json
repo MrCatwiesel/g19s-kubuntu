@@ -1,0 +1,49 @@
+{
+ "ffmpeg": [
+  [
+   "folge0.mp4",
+   "0",
+   true,
+   true
+  ],
+  [
+   "folge0.mp4",
+   "Mitte",
+   true,
+   true
+  ],
+  [
+   "folge0.mp4",
+   "über 10",
+   true,
+   true
+  ],
+  [
+   "folge1.mp4",
+   "0",
+   true,
+   true
+  ]
+ ],
+ "log": [
+  "Radio: Rockantenne",
+  "Video: Radio pausiert",
+  "Video: Tagesschau – tagesschau in 100 Sekunden, hh:mm Uhr",
+  "Video: Radio läuft weiter",
+  "Radio: Rockantenne",
+  "Video: Radio pausiert",
+  "Video: Tagesschau – tagesschau in 100 Sekunden, hh:mm Uhr",
+  "Video: Radio läuft weiter",
+  "Radio: Rockantenne"
+ ],
+ "pages": [
+  [
+   "clock",
+   "M1"
+  ],
+  [
+   "video",
+   "M1"
+  ]
+ ]
+}

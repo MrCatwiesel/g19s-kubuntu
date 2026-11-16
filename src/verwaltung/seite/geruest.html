@@ -356,6 +356,15 @@
       </div>
     </div>
     <div class="card">
+      <h2>Video</h2>
+      <p class="hint">Video-Podcast-Feeds für die Displayseite „Video“ (stündlich aktualisiert, solange die Seite eingeschaltet ist). Am Display: Hoch/Runter wählt eine Folge, OK spielt sie ab, MENU lädt neu; während der Wiedergabe OK Pause/Weiter, ◀ ▶ zehn Sekunden zurück/vor, BACK beendet. Bild und Ton spielt <code>ffmpeg</code> ab (<code>sudo apt install ffmpeg</code>). Mit der G-Tasten-Aktion „Video abspielen“ startet die neueste Folge auf Knopfdruck.</p>
+      <div id="videoFeeds"></div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="videoAdd">+ Feed hinzufügen</button>
+        <span class="muted">Schnell hinzufügen:</span><div class="row" id="videoPresets"></div>
+      </div>
+    </div>
+    <div class="card">
       <h2>Unwetterwarnungen</h2>
       <p class="hint">Amtliche Warnungen des Deutschen Wetterdienstes für den oben gewählten Wetter-Ort (über den freien Dienst Bright Sky, alle 10 Minuten). Die Displayseite heißt „Unwetter“; OK zeigt die Details einer Warnung.</p>
       <label class="check"><input type="checkbox" id="warnPopup"> Neue markante Warnungen und Unwetter groß auf dem Display einblenden (auch wenn die Seite ausgeschaltet ist)</label>

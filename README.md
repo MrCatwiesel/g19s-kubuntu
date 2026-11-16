@@ -22,7 +22,8 @@ vieles mehr – ohne Logitech-Software, in zwei Python-Dateien. Kostenlos und qu
   sich über die Zwischenablage einfügen – auch in RDP-Fenster
 - **Displayseiten** (je Ebene und Profil wählbar): Uhr, Musik mit Cover und Internetradio, Wetter,
   Termine (iCalendar/Nextcloud-CalDAV), Hardware, Makros, Diashow (Piwigo oder Ordner),
-  Nachrichten (RSS/Atom), Unwetterwarnungen (DWD), Netzwerk, Updates, Visualisierung
+  Nachrichten (RSS/Atom), Unwetterwarnungen (DWD), Netzwerk, Updates, Visualisierung und Video
+  (z. B. „Tagesschau in 100 Sekunden“ mit Ton, auf Knopfdruck)
 - **25 Zifferblätter** für die Uhr – von Chronometer, Bahnhofs- und Kuckucksuhr über Astro- und
   Sonnenuhr bis Nixie-Röhren und Wortuhr, Auswahl am Display mit MENU und Live-Vorschau
 - **Visualisierung** zu allem, was der Rechner abspielt: Grafik-Equalizer, tanzendes Mädchen,
@@ -61,7 +62,7 @@ Die ausführliche Anleitung (Pakete, udev-Regel, Autostart, Fehlerbehebung) steh
 Wiki-Seite [`dist/G19s_unter_Kubuntu.wiki`](dist/G19s_unter_Kubuntu.wiki). Von Hand geht es so:
 
 ```bash
-sudo apt install python3-usb python3-evdev python3-pil python3-numpy playerctl mpv mpv-mpris libnotify-bin smbclient
+sudo apt install python3-usb python3-evdev python3-pil python3-numpy playerctl mpv mpv-mpris libnotify-bin smbclient ffmpeg
 mkdir -p ~/.local/bin
 cp dist/g19s.py dist/g19s-gui.py ~/.local/bin/
 sudo cp dateien/70-g19s.rules /etc/udev/rules.d/ && sudo udevadm control --reload-rules

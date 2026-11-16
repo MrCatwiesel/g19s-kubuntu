@@ -83,6 +83,21 @@ class ApiInfo:
             raise RuntimeError("Keine Meldungen gefunden – ist das ein RSS- oder Atom-Feed?")
         self._send(200, {"count": len(items), "first": items[0]["title"]})
 
+    def api_post_video_test(self, q):
+        f = self._json()
+        url = str(f.get("url") or "").strip()
+        if not re.match(r"^https?://", url, re.I):
+            raise ValueError("Die Adresse muss mit http:// oder https:// beginnen")
+        if not hasattr(g, "parse_video_feed"):
+            raise RuntimeError("Der installierte Treiber kennt noch keine Videos – bitte g19s.py aktualisieren")
+        try:
+            items = g.parse_video_feed(g.http_get(url, timeout=20), f.get("name") or "")
+        except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
+            raise RuntimeError(f"Feed nicht lesbar: {g.err_text(ex)}")
+        if not items:
+            raise RuntimeError("Keine Videos gefunden – ist das ein Video-Podcast-Feed?")
+        self._send(200, {"count": len(items), "first": items[0]["title"]})
+
     def api_post_warnings_test(self, q):
         s = clean_settings(self._json().get("settings") or g.load_settings())
         if s["weather"].get("lat") is None:

@@ -24,6 +24,18 @@ with sync_playwright() as p:
     r2.locator("input[type=url]").fill("http://127.0.0.1:8812/v1/forecast"); r2.locator("text=Testen").click(); pg.wait_for_timeout(800)
     ok("✗" in r2.inner_text(), "Kein Feed erkannt: " + r2.inner_text().replace("\n", " ")[-60:])
     r2.locator("button[title=entfernen]").click()
+    # Video-Feeds: Tagesschau in 100 Sekunden ab Werk, Testen gegen den Nachbau
+    vrow = pg.locator("#videoFeeds .feedrow").first
+    ok("tagesschau_in_100_sekunden" in vrow.locator("input[type=url]").input_value(), "Video: Tagesschau in 100 Sekunden ab Werk")
+    ok(pg.locator("#videoPresets button").count() == 0, "Video: Vorschlag schon vorhanden, nicht doppelt angeboten")
+    pg.click("#videoAdd"); vr = pg.locator("#videoFeeds .feedrow").last
+    vr.locator("input[type=text]").fill("Test-Videos"); vr.locator("input[type=url]").fill("http://127.0.0.1:8812/video.xml")
+    vr.locator("text=Testen").click(); pg.wait_for_timeout(800)
+    ok("✓ 3 Videos" in vr.inner_text(), "Video-Feed getestet: " + vr.inner_text().replace("\n", " ")[-70:])
+    pg.click("#videoAdd"); vk = pg.locator("#videoFeeds .feedrow").last
+    vk.locator("input[type=url]").fill("http://127.0.0.1:8812/rss.xml"); vk.locator("text=Testen").click(); pg.wait_for_timeout(800)
+    ok("Keine Videos" in vk.inner_text(), "Feed ohne Videos erkannt: " + vk.inner_text().replace("\n", " ")[-60:])
+    vk.locator("button[title=entfernen]").click()
     # Wetterort für Unwetter
     pg.fill("#wxQ", "leipzig"); pg.click("#wxForm button"); pg.wait_for_timeout(700)
     pg.locator("#wxResults .res").first.click(); pg.wait_for_timeout(900)
@@ -46,10 +58,21 @@ with sync_playwright() as p:
     ok([f["url"] for f in s["news"]["feeds"]] == ["http://127.0.0.1:8812/rss.xml", "https://www.heise.de/rss/heise-atom.xml"], "Feeds gespeichert")
     ok(s["warnings"] == {"popup": False} and s["updates"] == {"flatpak": False, "g19s": True}, "Unwetter/Updates-Optionen gespeichert")
     ok(s["network"]["hosts"][-1] == {"name": "NAS", "host": "10.0.0.99"}, "Gerät gespeichert")
+    ok([f["url"] for f in s["video"]["feeds"]][1:] == ["http://127.0.0.1:8812/video.xml"], "Video-Feeds gespeichert")
+    # G-Tasten-Art „Video abspielen“
+    pg.click("nav >> text=Tasten"); pg.wait_for_timeout(300)
+    pg.click(".gkey >> text=G11"); pg.click(".types button >> text=Video abspielen")
+    ok("neueste Folge" in pg.inner_text("#editor"), "Video: Erklärung im Editor")
+    pg.click("#applyBtn"); pg.wait_for_timeout(400)
+    mk = json.load(open(H + "/.config/g19s/macros.json"))
+    keys = mk["profiles"][0]["keys"]["M1"] if "profiles" in mk else mk["M1"]
+    ok(keys.get("G11") == {"video": "latest"}, "G11 = Video abspielen: " + json.dumps(keys.get("G11")))
+    ok("Video" in pg.inner_text(".gkey >> nth=10"), "Kachel zeigt „Video“")
+    pg.click("nav >> text=Infoseiten"); pg.wait_for_timeout(300)
     # neue Seiten in der Seitenliste und Vorschau
     pg.click("nav >> text=Beleuchtung"); pg.evaluate("document.querySelectorAll('#tab-settings .card[data-sub]').forEach(c => c.hidden = false)"); pg.wait_for_timeout(400)
     names = pg.locator(".pagerow .pn").all_inner_texts()
-    ok(all(n in names for n in ["Nachrichten", "Unwetter", "Netzwerk", "Updates"]), "Neue Seiten in der Liste")
+    ok(all(n in names for n in ["Nachrichten", "Unwetter", "Netzwerk", "Updates", "Video"]), "Neue Seiten in der Liste")
     ok(pg.locator(".pagerow.off", has_text="Nachrichten").count() == 1, "Neue Seiten zunächst aus")
     for i, nm in [(7, "Nachrichten"), (8, "Unwetter"), (9, "Netzwerk"), (10, "Updates")]:
         pg.evaluate("document.querySelector('#lcd').removeAttribute('src')")

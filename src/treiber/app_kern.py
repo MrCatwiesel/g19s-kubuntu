@@ -41,7 +41,7 @@ class AppCore:
         self.periodic = {"remind": 0.0, "backup": time.monotonic() + 60, "alarm_day": "", "backup_busy": False,
                          "fresh": None}
         self.modal = False                  # nächster Tastendruck schließt nur die Einblendung
-        self.sel_t = {"calendar": 0.0, "news": 0.0, "warnings": 0.0}   # letzte Bewegung der Markierung
+        self.sel_t = {"calendar": 0.0, "news": 0.0, "warnings": 0.0, "video": 0.0}   # letzte Bewegung der Markierung
         self.rec = None                     # None | {"stage": "select"} | {"stage": "record", "gkey", "recorder"}
         self.flash = None                   # (Zeichenfunktion, bis-Zeitpunkt)
         self.menu = None
@@ -80,6 +80,8 @@ class AppCore:
         self.weather = r.weather = WeatherPoller(self.settings, log=self.log)
         self.calendar = r.calendar = CalendarPoller(self.settings, log=self.log)
         self.news = r.news = NewsPoller(self.settings, log=self.log)
+        self.videos = r.videos = VideoPoller(self.settings, log=self.log)
+        self.video = r.video_player = VideoPlayer(self.launcher._env, log=self.log)
         self.alerts = r.alerts = WarningsPoller(self.settings, log=self.log)
         self.netpoll = r.net = NetworkPoller(self.settings, log=self.log)
         self.updates = r.updates = UpdatesPoller(self.settings, log=self.log)
@@ -87,13 +89,14 @@ class AppCore:
         self.visual = r.visual = SoundAnalyzer(self.launcher._env, log=self.log)
         self._vis_light, self._vis_light_t = None, 0.0     # Tastaturlicht im Takt (zuletzt gesetzte Farbe)
         self.mediakeys = MediaKeys(lambda: self.settings().get("media_keys", True), self.handle_media_key, log=self.log)
-        self.services = [self.media, self.slideshow, self.weather, self.calendar, self.news, self.alerts,
+        self.services = [self.media, self.slideshow, self.weather, self.calendar, self.news, self.videos, self.alerts,
                          self.netpoll, self.updates, self.activity, self.mediakeys]
         for s in self.services:
             s.start()
         self.notifier = NotificationWatcher(self.launcher._env, self._on_notify, log=self.log)
         self.notifier.start()
-        self.refreshers = {"news": self.news, "warnings": self.alerts, "network": self.netpoll, "updates": self.updates}
+        self.refreshers = {"news": self.news, "warnings": self.alerts, "network": self.netpoll, "updates": self.updates,
+                           "video": self.videos}
 
         r.cal_hidden = set(str(k) for k in (load_state().get("calendar_hidden") or []))
         try:

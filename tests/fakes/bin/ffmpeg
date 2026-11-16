@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+"""Nachbau von ffmpeg für die Videoseite: liefert statt eines echten Videos Testbilder (320×180, RGB) im Takt
+von 15 Bildern je Sekunde. Die Farbe hängt von der Sekunde im Video ab (-ss), damit Spulen sichtbar ist.
+$S/ffmpeg.log: Aufrufe; $S/ffmpeg.dauer: Länge des Videos in Sekunden (Standard 6); URL mit „kaputt“ = Fehler."""
+import os, sys, time
+S = os.path.join(os.environ.get("G19S_TEST_ROOT", "/tmp/g19s-test"), "state")
+os.makedirs(S, exist_ok=True)
+args = sys.argv[1:]
+with open(os.path.join(S, "ffmpeg.log"), "a") as f:
+    f.write(" ".join(args) + "\n")
+url = args[args.index("-i") + 1] if "-i" in args else ""
+if "kaputt" in url:
+    sys.stderr.write(f"{url}: Server returned 404 Not Found\n")
+    sys.exit(1)
+start = float(args[args.index("-ss") + 1]) if "-ss" in args else 0.0
+try:
+    total = float(open(os.path.join(S, "ffmpeg.dauer")).read())
+except (OSError, ValueError):
+    total = 6.0
+W, H, FPS = 320, 180, 15
+n, t0 = 0, time.monotonic()
+while start + n / FPS < total:
+    sec = int(start + n / FPS)
+    col = bytes(((sec * 70) % 256, (90 + sec * 40) % 256, (200 - sec * 30) % 256))
+    row = col * W
+    try:
+        sys.stdout.buffer.write(row * H)
+        sys.stdout.buffer.flush()
+    except BrokenPipeError:
+        break
+    n += 1
+    time.sleep(max(0.0, t0 + n / FPS - time.monotonic()))
