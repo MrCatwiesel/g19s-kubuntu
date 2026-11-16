@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.11.16-14)
+| 28.09.2026 (Version 2026.11.16-15)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -32,7 +32,7 @@ Für die G19s gibt es unter Linux keinen offiziellen Treiber. Die normalen Taste
 * '''Terminerinnerung''' vor Terminbeginn, '''Radiowecker''' und '''Einschlaftimer''', '''Song merken''' (Radiotitel in eine Liste), '''Lieblingsbilder''' in der Diashow, '''Mikrofon stumm''' per G-Taste (MR-Leuchte als Anzeige).
 * Displayseiten je Ebene '''und''' je Profil einstellbar, '''automatische Sicherung''' in einen Ordner.
 * '''25 Zifferblätter''' für die Uhr (u. a. Chronometer, Bahnhofsuhr, Pendel- und Kuckucksuhr, Astro- und Sonnenuhr, Weltzeituhr, Nixie-Röhren, Wortuhr) – Auswahl am Display mit MENU oder SETTINGS (kurz) je Profil und Ebene, Aussehen in der Verwaltung einstellbar.
-* '''Visualisierung''' zur laufenden Musik in siebenundzwanzig Stilen: Grafik-Equalizer, Tänzerin an der Stange, Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm, Feuerwerk, Weihnachten, Überraschungsparty, Kellertreppe, Mittelalter-Metal, Ostern, Halloween, Horror, Geburtstag, Muttertag, Männertag, Silvester, Fasching, Oktoberfest, St. Martin, Valentinstag, Unterwasser-Band, Bauernhof-Band, Weltraum-Disco, Retro-Arcade – die Tastaturbeleuchtung pulsiert auf Wunsch im Takt.
+* '''Visualisierung''' zur laufenden Musik in dreißig Stilen: Grafik-Equalizer, Tänzerin an der Stange, Lichtshow, Oszilloskop, Kreis-Spektrum, VU-Meter, Spektrogramm, Feuerwerk, Weihnachten, Überraschungsparty, Kellertreppe, Mittelalter-Metal, Ostern, Halloween, Horror, Geburtstag, Muttertag, Männertag, Silvester, Fasching, Oktoberfest, St. Martin, Valentinstag, Unterwasser-Band, Bauernhof-Band, Weltraum-Disco, Retro-Arcade, Western-Saloon, Lagerfeuer, Katzenchor – die Tastaturbeleuchtung pulsiert auf Wunsch im Takt.
 * Weitere Seiten: '''Nachrichten''' (RSS/Atom), '''Unwetter''' (amtliche DWD-Warnungen), '''Netzwerk''' (Erreichbarkeit von Router, NAS …), '''Updates''' (Paket- und Flatpak-Updates, Neustart nötig).
 * '''Display''' mit sieben Standardseiten: Uhr, Musik (inkl. Internetradio), Wetter, Termine, Hardware (Auslastung, Temperaturen, Arbeitsspeicher, Lüfter, Netz, Datenträger), Makro-Übersicht, Bilder. Welche Seiten in welcher Reihenfolge erscheinen, ist frei wählbar.
 * '''Diashow''' mit Bildern aus Piwigo-Alben (auch private Alben) oder aus einem Ordner auf dem Rechner – auf Wunsch als '''Bildschirmschoner'''.
@@ -182,7 +182,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.16-14"
+VERSION = "2026.11.16-15"
 
 # Weitere Importe der Module
 import select
@@ -378,6 +378,9 @@ VISUAL_STYLES = {
     "farm": "Bauernhof-Band",
     "space": "Weltraum-Disco",
     "arcade": "Retro-Arcade",
+    "western": "Western-Saloon",
+    "campfire": "Lagerfeuer",
+    "cats": "Katzenchor",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 VISUAL_FPS_QUIET = 8        # anpassende Bildrate (visual.adaptive): bei Stille/Wortbeitrag …
@@ -595,6 +598,18 @@ VISUAL_OPTIONS = {
         {"key": "scanlines", "label": "Röhren-Zeilen (Scanlines)", "type": "bool", "default": True},
         {"key": "gags", "label": "Gags (Mutterschiff, Glitch, Highscore)", "type": "bool", "default": True},
         {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "hit", "choices": [["hit", "Farbe des letzten Treffers"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "western": [
+        {"key": "gags", "label": "Gags (Duell, Glas, Pferd, Steppenläufer)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "lamp", "choices": [["lamp", "Petroleumlampe"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "campfire": [
+        {"key": "people", "label": "Zwei Leute am Feuer (Marshmallows)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "fire", "choices": [["fire", "Feuerschein"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "cats": [
+        {"key": "gags", "label": "Gags (Schuh, Hund, Mond, Gräte)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "eyes", "choices": [["eyes", "Katzenaugen-Gelb"], ["layer", "Farbe der Ebene"]]},
     ],
 }
 
@@ -17609,7 +17624,7 @@ def _hr_rot(p, c, a):
 
 
 class HorrorVisual:
-    vis_horror = None                   # Farbe für die Tastatur
+    vis_col_horror = None                   # Farbe für die Tastatur
 
     # -- Hintergründe ------------------------------------------------------------------------ #
     def _hr_street(self):
@@ -17945,7 +17960,7 @@ class HorrorVisual:
             self._hr_gag_dog(img, d, gl, t, say)
         elif gname == "pizza":
             self._hr_gag_pizza(img, d, gl, t, say, dy)
-        self.vis_horror = (255, int(150 * min(1.0, 0.2 + level)), 40) if not dark else (60, 0, 0)
+        self.vis_col_horror = (255, int(150 * min(1.0, 0.2 + level)), 40) if not dark else (60, 0, 0)
         return img
 
     def _hr_walker(self, img, d, x, y, t, face, walk, robe=(120, 60, 70), cap=None):
@@ -18117,7 +18132,7 @@ class HorrorVisual:
             for r in range(10):
                 vd.rectangle([r * 10, r * 7, WIDTH - r * 10, HEIGHT - r * 7], outline=int(200 - r * 20), width=10)
             img.paste((0, 0, 0), (0, 0), vign.point(lambda v: int(v * stare)))
-        self.vis_horror = (255, 120, 170) if not (lights_out or stare) else (80, 0, 0)
+        self.vis_col_horror = (255, 120, 170) if not (lights_out or stare) else (80, 0, 0)
         return img
 
     def _hr_gag_jack(self, img, d, gl, t, say):
@@ -21135,7 +21150,7 @@ FM_BOOM = 5.0
 
 
 class FarmVisual:
-    vis_farm = None
+    vis_col_farm = None
 
     def _fm_scene(self):
         if "_fm_bg" in self.__dict__:
@@ -21381,7 +21396,7 @@ class FarmVisual:
                 say.append((hc[0] - 20, hc[1] - 30, "Fütterung! Alle mal herhören!"))
         for x, y, text in say:
             self._xmas_party_say(d, x, y, text)
-        self.vis_farm = (255, 170, 180) if st["k"] % 2 else (120, 200, 90)
+        self.vis_col_farm = (255, 170, 180) if st["k"] % 2 else (120, 200, 90)
         return img
 
 
@@ -21403,7 +21418,7 @@ SP_STARS = 90
 
 
 class SpaceVisual:
-    vis_space = None
+    vis_col_space = None
 
     def _sp_scene(self):
         if "_sp_bg" in self.__dict__:
@@ -21579,7 +21594,7 @@ class SpaceVisual:
                 say.append((heads[0][0], heads[0][1] - 24, "Ducken!"))
         for x, y, text in say:
             self._xmas_party_say(d, x, y, text)
-        self.vis_space = _hue((t * 0.1) % 1.0, 0.6, 1.0) if playing else (40, 40, 120)
+        self.vis_col_space = _hue((t * 0.1) % 1.0, 0.6, 1.0) if playing else (40, 40, 120)
         return img
 
 
@@ -21605,7 +21620,7 @@ AR_ROWCOL = [(250, 80, 200), (80, 220, 250), (120, 250, 100), (250, 220, 60)]
 
 
 class ArcadeVisual:
-    vis_arcade = None
+    vis_col_arcade = None
 
     def _ar_wave(self, st):
         st["aliens"] = [[c, r, True] for r in range(AR_ROWS) for c in range(AR_COLS)]
@@ -21778,7 +21793,638 @@ class ArcadeVisual:
             if gl > 4.0:
                 d.text((96, 130), "Gut gemacht, Spieler 1!", font=self.f_tiny, fill=(120, 250, 140))
         st["hi"] = max(st["hi"], st["score"])
-        self.vis_arcade = hit_any or getattr(self, "vis_arcade", None) or (90, 250, 120)
+        self.vis_col_arcade = hit_any or getattr(self, "vis_col_arcade", None) or (90, 250, 120)
+        return img
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Modul seite_visual_western
+#   Visualisierung „Western-Saloon“ (western, Mixin WesternVisual): Im Saloon hämmert der Klavierspieler (Tasten je
+#   Frequenzband), die Schwingtüren schlagen im Bass, der Wirt schiebt Gläser über den Tresen, zwei Cowboys tanzen
+#   Line-Dance, durchs Fenster sieht man die Wüste. Höhepunkt: Alle tanzen, Hüte fliegen („Yeehaw!“). Wortbeitrag: Der
+#   Sheriff schafft Ruhe. Gags: Duell (gezogen wird eine Banane), das Glas rutscht über den Tresen hinaus, ein Pferd
+#   bestellt ein Wasser, ein Steppenläufer rollt durch.
+# ═══════════════════════════════════════════════════════════════════════════
+
+WS_FLOOR = VIS_H - 22
+WS_PIANO = 60
+WS_BAR = (178, 310, WS_FLOOR - 40)
+WS_DOOR = 136
+WS_DANCERS = (110, 160)
+WS_GAGS = {"duell": 8.0, "glas": 6.0, "pferd": 8.0, "steppe": 6.0}
+WS_GAG_FIRST, WS_GAG_PAUSE = 8.0, (12.0, 20.0)
+WS_BOOM = 4.0
+
+
+class WesternVisual:
+    vis_col_western = None
+
+    def _ws_scene(self):
+        if "_ws_bg" in self.__dict__:
+            return self._ws_bg
+        img = Image.new("RGB", (WIDTH, HEIGHT), (150, 96, 56))
+        d = ImageDraw.Draw(img)
+        for x in range(0, WIDTH, 14):                                               # Holzwände
+            d.rectangle([x, 0, x + 13, WS_FLOOR], fill=(150 + (x * 7 % 20), 96 + (x * 3 % 12), 56))
+            d.line([(x, 0), (x, WS_FLOOR)], fill=(110, 70, 40))
+        d.rectangle([0, WS_FLOOR, WIDTH, HEIGHT], fill=(110, 72, 42))
+        for x in range(0, WIDTH, 24):
+            d.line([(x, WS_FLOOR), (x - 20, HEIGHT)], fill=(90, 58, 34))
+        d.rectangle([196, 18, 290, 70], fill=(250, 200, 130))                        # Fenster mit Wüste
+        d.polygon([(196, 56), (230, 40), (260, 50), (290, 38), (290, 70), (196, 70)], fill=(210, 140, 80))
+        for cx in (220, 270):
+            d.line([(cx, 70), (cx, 52)], fill=(70, 130, 60), width=4)
+            d.line([(cx, 60), (cx - 6, 56), (cx - 6, 50)], fill=(70, 130, 60), width=3)
+            d.line([(cx, 58), (cx + 6, 54), (cx + 6, 48)], fill=(70, 130, 60), width=3)
+        d.rectangle([194, 16, 292, 72], outline=(90, 56, 30), width=4)
+        d.line([(243, 16), (243, 72)], fill=(90, 56, 30), width=3)
+        d.rectangle([90, 24, 176, 44], fill=(60, 36, 20))                           # Schild
+        d.text((100, 26), "SALOON", font=self.f_small_b, fill=(250, 210, 120))
+        x0, x1, ty = WS_BAR                                                         # Tresen
+        d.rectangle([x0, ty, x1, WS_FLOOR], fill=(110, 60, 30))
+        d.rectangle([x0 - 4, ty - 6, x1 + 4, ty], fill=(150, 90, 46))
+        for x in range(x0 + 10, x1, 20):
+            d.rectangle([x, ty + 8, x + 12, WS_FLOOR - 6], outline=(90, 50, 26))
+        for k, c in enumerate(((120, 60, 40), (90, 120, 60), (170, 130, 50), (60, 90, 120))):  # Flaschenregal
+            d.rectangle([204 + k * 22, 84, 210 + k * 22, 104], fill=c)
+            d.rectangle([206 + k * 22, 78, 208 + k * 22, 84], fill=c)
+        d.rectangle([196, 104, 300, 108], fill=(110, 60, 30))
+        px = WS_PIANO                                                               # Klavier
+        d.rectangle([px - 34, WS_FLOOR - 62, px + 34, WS_FLOOR], fill=(70, 40, 24))
+        d.rectangle([px - 34, WS_FLOOR - 66, px + 34, WS_FLOOR - 62], fill=(90, 54, 32))
+        self._ws_bg = img
+        return img
+
+    @vis_style("western")
+    def vis_western(self, s, o, color):
+        t = s["t"]
+        img = self._ws_scene().copy()
+        d = ImageDraw.Draw(img)
+        demo = bool(s.get("demo"))
+        talk = bool(s.get("talk"))
+        st = self._vstate("western", lambda: {"beats": s["beats"], "hats": s.get("hats", 0), "slow": s["level"],
+                                               "fast": s["level"], "boom": -99.0, "gag": None, "order": [], "k": 0,
+                                               "next_gag": t + WS_GAG_FIRST, "rng": random.Random(171), "start": t,
+                                               "door": 0.0, "glass": None})
+        dt = self._vis_dt(st, t)
+        new_beat = s["beats"] != st["beats"]
+        st["beats"] = s["beats"]
+        new_hat = s.get("hats", 0) != st["hats"]
+        st["hats"] = s.get("hats", 0)
+        playing = (s.get("active") or demo) and not talk
+        period = max(0.3, min(1.2, s.get("period") or 0.5))
+        bang = math.sin(math.pi * min(1.0, (t - s.get("beat_t", t)) / (period * 0.6))) if playing else 0.0
+        level = s["level"] if playing else 0.0
+        st["slow"] += (s["level"] - st["slow"]) * min(1.0, dt / 6)
+        st["fast"] += (s["level"] - st["fast"]) * min(1.0, dt / 0.4)
+        if not demo and playing and st["fast"] > st["slow"] * 1.2 + 0.04 and t - st["boom"] > 15 \
+                and t - st["start"] > 5 and st["gag"] is None:
+            st["boom"] = t
+        bt = t - st["boom"]
+        boom = 0 <= bt < WS_BOOM
+        gag = st["gag"]
+        if gag and t - gag[1] >= WS_GAGS[gag[0]]:
+            st["gag"] = gag = None
+            st["next_gag"] = t + st["rng"].uniform(*WS_GAG_PAUSE)
+        if not demo and o.get("gags", True) and gag is None and playing and not boom and t >= st["next_gag"]:
+            if not st["order"]:
+                st["order"] = st["rng"].sample(list(WS_GAGS), len(WS_GAGS))
+            st["gag"] = gag = (st["order"].pop(0), t)
+        gname = gag[0] if gag else None
+        gl = t - gag[1] if gag else 0.0
+        say = []
+        if playing and new_beat:
+            st["k"] += 1
+            if s["bass"] > 0.5:
+                st["door"] = 1.0
+        st["door"] = max(0.0, st["door"] - dt * 2.5)
+        bands = s.get("bands")
+        if bands is None or len(bands) == 0:
+            bands = [level] * 8
+        # Klavierspieler
+        px = WS_PIANO
+        d.rectangle([px - 30, WS_FLOOR - 58, px + 30, WS_FLOOR - 52], fill=(250, 246, 236))
+        for k in range(12):
+            b = bands[min(len(bands) - 1, k * len(bands) // 12)] if playing else 0.0
+            x = px - 29 + k * 5
+            down = b > 0.5
+            d.line([(x, WS_FLOOR - 58), (x, WS_FLOOR - 52 + (1 if down else 0))], fill=(120, 110, 100))
+            if k % 3 != 2:
+                d.rectangle([x + 2, WS_FLOOR - 58, x + 4, WS_FLOOR - 55 + (1 if down else 0)], fill=(20, 20, 20))
+        hand_y = WS_FLOOR - 58 - 6 * bang
+        self._fig(img, d, px, WS_FLOOR - 4, t, (200, 200, 200), {"lh": (-10 + 6 * math.sin(t * 9), 14 - 6 * bang),
+                                                                  "rh": (10 + 6 * math.cos(t * 7), 14 - 6 * bang)},
+                  h=0.9, sit=True, hat="top", hat_col=(40, 40, 40), beard=(60, 40, 30), face=-1)
+        if playing:
+            for k in range(2):
+                ny = WS_FLOOR - 90 - ((t * 24 + k * 14) % 30)
+                d.text((px + 20 + k * 10, ny), "♪", font=self.f_small_b, fill=(250, 230, 160))
+        # Schwingtüren
+        dw = 10 * math.cos(st["door"] * 2.5)
+        for side in (-1, 1):
+            hx = WS_DOOR + side * 1
+            d.polygon([(hx, WS_FLOOR - 56), (hx + side * abs(dw) * 1.6, WS_FLOOR - 54), (hx + side * abs(dw) * 1.6,
+                                                                                      WS_FLOOR - 26), (hx, WS_FLOOR - 28)],
+                      fill=(170, 110, 60), outline=(100, 60, 30))
+        # Wirt hinter dem Tresen
+        x0, x1, ty = WS_BAR
+        hcw, hw = self._fig(img, d, 280, ty + 30, t, (250, 250, 250), {"lh": (-16, 8), "rh": (8, 14)}, h=0.9,
+                            hair=(40, 30, 30), beard=(40, 30, 30))
+        d.rectangle([x0, ty, x1, WS_FLOOR], fill=(110, 60, 30))                  # Tresen vor dem Wirt
+        for x in range(x0 + 10, x1, 20):
+            d.rectangle([x, ty + 8, x + 12, WS_FLOOR - 6], outline=(90, 50, 26))
+        d.rectangle([x0 - 4, ty - 6, x1 + 4, ty], fill=(150, 90, 46))
+        if playing and new_hat and st["glass"] is None and gname != "glas":
+            st["glass"] = t
+        if st["glass"] is not None:
+            k = (t - st["glass"]) / 0.9
+            if k > 1:
+                st["glass"] = None
+            else:
+                gx = 268 - k * 70
+                d.rectangle([gx - 3, ty - 14, gx + 3, ty - 6], fill=(250, 210, 90), outline=(220, 220, 230))
+        # Tänzer (Line-Dance)
+        for i, x in enumerate(WS_DANCERS):
+            step = st["k"] % 4
+            pose = [{"lh": (-6, 12), "rh": (6, 12), "lf": (-14, 30), "rf": (6, 34)},
+                    {"lh": (-6, 12), "rh": (6, 12), "lf": (-6, 34), "rf": (6, 34)},
+                    {"lh": (-6, 12), "rh": (6, 12), "lf": (-6, 34), "rf": (16, 26)},
+                    {"lh": (-14, -12), "rh": (14, -12), "lf": (-6, 34), "rf": (6, 34)}][step] if playing else None
+            if boom:
+                pose = {"lh": (-14, -24), "rh": (14, -24), "lf": (-10 + 8 * math.sin(t * 12), 30), "rf": (10, 34)}
+            if gname == "duell":
+                continue
+            hc, _ = self._fig(img, d, x + (st["k"] % 8 < 4) * 4, WS_FLOOR, t, [(200, 60, 50), (60, 110, 180)][i], pose,
+                              h=1.0, hat="cowboy" if not boom else None, hat_col=[(150, 100, 56), (90, 60, 40)][i],
+                              beard=(90, 60, 30) if i else None)
+            if boom:                                                                # Hüte fliegen
+                hy = hc[1] - 16 - math.sin(min(1.0, bt / 2.0) * math.pi) * 50
+                d.ellipse([hc[0] - 14, hy - 1, hc[0] + 14, hy + 5], fill=[(150, 100, 56), (90, 60, 40)][i])
+                d.chord([hc[0] - 7, hy - 11, hc[0] + 7, hy + 4], 180, 360, fill=[(150, 100, 56), (90, 60, 40)][i])
+        if boom and 0.4 < bt < 3.0:
+            say.append((140, 60, "Yeehaw!"))
+        if talk:
+            tl = t - s.get("talk_t", t)
+            hc, hands = self._fig(img, d, WS_DOOR + 6, WS_FLOOR, t, (90, 80, 70), {"lh": (-12, 16), "rh": (14, -14)}, h=1.0,
+                                  hat="cowboy", hat_col=(60, 50, 40), beard=(110, 80, 50))
+            d.polygon([(hc[0] - 4, hc[1] + 20), (hc[0] + 4, hc[1] + 20), (hc[0], hc[1] + 28)], fill=(240, 210, 60))
+            if tl < 3.5:
+                say.append((hc[0], hc[1] - 30, "Ruhe im Saloon! Durchsage!"))
+        if gname == "duell":
+            self._ws_gag_duel(img, d, gl, t, say)
+        elif gname == "glas":
+            k = gl / 1.6
+            gx = 268 - k * 120
+            gy = ty - 6 if gx > x0 - 4 else ty - 6 + (x0 - 4 - gx) ** 2 * 0.05
+            if gy < WS_FLOOR - 2:
+                d.rectangle([gx - 3, gy - 8, gx + 3, gy], fill=(250, 210, 90), outline=(220, 220, 230))
+            else:
+                for k2 in range(6):
+                    d.line([(x0 - 40, WS_FLOOR - 2), (x0 - 40 + math.cos(k2) * 10, WS_FLOOR - 2 - abs(math.sin(k2)) * 8)],
+                           fill=(220, 230, 240))
+                say.append((x0 - 40, WS_FLOOR - 30, "Klirr!"))
+            if gl > 3.6:
+                say.append((hcw[0] - 10, hcw[1] - 26, "Zu viel Schwung …"))
+        elif gname == "pferd":
+            hx = 340 - min(1.0, gl / 2.0) * 160 if gl < 6.6 else 180 + (gl - 6.6) * 120
+            self._blob(img, hx, WS_FLOOR - 34, 50, 26, (150, 100, 60), gloss=0.4)
+            for lx in (-18, -8, 10, 20):
+                step = math.sin(t * 10 + lx) * 3 if gl < 2.0 or gl > 6.6 else 0
+                d.line([(hx + lx, WS_FLOOR - 26), (hx + lx + step, WS_FLOOR)], fill=(130, 84, 50), width=4)
+            self._limb(img, (hx - 20, WS_FLOOR - 40), (hx - 30, WS_FLOOR - 58), 10, (150, 100, 60))
+            self._blob(img, hx - 36, WS_FLOOR - 62, 20, 12, (150, 100, 60), gloss=0.4)
+            d.point((hx - 38, WS_FLOOR - 65), fill=(0, 0, 0))
+            d.line([(hx + 24, WS_FLOOR - 40), (hx + 32, WS_FLOOR - 24)], fill=(80, 50, 30), width=4)
+            if 2.4 <= gl < 4.6:
+                say.append((hx - 30, WS_FLOOR - 90, "Ein Wasser, bitte."))
+            elif 4.6 <= gl < 6.6:
+                say.append((hcw[0] - 10, hcw[1] - 26, "Mit Eis?"))
+        elif gname == "steppe":
+            k = gl / WS_GAGS["steppe"]
+            tx = 360 - k * 420
+            ty2 = WS_FLOOR - 12 - abs(math.sin(gl * 6)) * 14
+            for j in range(10):
+                a = j * 0.6 + gl * 8
+                d.arc([tx - 12 + math.cos(a) * 2, ty2 - 12 + math.sin(a) * 2, tx + 12, ty2 + 12], j * 36, j * 36 + 200,
+                      fill=(170, 130, 70), width=2)
+            if 2.0 <= gl < 4.0:
+                say.append((WS_DANCERS[1], WS_FLOOR - 100, "Wer hat die Tür offen gelassen?"))
+        for x, y, text in say:
+            self._xmas_party_say(d, x, y, text)
+        self.vis_col_western = (255, int(140 + 80 * level), 40)
+        return img
+
+    def _ws_gag_duel(self, img, d, gl, t, say):
+        """Zwei Cowboys stehen sich gegenüber – gezogen wird eine Banane."""
+        draw = gl > 3.2
+        for i, (x, face) in enumerate(((80, 1), (200, -1))):
+            hand = (face * 18, 0) if draw else (face * 4, 18)
+            pose = {"lh": (-6, 16) if face > 0 else hand, "rh": hand if face > 0 else (6, 16)}
+            hc, hands = self._fig(img, d, x, WS_FLOOR, t, [(200, 60, 50), (60, 110, 180)][i], pose, h=1.0,
+                                  hat="cowboy", hat_col=[(150, 100, 56), (90, 60, 40)][i], face=face,
+                                  eyes="closed" if 1.0 < gl < 3.0 else "dot", beard=(90, 60, 30) if i else None)
+            if draw:
+                hx, hy = hands[1] if face > 0 else hands[0]
+                if i == 0:
+                    d.arc([hx - 2, hy - 8, hx + 18, hy + 6], 200, 340, fill=(250, 220, 60), width=4)
+                else:
+                    d.rectangle([hx - 12, hy - 3, hx, hy + 1], fill=(80, 80, 90))
+                    d.text((hx - 26, hy - 18), "klick", font=self.f_tiny, fill=(250, 250, 240))
+        if gl < 3.0:
+            say.append((140, 70, "Diese Stadt ist zu klein für uns zwei."))
+        elif gl >= 3.6:
+            say.append((80, 70, "Peng! Peng!"))
+            if gl >= 5.4:
+                say.append((200, 110, "… Ist das eine Banane?"))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Modul seite_visual_lagerfeuer
+#   Visualisierung „Lagerfeuer“ (campfire, Mixin CampfireVisual): Der ruhige Stil für den Abend. An einem See im Wald
+#   brennt ein Lagerfeuer – die Flammen wachsen mit der Lautstärke, Funken stieben auf hohe Schläge, das Feuer spiegelt
+#   sich im Wasser. Glühwürmchen tanzen, die Sterne drehen sich langsam, ab und zu fällt eine Sternschnuppe, eine Eule
+#   blinzelt. Auf Wunsch sitzen zwei Leute am Feuer und rösten Marshmallows. Keine Gags. Höhepunkt: Das Feuer lodert auf,
+#   die Funken steigen in einer Spirale. Wortbeitrag: Das Feuer wird ruhig, die Eule ruft leise.
+# ═══════════════════════════════════════════════════════════════════════════
+
+CF_FLOOR = VIS_H - 30
+CF_FIRE = (160, CF_FLOOR + 6)
+CF_LAKE_Y = VIS_H - 18
+CF_BOOM = 5.0
+
+
+class CampfireVisual:
+    vis_fire = None
+
+    def _cf_scene(self):
+        if "_cf_bg" in self.__dict__:
+            return self._cf_bg
+        ys = np.linspace(0, 1, HEIGHT)[:, None, None]
+        top, bot = np.array([4, 6, 22], np.float32), np.array([30, 30, 60], np.float32)
+        img = Image.fromarray(np.clip(np.broadcast_to(top + (bot - top) * ys, (HEIGHT, WIDTH, 3)), 0, 255)
+                              .astype(np.uint8), "RGB")
+        d = ImageDraw.Draw(img)
+        self._blob(img, 262, 30, 20, 20, (240, 236, 210), gloss=0.1)
+        self._blob(img, 262, 30, 60, 60, (200, 200, 230), alpha=0.12, flat=True)
+        rng = random.Random(21)
+        for x in range(-10, WIDTH + 20, 18):                                        # Waldsilhouette
+            h = rng.randint(50, 90)
+            d.polygon([(x - 14, CF_FLOOR - 30), (x + 14, CF_FLOOR - 30), (x, CF_FLOOR - 30 - h)], fill=(10, 20, 18))
+        d.rectangle([0, CF_FLOOR - 32, WIDTH, CF_FLOOR + 10], fill=(18, 30, 22))
+        d.rectangle([0, CF_LAKE_Y - 8, WIDTH, HEIGHT], fill=(10, 16, 36))              # See
+        for k in range(10):
+            y = CF_LAKE_Y - 4 + k * 3
+            d.line([(rng.uniform(0, 200), y), (rng.uniform(120, 320), y)], fill=(20, 28, 56))
+        d.polygon([(30, CF_FLOOR - 4), (70, CF_FLOOR - 4), (50, CF_FLOOR - 40)], fill=(150, 90, 50))   # Zelt
+        d.polygon([(46, CF_FLOOR - 4), (54, CF_FLOOR - 4), (50, CF_FLOOR - 22)], fill=(40, 24, 14))
+        d.line([(50, CF_FLOOR - 40), (50, CF_FLOOR - 46)], fill=(120, 80, 40), width=2)
+        d.rounded_rectangle([206, CF_FLOOR - 8, 266, CF_FLOOR + 2], radius=4, fill=(90, 60, 36))  # Baumstamm
+        d.ellipse([260, CF_FLOOR - 8, 270, CF_FLOOR + 2], fill=(150, 110, 70))
+        gx, gy = 276, CF_FLOOR - 4                                                  # Gitarre am Stamm
+        d.line([(gx, gy), (gx + 18, gy - 40)], fill=(80, 50, 30), width=3)
+        self._blob(img, gx - 2, gy - 4, 16, 20, (170, 110, 50), gloss=0.5, ang=0.4)
+        self._blob(img, gx + 4, gy - 14, 12, 14, (170, 110, 50), gloss=0.5, ang=0.4)
+        d.ellipse([gx - 1, gy - 10, gx + 5, gy - 4], fill=(40, 24, 14))
+        stars = [(rng.uniform(-200, 200), rng.uniform(-200, 200), rng.uniform(0.4, 1.0)) for _ in range(70)]
+        self._cf_stars = stars
+        self._cf_bg = img
+        return img
+
+    @vis_style("campfire")
+    def vis_campfire(self, s, o, color):
+        t = s["t"]
+        demo = bool(s.get("demo"))
+        talk = bool(s.get("talk"))
+        img = self._cf_scene().copy()
+        d = ImageDraw.Draw(img)
+        st = self._vstate("campfire", lambda: {"beats": s["beats"], "hats": s.get("hats", 0), "slow": s["level"],
+                                                "fast": s["level"], "boom": -99.0, "rng": random.Random(181),
+                                                "start": t, "sparks": [], "flies": [], "flame": 0.4,
+                                                "shoot": None, "owl": -9.0})
+        dt = self._vis_dt(st, t)
+        new_hat = s.get("hats", 0) != st["hats"]
+        st["hats"] = s.get("hats", 0)
+        playing = (s.get("active") or demo) and not talk
+        level = s["level"] if playing else 0.0
+        st["slow"] += (s["level"] - st["slow"]) * min(1.0, dt / 6)
+        st["fast"] += (s["level"] - st["fast"]) * min(1.0, dt / 0.4)
+        if not demo and playing and st["fast"] > st["slow"] * 1.2 + 0.04 and t - st["boom"] > 20 \
+                and t - st["start"] > 5:
+            st["boom"] = t
+        bt = t - st["boom"]
+        boom = 0 <= bt < CF_BOOM
+        rng = st["rng"]
+        # Sterne drehen sich langsam um den Polarstern
+        cx, cy = 60, -40
+        a0 = t * 0.004
+        for sx, sy, z in self._cf_stars:
+            x = cx + sx * math.cos(a0) - sy * math.sin(a0)
+            y = cy + sx * math.sin(a0) + sy * math.cos(a0) + 120
+            if 0 <= x < WIDTH and 0 <= y < CF_FLOOR - 70:
+                tw = 0.7 + 0.3 * math.sin(t * 2 + sx)
+                c = int(200 * z * tw)
+                d.point((x, y), fill=(c, c, min(255, c + 30)))
+        if st["shoot"] is None and rng.random() < dt / 25:
+            st["shoot"] = (t, rng.uniform(80, 300), rng.uniform(10, 50))
+        if st["shoot"]:
+            k = (t - st["shoot"][0]) / 0.8
+            if k > 1:
+                st["shoot"] = None
+            else:
+                x, y = st["shoot"][1] - k * 90, st["shoot"][2] + k * 30
+                d.line([(x, y), (x + 16, y - 5)], fill=(255, 255, 230), width=1)
+        # Feuer
+        want = (0.3 + 0.9 * level) if not talk else 0.25
+        if boom:
+            want = 1.6
+        st["flame"] += (want - st["flame"]) * min(1.0, dt * 3)
+        fk = st["flame"]
+        fx, fy = CF_FIRE
+        self._blob(img, fx, fy - 20, 180 + 120 * min(1.4, fk), 90 + 60 * min(1.4, fk), (255, 150, 60),
+                   alpha=round(min(0.45, 0.18 + 0.15 * fk), 2), flat=True)
+        d = ImageDraw.Draw(img)
+        for k in range(5):                                                          # Holzscheite und Steine
+            a = k * 1.26
+            d.ellipse([fx + math.cos(a) * 18 - 5, fy + math.sin(a) * 4 - 3, fx + math.cos(a) * 18 + 5,
+                       fy + math.sin(a) * 4 + 3], fill=(90, 90, 96))
+        d.line([(fx - 14, fy), (fx + 12, fy - 6)], fill=(80, 50, 30), width=4)
+        d.line([(fx + 14, fy), (fx - 12, fy - 6)], fill=(70, 44, 26), width=4)
+        for layer, col, w in ((0, (230, 70, 20), 1.0), (1, (255, 150, 40), 0.7), (2, (255, 230, 120), 0.4)):
+            for k in range(5):
+                hh = (22 + 14 * abs(math.sin(t * (6 + k) + k * 1.7 + layer))) * fk * w + 4
+                bx = fx - 12 * w + k * 6 * w
+                sway = math.sin(t * 3 + k + layer) * 3
+                d.polygon([(bx - 5 * w, fy - 4), (bx + 5 * w, fy - 4), (bx + sway, fy - 4 - hh)], fill=col)
+        if (playing and new_hat) or (boom and rng.random() < 0.7):
+            for _ in range(3 if boom else 2):
+                st["sparks"].append([fx + rng.uniform(-6, 6), fy - 20 * fk, rng.uniform(-10, 10), -rng.uniform(30, 70),
+                                     1.0, (255, 200, 90)])
+        for p in st["sparks"]:
+            if boom:
+                p[2] += math.cos(t * 4 + p[1] * 0.1) * 30 * dt
+        self._fx_step(st["sparks"], dt, grav=-4.0, fade=0.5, cap=90)
+        for x, y, vx, vy, life, col in st["sparks"]:
+            d.point((x, y), fill=tuple(int(v * life) for v in col))
+        # Spiegelung im See
+        refl = Image.new("L", img.size, 0)
+        rd = ImageDraw.Draw(refl)
+        for k in range(6):
+            y = CF_LAKE_Y + 2 + k * 3
+            w = (20 + 10 * fk) * (1 - k / 8) + math.sin(t * 3 + k) * 4
+            rd.line([(fx - w, y), (fx + w, y)], fill=int(90 * fk * (1 - k / 7)), width=2)
+        img.paste((255, 160, 70), (0, 0), refl)
+        d = ImageDraw.Draw(img)
+        # Leute am Feuer mit Marshmallows
+        if o.get("people", True):
+            for side, shirt, hat in ((-1, (60, 90, 140), "beanie"), (1, (150, 60, 60), None)):
+                x = fx + side * 52
+                stick = (fx + side * 10, fy - 26 - 4 * math.sin(t * 0.7 + side))
+                pose = {"lh": (side * 4 if side > 0 else 12, 10), "rh": (-12 if side > 0 else 4, 10)}
+                hc, hands = self._fig(img, d, x, CF_FLOOR + 2, t, shirt, pose, h=0.85, sit=True, hat=hat,
+                                      hat_col=(200, 80, 60), face=-side, eyes="closed" if level < 0.2 else "dot")
+                hx, hy = hands[1] if side < 0 else hands[0]
+                d.line([(hx, hy), stick], fill=(140, 100, 60), width=2)
+                roast = min(1.0, (t % 30) / 30)
+                d.rounded_rectangle([stick[0] - 3, stick[1] - 3, stick[0] + 3, stick[1] + 3], radius=2,
+                                    fill=(int(250 - 90 * roast), int(246 - 140 * roast), int(236 - 180 * roast)))
+        # Glühwürmchen
+        if playing and new_hat and len(st["flies"]) < 14:
+            st["flies"].append([rng.uniform(0, WIDTH), rng.uniform(CF_FLOOR - 70, CF_FLOOR - 10), rng.uniform(0, 6), t])
+        st["flies"] = [f for f in st["flies"] if t - f[3] < 8]
+        for x, y, ph, t0 in st["flies"]:
+            k = t - t0
+            fx2 = x + math.sin(t * 0.8 + ph) * 14
+            fy2 = y + math.cos(t * 1.1 + ph) * 8
+            br = max(0.0, math.sin(t * 3 + ph)) * min(1.0, k, 8 - k)
+            if br > 0.1:
+                self._blob(img, fx2, fy2, 8, 8, (200, 255, 120), alpha=round(0.5 * br, 2), flat=True)
+                d.point((fx2, fy2), fill=(230, 255, 180))
+        # Eule im Baum
+        ox, oy = 296, CF_FLOOR - 92
+        d.line([(280, oy + 10), (318, oy + 8)], fill=(20, 26, 20), width=3)
+        self._blob(img, ox, oy, 16, 20, (90, 70, 50), gloss=0.3)
+        blink = (t % 7) < 0.15 or (talk and int((t - s.get("talk_t", t)) / 3) % 2 == 0 and (t % 3) < 0.15)
+        for side in (-1, 1):
+            if blink:
+                d.line([(ox + side * 4 - 2, oy - 3), (ox + side * 4 + 2, oy - 3)], fill=(30, 20, 10))
+            else:
+                d.ellipse([ox + side * 4 - 3, oy - 6, ox + side * 4 + 3, oy], fill=(250, 220, 90))
+                d.point((ox + side * 4, oy - 3), fill=(10, 10, 10))
+        if talk and (t - s.get("talk_t", t)) % 6 < 1.5:
+            d.text((ox - 36, oy - 22), "huu-huu", font=self.f_tiny, fill=(200, 200, 220))
+        self.vis_fire = (255, int(60 + 80 * min(1.0, fk)), 10)
+        return img
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Modul seite_visual_katzen
+#   Visualisierung „Katzenchor“ (cats, Mixin CatsVisual): Vier Katzen singen bei Vollmond auf dem Dach – jede Katze
+#   ein Frequenzband, das Maul geht mit, die Schwänze wippen im Takt, eine dirigiert mit dem Schwanz. Höhepunkt: Der
+#   hohe Ton – MIAUUU! –, das Fell sträubt sich, der Mond wackelt. Wortbeitrag: Die Katzen putzen sich. Gags: Ein Fenster
+#   geht auf („Ruhe da oben!“) und ein Schuh fliegt, der Hund unten bellt (Katzenbuckel), der Mond singt mit, eine
+#   Gräte an der Angel.
+# ═══════════════════════════════════════════════════════════════════════════
+
+KC_ROOF_Y = VIS_H - 70                  # First des Daches
+KC_CATS = [(70, (40, 40, 44)), (122, (230, 140, 60)), (178, (240, 240, 240)), (230, (140, 140, 150))]
+KC_GAGS = {"schuh": 8.0, "hund": 7.0, "mond": 8.0, "graete": 7.0}
+KC_GAG_FIRST, KC_GAG_PAUSE = 8.0, (12.0, 20.0)
+KC_BOOM = 3.5
+
+
+class CatsVisual:
+    vis_col_cats = None
+
+    def _kc_scene(self):
+        if "_kc_bg" in self.__dict__:
+            return self._kc_bg
+        ys = np.linspace(0, 1, HEIGHT)[:, None, None]
+        top, bot = np.array([10, 14, 40], np.float32), np.array([50, 40, 90], np.float32)
+        img = Image.fromarray(np.clip(np.broadcast_to(top + (bot - top) * ys, (HEIGHT, WIDTH, 3)), 0, 255)
+                              .astype(np.uint8), "RGB")
+        d = ImageDraw.Draw(img)
+        rng = random.Random(22)
+        for _ in range(50):
+            d.point((rng.uniform(0, WIDTH), rng.uniform(0, 100)), fill=(200, 200, 230))
+        for x in range(0, WIDTH, 40):                                               # Nachbardächer
+            h = rng.randint(30, 60)
+            d.polygon([(x - 6, VIS_H - 40 - h + 20), (x + 20, VIS_H - 60 - h), (x + 46, VIS_H - 40 - h + 20),
+                       (x + 46, VIS_H), (x - 6, VIS_H)], fill=(24, 22, 40))
+        d.polygon([(-10, VIS_H + 10), (-10, KC_ROOF_Y + 6), (WIDTH + 10, KC_ROOF_Y + 6), (WIDTH + 10, VIS_H + 10)],
+                  fill=(120, 50, 40))                                               # das Dach
+        for y in range(KC_ROOF_Y + 10, VIS_H + 10, 8):
+            for x in range(-10 + (y // 8 % 2) * 8, WIDTH + 10, 16):
+                d.chord([x, y - 4, x + 16, y + 6], 0, 180, fill=(140, 60, 46), outline=(100, 40, 32))
+        d.rectangle([-10, KC_ROOF_Y, WIDTH + 10, KC_ROOF_Y + 6], fill=(90, 40, 32))
+        d.rectangle([270, KC_ROOF_Y - 40, 296, KC_ROOF_Y + 6], fill=(140, 70, 50))   # Schornstein
+        for y in range(KC_ROOF_Y - 36, KC_ROOF_Y, 7):
+            d.line([(270, y), (296, y)], fill=(110, 50, 36))
+        d.rectangle([266, KC_ROOF_Y - 44, 300, KC_ROOF_Y - 38], fill=(110, 50, 36))
+        d.rectangle([20, KC_ROOF_Y + 30, 52, KC_ROOF_Y + 58], fill=(40, 30, 30), outline=(200, 190, 170), width=3)
+        self._kc_bg = img
+        return img
+
+    def _kc_cat(self, img, d, x, y, t, col, mouth, tail, puff=0.0, lick=False, hiss=False, look=0.0):
+        """Sitzende Katze; y = Pfoten auf dem First."""
+        s = 1 + puff * 0.25
+        self._blob(img, x, y - 14, 24 * s, 26 * s, col, gloss=0.3)
+        ta = -math.pi / 2 + tail
+        pts = [(x + 10, y - 4)]
+        for j in range(1, 6):
+            a = ta + j * 0.18 * (1 if tail >= 0 else -1)
+            pts.append((pts[-1][0] + math.cos(a) * 6, pts[-1][1] + math.sin(a) * 6))
+        d.line(pts, fill=col, width=int(4 + 3 * puff))
+        hx, hy = x + look * 2, y - 32
+        self._blob(img, hx, hy, 20 * s, 18 * s, col, gloss=0.3)
+        for side in (-1, 1):
+            d.polygon([(hx + side * 4, hy - 7), (hx + side * 10, hy - 14 - puff * 2), (hx + side * 9, hy - 3)], fill=col)
+            d.polygon([(hx + side * 5, hy - 7), (hx + side * 9, hy - 11), (hx + side * 8, hy - 5)], fill=(240, 160, 170))
+            if lick:
+                d.arc([hx + side * 4 - 3, hy - 4, hx + side * 4 + 3, hy + 1], 200, 340, fill=(30, 30, 30))
+            else:
+                d.ellipse([hx + side * 4 - 3, hy - 5, hx + side * 4 + 3, hy + 1], fill=(250, 220, 60))
+                d.ellipse([hx + side * 4 - 0.8 + look, hy - 4.5, hx + side * 4 + 0.8 + look, hy + 0.5], fill=(10, 10, 10))
+            for k in (-1, 1):
+                d.line([(hx + side * 3, hy + 3), (hx + side * 12, hy + 2 + k * 2)], fill=(220, 220, 220))
+        d.polygon([(hx - 1.5, hy + 1), (hx + 1.5, hy + 1), (hx, hy + 2.5)], fill=(240, 130, 150))
+        if mouth > 0.1 or hiss:
+            mh = 2 + mouth * 6
+            d.ellipse([hx - 3, hy + 3, hx + 3, hy + 3 + mh], fill=(120, 30, 40))
+            if hiss:
+                d.line([(hx - 2, hy + 3), (hx - 2, hy + 6)], fill=(250, 250, 250))
+                d.line([(hx + 2, hy + 3), (hx + 2, hy + 6)], fill=(250, 250, 250))
+        if lick:
+            self._blob(img, hx + 6, hy + 8, 6, 8, col, gloss=0.3)
+            d.ellipse([hx + 1, hy + 4, hx + 4, hy + 7], fill=(240, 120, 140))
+        if puff:
+            for k in range(10):
+                a = k * 0.63
+                d.line([(x + math.cos(a) * 12 * s, y - 14 + math.sin(a) * 13 * s),
+                        (x + math.cos(a) * 16 * s, y - 14 + math.sin(a) * 17 * s)], fill=col, width=2)
+        return (hx, hy)
+
+    @vis_style("cats")
+    def vis_cats(self, s, o, color):
+        t = s["t"]
+        img = self._kc_scene().copy()
+        d = ImageDraw.Draw(img)
+        demo = bool(s.get("demo"))
+        talk = bool(s.get("talk"))
+        st = self._vstate("cats", lambda: {"beats": s["beats"], "slow": s["level"], "fast": s["level"],
+                                            "boom": -99.0, "gag": None, "order": [], "k": 0,
+                                            "next_gag": t + KC_GAG_FIRST, "rng": random.Random(191), "start": t})
+        dt = self._vis_dt(st, t)
+        new_beat = s["beats"] != st["beats"]
+        st["beats"] = s["beats"]
+        playing = (s.get("active") or demo) and not talk
+        period = max(0.3, min(1.2, s.get("period") or 0.5))
+        bang = math.sin(math.pi * min(1.0, (t - s.get("beat_t", t)) / (period * 0.6))) if playing else 0.0
+        level = s["level"] if playing else 0.0
+        st["slow"] += (s["level"] - st["slow"]) * min(1.0, dt / 6)
+        st["fast"] += (s["level"] - st["fast"]) * min(1.0, dt / 0.4)
+        if not demo and playing and st["fast"] > st["slow"] * 1.2 + 0.04 and t - st["boom"] > 15 \
+                and t - st["start"] > 5 and st["gag"] is None:
+            st["boom"] = t
+        bt = t - st["boom"]
+        boom = 0 <= bt < KC_BOOM
+        gag = st["gag"]
+        if gag and t - gag[1] >= KC_GAGS[gag[0]]:
+            st["gag"] = gag = None
+            st["next_gag"] = t + st["rng"].uniform(*KC_GAG_PAUSE)
+        if not demo and o.get("gags", True) and gag is None and playing and not boom and t >= st["next_gag"]:
+            if not st["order"]:
+                st["order"] = st["rng"].sample(list(KC_GAGS), len(KC_GAGS))
+            st["gag"] = gag = (st["order"].pop(0), t)
+        gname = gag[0] if gag else None
+        gl = t - gag[1] if gag else 0.0
+        if playing and new_beat:
+            st["k"] += 1
+        say = []
+        bands = s.get("bands")
+        if bands is None or len(bands) == 0:
+            bands = [level] * 8
+        # Mond (singt beim Gag mit, wackelt beim Höhepunkt)
+        mx, my = 232 + (math.sin(t * 40) * 3 if boom else 0), 46
+        self._blob(img, mx, my, 70, 70, (240, 230, 190), alpha=0.18, flat=True)
+        self._blob(img, mx, my, 44, 44, (245, 240, 210), gloss=0.15)
+        if gname == "mond" or boom:
+            for side in (-1, 1):
+                d.ellipse([mx + side * 8 - 3, my - 8, mx + side * 8 + 3, my - 2], fill=(90, 80, 60))
+            mo = (0.5 + 0.5 * abs(math.sin(t * 7))) if gname == "mond" else 1.0
+            d.ellipse([mx - 6, my + 4, mx + 6, my + 6 + 8 * mo], fill=(110, 60, 60))
+            if gname == "mond" and 1.0 <= gl < 4.0:
+                say.append((mx, my - 30, "Ich sing mit! Uuuuh!"))
+            elif gname == "mond" and gl >= 4.6:
+                say.append((KC_CATS[0][0], KC_ROOF_Y - 70, "Der Mond ist zu tief."))
+        else:
+            for ox, oy, r in ((-8, -6, 5), (6, 6, 4)):
+                d.ellipse([mx + ox - r, my + oy - r, mx + ox + r, my + oy + r], fill=(228, 220, 190))
+        # Die Katzen
+        heads = []
+        dog = gname == "hund" and 1.5 <= gl < 6.0
+        for i, (cx, col) in enumerate(KC_CATS):
+            b = bands[min(len(bands) - 1, i * len(bands) // len(KC_CATS))] if playing else 0.0
+            mouth = min(1.0, b * 1.6)
+            tail = math.sin(t * math.pi / period + i) * 0.6 if playing else 0.2
+            if i == 0 and playing:                                                  # die Dirigentin
+                tail = math.sin(t * math.pi / period * 2) * 1.2
+                mouth = 0.0
+            puff = 1.0 if (boom and 0.3 < bt < 2.6) or dog else 0.0
+            if boom:
+                mouth = 1.0
+            duck = 0.0
+            if gname == "schuh" and i == 2 and 3.0 <= gl < 4.2:
+                duck = 12
+            hc = self._kc_cat(img, d, cx, KC_ROOF_Y + duck, t, col, mouth if not talk else 0.0, tail, puff,
+                              lick=talk and i % 2 == 0, hiss=dog, look=1.0 if dog else 0.0)
+            heads.append(hc)
+            if playing and mouth > 0.4 and not boom:
+                d.text((hc[0] + 8, hc[1] - 22 - (t * 10 + i * 5) % 10), "♪", font=self.f_tiny, fill=(240, 230, 180))
+        if boom and 0.3 < bt < 2.8:
+            f2 = load_font(30, bold=True)
+            d.text((86, 40), "MIAUUU!", font=f2, fill=(255, 240, 180))
+        if talk:
+            tl = t - s.get("talk_t", t)
+            if tl < 3.0:
+                say.append((heads[1][0], heads[1][1] - 22, "Pause. Miau."))
+        if gname == "schuh":
+            wx, wy = 36, KC_ROOF_Y + 44
+            if gl > 0.5:
+                d.rectangle([22, KC_ROOF_Y + 32, 50, KC_ROOF_Y + 56], fill=(250, 220, 130))
+                self._fig(img, d, wx, KC_ROOF_Y + 76, t, (200, 200, 230), {"lh": (-10, -8), "rh": (14, -20)}, h=0.6,
+                          hair=(80, 60, 40), hat="beanie", hat_col=(240, 240, 250))
+            if 0.8 <= gl < 2.8:
+                say.append((wx + 30, wy - 14, "Ruhe da oben!"))
+            if 2.6 <= gl < 4.4:
+                k = (gl - 2.6) / 1.8
+                sx = wx + k * 200
+                sy = wy - math.sin(k * math.pi) * 80
+                d.polygon([(sx - 6, sy), (sx + 8, sy), (sx + 8, sy - 4), (sx, sy - 6), (sx - 6, sy - 4)], fill=(90, 60, 40))
+            if 4.6 <= gl < 7.0:
+                say.append((heads[2][0], heads[2][1] - 22, "Daneben! Zugabe!"))
+        elif gname == "hund":
+            dx_ = 160 + math.sin(gl * 6) * 4
+            self._blob(img, dx_, VIS_H - 6, 30, 20, (160, 110, 60), gloss=0.4)
+            self._blob(img, dx_ - 14, VIS_H - 18, 18, 14, (160, 110, 60), gloss=0.4)
+            for side in (-1, 1):
+                d.ellipse([dx_ - 14 + side * 4 - 1.5, VIS_H - 22, dx_ - 14 + side * 4 + 1.5, VIS_H - 19], fill=(20, 20, 20))
+            if 1.0 <= gl < 4.0:
+                say.append((dx_ - 20, VIS_H - 34, "WAU! WAU!"))
+            elif gl >= 4.4:
+                say.append((heads[1][0], heads[1][1] - 22, "Fffffft!"))
+        elif gname == "graete":
+            k = min(1.0, gl / 2.0)
+            gx, gy = 100 + math.sin(gl * 2) * 30, 20 + k * 50
+            d.line([(gx, 0), (gx, gy)], fill=(200, 200, 210))
+            d.line([(gx - 12, gy + 4), (gx + 12, gy + 4)], fill=(250, 250, 250), width=2)
+            for j in range(5):
+                d.line([(gx - 8 + j * 4, gy), (gx - 8 + j * 4, gy + 8)], fill=(250, 250, 250))
+            d.polygon([(gx + 12, gy + 4), (gx + 18, gy), (gx + 18, gy + 8)], fill=(250, 250, 250))
+            if gl > 2.4:
+                say.append((heads[3][0] - 20, heads[3][1] - 22, "Nur noch Gräte? Frechheit!"))
+        for x, y, text in say:
+            self._xmas_party_say(d, x, y, text)
+        self.vis_col_cats = (250, 220, 60) if playing else (60, 60, 120)
         return img
 
 
@@ -21855,6 +22501,16 @@ VIS_GAG_LABELS = {
     "boss": "Mutterschiff",
     "glitch": "Glitch",
     "highscore": "Highscore-Eintrag",
+    # Western-Saloon
+    "duell": "Duell mit Banane",
+    "glas": "Glas rutscht zu weit",
+    "pferd": "Pferd bestellt",
+    "steppe": "Steppenläufer",
+    # Katzenchor
+    "schuh": "Schuh fliegt",
+    "hund": "Der Hund bellt",
+    "mond": "Der Mond singt mit",
+    "graete": "Gräte an der Angel",
     # Überraschungsparty
     "hund": "Hund frisst die Torte", "kerzen": "Trickkerzen", "geschenk": "Kastenteufel im Geschenk",
     # Weihnachten (jugendfrei)
@@ -21868,7 +22524,7 @@ def vis_scenes(style):
     """Auswahl für die bewegte Vorschau: [[id, Beschriftung], …]; Gags als "gag:<name>"."""
     out = [["play", "Abspielen"], ["boom", "Höhepunkt"], ["talk", "Wortbeitrag"]]
     gags = {"cellar": CL_GAGS, "metal": MT_GAGS, "party": PT_GAGS, "xmas": FUN_GAGS, "easter": ES_GAGS,
-            "newyear": NY_GAGS, "carnival": CV_GAGS, "oktoberfest": OK_GAGS, "martin": SM_GAGS, "valentine": VL_GAGS, "underwater": UW_GAGS, "farm": FM_GAGS, "space": SP_GAGS, "arcade": AR_GAGS, "halloween": HW_GAGS, "horror": {**HR_GAGS["house"], **HR_GAGS["dolls"]},
+            "newyear": NY_GAGS, "carnival": CV_GAGS, "oktoberfest": OK_GAGS, "martin": SM_GAGS, "valentine": VL_GAGS, "underwater": UW_GAGS, "farm": FM_GAGS, "space": SP_GAGS, "arcade": AR_GAGS, "western": WS_GAGS, "cats": KC_GAGS, "halloween": HW_GAGS, "horror": {**HR_GAGS["house"], **HR_GAGS["dolls"]},
             "birthday": BD_GAGS, "mother": MO_GAGS, "father": FA_GAGS}.get(style, {})
     out += [["gag:" + n, VIS_GAG_LABELS.get(n, n.capitalize())] for n in gags]
     if style == "xmas":                                             # Feierabend-Gags (schaltet ihn für die Vorschau an)
@@ -21918,7 +22574,8 @@ def vis_force(r, style, scene, t):
             st["place"] = "house" if name in HR_GAGS["house"] else "dolls"
             st["since"] = t - 9
             st["gag"], st["next_gag"], st["boom"] = (name, t), t + 99, -99.0
-    elif style in ("newyear", "easter", "halloween", "birthday", "mother", "father"):
+    elif style in ("newyear", "carnival", "oktoberfest", "martin", "valentine", "underwater", "farm", "space",
+                   "arcade", "western", "campfire", "cats", "easter", "halloween", "birthday", "mother", "father"):
         if kind == "boom":
             st["boom"], st["gag"] = t, None
         elif kind == "gag":
@@ -22340,7 +22997,7 @@ class Renderer(RendererBase,
                ClockPage, ClockBase, StandardFaces, MechanicalFaces, SkyFaces, DisplayFaces, InfoFaces,
                MacrosPage, MusicPage, SlidesPage, WeatherPage, CalendarPage, HardwarePage,
                NewsPage, WarningsPage, NetworkPage, UpdatesPage, VisualPage, XmasVisual, XmasParty, XmasFun, BalletVisual, StageFx,
-               PartyVisual, CellarVisual, CellarCrew, MetalVisual, EasterVisual, HalloweenVisual, HorrorVisual, BirthdayVisual, MotherVisual, FatherVisual, FigureKit, NewYearVisual, CarnivalVisual, OktoberfestVisual, MartinVisual, ValentineVisual, UnderwaterVisual, FarmVisual, SpaceVisual, ArcadeVisual,
+               PartyVisual, CellarVisual, CellarCrew, MetalVisual, EasterVisual, HalloweenVisual, HorrorVisual, BirthdayVisual, MotherVisual, FatherVisual, FigureKit, NewYearVisual, CarnivalVisual, OktoberfestVisual, MartinVisual, ValentineVisual, UnderwaterVisual, FarmVisual, SpaceVisual, ArcadeVisual, WesternVisual, CampfireVisual, CatsVisual,
                MenuViews, OverlayViews):
     PAGES = len(PAGE_IDS)
     MUSIC_PAGE = PAGE_IDS.index("music")
@@ -24315,8 +24972,8 @@ class App(AppCore, KeyHandling, TimedTasks):
                 and self.renderer.vis_glow:                         # Kürbisleuchten
             base = self.renderer.vis_glow
         if style == "horror" and not quiet and visual_options(s, "horror").get("keys", "scene") == "scene" \
-                and self.renderer.vis_horror:                       # Fensterlicht bzw. Puppenrosa
-            base = self.renderer.vis_horror
+                and self.renderer.vis_col_horror:                       # Fensterlicht bzw. Puppenrosa
+            base = self.renderer.vis_col_horror
         if style == "birthday" and not quiet and visual_options(s, "birthday").get("keys", "candle") == "candle" \
                 and self.renderer.vis_candle:                       # Kerzenschein
             base = self.renderer.vis_candle
@@ -24345,14 +25002,23 @@ class App(AppCore, KeyHandling, TimedTasks):
                 and self.renderer.vis_sea:
             base = self.renderer.vis_sea
         if style == "farm" and not quiet and visual_options(s, "farm").get("keys", "farm") == "farm" \
-                and self.renderer.vis_farm:
-            base = self.renderer.vis_farm
+                and self.renderer.vis_col_farm:
+            base = self.renderer.vis_col_farm
         if style == "space" and not quiet and visual_options(s, "space").get("keys", "space") == "space" \
-                and self.renderer.vis_space:
-            base = self.renderer.vis_space
+                and self.renderer.vis_col_space:
+            base = self.renderer.vis_col_space
         if style == "arcade" and not quiet and visual_options(s, "arcade").get("keys", "hit") == "hit" \
-                and self.renderer.vis_arcade:
-            base = self.renderer.vis_arcade
+                and self.renderer.vis_col_arcade:
+            base = self.renderer.vis_col_arcade
+        if style == "western" and not quiet and visual_options(s, "western").get("keys", "lamp") == "lamp" \
+                and self.renderer.vis_col_western:
+            base = self.renderer.vis_col_western
+        if style == "campfire" and not quiet and visual_options(s, "campfire").get("keys", "fire") == "fire" \
+                and self.renderer.vis_fire:
+            base = self.renderer.vis_fire
+        if style == "cats" and not quiet and visual_options(s, "cats").get("keys", "eyes") == "eyes" \
+                and self.renderer.vis_col_cats:
+            base = self.renderer.vis_col_cats
         if style == "metal" and visual_options(s, "metal").get("keys", "fire") == "fire":   # Feuerkörbe
             k, base = round(max(0.12, self.renderer.vis_fire) * 20) / 20, (255, 100, 16)
         color = tuple(int(c * k) for c in base)
@@ -24537,7 +25203,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.16-14"
+VERSION = "2026.11.16-15"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -29059,6 +29725,12 @@ Die Seite '''Visualisierung''' bewegt sich zu allem, was der Rechner gerade absp
 | Weltraum-Disco || Ein Ringplanet als Spiegelkugel wirft Lichtflecken, zwei Astronauten tanzen schwerelos mit Saltos, die Sterne ziehen je nach Lautstärke schneller vorbei, Sternschnuppen auf hohe Schläge. Höhepunkt: Turbo-Boost – die Sterne werden zu Streifen. Wortbeitrag: Die Bodenstation funkt dazwischen. Gags: Ein UFO landet und das Alien tanzt den Roboter, der Kakao schwebt als Kugel davon, ein Satellit rauscht vorbei („Ducken!“) || Gags, Tastaturbeleuchtung (wandernde Discofarben oder Farbe der Ebene)
 |-
 | Retro-Arcade || Pixelgrafik wie am Spielautomaten (sparsam: halbe Auflösung): Die Alien-Reihen marschieren Schritt für Schritt im Takt, das Raumschiff folgt der Melodie und feuert auf hohe Schläge, getroffene Aliens zerplatzen in Pixel, Punktestand und Highscore zählen mit. Höhepunkt: MEGA-LASER fegt eine Reihe weg. Wortbeitrag: PAUSE – INSERT COIN. Gags: Das Mutterschiff (+5000), ein Glitch zerlegt das Bild („ERROR 404: BASS NOT FOUND“), Highscore-Eintrag || Röhren-Zeilen, Gags, Tastaturbeleuchtung (Farbe des letzten Treffers oder Farbe der Ebene)
+|-
+| Western-Saloon || Der Klavierspieler hämmert (die Tasten gehen mit den Frequenzbändern), die Schwingtüren schlagen im Bass, der Wirt schiebt Gläser über den Tresen, zwei Cowboys tanzen Line-Dance, durchs Fenster sieht man die Wüste. Höhepunkt: Alle tanzen, die Hüte fliegen („Yeehaw!“). Wortbeitrag: Der Sheriff schafft Ruhe. Gags: Duell – gezogen wird eine Banane, das Glas rutscht über den Tresen hinaus („Klirr!“), ein Pferd bestellt ein Wasser („Mit Eis?“), ein Steppenläufer rollt durch || Gags, Tastaturbeleuchtung (Petroleumlampe oder Farbe der Ebene)
+|-
+| Lagerfeuer || Der ruhige Stil für den Abend, ohne Gags: Am See im Wald brennt ein Lagerfeuer – die Flammen wachsen mit der Lautstärke, Funken stieben auf hohe Schläge, das Feuer spiegelt sich im Wasser. Glühwürmchen, langsam kreisende Sterne, ab und zu eine Sternschnuppe, eine Eule blinzelt. Auf Wunsch rösten zwei Leute Marshmallows (die langsam braun werden). Höhepunkt: Das Feuer lodert auf, die Funken steigen in einer Spirale. Wortbeitrag: Das Feuer wird ruhig, die Eule ruft leise || Leute am Feuer, Tastaturbeleuchtung (Feuerschein oder Farbe der Ebene)
+|-
+| Katzenchor || Vier Katzen singen bei Vollmond auf dem Dach – jede Katze ein Frequenzband, die schwarze dirigiert mit dem Schwanz. Höhepunkt: der hohe Ton „MIAUUU!“, das Fell sträubt sich, der Mond wackelt. Wortbeitrag: Die Katzen putzen sich („Pause. Miau.“). Gags: Ein Fenster geht auf („Ruhe da oben!“) und ein Schuh fliegt („Daneben! Zugabe!“), der Hund unten bellt (Katzenbuckel), der Mond singt mit, eine Gräte an der Angel || Gags, Tastaturbeleuchtung (Katzenaugen-Gelb oder Farbe der Ebene)
 |}
 '''Feierabend (Weihnachten):''' Eine Option mit derbem Humor, ab Werk aus. Eingeschaltet (oder nur abends von 20 bis 4 Uhr) trinken die beiden Glühwein über den Durst. Eine Runde läuft, solange Musik spielt, und dauert etwa die eingestellte Zeit:
 * '''Auftakt:''' tanzen und prosten. Jedes Prosten hebt den Pegel – bei lauter, schneller Musik prosten sie öfter, bei ruhiger Musik schunkeln sie nur.
@@ -29075,7 +29747,7 @@ Der Tanz-Modus gilt dabei nicht, die beiden sind immer zu zweit. Bei Wortbeiträ
 '''Festkalender:''' Hat jemand aus der Geburtstagsliste der Überraschungsparty heute Geburtstag, zeigt die Visualisierung automatisch die Party (oder, wenn beim Stil „Geburtstag“ eingeschaltet, die lebende Torte) – mit Namen auf dem Banner (bei zwei Geburtstagskindern beide) und, wenn das Geburtsjahr eingetragen ist, dem Alter als Zahlenballons; am 29. Februar Geborene feiern in Nicht-Schaltjahren am 28. Februar. An jedem Freitag, dem 13., erscheint auf Wunsch die Kellertreppe (Schalter in deren Optionen, ab Werk aus). Von Gründonnerstag bis Ostermontag zeigt sie „Ostern“, vom 25. Oktober bis 1. November „Halloween“ am 2. Sonntag im Mai „Muttertag“, an Christi Himmelfahrt „Männertag“, von Weiberfastnacht bis Faschingsdienstag „Fasching“, am 14. Februar „Valentinstag“, während des Münchner Oktoberfests (Samstag nach dem 15. September bis zum ersten Oktobersonntag, mindestens bis 3. Oktober) „Oktoberfest“, am 11. November „St. Martin“ und am 31. Dezember „Silvester“ (Schalter „Festtage automatisch“ unter Visualisierung). Ein Geburtstag geht vor Freitag, dem 13., dieser vor den Festtagen, alle gehen vor Weihnachten. Wählt man an so einem Tag am Display einen anderen Stil, bleibt dieser für den Tag bzw. den Festzeitraum.
 Oben steht der laufende Titel (abschaltbar). Ohne Ton bleibt das letzte Bild abgedunkelt stehen und zeigt „Keine Wiedergabe“; ist der Ausgang stumm geschaltet (oder auf 0 %), „Ton stumm“. Sobald wieder Musik kommt, geht es sofort weiter – der mitgehörte Ausgang selbst merkt vom Stummschalten nichts, deshalb fragt der Treiber jede Sekunde nach. Die '''Tastaturbeleuchtung pulsiert''' in der Farbe der Ebene mit dem Bass, solange die Seite zu sehen ist (nicht nachts, nicht bei „Beleuchtung nicht umfärben“). Alles einstellbar unter '''Beleuchtung & Display → Visualisierung''' mit Vorschau – dort auch die '''Bildrate''' (10, 15, 20 oder 25 Bilder je Sekunde; Standard 15). Mehr Bilder wirken flüssiger, brauchen aber mehr Rechenzeit; die Visualisierung ist die rechenintensivste Seite. Die '''anpassende Bildrate''' (Standard an) zeichnet bei Stille und Wortbeiträgen nur 8 Bilder je Sekunde und bremst, wenn ein Bild länger als die halbe Bildzeit braucht. Alle 10 Minuten steht eine Zeile mit Zeichenzeit, Bildrate, CPU und Arbeitsspeicher im Protokoll.
 
-'''Bewegte Vorschau:''' Unter dem Vorschaubild in der Verwaltung spielen „▶ Abspielen“, „Höhepunkt“ und „Wortbeitrag“ den Stil einige Sekunden bewegt ab; „Gag zeigen“ führt einen bestimmten Gag aus der Liste vor (Kellertreppe, Mittelalter-Metal, Ostern, Halloween, Horror, Geburtstag, Muttertag, Männertag, Silvester, Fasching, Oktoberfest, St. Martin, Valentinstag, Unterwasser, Bauernhof, Weltraum, Arcade, Überraschungsparty, Weihnachten einschließlich Feierabend). „■ Stopp“ beendet die Szene.
+'''Bewegte Vorschau:''' Unter dem Vorschaubild in der Verwaltung spielen „▶ Abspielen“, „Höhepunkt“ und „Wortbeitrag“ den Stil einige Sekunden bewegt ab; „Gag zeigen“ führt einen bestimmten Gag aus der Liste vor (Kellertreppe, Mittelalter-Metal, Ostern, Halloween, Horror, Geburtstag, Muttertag, Männertag, Silvester, Fasching, Oktoberfest, St. Martin, Valentinstag, Unterwasser, Bauernhof, Weltraum, Arcade, Western, Katzenchor, Überraschungsparty, Weihnachten einschließlich Feierabend). „■ Stopp“ beendet die Szene.
 
 '''Wortbeiträge''' (Nachrichten, Moderation, Werbung): Die Visualisierung erkennt Sprache am Klang – viele kurze Pausen, stark schwankende Lautstärke, kaum Bass. Nach etwa 4–6 Sekunden Sprache gilt es als Wortbeitrag, nach etwa 3 Sekunden Musik wieder als Musik (beides steht im Protokoll, mit den Messwerten). Zusätzlich zählt der Titel des Senders: Enthält er eines der Stichwörter aus '''Beleuchtung & Display → Visualisierung''' (Standard: Nachrichten, News, Werbung, Werbepause, Verkehr, Wetter – ganze Wörter, Groß-/Kleinschreibung egal), ist es sofort ein Wortbeitrag. Werbung mit Musik darunter erkennt nur das Stichwort. Während eines Wortbeitrags pulsiert die Tastatur nicht, und das '''tanzende Mädchen''' langweilt sich: Es verschränkt die Arme, gähnt („Gähn …“), stemmt die Hände in die Hüften, schaut auf die Uhr und tippt mit dem Fuß; nach 30 Sekunden setzt es sich auf den Bühnenrand und döst („Zzz“), das Bühnenlicht ist gedimmt. Kommt wieder Musik, tanzt es sofort weiter.
 

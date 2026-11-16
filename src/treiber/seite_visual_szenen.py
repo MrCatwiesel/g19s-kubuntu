@@ -68,6 +68,16 @@ VIS_GAG_LABELS = {
     "boss": "Mutterschiff",
     "glitch": "Glitch",
     "highscore": "Highscore-Eintrag",
+    # Western-Saloon
+    "duell": "Duell mit Banane",
+    "glas": "Glas rutscht zu weit",
+    "pferd": "Pferd bestellt",
+    "steppe": "Steppenläufer",
+    # Katzenchor
+    "schuh": "Schuh fliegt",
+    "hund": "Der Hund bellt",
+    "mond": "Der Mond singt mit",
+    "graete": "Gräte an der Angel",
     # Überraschungsparty
     "hund": "Hund frisst die Torte", "kerzen": "Trickkerzen", "geschenk": "Kastenteufel im Geschenk",
     # Weihnachten (jugendfrei)
@@ -81,7 +91,7 @@ def vis_scenes(style):
     """Auswahl für die bewegte Vorschau: [[id, Beschriftung], …]; Gags als "gag:<name>"."""
     out = [["play", "Abspielen"], ["boom", "Höhepunkt"], ["talk", "Wortbeitrag"]]
     gags = {"cellar": CL_GAGS, "metal": MT_GAGS, "party": PT_GAGS, "xmas": FUN_GAGS, "easter": ES_GAGS,
-            "newyear": NY_GAGS, "carnival": CV_GAGS, "oktoberfest": OK_GAGS, "martin": SM_GAGS, "valentine": VL_GAGS, "underwater": UW_GAGS, "farm": FM_GAGS, "space": SP_GAGS, "arcade": AR_GAGS, "halloween": HW_GAGS, "horror": {**HR_GAGS["house"], **HR_GAGS["dolls"]},
+            "newyear": NY_GAGS, "carnival": CV_GAGS, "oktoberfest": OK_GAGS, "martin": SM_GAGS, "valentine": VL_GAGS, "underwater": UW_GAGS, "farm": FM_GAGS, "space": SP_GAGS, "arcade": AR_GAGS, "western": WS_GAGS, "cats": KC_GAGS, "halloween": HW_GAGS, "horror": {**HR_GAGS["house"], **HR_GAGS["dolls"]},
             "birthday": BD_GAGS, "mother": MO_GAGS, "father": FA_GAGS}.get(style, {})
     out += [["gag:" + n, VIS_GAG_LABELS.get(n, n.capitalize())] for n in gags]
     if style == "xmas":                                             # Feierabend-Gags (schaltet ihn für die Vorschau an)
@@ -131,7 +141,8 @@ def vis_force(r, style, scene, t):
             st["place"] = "house" if name in HR_GAGS["house"] else "dolls"
             st["since"] = t - 9
             st["gag"], st["next_gag"], st["boom"] = (name, t), t + 99, -99.0
-    elif style in ("newyear", "easter", "halloween", "birthday", "mother", "father"):
+    elif style in ("newyear", "carnival", "oktoberfest", "martin", "valentine", "underwater", "farm", "space",
+                   "arcade", "western", "campfire", "cats", "easter", "halloween", "birthday", "mother", "father"):
         if kind == "boom":
             st["boom"], st["gag"] = t, None
         elif kind == "gag":

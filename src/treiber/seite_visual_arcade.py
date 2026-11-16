@@ -20,7 +20,7 @@ AR_ROWCOL = [(250, 80, 200), (80, 220, 250), (120, 250, 100), (250, 220, 60)]
 
 
 class ArcadeVisual:
-    vis_arcade = None
+    vis_col_arcade = None
 
     def _ar_wave(self, st):
         st["aliens"] = [[c, r, True] for r in range(AR_ROWS) for c in range(AR_COLS)]
@@ -193,5 +193,5 @@ class ArcadeVisual:
             if gl > 4.0:
                 d.text((96, 130), "Gut gemacht, Spieler 1!", font=self.f_tiny, fill=(120, 250, 140))
         st["hi"] = max(st["hi"], st["score"])
-        self.vis_arcade = hit_any or getattr(self, "vis_arcade", None) or (90, 250, 120)
+        self.vis_col_arcade = hit_any or getattr(self, "vis_col_arcade", None) or (90, 250, 120)
         return img

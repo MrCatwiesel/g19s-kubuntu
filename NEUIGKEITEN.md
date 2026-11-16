@@ -3,6 +3,13 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.16-15
+- **Neuer Stil „Western-Saloon“:** Der Klavierspieler hämmert, die Schwingtüren schlagen im Bass, der Wirt schiebt Gläser über den Tresen, zwei Cowboys tanzen Line-Dance. Höhepunkt: Hüte fliegen („Yeehaw!“). Wortbeitrag: der Sheriff. Gags: Duell mit Banane, Glas rutscht zu weit, ein Pferd bestellt ein Wasser, ein Steppenläufer rollt durch.
+- **Neuer Stil „Lagerfeuer“ – der ruhige Stil für den Abend:** Flammen wachsen mit der Lautstärke, Funken auf hohe Schläge, Spiegelung im See, Glühwürmchen, eine blinzelnde Eule, auf Wunsch zwei Leute mit Marshmallows. Keine Gags.
+- **Neuer Stil „Katzenchor“:** Vier Katzen singen bei Vollmond auf dem Dach, eine dirigiert mit dem Schwanz. Höhepunkt: „MIAUUU!“ mit gesträubtem Fell. Gags: „Ruhe da oben!“ und ein fliegender Schuh, der Hund bellt, der Mond singt mit, eine Gräte an der Angel.
+- **Absturz behoben:** Mit den Stilen Retro-Arcade, Weltraum-Disco, Bauernhof-Band, Western-Saloon, Katzenchor und (selten, direkt nach dem Umschalten) Horror konnte der Treiber abstürzen, sobald die Tastaturbeleuchtung im Takt lief. Ein neuer Test prüft das jetzt für alle Stile.
+- **Vorschau repariert:** „Gag zeigen“ in der Verwaltung funktioniert jetzt auch bei Fasching, Oktoberfest, St. Martin, Valentinstag, Unterwasser, Bauernhof, Weltraum und Arcade.
+
 ## 2026.11.16-14
 - **Neuer Stil „Unterwasser-Band“:** Ein Oktopus trommelt mit acht Armen auf Muscheln, Quallen pulsieren im Bass, ein Fischschwarm zieht im Takt, die Krabbe tanzt. Höhepunkt: Der Schwarm wird zum großen Fisch. Wortbeitrag: der Taucher mit Tafel („Blubb.“). Gags: Flaschenpost, erschrockener Kugelfisch und – abschaltbar – ein Hai, der sich als Vegetarier entpuppt.
 - **Neuer Stil „Bauernhof-Band“:** Die Kuh am Bass, das Schwein an den Milchkannen, drei Hühner im Chor, die Vogelscheuche wippt. Höhepunkt: Der Traktor fährt mit Lichtorgel vor. Gags: Der Fuchs wird von den Hühnern verjagt, Arschbombe in die Schlammpfütze, ein Schaf zählt Menschen und schläft ein.

@@ -213,8 +213,8 @@ class App(AppCore, KeyHandling, TimedTasks):
                 and self.renderer.vis_glow:                         # Kürbisleuchten
             base = self.renderer.vis_glow
         if style == "horror" and not quiet and visual_options(s, "horror").get("keys", "scene") == "scene" \
-                and self.renderer.vis_horror:                       # Fensterlicht bzw. Puppenrosa
-            base = self.renderer.vis_horror
+                and self.renderer.vis_col_horror:                       # Fensterlicht bzw. Puppenrosa
+            base = self.renderer.vis_col_horror
         if style == "birthday" and not quiet and visual_options(s, "birthday").get("keys", "candle") == "candle" \
                 and self.renderer.vis_candle:                       # Kerzenschein
             base = self.renderer.vis_candle
@@ -243,14 +243,23 @@ class App(AppCore, KeyHandling, TimedTasks):
                 and self.renderer.vis_sea:
             base = self.renderer.vis_sea
         if style == "farm" and not quiet and visual_options(s, "farm").get("keys", "farm") == "farm" \
-                and self.renderer.vis_farm:
-            base = self.renderer.vis_farm
+                and self.renderer.vis_col_farm:
+            base = self.renderer.vis_col_farm
         if style == "space" and not quiet and visual_options(s, "space").get("keys", "space") == "space" \
-                and self.renderer.vis_space:
-            base = self.renderer.vis_space
+                and self.renderer.vis_col_space:
+            base = self.renderer.vis_col_space
         if style == "arcade" and not quiet and visual_options(s, "arcade").get("keys", "hit") == "hit" \
-                and self.renderer.vis_arcade:
-            base = self.renderer.vis_arcade
+                and self.renderer.vis_col_arcade:
+            base = self.renderer.vis_col_arcade
+        if style == "western" and not quiet and visual_options(s, "western").get("keys", "lamp") == "lamp" \
+                and self.renderer.vis_col_western:
+            base = self.renderer.vis_col_western
+        if style == "campfire" and not quiet and visual_options(s, "campfire").get("keys", "fire") == "fire" \
+                and self.renderer.vis_fire:
+            base = self.renderer.vis_fire
+        if style == "cats" and not quiet and visual_options(s, "cats").get("keys", "eyes") == "eyes" \
+                and self.renderer.vis_col_cats:
+            base = self.renderer.vis_col_cats
         if style == "metal" and visual_options(s, "metal").get("keys", "fire") == "fire":   # Feuerkörbe
             k, base = round(max(0.12, self.renderer.vis_fire) * 20) / 20, (255, 100, 16)
         color = tuple(int(c * k) for c in base)

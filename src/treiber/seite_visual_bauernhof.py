@@ -16,7 +16,7 @@ FM_BOOM = 5.0
 
 
 class FarmVisual:
-    vis_farm = None
+    vis_col_farm = None
 
     def _fm_scene(self):
         if "_fm_bg" in self.__dict__:
@@ -262,5 +262,5 @@ class FarmVisual:
                 say.append((hc[0] - 20, hc[1] - 30, "Fütterung! Alle mal herhören!"))
         for x, y, text in say:
             self._xmas_party_say(d, x, y, text)
-        self.vis_farm = (255, 170, 180) if st["k"] % 2 else (120, 200, 90)
+        self.vis_col_farm = (255, 170, 180) if st["k"] % 2 else (120, 200, 90)
         return img

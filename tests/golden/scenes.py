@@ -679,6 +679,15 @@ for _st, _gags in (("underwater", (("flaschenpost", 4.0), ("kugelfisch", 3.0), (
     scenes[f"vis_{_st}_wort"] = lambda r, st=_st: _fest(r, st, 2.0, _mt_gag(None), talk=True)
     for _gag, _at in _gags:
         scenes[f"vis_{_st}_{_gag}"] = lambda r, st=_st, gag=_gag, at=_at: _fest(r, st, at, _mt_gag(gag))
+for _st, _gags in (("western", (("duell", 6.0), ("glas", 1.4), ("pferd", 3.6), ("steppe", 3.0))),
+                   ("campfire", ()),
+                   ("cats", (("schuh", 3.6), ("hund", 3.0), ("mond", 3.0), ("graete", 4.0)))):
+    scenes[f"vis_{_st}"] = lambda r, st=_st: _fest(r, st, 6.0, _mt_gag(None))
+    scenes[f"vis_{_st}_hoehepunkt"] = lambda r, st=_st: _fest(r, st, 1.4, _mt_boom)
+    scenes[f"vis_{_st}_wort"] = lambda r, st=_st: _fest(r, st, 2.0, _mt_gag(None), talk=True)
+    for _gag, _at in _gags:
+        scenes[f"vis_{_st}_{_gag}"] = lambda r, st=_st, gag=_gag, at=_at: _fest(r, st, at, _mt_gag(gag))
+scenes["vis_lagerfeuer_allein"] = lambda r: _fest(r, "campfire", 3.0, None, {"people": False})
 scenes["vis_keller_gewitter"] = lambda r: _fest(r, "cellar", 4.07, weather=("thunder", 12.0, 10.0))
 
 

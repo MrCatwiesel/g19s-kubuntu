@@ -16,7 +16,7 @@ SP_STARS = 90
 
 
 class SpaceVisual:
-    vis_space = None
+    vis_col_space = None
 
     def _sp_scene(self):
         if "_sp_bg" in self.__dict__:
@@ -192,5 +192,5 @@ class SpaceVisual:
                 say.append((heads[0][0], heads[0][1] - 24, "Ducken!"))
         for x, y, text in say:
             self._xmas_party_say(d, x, y, text)
-        self.vis_space = _hue((t * 0.1) % 1.0, 0.6, 1.0) if playing else (40, 40, 120)
+        self.vis_col_space = _hue((t * 0.1) % 1.0, 0.6, 1.0) if playing else (40, 40, 120)
         return img

@@ -172,6 +172,9 @@ VISUAL_STYLES = {
     "farm": "Bauernhof-Band",
     "space": "Weltraum-Disco",
     "arcade": "Retro-Arcade",
+    "western": "Western-Saloon",
+    "campfire": "Lagerfeuer",
+    "cats": "Katzenchor",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 VISUAL_FPS_QUIET = 8        # anpassende Bildrate (visual.adaptive): bei Stille/Wortbeitrag …
@@ -389,6 +392,18 @@ VISUAL_OPTIONS = {
         {"key": "scanlines", "label": "Röhren-Zeilen (Scanlines)", "type": "bool", "default": True},
         {"key": "gags", "label": "Gags (Mutterschiff, Glitch, Highscore)", "type": "bool", "default": True},
         {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "hit", "choices": [["hit", "Farbe des letzten Treffers"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "western": [
+        {"key": "gags", "label": "Gags (Duell, Glas, Pferd, Steppenläufer)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "lamp", "choices": [["lamp", "Petroleumlampe"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "campfire": [
+        {"key": "people", "label": "Zwei Leute am Feuer (Marshmallows)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "fire", "choices": [["fire", "Feuerschein"], ["layer", "Farbe der Ebene"]]},
+    ],
+    "cats": [
+        {"key": "gags", "label": "Gags (Schuh, Hund, Mond, Gräte)", "type": "bool", "default": True},
+        {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "eyes", "choices": [["eyes", "Katzenaugen-Gelb"], ["layer", "Farbe der Ebene"]]},
     ],
 }
 

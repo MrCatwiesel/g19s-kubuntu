@@ -21,8 +21,8 @@ def run(style, o, seconds, **kw):
     return st
 
 
-for style, gags, attr in (("underwater", g.UW_GAGS, "vis_sea"), ("farm", g.FM_GAGS, "vis_farm"),
-                          ("space", g.SP_GAGS, "vis_space"), ("arcade", g.AR_GAGS, "vis_arcade")):
+for style, gags, attr in (("underwater", g.UW_GAGS, "vis_sea"), ("farm", g.FM_GAGS, "vis_col_farm"),
+                          ("space", g.SP_GAGS, "vis_col_space"), ("arcade", g.AR_GAGS, "vis_col_arcade")):
     o = g.visual_options(r.settings, style)
     r._vis_states = {}
     t0 = time.perf_counter()

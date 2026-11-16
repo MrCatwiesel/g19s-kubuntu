@@ -34,7 +34,7 @@ def _hr_rot(p, c, a):
 
 
 class HorrorVisual:
-    vis_horror = None                   # Farbe für die Tastatur
+    vis_col_horror = None                   # Farbe für die Tastatur
 
     # -- Hintergründe ------------------------------------------------------------------------ #
     def _hr_street(self):
@@ -370,7 +370,7 @@ class HorrorVisual:
             self._hr_gag_dog(img, d, gl, t, say)
         elif gname == "pizza":
             self._hr_gag_pizza(img, d, gl, t, say, dy)
-        self.vis_horror = (255, int(150 * min(1.0, 0.2 + level)), 40) if not dark else (60, 0, 0)
+        self.vis_col_horror = (255, int(150 * min(1.0, 0.2 + level)), 40) if not dark else (60, 0, 0)
         return img
 
     def _hr_walker(self, img, d, x, y, t, face, walk, robe=(120, 60, 70), cap=None):
@@ -542,7 +542,7 @@ class HorrorVisual:
             for r in range(10):
                 vd.rectangle([r * 10, r * 7, WIDTH - r * 10, HEIGHT - r * 7], outline=int(200 - r * 20), width=10)
             img.paste((0, 0, 0), (0, 0), vign.point(lambda v: int(v * stare)))
-        self.vis_horror = (255, 120, 170) if not (lights_out or stare) else (80, 0, 0)
+        self.vis_col_horror = (255, 120, 170) if not (lights_out or stare) else (80, 0, 0)
         return img
 
     def _hr_gag_jack(self, img, d, gl, t, say):

@@ -63,6 +63,9 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
       seite_visual_bauernhof  Stil „Bauernhof-Band“ (farm): Kuh, Schwein, Hühner, Traktor, FM_GAGS
       seite_visual_weltraum   Stil „Weltraum-Disco“ (space): Ringplanet, Astronauten, SP_GAGS
       seite_visual_arcade     Stil „Retro-Arcade“ (arcade): halbe Auflösung (AR_W×AR_H), Aliens, AR_GAGS
+      seite_visual_western    Stil „Western-Saloon“ (western): Klavier, Schwingtüren, Tresen, WS_GAGS
+      seite_visual_lagerfeuer Stil „Lagerfeuer“ (campfire): ruhig, ohne Gags; Feuer st["flame"], Glühwürmchen, Eule
+      seite_visual_katzen     Stil „Katzenchor“ (cats): vier Katzen = Frequenzbänder, KC_GAGS
       seite_visual_szenen     Szenen der bewegten Vorschau (vis_scenes, vis_force; Server: vorschau.render_scene)
       seite_visual_party      Stil „Überraschungsparty“ (party, Mixin PartyVisual): Phasen hide/surprise/party
                               (_pt_new_round), Gags PT_GAGS, Gäste _pt_guest, Hund, Torte, Kastenteufel, Konfetti
