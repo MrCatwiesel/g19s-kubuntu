@@ -23749,7 +23749,8 @@ WZ_NIGHT_AMB = (0.17, 0.21, 0.38)
 WZ_GLOW_COLS = {"ballroom": (255, 196, 110), "castle": (255, 130, 40), "alm": (255, 190, 100),
                 "steel": (255, 110, 30), "farm": (255, 200, 120), "lake": (255, 214, 140),
                 "alps": (255, 200, 130), "beach": (255, 150, 200)}
-WZ_CACHE_MAX = 6
+WZ_CACHE_MAX = 6                        # fertige Hintergründe (Ort, Lichtstufe, Wetter)
+WZ_LAYERS_MAX = 3                       # gemalte Orte im Speicher
 
 
 def _wz_noise(h, w, seed, cell=8):
@@ -23926,6 +23927,8 @@ class WaltzPlaces:
     def _wz_place_layers(self, place):
         cache = self.__dict__.setdefault("_wz_layers", {})
         if place not in cache:
+            if len(cache) >= WZ_LAYERS_MAX:                                     # je Ort ≈ 3 MB
+                cache.pop(next(iter(cache)))
             cache[place] = getattr(self, "_wz_paint_" + place)()
         return cache[place]
 
@@ -25424,12 +25427,12 @@ VIS_GAG_LABELS = {
     # Weihnachten (jugendfrei)
     "schornstein": "Schornstein", "plaetzchen": "Plätzchen", "geschenketurm": "Geschenketurm",
     "wunschzettel": "Wunschzettel", "schlitten": "Schlitten einparken", "lebkuchen": "Lebkuchenmann",
-    "katze": "Katze im Baum",
+    "katze": "Katze im Baum", "stromausfall": "Stromausfall", "glatteis": "Glatteis", "wichtelchor": "Wichtel-Chor",
     # Walzer
     "fuss": "Auf den Fuß getreten", "schwindel": "Schwindelig gedreht", "regenschirm": "Tanzen im Regen (bei Regen)",
     "kellner": "Kellner (Ballsaal)", "ritter": "Ritter (Burghof)", "kuh": "Kuh tanzt mit (Alm)",
     "funken": "Funkenregen (Stahlwerk)", "huhn": "Huhn (Bauernhof)", "ente": "Entenfamilie (See)",
-    "murmeltier": "Murmeltier (Alpen)", "moewe": "Möwe (Strand)", "stromausfall": "Stromausfall", "glatteis": "Glatteis", "wichtelchor": "Wichtel-Chor",
+    "murmeltier": "Murmeltier (Alpen)", "moewe": "Möwe (Strand)",
 }
 
 
