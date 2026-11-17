@@ -96,6 +96,27 @@ tt = np.arange(len(sp)) / RATE
 ok(talk_seq([ks.music(5), sp + 0.12 * np.sin(2 * np.pi * 55 * tt) * (np.abs(sp) > 0.02)]).endswith("T" * 10),
    "Sprache mit Bass (Moderation über Musikbett): Wortbeitrag")
 
+# Dreiertakt (Walzer): Taktlänge und Lage der Eins aus „Umm-pa-pa“, Wiener und langsamer Walzer, mit Zittern
+def meter(x):
+    an = g.SoundAnalyzer(lambda: {}, log=lambda m: None)
+    for i in range(0, len(x) - BLOCK, BLOCK):
+        blk = x[i:i + BLOCK].astype(np.float32)
+        st = np.empty(BLOCK * 2, np.float32)
+        st[0::2], st[1::2] = blk, blk
+        an.feed(st, (i + BLOCK) / RATE)
+    return an.snapshot()
+
+
+for bpm, start, swing in ((180, 0.1, 0.0), (174, 0.3, 0.02), (90, 0.2, 0.0), (84, 0.5, 0.03)):
+    sn = meter(ks.waltz(20, bpm=bpm, start=start, swing=swing, seed=bpm))
+    bar = 3 * 60 / bpm
+    off = ((sn["down_t"] - start) / bar + 0.5) % 1.0 - 0.5
+    ok(sn["bar"] is not None and abs(sn["bar"] - bar) < 0.03 and abs(off * bar) < 0.04 and sn["bar_conf"] >= 0.25,
+       f"Walzer {bpm}/min: Takt {sn['bar'] and round(sn['bar'], 3)} s (soll {bar:.3f}), Eins {off * bar * 1000:+.0f} ms, "
+       f"Sicherheit {sn['bar_conf']:.2f}")
+sn = meter(np.zeros(RATE * 8))
+ok(sn["bar"] is None or sn["bar_conf"] == 0.0, "Stille: kein Takt")
+
 # Stichwörter im Sendertitel
 w = {"visual": {"talk_words": "Nachrichten, News, Werbung"}}
 eq(g.talk_word(w, {"artist": "Radio Bob", "title": "BOB News um 15 Uhr"}), "News", "Stichwort im Titel erkannt")

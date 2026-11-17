@@ -35,7 +35,8 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
                               über eine Pipe + Ton an PulseAudio; Pause/Spulen = Neustart mit -ss
       seite_video             Seite „Video“: Quellen (video_sources, MENU wechselt), Folgen-/Listenansicht, Wiedergabe, Tasten;
                               video_open (Browser oder Display), _video_next (automatisch weiter), video_play_list (G-Taste list:Name)
-      klanganalyse            Ausgang mithören (pw-record), FFT/Bänder/Takt/Sprache für die Visualisierung
+      klanganalyse            Ausgang mithören (pw-record), FFT/Bänder/Takt/Sprache für die Visualisierung;
+                              Dreiertakt (bar, down_t, bar_conf) für den Walzer
       anzeige_basis           Renderer-Grundlage, @page / @page_keys
       seite_*.py              je Displayseite: Zeichnen + Tasten
       uhr_basis, uhr_*.py     Zifferblätter der Seite „Uhr“ (@clock_face), 25 Stück
@@ -79,7 +80,9 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
       seite_visual_walzer     Stil „Walzer“ (waltz, Mixin WaltzVisual): Paar _wz_couple/_wz_person (Blickrichtung als
                               Vektor, Figurenebene mit Licht eingefärbt), Kleidung WZ_OUTFITS, Gags WZ_GAGS/WZ_PLACE_GAG;
                               Paar in WZ_SS-facher Auflösung (_wz_ss_begin/_wz_ss_pose/_wz_ss_end), Taktphase st["ph"]
-                              läuft gleichmäßig, Schläge ziehen sie nur nach (WZ_PHASE_PULL), Tempo geglättet
+                              läuft gleichmäßig und folgt weich dem Takt der Klanganalyse (bar, down_t, bar_conf aus
+                              SoundAnalyzer._estimate_meter: Autokorrelation der Einsätze, Eins = stärkster Basseinsatz;
+                              WZ_LEAD gleicht die Anzeigeverzögerung aus), ohne Takt nach den Bassschlägen (WZ_PHASE_PULL)
       seite_visual_stimmung   Stimmungsbilder silk, ember, pulse (Mixin MoodVisual): ruhig, ohne Gags, Bass träge (_mood_state)
       seite_visual_auto       Pseudo-Stil „auto“ (AutoVisual): auto_mood, AUTO_POOLS, vis_auto_inner; cover_color/COVER_STYLES; _vis_weather_fx/WEATHER_FX_STYLES
       seite_visual_szenen     Szenen der bewegten Vorschau (vis_scenes, vis_force; Server: vorschau.render_scene)

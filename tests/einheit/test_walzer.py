@@ -217,6 +217,38 @@ lo = r.vis_col_waltz
 ok(all(0 <= c <= 255 and c % 8 == 0 for c in hi + lo), f"Walzer: Tastaturfarben gültig und gestuft ({hi}, {lo})")
 ok(sum(hi) > sum(lo) and hi[0] > hi[2], f"Walzer: Tastatur warm, pulsiert mit dem Bass ({lo} → {hi})")
 
+# Gleichtakt: echte Klanganalyse eines Walzers → das Paar senkt sich auf der Eins, Wiener/langsam richtig erkannt
+import numpy as np
+import sys as _sys
+_sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import klang_signale as ks
+for bpm, start in ((180, 0.1), (88, 0.3)):
+    x = ks.waltz(22, bpm=bpm, swing=0.02, start=start, seed=bpm)
+    an = g.SoundAnalyzer(lambda: {}, log=lambda m: None)
+    r._vis_states = {}
+    nxt, errs = 0.0, []
+    for i in range(0, len(x) - 512, 512):
+        blk = x[i:i + 512].astype(np.float32)
+        st2 = np.empty(1024, np.float32)
+        st2[0::2], st2[1::2] = blk, blk
+        now = (i + 512) / 22050
+        an.feed(st2, now)
+        if now >= nxt:
+            nxt += 1 / FPS
+            sn = an.snapshot()
+            g.VISUAL_RENDERERS["waltz"](r, sn, o, (0, 255, 90))
+            w = r._vis_states["waltz"]
+            if now > 14:
+                beat = 60 / bpm
+                true_ph = ((now + g.WZ_LEAD - start) / beat) % 3.0
+                errs.append(abs((w["ph"] - true_ph + 1.5) % 3.0 - 1.5) * beat)
+    ok(w["grid"] and max(errs) < 0.06, f"Walzer {bpm}/min: Paar im Takt der Musik (Abweichung höchstens "
+                                         f"{max(errs) * 1000:.0f} ms, Eins = tiefster Punkt)")
+    eq(w["vienna"], bpm > 120, f"Walzer {bpm}/min: {'Wiener' if bpm > 120 else 'langsamer'} Walzer erkannt")
+r._vis_states = {}
+st, _ = run(o, 1.0, bar=None, bar_conf=0.0)
+ok(not st["grid"] and st["k"] > 0, "Walzer: ohne Takterkennung weiter nach den Bassschlägen")
+
 # ungültige Messwerte
 r._vis_states = {}
 run(o, 0.3, bass=float("nan"), level=float("nan"))

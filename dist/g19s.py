@@ -40,7 +40,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.17-5"
+VERSION = "2026.11.17-6"
 
 # Weitere Importe der Module
 import select
@@ -2096,7 +2096,7 @@ def _band_edges():
 def _empty_snapshot(t=0.0):
     return {"t": t, "bands": np.zeros(AUDIO_BANDS), "left": 0.0, "right": 0.0, "level": 0.0, "bass": 0.0,
             "mid": 0.0, "treble": 0.0, "wave": np.zeros(640), "wave_l": np.zeros(256), "wave_r": np.zeros(256),
-            "beats": 0, "beat_t": -10.0, "period": 0.5, "active": False, "error": None, "demo": False, "muted": False, "volume": None,
+            "beats": 0, "beat_t": -10.0, "period": 0.5, "bar": None, "down_t": -10.0, "bar_conf": 0.0, "active": False, "error": None, "demo": False, "muted": False, "volume": None,
             "talk": False, "talk_t": 0.0, "hats": 0, "hat_t": -10.0, "hat": 0.0}
 
 
@@ -2122,6 +2122,7 @@ def demo_snapshot(t, amp=1.0):
                 right=float(np.clip(level * (0.9 + 0.08 * math.cos(t * 1.1)), 0, 1)),
                 bass=float(np.clip((0.35 + 0.65 * kick) * amp, 0, 1)), mid=float(np.mean(bands[16:40])),
                 treble=float(np.mean(bands[40:])), beats=int(t * 2.0), beat_t=math.floor(t * 2.0) / 2.0, period=0.5,
+                bar=1.5, down_t=math.floor(t / 1.5) * 1.5, bar_conf=1.0,
                 active=amp > 0.5, demo=True,
                 hats=int(t * 4.0), hat_t=math.floor(t * 4.0) / 4.0,     # Hi-Hat in Achteln, Snare auf 2 und 4
                 hat=(1.0 if int(t * 4.0) % 4 == 2 else 0.55) * min(1.0, amp * 1.2))
@@ -2164,6 +2165,10 @@ class SoundAnalyzer:
         self.talk, self.talk_t, self.talk_votes = False, 0.0, 0
         self.talk_feat = (0.0, 0.0, 0.0)
         self.vu = [0.0, 0.0]
+        self.prev_db, self.prev_bass = None, 0.0
+        self.on_all, self.on_bass = [], []  # Einsatzstärke je Block (≈ 10 s): ganzer Klang, Bass
+        self.meter_n = 0
+        self.bar, self.down_t, self.bar_conf = None, -10.0, 0.0
 
     # -- öffentlich -------------------------------------------------------- #
     def want(self):
@@ -2290,6 +2295,7 @@ class SoundAnalyzer:
             self.vu[i] += (target - self.vu[i]) * (0.5 if target > self.vu[i] else 0.15)
             levels.append(self.vu[i])
         self._detect_beat(float(np.mean(raw[:10] ** 2)), active, now)    # Bass bis ≈ 160 Hz
+        self._track_meter(db, raw, active, now)
         hi = raw[self.edge_hat:]                                        # Höhen ab ≈ 2,5 kHz
         hi_flux = float(np.maximum(0.0, hi - self.prev_hi).sum() / (raw.sum() + 1e-9)) \
             if self.prev_hi is not None else 0.0                       # Anstieg im Verhältnis zum ganzen Klang
@@ -2305,6 +2311,7 @@ class SoundAnalyzer:
                 "treble": float(b[40:].mean()), "wave": self.ring[-640:].copy() * 3.0,
                 "wave_l": left[-256:].copy() * 3.0, "wave_r": right[-256:].copy() * 3.0,
                 "beats": self.beats, "beat_t": self.beat_t, "period": period, "active": active, "error": None, "demo": False,
+                "bar": self.bar, "down_t": self.down_t, "bar_conf": self.bar_conf,
                 "talk": self.talk, "talk_t": self.talk_t,
                 "muted": self.muted, "volume": self.volume,
                 "hats": self.hats, "hat_t": self.hat_t, "hat": self.hat}
@@ -2335,6 +2342,86 @@ class SoundAnalyzer:
         if len(hist) > 43:
             hist.pop(0)
             fh.pop(0)
+
+    # -- Dreiertakt (Walzer) ----------------------------------------------- #
+    METER_WINDOW = 430                  # Blöcke ≈ 10 s
+    METER_EVERY = 22                    # so oft (Blöcke ≈ 0,5 s) neu schätzen
+    BAR_RANGE = (0.85, 2.4)             # Taktlänge in s: Wiener Walzer ≈ 1 s, langsamer Walzer ≈ 2 s
+    ONSET_DELAY = 0.05                  # so viel später sieht das Analysefenster (2048 Samples) einen Einsatz
+
+    def _track_meter(self, db, raw, active, now):
+        """Einsatzstärke je Block sammeln und regelmäßig den Takt schätzen: ganzer Klang als Anstieg der Bänder in dB,
+        Bass als Anstieg der Bassenergie (linear – in dB würde schon leises Übersprechen nach dem Abklingen zählen)."""
+        benergy = float(np.mean(raw[:8] ** 2))
+        if self.prev_db is None or not active:
+            on, onb = 0.0, 0.0
+        else:
+            on = float(np.maximum(0.0, db - self.prev_db).mean())
+            onb = max(0.0, benergy - self.prev_bass)
+        self.prev_db, self.prev_bass = db, benergy
+        self.on_all.append(on)
+        self.on_bass.append(onb)
+        if len(self.on_all) > self.METER_WINDOW:
+            del self.on_all[0], self.on_bass[0]
+        self.meter_n += 1
+        if self.meter_n % self.METER_EVERY == 0:
+            self._estimate_meter(now)
+
+    def _estimate_meter(self, now):
+        """Taktlänge aus der Selbstähnlichkeit der Einsätze (Autokorrelation): der kürzeste deutliche Gipfel zwischen
+        BAR_RANGE, dessen Drittel ebenfalls wiederkehrt (Dreiertakt). Die Eins liegt dort, wo der Bass im Takt am
+        stärksten einsetzt. Ergebnis: bar (s), down_t (Zeit einer Eins), bar_conf (0…1)."""
+        n = len(self.on_all)
+        dt = self.BLOCK / AUDIO_RATE
+        if n < int(5.0 / dt):
+            return
+        bass = np.array(self.on_bass)
+        bass = bass / (bass.max() + 1e-12)
+        e = np.array(self.on_all)
+        e = e / (e.max() + 1e-12) + 0.7 * bass
+        e = e - e.mean()
+        f = np.fft.rfft(e, 2 * n)
+        ac = np.fft.irfft(f * np.conj(f))[:n]
+        if ac[0] <= 1e-9:
+            self.bar_conf = 0.0
+            return
+        ac = ac / ac[0]
+        lo, hi = int(self.BAR_RANGE[0] / dt), min(n // 2, int(self.BAR_RANGE[1] / dt))
+        if hi <= lo + 2:
+            return
+        seg = ac[lo:hi + 1]
+        peaks = [i for i in range(1, len(seg) - 1) if seg[i] >= seg[i - 1] and seg[i] >= seg[i + 1] and seg[i] > 0.05]
+        if not peaks:
+            self.bar_conf = 0.0
+            return
+        best = max(seg[i] for i in peaks)
+        cands = []
+        for i in peaks:
+            lag = lo + i
+            third, half = ac[int(round(lag / 3))], ac[int(round(lag / 2))]
+            if seg[i] >= 0.75 * best and third > 0.0 and third >= half - 0.05:
+                cands.append(lag)
+        if not cands:
+            self.bar_conf = 0.0
+            return
+        lag = cands[0]
+        if 0 < lag < n - 1:                                             # Gipfel zwischen den Blöcken verfeinern
+            a, b, c = ac[lag - 1], ac[lag], ac[lag + 1]
+            den = a - 2 * b + c
+            lagf = lag + (0.5 * (a - c) / den if den < 0 else 0.0)
+        else:
+            lagf = float(lag)
+        # Eins: Versatz im Takt mit der größten Summe der Basseinsätze (über alle Takte im Fenster)
+        L = int(round(lagf))
+        best_o, best_v = 0, -1.0
+        for o in range(L):
+            idx = n - 1 - o - np.round(np.arange(0, (n - 1 - o) / lagf) * lagf).astype(int)
+            v = float(bass[idx[idx >= 0]].sum()) / max(1, len(idx))
+            if v > best_v:
+                best_o, best_v = o, v
+        self.bar = lagf * dt
+        self.down_t = now - best_o * dt - self.ONSET_DELAY
+        self.bar_conf = float(max(0.0, min(1.0, ac[lag])))
 
     def _detect_hat(self, flux, active, now):
         """Hoher Schlag (Hi-Hat, Snare, Klatschen): die Höhen ab ≈ 2,5 kHz springen deutlich nach oben – Fluss über
@@ -24344,6 +24431,9 @@ WZ_SS = 2                               # das Paar wird in doppelter Auflösung 
 WZ_SS_BOX = (230, 176)                  # Ausschnitt um das Paar (Bildpunkte), Fußpunkt WZ_SS_FOOT über dem unteren Rand
 WZ_SS_FOOT = 14
 WZ_TEMPO_SMOOTH = 2.5                   # Sekunden: so träge folgt das Tanztempo dem gemessenen Schlagabstand
+WZ_BAR_CONF = 0.25                      # ab dieser Sicherheit gilt die Takterkennung (Länge und Eins)
+WZ_LEAD = 0.1                           # s: das Paar läuft der Musik so weit voraus (Verzögerung Aufnahme → Display)
+WZ_PHASE_TIME = 0.8                     # s: so weich folgt die Phase dem Raster der Musik
 WZ_PHASE_PULL = 0.5                     # Anteil der Abweichung, den ein erkannter Schlag (über 0,4 s) ausgleicht
 WZ_SWITCH = 300.0                       # „Abwechselnd“ ohne Titelwechsel: spätestens so oft ein neuer Ort
 WZ_TURN_EVERY = 12                      # Takte bis zur Drehung unter dem Arm
@@ -24727,19 +24817,32 @@ class WaltzVisual:
         target = 1.0 if playing and not stop else 0.0
         st["energy"] += (target - st["energy"]) * min(1.0, dt / 0.7)
         en = st["energy"]
-        # Tempo geglättet, Taktphase läuft gleichmäßig weiter und wird bei jedem Schlag nur nachgezogen
-        st["per"] += (period - st["per"]) * min(1.0, dt / WZ_TEMPO_SMOOTH)
+        # Tempo und Takt: bevorzugt aus der Takterkennung der Klanganalyse (Taktlänge und Lage der Eins), sonst aus
+        # den Bassschlägen. Die Phase läuft gleichmäßig weiter und wird nur weich zum Raster der Musik nachgezogen.
+        bar, conf = s.get("bar"), s.get("bar_conf") or 0.0
+        grid = bool(bar) and conf >= WZ_BAR_CONF and bar == bar
+        tgt_per = bar / 3.0 if grid else period
+        if abs(tgt_per - st["per"]) > st["per"] * 0.25:                             # neues Stück: gleich umstellen
+            st["per"] = tgt_per
+        st["per"] += (tgt_per - st["per"]) * min(1.0, dt / WZ_TEMPO_SMOOTH)
         per = st["per"]
         if playing:
-            if new_beat:                                                            # Abweichung merken …
-                st["drift"] = (round(st["ph"]) - st["ph"]) * WZ_PHASE_PULL
-            corr = st.get("drift", 0.0) * min(1.0, dt / 0.4)                       # … und weich ausgleichen
-            st["drift"] = st.get("drift", 0.0) - corr
-            st["ph"] = (st["ph"] + dt / per + corr) % 3.0
+            st["ph"] = (st["ph"] + dt / per) % 3.0
+            if grid:                                                                # Eins der Musik = Phase 0
+                want = ((t + WZ_LEAD - s.get("down_t", t)) / per) % 3.0
+                err = (want - st["ph"] + 1.5) % 3.0 - 1.5
+                st["ph"] = (st["ph"] + err * min(1.0, dt / WZ_PHASE_TIME)) % 3.0
+            else:
+                if new_beat:                                                        # Abweichung merken …
+                    st["drift"] = (round(st["ph"]) - st["ph"]) * WZ_PHASE_PULL
+                corr = st.get("drift", 0.0) * min(1.0, dt / 0.4)                   # … und weich ausgleichen
+                st["drift"] = st.get("drift", 0.0) - corr
+                st["ph"] = (st["ph"] + corr) % 3.0
+        st["grid"] = grid
         mode = o.get("tempo", "auto")
-        if per < 0.40:                                                              # mit Puffer, damit es nicht pendelt
+        if per < 0.47:                          # Wiener ≈ 0,33 s je Schlag, langsamer ≈ 0,67 s; Puffer gegen Pendeln
             st["vienna"] = True
-        elif per > 0.45:
+        elif per > 0.53:
             st["vienna"] = False
         vienna = mode == "vienna" or (mode == "auto" and st["vienna"])
         target_ang = (math.pi if vienna else math.pi / 2) / (3 * per) * (1.9 if boom else 1.0)

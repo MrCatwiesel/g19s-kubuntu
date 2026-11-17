@@ -49,6 +49,9 @@ WZ_SS = 2                               # das Paar wird in doppelter Auflösung 
 WZ_SS_BOX = (230, 176)                  # Ausschnitt um das Paar (Bildpunkte), Fußpunkt WZ_SS_FOOT über dem unteren Rand
 WZ_SS_FOOT = 14
 WZ_TEMPO_SMOOTH = 2.5                   # Sekunden: so träge folgt das Tanztempo dem gemessenen Schlagabstand
+WZ_BAR_CONF = 0.25                      # ab dieser Sicherheit gilt die Takterkennung (Länge und Eins)
+WZ_LEAD = 0.1                           # s: das Paar läuft der Musik so weit voraus (Verzögerung Aufnahme → Display)
+WZ_PHASE_TIME = 0.8                     # s: so weich folgt die Phase dem Raster der Musik
 WZ_PHASE_PULL = 0.5                     # Anteil der Abweichung, den ein erkannter Schlag (über 0,4 s) ausgleicht
 WZ_SWITCH = 300.0                       # „Abwechselnd“ ohne Titelwechsel: spätestens so oft ein neuer Ort
 WZ_TURN_EVERY = 12                      # Takte bis zur Drehung unter dem Arm
@@ -432,19 +435,32 @@ class WaltzVisual:
         target = 1.0 if playing and not stop else 0.0
         st["energy"] += (target - st["energy"]) * min(1.0, dt / 0.7)
         en = st["energy"]
-        # Tempo geglättet, Taktphase läuft gleichmäßig weiter und wird bei jedem Schlag nur nachgezogen
-        st["per"] += (period - st["per"]) * min(1.0, dt / WZ_TEMPO_SMOOTH)
+        # Tempo und Takt: bevorzugt aus der Takterkennung der Klanganalyse (Taktlänge und Lage der Eins), sonst aus
+        # den Bassschlägen. Die Phase läuft gleichmäßig weiter und wird nur weich zum Raster der Musik nachgezogen.
+        bar, conf = s.get("bar"), s.get("bar_conf") or 0.0
+        grid = bool(bar) and conf >= WZ_BAR_CONF and bar == bar
+        tgt_per = bar / 3.0 if grid else period
+        if abs(tgt_per - st["per"]) > st["per"] * 0.25:                             # neues Stück: gleich umstellen
+            st["per"] = tgt_per
+        st["per"] += (tgt_per - st["per"]) * min(1.0, dt / WZ_TEMPO_SMOOTH)
         per = st["per"]
         if playing:
-            if new_beat:                                                            # Abweichung merken …
-                st["drift"] = (round(st["ph"]) - st["ph"]) * WZ_PHASE_PULL
-            corr = st.get("drift", 0.0) * min(1.0, dt / 0.4)                       # … und weich ausgleichen
-            st["drift"] = st.get("drift", 0.0) - corr
-            st["ph"] = (st["ph"] + dt / per + corr) % 3.0
+            st["ph"] = (st["ph"] + dt / per) % 3.0
+            if grid:                                                                # Eins der Musik = Phase 0
+                want = ((t + WZ_LEAD - s.get("down_t", t)) / per) % 3.0
+                err = (want - st["ph"] + 1.5) % 3.0 - 1.5
+                st["ph"] = (st["ph"] + err * min(1.0, dt / WZ_PHASE_TIME)) % 3.0
+            else:
+                if new_beat:                                                        # Abweichung merken …
+                    st["drift"] = (round(st["ph"]) - st["ph"]) * WZ_PHASE_PULL
+                corr = st.get("drift", 0.0) * min(1.0, dt / 0.4)                   # … und weich ausgleichen
+                st["drift"] = st.get("drift", 0.0) - corr
+                st["ph"] = (st["ph"] + corr) % 3.0
+        st["grid"] = grid
         mode = o.get("tempo", "auto")
-        if per < 0.40:                                                              # mit Puffer, damit es nicht pendelt
+        if per < 0.47:                          # Wiener ≈ 0,33 s je Schlag, langsamer ≈ 0,67 s; Puffer gegen Pendeln
             st["vienna"] = True
-        elif per > 0.45:
+        elif per > 0.53:
             st["vienna"] = False
         vienna = mode == "vienna" or (mode == "auto" and st["vienna"])
         target_ang = (math.pi if vienna else math.pi / 2) / (3 * per) * (1.9 if boom else 1.0)

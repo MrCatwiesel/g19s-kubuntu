@@ -3,6 +3,11 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.17-6
+- **Walzer im Takt der Musik:** Die Visualisierung erkennt jetzt den Dreivierteltakt selbst – aus dem „Umm-pa-pa“ ergeben sich Taktlänge und die Lage der Eins. Das Paar senkt sich auf der Eins und hebt sich auf zwei und drei, synchron zur Musik (bisher richtete es sich nach einzelnen Bassschlägen, die beim Walzer oft nur die Eins treffen).
+- **Wiener oder langsamer Walzer** wird jetzt zuverlässig erkannt (Wiener Walzer ≈ 1 Takt je Sekunde, langsamer ≈ 1 Takt in 2 Sekunden); bei einem neuen Stück stellt sich das Paar sofort um.
+- Eine kleine Vorlaufzeit gleicht die Verzögerung zwischen Ton und Display aus.
+
 ## 2026.11.17-5
 - **Walzer flüssiger:** Das Paar hält den Takt jetzt wie ein Tänzer – Heben, Senken und Schritte laufen gleichmäßig weiter und werden von der Musik nur sanft nachgezogen, statt bei jedem erkannten Schlag zu springen. Das Drehtempo folgt dem Tempo weich, der Wechsel zwischen Wiener und langsamem Walzer pendelt nicht mehr.
 - Das Paar wird fein gezeichnet (doppelte Auflösung, dann geglättet): Bewegungen in Bruchteilen von Pixeln, weiche Kanten, kein Zittern einzelner Körperteile mehr. Beim Wegdrehen wächst das Haar stufenlos über den Kopf.

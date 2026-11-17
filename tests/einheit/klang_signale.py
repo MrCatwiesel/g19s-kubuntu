@@ -48,3 +48,28 @@ def music(seconds, seed=2, bpm=120, drums=True):
     else:
         out += 0.25 * np.sin(2 * np.pi * 110 * t)
     return np.tanh(out * 1.2) * 0.6
+
+
+def waltz(seconds, bpm=180, seed=3, swing=0.0, start=0.0):
+    """Walzer („Umm-pa-pa“): Bass auf der Eins, Begleitakkord auf zwei und drei, Melodie darüber.
+    bpm = Schläge (Viertel) je Minute; start = Zeitpunkt der ersten Eins (s); swing = Zittern der Schläge (s)."""
+    rng = np.random.default_rng(seed)
+    n = int(seconds * R)
+    t = np.arange(n) / R
+    p = 60 / bpm
+    out = 0.12 * np.sin(2 * np.pi * (330 + 55 * np.sign(np.sin(2 * np.pi * t / (6 * p)))) * t)   # Melodie
+    k = 0
+    beat = start
+    while beat < seconds:
+        i = int(max(0.0, beat + rng.uniform(-swing, swing)) * R)
+        d = t[i:i + R] - t[i]
+        if k % 3 == 0:                                                  # Umm: tiefer Bass
+            f = [55.0, 73.4, 61.7][(k // 3) % 3]
+            seg = 0.9 * np.exp(-d * 6) * np.sin(2 * np.pi * f * d)
+        else:                                                           # pa: kurzer Akkord in der Mitte
+            seg = 0.35 * np.exp(-d * 18) * (np.sin(2 * np.pi * 262 * d) + np.sin(2 * np.pi * 330 * d)
+                                              + np.sin(2 * np.pi * 392 * d)) / 3
+        out[i:i + len(seg)] += seg
+        k += 1
+        beat += p
+    return np.tanh(out * 1.3) * 0.6
