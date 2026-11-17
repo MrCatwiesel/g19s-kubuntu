@@ -49,7 +49,7 @@ def restore_backup(raw, programs=False, inspect=False):
             name = m.name[2:] if m.name.startswith("./") else m.name
             if not m.isfile() or m.size > MAX_MEMBER:
                 continue
-            if name in BACKUP_FILES or DESKTOP_RE.fullmatch(name):
+            if name in BACKUP_FILES or DESKTOP_RE.fullmatch(name) or g.WALTZ_PHOTO_RE.fullmatch(name):
                 allowed.append((name, m))
         if not allowed:
             raise ValueError("Die Datei enthält keine G19s-Dateien")

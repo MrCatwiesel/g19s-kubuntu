@@ -28,11 +28,14 @@ BACKUP_FILES = [
     ".local/bin/g19s-gui.py",
 ]
 DESKTOP_RE = re.compile(r"\.local/share/applications/[A-Za-z0-9._-]+\.desktop")
+WALTZ_PHOTO_RE = re.compile(r"\.config/g19s/walzer/(" + "|".join(WALTZ_PLACES) + r")\.jpg")   # Walzer: eigene Fotos
 
 
 def backup_members(home=None):
     home = home or os.path.expanduser("~")
     members = [p for p in BACKUP_FILES if os.path.isfile(os.path.join(home, p))]
+    members += [f".config/g19s/walzer/{p}.jpg" for p in WALTZ_PLACES
+                if os.path.isfile(os.path.join(home, f".config/g19s/walzer/{p}.jpg"))]
     appdir = os.path.join(home, ".local/share/applications")
     if os.path.isdir(appdir):
         for name in sorted(os.listdir(appdir)):

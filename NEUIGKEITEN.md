@@ -3,6 +3,15 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.17-4
+- **Neuer Stil „Walzer“:** Ein Paar tanzt Walzer – es dreht sich in geschlossener Tanzhaltung, zieht große Runden über die Fläche, hebt und senkt sich im Dreivierteltakt, alle zwölf Takte dreht sie sich unter seinem Arm, das Kleid schwingt aus. Nach dem Tempo der Musik als Wiener Walzer (schnelle Drehungen) oder langsamer Walzer, auch fest wählbar. Höhepunkt: schnelle Drehungen, er hebt sie hoch. Wortbeitrag: Verbeugung und Knicks, dann wird geplaudert.
+- **Acht Orte:** Ballsaal, Burghof, Alm, Stahlwerk, Bauernhof, Wiese am See, Alpenlandschaft und Strand – fest oder abwechselnd bei jedem Liedwechsel.
+- **Tageszeit und Wetter:** Das Licht folgt ab Werk dem echten Sonnenstand am Ort der Wetterseite – Morgenrot, Tag, Abendrot, Nacht mit Mond und Sternen, erleuchteten Fenstern, Fackeln und Laternen. Das Wetter kommt ab Werk von der Wetterseite (Wolken, Regen, Schnee bleibt liegen, Nebel, Gewitter); beides lässt sich auch fest einstellen.
+- **Eigene Fotos:** Je Ort lässt sich in der Verwaltung ein eigenes Foto hochladen (z. B. ein echter Ballsaal). Es wird zugeschnitten, nachts und in der Dämmerung abgedunkelt, das Wetter liegt darüber. Die Fotos gehören zur Sicherung.
+- **Kleidung wählbar:** passend zum Ort, Frack und Ballkleid, Tracht und Dirndl, sommerlich, mittelalterlich, Landleben oder Arbeitskleidung mit Helm; die Farbe ihres Kleides ist frei wählbar.
+- **Gags (abschaltbar):** auf den Fuß getreten, schwindelig gedreht, Tanzen unterm Regenschirm und je Ort einer – Kellner mit Champagner, Ritter, Kuh, Funkenregen, Huhn, Entenfamilie, Murmeltier, Möwe.
+- Der Walzer ist auch Teil der Automatik (ruhige und mittlere Musik) und als fertige Kombination „Walzerabend“ abrufbar.
+
 ## 2026.11.17-3
 - **Verständlichere Meldung bei Video-Feeds:** Steht bei den Podcast-Feeds ein YouTube-Link, sagt „Testen“ jetzt „Das ist ein YouTube-Link, kein Podcast-Feed – bitte unter ‚Eigene Videolisten‘ eintragen“; bei einer normalen Webseite „Das ist eine Webseite, kein Video-Feed“ – statt der technischen Meldung „not well-formed (invalid token)“. Dasselbe erscheint auf der Displayseite „Video“.
 

@@ -88,6 +88,11 @@ VIS_GAG_LABELS = {
     "schornstein": "Schornstein", "plaetzchen": "Plätzchen", "geschenketurm": "Geschenketurm",
     "wunschzettel": "Wunschzettel", "schlitten": "Schlitten einparken", "lebkuchen": "Lebkuchenmann",
     "katze": "Katze im Baum", "stromausfall": "Stromausfall", "glatteis": "Glatteis", "wichtelchor": "Wichtel-Chor",
+    # Walzer
+    "fuss": "Auf den Fuß getreten", "schwindel": "Schwindelig gedreht", "regenschirm": "Tanzen im Regen (bei Regen)",
+    "kellner": "Kellner (Ballsaal)", "ritter": "Ritter (Burghof)", "kuh": "Kuh tanzt mit (Alm)",
+    "funken": "Funkenregen (Stahlwerk)", "huhn": "Huhn (Bauernhof)", "ente": "Entenfamilie (See)",
+    "murmeltier": "Murmeltier (Alpen)", "moewe": "Möwe (Strand)",
 }
 
 
@@ -96,7 +101,7 @@ def vis_scenes(style):
     out = [["play", "Abspielen"], ["boom", "Höhepunkt"], ["talk", "Wortbeitrag"]]
     gags = {"cellar": CL_GAGS, "metal": MT_GAGS, "party": PT_GAGS, "xmas": FUN_GAGS, "easter": ES_GAGS,
             "newyear": NY_GAGS, "carnival": CV_GAGS, "oktoberfest": OK_GAGS, "martin": SM_GAGS, "valentine": VL_GAGS, "underwater": UW_GAGS, "farm": FM_GAGS, "space": SP_GAGS, "arcade": AR_GAGS, "western": WS_GAGS, "cats": KC_GAGS, "jazz": JZ_GAGS, "halloween": HW_GAGS, "horror": {**HR_GAGS["house"], **HR_GAGS["dolls"]},
-            "birthday": BD_GAGS, "mother": MO_GAGS, "father": FA_GAGS}.get(style, {})
+            "birthday": BD_GAGS, "mother": MO_GAGS, "father": FA_GAGS, "waltz": WZ_GAGS}.get(style, {})
     out += [["gag:" + n, VIS_GAG_LABELS.get(n, n.capitalize())] for n in gags]
     if style == "xmas":                                             # Feierabend-Gags (schaltet ihn für die Vorschau an)
         out += [["feier:" + n, "Feierabend: " + VIS_GAG_LABELS.get(n, n.capitalize())]
@@ -150,6 +155,16 @@ def vis_force(r, style, scene, t):
         if kind == "boom":
             st["boom"], st["gag"] = t, None
         elif kind == "gag":
+            st["gag"], st["next_gag"], st["boom"] = (name, t), t + 99, -99.0
+    elif style == "waltz":
+        if kind == "boom":
+            st["boom"], st["gag"] = t, None
+        elif kind == "gag":
+            place = next((p for p, g_ in WZ_PLACE_GAG.items() if g_ == name), None)
+            if place:
+                st["force_place"] = place
+            if name == "regenschirm":
+                st["force_sky"], st["force_place"] = "rain", "lake"
             st["gag"], st["next_gag"], st["boom"] = (name, t), t + 99, -99.0
     elif style == "dancer" and kind == "boom":
         st["spin_t"] = t

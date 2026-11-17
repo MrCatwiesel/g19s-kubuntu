@@ -18,6 +18,7 @@ class ApiKeys:
             "clock_faces": list(g.CLOCK_FACES.items()), "clock_options": g.CLOCK_OPTIONS,
             "visual_styles": list(g.VISUAL_STYLES.items()), "visual_options": g.VISUAL_OPTIONS,
             "visual_scenes": {st: g.vis_scenes(st) for st in g.VISUAL_STYLES},
+            "waltz_places": list(g.WALTZ_PLACES.items()),
             "world_cities": g.WORLD_CITIES,
             "mtimes": {"macros": mtime(g.MACRO_FILE), "settings": mtime(g.SETTINGS_FILE)},
             "paths": {"macros": g.MACRO_FILE, "settings": g.SETTINGS_FILE,
@@ -53,6 +54,17 @@ class ApiKeys:
         data = clean_settings(self._json().get("settings"))
         g.save_json(g.SETTINGS_FILE, data, compact_steps=True, private=True)
         self._send(200, {"ok": True, "settings": data, "mtime": mtime(g.SETTINGS_FILE)})
+
+    # -- API: eigene Fotos der Walzer-Orte ---------------------------------- #
+    def api_get_waltz_photos(self, q):
+        self._send(200, {"photos": {p: waltz_photo_url(p) for p in g.WALTZ_PLACES}})
+
+    def api_post_waltz_photo(self, q):
+        body = self._json()
+        place = str(body.get("place") or "")
+        if place not in g.WALTZ_PLACES:
+            raise ValueError("Unbekannter Ort")
+        self._send(200, {"photo": save_waltz_photo(place, body.get("image"))})
 
     # -- API: Vorschau ----------------------------------------------------- #
     def api_post_vis_scene(self, q):

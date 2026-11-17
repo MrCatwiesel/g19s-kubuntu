@@ -9,8 +9,9 @@ Wetter: Draußen-Szenen zeigen das echte Wetter der Wetterseite (Regen, Schnee, 
 import math
 import random
 
-AUTO_POOLS = {"calm": ["campfire", "lights", "ring", "martin", "space", "underwater", "silk", "ember", "pulse"],
-              "mid": ["dancer", "farm", "cats", "western", "eq", "oktoberfest", "jazz"],
+AUTO_POOLS = {"calm": ["campfire", "lights", "ring", "martin", "space", "underwater", "silk", "ember", "pulse",
+                       "waltz"],
+              "mid": ["dancer", "farm", "cats", "western", "eq", "oktoberfest", "jazz", "waltz"],
               "wild": ["metal", "arcade", "carnival", "fireworks", "halloween"]}
 AUTO_MOOD_LABEL = {"calm": "ruhig", "mid": "mittel", "wild": "wild"}
 AUTO_LISTEN = 6.0
@@ -108,8 +109,11 @@ class AutoVisual:
         return col
 
     # -- Wetter in den Szenen -------------------------------------------------------------- #
-    def _vis_weather_fx(self, img, t):
-        kind, temp, wind = self._party_weather()
+    def _vis_weather_fx(self, img, t, kind=None, wind=None, dim=True):
+        """Regen, Schnee, Gewitter oder Nebel über das Bild legen; ohne kind das Wetter der Wetterseite.
+        dim=False: Himmel nicht eintrüben (der Stil malt ihn selbst, z. B. Walzer)."""
+        if kind is None:
+            kind, _, wind = self._party_weather()
         if kind not in ("rain", "drizzle", "snow", "thunder", "fog"):
             return img
         st = self.__dict__.get("_wfx")
@@ -122,7 +126,7 @@ class AutoVisual:
         dt = max(0.0, min(0.2, t - st["t"]))
         st["t"] = t
         slant = max(-1.0, min(1.0, (wind or 0) / 40.0))
-        if kind != "fog":                                                           # trüber Himmel
+        if kind != "fog" and dim:                                                   # trüber Himmel
             gray = Image.new("RGB", (WIDTH, VIS_H), (90, 96, 110))
             top = img.crop((0, 0, WIDTH, VIS_H))
             img.paste(Image.blend(top, gray, {"drizzle": 0.15, "snow": 0.2}.get(kind, 0.3)), (0, 0))

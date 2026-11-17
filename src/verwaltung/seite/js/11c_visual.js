@@ -27,6 +27,44 @@ function renderVisualOptions() {
   $("#visOpts").replaceChildren(...optionFields(opts, v[style],
     key => { touchSettings(); visualPreview(); if (deps.has(key)) renderVisualOptions(); }));
 }
+// Walzer: eigenes Foto je Ort (wird sofort gespeichert – unabhängig von „Speichern“, wie eine Datei)
+function waltzPhotoFields(o) {
+  const box = el("div", {class: "field clkopt"}, el("span", {}, o.label, helpMark(o)));
+  const grid = el("div", {class: "wzphotos"});
+  box.append(grid, el("p", {class: "hint", text: "Das Foto wird auf Displaygröße zugeschnitten (320 × 214) und " +
+    "sofort gespeichert. Nachts und in der Dämmerung wird es automatisch abgedunkelt."}));
+  api("/api/waltz_photos").then(r => {
+    grid.replaceChildren(...S.waltzPlaces.map(([id, label]) => {
+      const img = el("img", {class: "wzthumb", alt: "", src: r.photos[id] || ""});
+      img.hidden = !r.photos[id];
+      const none = el("span", {class: "hint", text: "gemalt"}); none.hidden = !!r.photos[id];
+      const del = el("button", {class: "btn", type: "button", text: "✕", title: "Foto entfernen", hidden: !r.photos[id]});
+      const file = el("input", {type: "file", accept: "image/*", hidden: true});
+      const set = url => { img.src = url || ""; img.hidden = !url; none.hidden = !!url; del.hidden = !url; visualPreview(); };
+      file.addEventListener("change", async () => {
+        const f = file.files[0]; file.value = ""; if (!f) return;
+        try { set((await api("/api/waltz_photo", {body: {place: id, image: await shrinkImage(f)}})).photo);
+              toast(`Foto für „${label}“ gespeichert.`); }
+        catch (e) { toast(e.message, true); }
+      });
+      del.addEventListener("click", async () => {
+        try { set((await api("/api/waltz_photo", {body: {place: id, image: null}})).photo); } catch (e) { toast(e.message, true); }
+      });
+      return el("div", {class: "wzphoto"}, el("b", {text: label}), img, none,
+        el("div", {class: "row"}, el("button", {class: "btn", type: "button", text: "Foto wählen …", onclick: () => file.click()}), del, file));
+    }));
+  }).catch(e => grid.replaceChildren(el("p", {class: "hint", text: e.message})));
+  return box;
+}
+// Großes Foto vor dem Hochladen verkleinern (höchstens 1280 Pixel breit, JPEG)
+async function shrinkImage(file) {
+  const bmp = await createImageBitmap(file);
+  const k = Math.min(1, 1280 / bmp.width, 1280 / bmp.height);
+  const c = document.createElement("canvas");
+  c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+  c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+  return c.toDataURL("image/jpeg", 0.9);
+}
 let visTimer = null;
 function visualPreview() {
   clearTimeout(visTimer);
@@ -90,6 +128,7 @@ const VIS_PRESETS = [
   ["Weihnachtsfeier", {style: "xmas", xmas_auto: true, xmas: {dance: "pair", gags: true, party: "evening"}}],
   ["Gruselabend", {style: "cellar", cellar: {level: "3", keys: "red"}}],
   ["Ritterfest", {style: "metal", fps: "15", metal: {pyro: "dragon", crowd: true, gags: true, keys: "fire"}}],
+  ["Walzerabend", {style: "waltz", fps: "15", waltz: {place: "ballroom", daytime: "evening", clothes: "ball", gags: true}}],
 ];
 $("#visPresets").replaceChildren(...VIS_PRESETS.map(([name, p]) => el("button", {class: "btn", type: "button", text: name,
   title: "Stil und Optionen setzen – danach speichern", onclick: () => {

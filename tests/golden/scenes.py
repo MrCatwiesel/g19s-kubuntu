@@ -760,6 +760,39 @@ scenes["vis_wetter_nebel"] = lambda r: _fest(r, "martin", 3.0, _mt_gag(None), we
 scenes["vis_keller_gewitter"] = lambda r: _fest(r, "cellar", 4.07, weather=("thunder", 12.0, 10.0))
 
 
+def _wz_gag(name):
+    def setup(st, t):
+        st["gag"], st["next_gag"] = (name, t), t + 99
+        st["force_place"] = next((p for p, n in g.WZ_PLACE_GAG.items() if n == name), None) or \
+            ("lake" if name == "regenschirm" else None)
+        if name == "regenschirm":
+            st["force_sky"] = "rain"
+    return setup
+
+
+def _wz_turn(st, t):
+    st["turn"], st["next_gag"] = t, t + 99
+
+
+scenes["vis_walzer"] = lambda r: _fest(r, "waltz", 6.0, _mt_gag(None))           # Ballsaal, echte Tageszeit
+for _pl, _dt, _sky in (("castle", "evening", "partly"), ("alm", "day", "clear"), ("steel", "night", "clear"),
+                       ("farm", "morning", "cloudy"), ("lake", "night", "clear"), ("alps", "day", "snow"),
+                       ("beach", "evening", "clear"), ("ballroom", "night", "rain")):
+    scenes[f"vis_walzer_{_pl}_{_dt}"] = lambda r, pl=_pl, dt=_dt, sky=_sky: _fest(
+        r, "waltz", 3.0, _mt_gag(None), {"place": pl, "daytime": dt, "weather": sky})
+scenes["vis_walzer_nebel"] = lambda r: _fest(r, "waltz", 3.0, _mt_gag(None), {"place": "alps", "daytime": "morning",
+                                                                             "weather": "fog", "clothes": "summer"})
+scenes["vis_walzer_gewitter"] = lambda r: _fest(r, "waltz", 3.0, _mt_gag(None), {"place": "farm", "daytime": "evening",
+                                                                                "weather": "thunder", "dress": [40, 160, 200]})
+scenes["vis_walzer_hoehepunkt"] = lambda r: _fest(r, "waltz", 1.8, _mt_boom, {"daytime": "day"})
+scenes["vis_walzer_drehung"] = lambda r: _fest(r, "waltz", 0.6, _wz_turn, {"daytime": "day", "clothes": "medieval"})
+scenes["vis_walzer_wort"] = lambda r: _fest(r, "waltz", 4.0, _mt_gag(None), {"daytime": "day"}, talk=True)
+for _gag, _at in (("fuss", 1.0), ("schwindel", 2.0), ("regenschirm", 2.0), ("kellner", 3.4), ("ritter", 3.0),
+                  ("kuh", 4.0), ("funken", 2.0), ("huhn", 3.0), ("ente", 3.5), ("murmeltier", 2.0), ("moewe", 3.4)):
+    scenes[f"vis_walzer_{_gag}"] = lambda r, gag=_gag, at=_at: _fest(r, "waltz", at, _wz_gag(gag),
+                                                                     {"daytime": "day", "weather": "clear"})
+
+
 names = sys.argv[3:] or list(scenes)
 for name in names:
     img = scenes[name](fresh())

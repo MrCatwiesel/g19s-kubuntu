@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.17-3"
+VERSION = "2026.11.17-4"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -69,7 +69,7 @@ def load_driver():
 
 
 # Alle Namen des Treibers, die die Verwaltung benutzt (g.<name>) – build.py trägt sie beim Bauen ein
-DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD ENTRY_TYPES FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VISUAL_OPTIONS VISUAL_STYLES VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller YOUTUBE_FEED _clean auto_backup backup_members clean_macros clean_settings demo_snapshot domain_of err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed parse_video_feed parse_youtube_feed read_video_feed save_json save_state test_backup_target valid_colors vis_force vis_scenes youtube_id youtube_lookup youtube_playlist_id ytdlp_path".split()
+DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD ENTRY_TYPES FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VISUAL_OPTIONS VISUAL_STYLES VOLUME_ACTIONS WALTZ_PHOTO_DIR WALTZ_PHOTO_RE WALTZ_PHOTO_SIZE WALTZ_PLACES WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller YOUTUBE_FEED _clean auto_backup backup_members clean_macros clean_settings demo_snapshot domain_of err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed parse_video_feed parse_youtube_feed read_video_feed save_json save_state test_backup_target valid_colors vis_force vis_scenes youtube_id youtube_lookup youtube_playlist_id ytdlp_path".split()
 
 
 g = load_driver()
@@ -256,7 +256,7 @@ def restore_backup(raw, programs=False, inspect=False):
             name = m.name[2:] if m.name.startswith("./") else m.name
             if not m.isfile() or m.size > MAX_MEMBER:
                 continue
-            if name in BACKUP_FILES or DESKTOP_RE.fullmatch(name):
+            if name in BACKUP_FILES or DESKTOP_RE.fullmatch(name) or g.WALTZ_PHOTO_RE.fullmatch(name):
                 allowed.append((name, m))
         if not allowed:
             raise ValueError("Die Datei enthält keine G19s-Dateien")
@@ -603,6 +603,47 @@ class PreviewSlides:
                 "status": "", "error": None, "paused": False, "configured": True}
 
 
+WALTZ_PHOTO_MAX = 15 * 1024 * 1024          # hochgeladenes Foto (Bytes, vor dem Zuschneiden)
+
+
+def waltz_photo_url(place):
+    """Eigenes Foto eines Walzer-Ortes als data:-Adresse (für die Verwaltung) oder None."""
+    path = os.path.join(g.WALTZ_PHOTO_DIR, place + ".jpg")
+    try:
+        with open(path, "rb") as f:
+            return "data:image/jpeg;base64," + base64.b64encode(f.read()).decode()
+    except OSError:
+        return None
+
+
+def save_waltz_photo(place, data_url):
+    """Foto (data:-Adresse) auf Displaygröße zuschneiden und als <ort>.jpg speichern; ohne Bild löschen."""
+    path = os.path.join(g.WALTZ_PHOTO_DIR, place + ".jpg")
+    if not data_url:
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            pass
+        return None
+    from PIL import Image
+    head, _, b64 = str(data_url).partition(",")
+    if not head.startswith("data:image/") or not b64:
+        raise ValueError("Bitte eine Bilddatei wählen")
+    if len(b64) > WALTZ_PHOTO_MAX * 4 // 3 + 4:
+        raise ValueError("Das Bild ist zu groß (höchstens 15 MB)")
+    try:
+        raw = Image.open(io.BytesIO(base64.b64decode(b64)))
+        raw.load()
+    except Exception as ex:             # beliebige Datei: jeden Lesefehler melden
+        raise ValueError(f"Bild nicht lesbar: {ex}")
+    img = g.fit_photo(raw, g.WALTZ_PHOTO_SIZE, "cover")
+    os.makedirs(g.WALTZ_PHOTO_DIR, mode=0o700, exist_ok=True)
+    tmp = path + ".tmp"
+    img.save(tmp, "JPEG", quality=90)
+    os.replace(tmp, path)
+    return waltz_photo_url(place)
+
+
 def piwigo_test(cfg):
     import random
     cfg = g.SCHEMA["slideshow"].clean(cfg, strict=True)
@@ -814,6 +855,7 @@ class ApiKeys:
             "clock_faces": list(g.CLOCK_FACES.items()), "clock_options": g.CLOCK_OPTIONS,
             "visual_styles": list(g.VISUAL_STYLES.items()), "visual_options": g.VISUAL_OPTIONS,
             "visual_scenes": {st: g.vis_scenes(st) for st in g.VISUAL_STYLES},
+            "waltz_places": list(g.WALTZ_PLACES.items()),
             "world_cities": g.WORLD_CITIES,
             "mtimes": {"macros": mtime(g.MACRO_FILE), "settings": mtime(g.SETTINGS_FILE)},
             "paths": {"macros": g.MACRO_FILE, "settings": g.SETTINGS_FILE,
@@ -849,6 +891,17 @@ class ApiKeys:
         data = clean_settings(self._json().get("settings"))
         g.save_json(g.SETTINGS_FILE, data, compact_steps=True, private=True)
         self._send(200, {"ok": True, "settings": data, "mtime": mtime(g.SETTINGS_FILE)})
+
+    # -- API: eigene Fotos der Walzer-Orte ---------------------------------- #
+    def api_get_waltz_photos(self, q):
+        self._send(200, {"photos": {p: waltz_photo_url(p) for p in g.WALTZ_PLACES}})
+
+    def api_post_waltz_photo(self, q):
+        body = self._json()
+        place = str(body.get("place") or "")
+        if place not in g.WALTZ_PLACES:
+            raise ValueError("Unbekannter Ort")
+        self._send(200, {"photo": save_waltz_photo(place, body.get("image"))})
 
     # -- API: Vorschau ----------------------------------------------------- #
     def api_post_vis_scene(self, q):
@@ -1834,6 +1887,9 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
 .visscene { margin-top: 6px; gap: 6px; flex-wrap: wrap; }
 .visscene select { max-width: 200px; }
 .bdayrow { margin: 4px 0; gap: 6px; align-items: center; }
+.wzphotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; max-width: 680px; }
+.wzphoto { display: flex; flex-direction: column; gap: 4px; }
+.wzthumb { width: 150px; height: 100px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); }
 .clkcities { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; max-width: 360px; }
 .okbox { background: color-mix(in srgb, #3ecf7e 12%, transparent); border: 1px solid color-mix(in srgb, #3ecf7e 45%, transparent);
   border-radius: 9px; padding: 8px 12px; font-size: 13px; margin: 8px 0 12px; }
@@ -2572,6 +2628,7 @@ async function loadState() {
   S.entryTypes = d.entry_types;
   S.clockFaces = d.clock_faces; S.clockOptions = d.clock_options; S.worldCities = d.world_cities;
   S.visualStyles = d.visual_styles; S.visualOptions = d.visual_options; S.visualScenes = d.visual_scenes || {};
+  S.waltzPlaces = d.waltz_places || [];
   S.active = d.active; S.maxProfiles = d.max_profiles;
   if (UI.pidx === undefined) UI.pidx = d.active;
   UI.pidx = Math.min(UI.pidx, S.macros.profiles.length - 1);
@@ -3516,6 +3573,7 @@ function optionField(o, d, changed) {
           S.worldCities.map(([n, tz]) => el("option", {value: tz, text: n}))))));
     }
     if (o.type === "birthdays") return birthdayFields(o, d, changed);
+    if (o.type === "photos") return waltzPhotoFields(o);
     return null;
   }
 }
@@ -3584,6 +3642,44 @@ function renderVisualOptions() {
   $("#visOpts").replaceChildren(...optionFields(opts, v[style],
     key => { touchSettings(); visualPreview(); if (deps.has(key)) renderVisualOptions(); }));
 }
+// Walzer: eigenes Foto je Ort (wird sofort gespeichert – unabhängig von „Speichern“, wie eine Datei)
+function waltzPhotoFields(o) {
+  const box = el("div", {class: "field clkopt"}, el("span", {}, o.label, helpMark(o)));
+  const grid = el("div", {class: "wzphotos"});
+  box.append(grid, el("p", {class: "hint", text: "Das Foto wird auf Displaygröße zugeschnitten (320 × 214) und " +
+    "sofort gespeichert. Nachts und in der Dämmerung wird es automatisch abgedunkelt."}));
+  api("/api/waltz_photos").then(r => {
+    grid.replaceChildren(...S.waltzPlaces.map(([id, label]) => {
+      const img = el("img", {class: "wzthumb", alt: "", src: r.photos[id] || ""});
+      img.hidden = !r.photos[id];
+      const none = el("span", {class: "hint", text: "gemalt"}); none.hidden = !!r.photos[id];
+      const del = el("button", {class: "btn", type: "button", text: "✕", title: "Foto entfernen", hidden: !r.photos[id]});
+      const file = el("input", {type: "file", accept: "image/*", hidden: true});
+      const set = url => { img.src = url || ""; img.hidden = !url; none.hidden = !!url; del.hidden = !url; visualPreview(); };
+      file.addEventListener("change", async () => {
+        const f = file.files[0]; file.value = ""; if (!f) return;
+        try { set((await api("/api/waltz_photo", {body: {place: id, image: await shrinkImage(f)}})).photo);
+              toast(`Foto für „${label}“ gespeichert.`); }
+        catch (e) { toast(e.message, true); }
+      });
+      del.addEventListener("click", async () => {
+        try { set((await api("/api/waltz_photo", {body: {place: id, image: null}})).photo); } catch (e) { toast(e.message, true); }
+      });
+      return el("div", {class: "wzphoto"}, el("b", {text: label}), img, none,
+        el("div", {class: "row"}, el("button", {class: "btn", type: "button", text: "Foto wählen …", onclick: () => file.click()}), del, file));
+    }));
+  }).catch(e => grid.replaceChildren(el("p", {class: "hint", text: e.message})));
+  return box;
+}
+// Großes Foto vor dem Hochladen verkleinern (höchstens 1280 Pixel breit, JPEG)
+async function shrinkImage(file) {
+  const bmp = await createImageBitmap(file);
+  const k = Math.min(1, 1280 / bmp.width, 1280 / bmp.height);
+  const c = document.createElement("canvas");
+  c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+  c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+  return c.toDataURL("image/jpeg", 0.9);
+}
 let visTimer = null;
 function visualPreview() {
   clearTimeout(visTimer);
@@ -3647,6 +3743,7 @@ const VIS_PRESETS = [
   ["Weihnachtsfeier", {style: "xmas", xmas_auto: true, xmas: {dance: "pair", gags: true, party: "evening"}}],
   ["Gruselabend", {style: "cellar", cellar: {level: "3", keys: "red"}}],
   ["Ritterfest", {style: "metal", fps: "15", metal: {pyro: "dragon", crowd: true, gags: true, keys: "fire"}}],
+  ["Walzerabend", {style: "waltz", fps: "15", waltz: {place: "ballroom", daytime: "evening", clothes: "ball", gags: true}}],
 ];
 $("#visPresets").replaceChildren(...VIS_PRESETS.map(([name, p]) => el("button", {class: "btn", type: "button", text: name,
   title: "Stil und Optionen setzen – danach speichern", onclick: () => {
