@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.17-2"
+VERSION = "2026.11.17-3"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -69,7 +69,7 @@ def load_driver():
 
 
 # Alle Namen des Treibers, die die Verwaltung benutzt (g.<name>) – build.py trägt sie beim Bauen ein
-DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD ENTRY_TYPES FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VISUAL_OPTIONS VISUAL_STYLES VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller YOUTUBE_FEED _clean auto_backup backup_members clean_macros clean_settings demo_snapshot domain_of err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed parse_video_feed parse_youtube_feed save_json save_state test_backup_target valid_colors vis_force vis_scenes youtube_id youtube_lookup youtube_playlist_id ytdlp_path".split()
+DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD ENTRY_TYPES FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VISUAL_OPTIONS VISUAL_STYLES VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller YOUTUBE_FEED _clean auto_backup backup_members clean_macros clean_settings demo_snapshot domain_of err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed parse_video_feed parse_youtube_feed read_video_feed save_json save_state test_backup_target valid_colors vis_force vis_scenes youtube_id youtube_lookup youtube_playlist_id ytdlp_path".split()
 
 
 g = load_driver()
@@ -989,7 +989,12 @@ class ApiInfo:
         if not hasattr(g, "parse_video_feed"):
             raise RuntimeError("Der installierte Treiber kennt noch keine Videos – bitte g19s.py aktualisieren")
         try:
-            items = g.parse_video_feed(g.http_get(url, timeout=20), f.get("name") or "")
+            if hasattr(g, "read_video_feed"):
+                items = g.read_video_feed(url, f.get("name") or "")
+            else:                       # älterer Treiber ohne verständliche Meldungen
+                items = g.parse_video_feed(g.http_get(url, timeout=20), f.get("name") or "")
+        except ValueError as ex:        # YouTube-Link, Webseite statt Feed: Meldung so zeigen
+            raise RuntimeError(str(ex))
         except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
             raise RuntimeError(f"Feed nicht lesbar: {g.err_text(ex)}")
         if not items:

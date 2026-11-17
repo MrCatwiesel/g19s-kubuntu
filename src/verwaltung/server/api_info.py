@@ -91,7 +91,12 @@ class ApiInfo:
         if not hasattr(g, "parse_video_feed"):
             raise RuntimeError("Der installierte Treiber kennt noch keine Videos – bitte g19s.py aktualisieren")
         try:
-            items = g.parse_video_feed(g.http_get(url, timeout=20), f.get("name") or "")
+            if hasattr(g, "read_video_feed"):
+                items = g.read_video_feed(url, f.get("name") or "")
+            else:                       # älterer Treiber ohne verständliche Meldungen
+                items = g.parse_video_feed(g.http_get(url, timeout=20), f.get("name") or "")
+        except ValueError as ex:        # YouTube-Link, Webseite statt Feed: Meldung so zeigen
+            raise RuntimeError(str(ex))
         except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
             raise RuntimeError(f"Feed nicht lesbar: {g.err_text(ex)}")
         if not items:

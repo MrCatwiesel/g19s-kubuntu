@@ -220,6 +220,29 @@ class ThumbCache:
             self.imgs[vid] = img
 
 
+def feed_problem(url, raw=None):
+    """Verständlicher Grund, warum eine Adresse kein Video-Feed ist (sonst None): YouTube-Links gehören in eine eigene
+    Videoliste, eine Webseite (HTML) ist kein RSS-Feed."""
+    if youtube_id(url) or youtube_playlist_id(url):
+        return "Das ist ein YouTube-Link, kein Podcast-Feed – bitte unter „Eigene Videolisten“ eintragen"
+    head = (raw or b"")[:2000].lstrip().lower()
+    if head.startswith((b"<!doctype html", b"<html")) or b"<html" in head:
+        return "Das ist eine Webseite, kein Video-Feed – gesucht ist die Adresse des RSS-Feeds (z. B. „…/podcast.xml“)"
+    return None
+
+
+def read_video_feed(url, name=""):
+    """Feed abrufen und lesen; bei YouTube-Links und Webseiten mit verständlicher Meldung (ValueError)."""
+    problem = feed_problem(url)
+    if problem:
+        raise ValueError(problem)
+    raw = http_get(url, timeout=20)
+    try:
+        return parse_video_feed(raw, name)
+    except ET.ParseError:
+        raise ValueError(feed_problem(url, raw) or "Kein lesbarer RSS-/Atom-Feed")
+
+
 class VideoPoller(Poller):
     """Ruft die Video-Feeds stündlich ab – solange die Seite „Video“ eingeschaltet ist oder eine G-Taste
     ein Video angefordert hat (wanted)."""
@@ -246,7 +269,7 @@ class VideoPoller(Poller):
                 continue
             name = str(f.get("name") or domain_of(url))
             try:
-                items += parse_video_feed(http_get(url, timeout=20), name)[:20]
+                items += read_video_feed(url, name)[:20]
             except FEED_ERRORS as ex:
                 errors.append(f"{name}: {err_text(ex)}")
         if errors and not items:

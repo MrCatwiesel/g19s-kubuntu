@@ -82,4 +82,27 @@ vp.stop()
 ok(vp.item is None and vp.frame is None, "Stopp: zurück zur Liste")
 eq(g.entry_label({"video": "latest"}), "Video", "G-Taste: Beschriftung")
 eq(g.entry_type({"video": "latest"}), "video", "G-Taste: Art „video“")
+# Verständliche Meldungen statt „not well-formed (invalid token)“
+for u in ("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "https://youtu.be/dQw4w9WgXcQ",
+          "https://www.youtube.com/shorts/dQw4w9WgXcQ", "https://www.youtube.com/playlist?list=PL1234567890abcdef"):
+    ok("YouTube-Link" in (g.feed_problem(u) or ""), f"Feed-Prüfung: YouTube erkannt ({u[:40]})")
+    try:
+        g.read_video_feed(u)
+        ok(False, "YouTube-Link als Feed: Fehler erwartet")
+    except ValueError as ex:
+        ok("Eigene Videolisten" in str(ex), "YouTube-Link als Feed: Hinweis auf eigene Videolisten, ohne Abruf")
+ok("Webseite" in (g.feed_problem("https://example.org/", b"<!DOCTYPE html><html><head>") or ""), "Feed-Prüfung: Webseite erkannt")
+eq(g.feed_problem("https://example.org/feed.xml", RSS), None, "Feed-Prüfung: echter Feed ohne Einwand")
+real_get = g.http_get
+try:
+    g.http_get = lambda url, **k: b"<!DOCTYPE html>\n<html lang=\"de\"><head><meta charset=utf-8></head><body>x</body></html>"
+    try:
+        g.read_video_feed("https://example.org/seite")
+        ok(False, "Webseite als Feed: Fehler erwartet")
+    except ValueError as ex:
+        ok("Webseite, kein Video-Feed" in str(ex), f"Webseite als Feed: verständliche Meldung ({ex})")
+    g.http_get = lambda url, **k: RSS
+    eq(len(g.read_video_feed("https://example.org/feed.xml", "T")), 2, "read_video_feed: echter Feed wird gelesen")
+finally:
+    g.http_get = real_get
 done()

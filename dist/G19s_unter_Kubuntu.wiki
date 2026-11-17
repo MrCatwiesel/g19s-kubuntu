@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.11.17-2)
+| 28.09.2026 (Version 2026.11.17-3)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -186,7 +186,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.17-2"
+VERSION = "2026.11.17-3"
 
 # Weitere Importe der Module
 import select
@@ -4579,6 +4579,29 @@ class ThumbCache:
             self.imgs[vid] = img
 
 
+def feed_problem(url, raw=None):
+    """Verständlicher Grund, warum eine Adresse kein Video-Feed ist (sonst None): YouTube-Links gehören in eine eigene
+    Videoliste, eine Webseite (HTML) ist kein RSS-Feed."""
+    if youtube_id(url) or youtube_playlist_id(url):
+        return "Das ist ein YouTube-Link, kein Podcast-Feed – bitte unter „Eigene Videolisten“ eintragen"
+    head = (raw or b"")[:2000].lstrip().lower()
+    if head.startswith((b"<!doctype html", b"<html")) or b"<html" in head:
+        return "Das ist eine Webseite, kein Video-Feed – gesucht ist die Adresse des RSS-Feeds (z. B. „…/podcast.xml“)"
+    return None
+
+
+def read_video_feed(url, name=""):
+    """Feed abrufen und lesen; bei YouTube-Links und Webseiten mit verständlicher Meldung (ValueError)."""
+    problem = feed_problem(url)
+    if problem:
+        raise ValueError(problem)
+    raw = http_get(url, timeout=20)
+    try:
+        return parse_video_feed(raw, name)
+    except ET.ParseError:
+        raise ValueError(feed_problem(url, raw) or "Kein lesbarer RSS-/Atom-Feed")
+
+
 class VideoPoller(Poller):
     """Ruft die Video-Feeds stündlich ab – solange die Seite „Video“ eingeschaltet ist oder eine G-Taste
     ein Video angefordert hat (wanted)."""
@@ -4605,7 +4628,7 @@ class VideoPoller(Poller):
                 continue
             name = str(f.get("name") or domain_of(url))
             try:
-                items += parse_video_feed(http_get(url, timeout=20), name)[:20]
+                items += read_video_feed(url, name)[:20]
             except FEED_ERRORS as ex:
                 errors.append(f"{name}: {err_text(ex)}")
         if errors and not items:
@@ -26629,7 +26652,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.17-2"
+VERSION = "2026.11.17-3"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -26658,7 +26681,7 @@ def load_driver():
 
 
 # Alle Namen des Treibers, die die Verwaltung benutzt (g.<name>) – build.py trägt sie beim Bauen ein
-DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD ENTRY_TYPES FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VISUAL_OPTIONS VISUAL_STYLES VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller YOUTUBE_FEED _clean auto_backup backup_members clean_macros clean_settings demo_snapshot domain_of err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed parse_video_feed parse_youtube_feed save_json save_state test_backup_target valid_colors vis_force vis_scenes youtube_id youtube_lookup youtube_playlist_id ytdlp_path".split()
+DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD ENTRY_TYPES FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VISUAL_OPTIONS VISUAL_STYLES VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller YOUTUBE_FEED _clean auto_backup backup_members clean_macros clean_settings demo_snapshot domain_of err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed parse_video_feed parse_youtube_feed read_video_feed save_json save_state test_backup_target valid_colors vis_force vis_scenes youtube_id youtube_lookup youtube_playlist_id ytdlp_path".split()
 
 
 g = load_driver()
@@ -27578,7 +27601,12 @@ class ApiInfo:
         if not hasattr(g, "parse_video_feed"):
             raise RuntimeError("Der installierte Treiber kennt noch keine Videos – bitte g19s.py aktualisieren")
         try:
-            items = g.parse_video_feed(g.http_get(url, timeout=20), f.get("name") or "")
+            if hasattr(g, "read_video_feed"):
+                items = g.read_video_feed(url, f.get("name") or "")
+            else:                       # älterer Treiber ohne verständliche Meldungen
+                items = g.parse_video_feed(g.http_get(url, timeout=20), f.get("name") or "")
+        except ValueError as ex:        # YouTube-Link, Webseite statt Feed: Meldung so zeigen
+            raise RuntimeError(str(ex))
         except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
             raise RuntimeError(f"Feed nicht lesbar: {g.err_text(ex)}")
         if not items:
@@ -31677,6 +31705,10 @@ Danach mit Schritt 3 „udev-Regel“ weitermachen. Treiber und Dienst sind dann
 | Video: „yt-dlp: …“ (z. B. „Sign in to confirm …“, „Video unavailable“) || YouTube hat etwas geändert oder das Video ist gesperrt/privat || <code>pipx upgrade yt-dlp</code>; klappt es dann noch nicht, im Browser-Modus abspielen
 |-
 | Video: „Feed nicht lesbar“ / keine Folgen || Feed-Adresse geändert || In der Verwaltung unter '''Infoseiten → Video''' die Adresse mit „Testen“ prüfen und ggf. aktualisieren
+|-
+| Video-Feed „Testen“: „Das ist ein YouTube-Link“ || YouTube-Video oder -Playlist bei den Podcast-Feeds eingetragen || Eintrag entfernen und den Link unter '''Eigene Videolisten''' einfügen
+|-
+| Video-Feed „Testen“: „Das ist eine Webseite“ || Adresse einer normalen Seite statt des RSS-Feeds || Auf der Seite nach „RSS“ oder „Podcast“ suchen und die Feed-Adresse (oft <code>…/podcast.xml</code> oder <code>…/feed</code>) eintragen
 |-
 | Medientasten steuern das Radio nicht (bei Elisa usw. schon) || mpv-mpris fehlt || <code>sudo apt install mpv-mpris</code>, danach Radio neu starten; Kontrolle in der Verwaltung unter '''Dienst & Sicherung'''
 |-

@@ -3,6 +3,9 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.17-3
+- **Verständlichere Meldung bei Video-Feeds:** Steht bei den Podcast-Feeds ein YouTube-Link, sagt „Testen“ jetzt „Das ist ein YouTube-Link, kein Podcast-Feed – bitte unter ‚Eigene Videolisten‘ eintragen“; bei einer normalen Webseite „Das ist eine Webseite, kein Video-Feed“ – statt der technischen Meldung „not well-formed (invalid token)“. Dasselbe erscheint auf der Displayseite „Video“.
+
 ## 2026.11.17-2
 - **Eigene Videolisten:** In der Verwaltung unter „Infoseiten → Video“ lassen sich jetzt eigene Listen anlegen – YouTube-Link (auch youtu.be und Shorts) oder direkte Video-Adresse einfügen, Titel, Kanal und Vorschaubild kommen von selbst. Titel änderbar, Reihenfolge mit ▲ ▼, beliebig lang. „Aus Playlist übernehmen“ holt die neuesten 15 Videos einer öffentlichen YouTube-Playlist einmalig in die Liste.
 - **Am Display:** Die Seite „Video“ zeigt die Listen mit Vorschaubildern; MENU wechselt zwischen den Podcasts und den eigenen Listen.

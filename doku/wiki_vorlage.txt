@@ -882,6 +882,10 @@ Danach mit Schritt 3 „udev-Regel“ weitermachen. Treiber und Dienst sind dann
 |-
 | Video: „Feed nicht lesbar“ / keine Folgen || Feed-Adresse geändert || In der Verwaltung unter '''Infoseiten → Video''' die Adresse mit „Testen“ prüfen und ggf. aktualisieren
 |-
+| Video-Feed „Testen“: „Das ist ein YouTube-Link“ || YouTube-Video oder -Playlist bei den Podcast-Feeds eingetragen || Eintrag entfernen und den Link unter '''Eigene Videolisten''' einfügen
+|-
+| Video-Feed „Testen“: „Das ist eine Webseite“ || Adresse einer normalen Seite statt des RSS-Feeds || Auf der Seite nach „RSS“ oder „Podcast“ suchen und die Feed-Adresse (oft <code>…/podcast.xml</code> oder <code>…/feed</code>) eintragen
+|-
 | Medientasten steuern das Radio nicht (bei Elisa usw. schon) || mpv-mpris fehlt || <code>sudo apt install mpv-mpris</code>, danach Radio neu starten; Kontrolle in der Verwaltung unter '''Dienst & Sicherung'''
 |-
 | Verwaltung: „g19s.py ist zu alt“ || Treiber und Oberfläche passen nicht zusammen || beide Dateien von dieser Seite neu einspielen

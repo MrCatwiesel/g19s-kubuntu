@@ -35,6 +35,8 @@ with sync_playwright() as p:
     pg.click("#videoAdd"); vk = pg.locator("#videoFeeds .feedrow").last
     vk.locator("input[type=url]").fill("http://127.0.0.1:8812/rss.xml"); vk.locator("text=Testen").click(); pg.wait_for_timeout(800)
     ok("Keine Videos" in vk.inner_text(), "Feed ohne Videos erkannt: " + vk.inner_text().replace("\n", " ")[-60:])
+    vk.locator("input[type=url]").fill("https://www.youtube.com/watch?v=dQw4w9WgXcQ"); vk.locator("text=Testen").click(); pg.wait_for_timeout(800)
+    ok("YouTube-Link" in vk.inner_text() and "Eigene Videolisten" in vk.inner_text(), "YouTube-Link als Feed: Hinweis auf eigene Listen: " + vk.inner_text().replace("\n", " ")[-80:])
     vk.locator("button[title=entfernen]").click()
     # Eigene Videolisten: YouTube-Link nachschlagen, Playlist übernehmen, sortieren, Wiedergabe wählen
     ok(pg.input_value("#videoMode") == "browser", "Videolisten: ab Werk im Browser öffnen")
