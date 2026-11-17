@@ -5,6 +5,7 @@ async function loadState() {
   S.entryTypes = d.entry_types;
   S.clockFaces = d.clock_faces; S.clockOptions = d.clock_options; S.worldCities = d.world_cities;
   S.visualStyles = d.visual_styles; S.visualOptions = d.visual_options; S.visualScenes = d.visual_scenes || {};
+  S.waltzPlaces = d.waltz_places || [];
   S.active = d.active; S.maxProfiles = d.max_profiles;
   if (UI.pidx === undefined) UI.pidx = d.active;
   UI.pidx = Math.min(UI.pidx, S.macros.profiles.length - 1);

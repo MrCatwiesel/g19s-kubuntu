@@ -15,6 +15,47 @@ class PreviewSlides:
                 "status": "", "error": None, "paused": False, "configured": True}
 
 
+WALTZ_PHOTO_MAX = 15 * 1024 * 1024          # hochgeladenes Foto (Bytes, vor dem Zuschneiden)
+
+
+def waltz_photo_url(place):
+    """Eigenes Foto eines Walzer-Ortes als data:-Adresse (für die Verwaltung) oder None."""
+    path = os.path.join(g.WALTZ_PHOTO_DIR, place + ".jpg")
+    try:
+        with open(path, "rb") as f:
+            return "data:image/jpeg;base64," + base64.b64encode(f.read()).decode()
+    except OSError:
+        return None
+
+
+def save_waltz_photo(place, data_url):
+    """Foto (data:-Adresse) auf Displaygröße zuschneiden und als <ort>.jpg speichern; ohne Bild löschen."""
+    path = os.path.join(g.WALTZ_PHOTO_DIR, place + ".jpg")
+    if not data_url:
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            pass
+        return None
+    from PIL import Image
+    head, _, b64 = str(data_url).partition(",")
+    if not head.startswith("data:image/") or not b64:
+        raise ValueError("Bitte eine Bilddatei wählen")
+    if len(b64) > WALTZ_PHOTO_MAX * 4 // 3 + 4:
+        raise ValueError("Das Bild ist zu groß (höchstens 15 MB)")
+    try:
+        raw = Image.open(io.BytesIO(base64.b64decode(b64)))
+        raw.load()
+    except Exception as ex:             # beliebige Datei: jeden Lesefehler melden
+        raise ValueError(f"Bild nicht lesbar: {ex}")
+    img = g.fit_photo(raw, g.WALTZ_PHOTO_SIZE, "cover")
+    os.makedirs(g.WALTZ_PHOTO_DIR, mode=0o700, exist_ok=True)
+    tmp = path + ".tmp"
+    img.save(tmp, "JPEG", quality=90)
+    os.replace(tmp, path)
+    return waltz_photo_url(place)
+
+
 def piwigo_test(cfg):
     import random
     cfg = g.SCHEMA["slideshow"].clean(cfg, strict=True)

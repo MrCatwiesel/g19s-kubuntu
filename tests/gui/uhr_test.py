@@ -115,6 +115,30 @@ with sync_playwright() as p:
     # Fertige Kombination
     pg.click("#visPresets >> text=Gruselabend"); pg.wait_for_timeout(300)
     ok(pg.input_value("#visStyle") == "cellar", "Kombination „Gruselabend“ wählt die Kellertreppe")
+    # Walzer: eigenes Foto je Ort hochladen, Vorschau, entfernen
+    pg.click("#visPresets >> text=Walzerabend"); pg.wait_for_timeout(600)
+    ok(pg.input_value("#visStyle") == "waltz", "Kombination „Walzerabend“ wählt den Walzer")
+    ok(pg.locator("#visOpts .wzphoto").count() == 8, f"Walzer: 8 Orte mit Foto ({pg.locator('#visOpts .wzphoto').count()})")
+    from PIL import Image as _Im
+    _Im.new("RGB", (1600, 1000), (220, 30, 30)).save(ROOT + "/walzer_foto.jpg")
+    photo = H + "/.config/g19s/walzer/ballroom.jpg"
+    first = pg.locator("#visOpts .wzphoto").nth(0)
+    first.locator("input[type=file]").set_input_files(ROOT + "/walzer_foto.jpg")
+    for _ in range(30):
+        if _os.path.exists(photo):
+            break
+        pg.wait_for_timeout(150)
+    pg.wait_for_timeout(300)
+    ok(_os.path.exists(photo) and _Im.open(photo).size == (320, 214), "Walzer: Foto zugeschnitten gespeichert")
+    ok(first.locator("img.wzthumb").is_visible(), "Walzer: Vorschaubild des Fotos sichtbar")
+    pg.evaluate("document.querySelector('#visLcd').removeAttribute('src')"); pg.wait_for_timeout(100)
+    pg.locator("#visOpts select").nth(0).select_option("ballroom")
+    ok(wait_img(pg, "#visLcd"), "Walzer: Vorschau mit Foto")
+    pg.locator("#visLcd").screenshot(path=ROOT + "/shots/vis_walzer_foto.png")
+    first.locator("button[title='Foto entfernen']").click(); pg.wait_for_timeout(600)
+    ok(not _os.path.exists(photo) and not first.locator("img.wzthumb").is_visible(), "Walzer: Foto entfernt")
+    pg.locator("#visOpts label", has_text="Eigenes Foto").locator("input").uncheck(); pg.wait_for_timeout(300)
+    ok(pg.locator("#visOpts .wzphoto").count() == 0, "Walzer: ohne „Eigenes Foto“ keine Fotoliste")
     # Unterreiter, Suche, Einklappen, Änderungspunkt
     pg.click("#setSub >> text=Uhr"); pg.wait_for_timeout(300)
     ok(pg.is_visible("#clkFace") and not pg.is_visible("#visStyle"), "Unterreiter „Uhr“ zeigt nur die Uhr")

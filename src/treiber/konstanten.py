@@ -182,6 +182,7 @@ VISUAL_STYLES = {
     "ember": "Abendglut",
     "pulse": "Herzschlag-Aura",
     "jazz": "Lounge / Jazz-Club",
+    "waltz": "Walzer",
     "auto": "Automatisch nach Musik",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
@@ -450,6 +451,37 @@ VISUAL_OPTIONS = {
                      ["layer", "Farbe der Ebene"]]},
     ],
 }
+# Walzer: Orte (gemalte Hintergründe; je Ort optional ein eigenes Foto in WALTZ_PHOTO_DIR/<ort>.jpg)
+WALTZ_PLACES = {"ballroom": "Ballsaal", "castle": "Burghof", "alm": "Alm", "steel": "Stahlwerk", "farm": "Bauernhof",
+                "lake": "Wiese am See", "alps": "Alpenlandschaft", "beach": "Strand"}
+WALTZ_PHOTO_DIR = os.path.join(CONFIG_DIR, "walzer")
+WALTZ_PHOTO_SIZE = (320, 240 - 26)               # Fläche über der Fußzeile (WIDTH, HEIGHT − FOOTER_H)
+VISUAL_OPTIONS["waltz"] = [
+    {"key": "place", "label": "Ort", "type": "choice", "default": "ballroom",
+     "choices": [["switch", "Abwechselnd (bei jedem Liedwechsel)"]] + [[k, v] for k, v in WALTZ_PLACES.items()]},
+    {"key": "photo", "label": "Eigenes Foto als Hintergrund (wenn für den Ort hochgeladen)", "type": "bool",
+     "default": True},
+    {"key": "photos", "label": "Eigene Fotos je Ort", "type": "photos", "default": None},
+    {"key": "daytime", "label": "Tageszeit", "type": "choice", "default": "real",
+     "choices": [["real", "Echt (Sonnenstand am Ort der Wetterseite)"], ["morning", "Morgen"], ["day", "Tag"],
+                 ["evening", "Abend (Sonnenuntergang)"], ["night", "Nacht"]]},
+    {"key": "weather", "label": "Wetter", "type": "choice", "default": "real",
+     "choices": [["real", "Echt (Wetterseite)"], ["clear", "Sonnig"], ["partly", "Leicht bewölkt"],
+                 ["cloudy", "Bedeckt"], ["rain", "Regen"], ["snow", "Schnee"], ["fog", "Nebel"],
+                 ["thunder", "Gewitter"]]},
+    {"key": "clothes", "label": "Kleidung", "type": "choice", "default": "place",
+     "choices": [["place", "Passend zum Ort"], ["ball", "Frack und Ballkleid"], ["tracht", "Tracht und Dirndl"],
+                 ["summer", "Sommerlich"], ["medieval", "Mittelalterlich"], ["country", "Landleben"],
+                 ["work", "Arbeitskleidung mit Helm"]]},
+    {"key": "dress", "label": "Farbe ihres Kleides", "type": "color", "default": None,
+     "none_label": "Passend zur Kleidung"},
+    {"key": "tempo", "label": "Tanz", "type": "choice", "default": "auto",
+     "choices": [["auto", "Nach dem Tempo der Musik"], ["vienna", "Wiener Walzer (schnelle Drehungen)"],
+                 ["slow", "Langsamer Walzer (große Bögen)"]]},
+    {"key": "gags", "label": "Gags (Fuß getreten, Schwindel, Kuh, Möwe, Kellner …)", "type": "bool", "default": True},
+    {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "light",
+     "choices": [["light", "Licht des Ortes, pulsiert im Takt"], ["layer", "Farbe der Ebene"]]},
+]
 _AUTO_CHOICES = [["mix", "Abwechselnd (passende Auswahl)"]] + [[k, v] for k, v in VISUAL_STYLES.items() if k != "auto"]
 VISUAL_OPTIONS["auto"] = [
     {"key": "calm", "label": "Bei ruhiger Musik", "type": "choice", "default": "mix", "choices": _AUTO_CHOICES,
@@ -475,6 +507,7 @@ _OPTION_WHEN = {
     ("easter", "spooky"): {"key": "gags", "in": [True]},
     ("halloween", "spooky"): {"key": "gags", "in": [True]},
     ("horror", "spooky"): {"key": "gags", "in": [True]},
+    ("waltz", "photos"): {"key": "photo", "in": [True]},
 }
 for _k in ("follow", "heads", "laser", "haze", "chase", "silhouette", "uv", "mood", "ball", "blinder", "beams"):
     _OPTION_WHEN[("dancer", "fx_" + _k)] = {"key": "show", "in": ["custom"]}
@@ -486,7 +519,9 @@ _OPTION_GROUP = {"keys": "Tastatur", "strobe": "Stroboskop", "strobe_rate": "Str
                  "fx": "Licht", "lights": "Licht", "pyro": "Licht", "dance": "Ablauf", "every": "Ablauf",
                  "gags": "Ablauf", "party": "Feierabend", "party_len": "Feierabend", "party_meter": "Feierabend",
                  "round": "Ablauf", "auto": "Festkalender", "birthdays": "Festkalender", "fri13": "Festkalender",
-                 "level": "Ablauf", "dog": "Ablauf", "spooky": "Ablauf", "confetti": "Aussehen", "crowd": "Aussehen"}
+                 "level": "Ablauf", "dog": "Ablauf", "spooky": "Ablauf", "confetti": "Aussehen", "crowd": "Aussehen",
+                 "place": "Ort", "photo": "Ort", "photos": "Ort", "daytime": "Licht und Wetter",
+                 "weather": "Licht und Wetter", "clothes": "Aussehen", "tempo": "Ablauf"}
 _OPTION_HELP = {
     "strobe": "Harte Blitze, höchstens 3 je Sekunde. Vorsicht bei Lichtempfindlichkeit (Epilepsie).",
     "show": "Lichtprogramm der Bühne. „Eigene Auswahl“ blendet die einzelnen Effekte zum An- und Abschalten ein.",
@@ -497,6 +532,14 @@ _OPTION_HELP = {
     "every": "Wie lange ein Tanz läuft, bevor die Figuren wechseln.",
     "fri13": "An jedem Freitag, dem 13., zeigt die Visualisierung automatisch die Kellertreppe.",
     "auto": "Hat jemand aus der Liste heute Geburtstag, erscheint die Party automatisch.",
+    "daytime": "„Echt“ folgt dem Sonnenstand am Ort der Wetterseite: Morgenrot, Tag, Abendrot, Nacht mit Mond und "
+               "Sternen, erleuchteten Fenstern, Laternen und Fackeln.",
+    "weather": "„Echt“ zeigt das Wetter der Wetterseite. Im Ballsaal sieht man es durch die Fenster.",
+    "photo": "Je Ort lässt sich unten ein eigenes Foto hochladen (z. B. ein echter Ballsaal). Es wird auf "
+             "Displaygröße zugeschnitten, nachts und in der Dämmerung abgedunkelt und eingefärbt; das Wetter "
+             "liegt darüber.",
+    "tempo": "Wiener Walzer: halbe Drehung je Takt. Langsamer Walzer: Vierteldrehung, weite Bögen. "
+             "„Nach dem Tempo“ wählt ab etwa 140 Schlägen je Minute den Wiener Walzer.",
 }
 for _st, _opts in VISUAL_OPTIONS.items():
     for _o in _opts:

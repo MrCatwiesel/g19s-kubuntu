@@ -80,6 +80,7 @@ function optionField(o, d, changed) {
           S.worldCities.map(([n, tz]) => el("option", {value: tz, text: n}))))));
     }
     if (o.type === "birthdays") return birthdayFields(o, d, changed);
+    if (o.type === "photos") return waltzPhotoFields(o);
     return null;
   }
 }

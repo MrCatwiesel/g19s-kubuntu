@@ -211,6 +211,9 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
 .visscene { margin-top: 6px; gap: 6px; flex-wrap: wrap; }
 .visscene select { max-width: 200px; }
 .bdayrow { margin: 4px 0; gap: 6px; align-items: center; }
+.wzphotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; max-width: 680px; }
+.wzphoto { display: flex; flex-direction: column; gap: 4px; }
+.wzthumb { width: 150px; height: 100px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); }
 .clkcities { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; max-width: 360px; }
 .okbox { background: color-mix(in srgb, #3ecf7e 12%, transparent); border: 1px solid color-mix(in srgb, #3ecf7e 45%, transparent);
   border-radius: 9px; padding: 8px 12px; font-size: 13px; margin: 8px 0 12px; }

@@ -270,6 +270,9 @@ class App(AppCore, KeyHandling, TimedTasks):
         if style == "jazz" and not quiet and visual_options(s, "jazz").get("keys", "mood") != "layer" \
                 and self.renderer.vis_col_jazz:                             # Club-Licht bzw. Bläser-Gold
             base, k = tuple(c // 8 * 8 for c in self.renderer.vis_col_jazz), 1.0
+        if style == "waltz" and not quiet and visual_options(s, "waltz").get("keys", "light") == "light" \
+                and self.renderer.vis_col_waltz:                            # Licht des Ortes (gestuft)
+            base, k = self.renderer.vis_col_waltz, 1.0
         if style in ("silk", "ember", "pulse") and not quiet \
                 and visual_options(s, style).get("keys", "glow") == "glow":       # Stimmung: Farbe des Bildes
             col = getattr(self.renderer, "vis_col_" + style, None)

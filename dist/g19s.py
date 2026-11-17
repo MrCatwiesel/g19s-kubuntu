@@ -40,7 +40,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.17-3"
+VERSION = "2026.11.17-4"
 
 # Weitere Importe der Module
 import select
@@ -246,6 +246,7 @@ VISUAL_STYLES = {
     "ember": "Abendglut",
     "pulse": "Herzschlag-Aura",
     "jazz": "Lounge / Jazz-Club",
+    "waltz": "Walzer",
     "auto": "Automatisch nach Musik",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
@@ -514,6 +515,37 @@ VISUAL_OPTIONS = {
                      ["layer", "Farbe der Ebene"]]},
     ],
 }
+# Walzer: Orte (gemalte Hintergründe; je Ort optional ein eigenes Foto in WALTZ_PHOTO_DIR/<ort>.jpg)
+WALTZ_PLACES = {"ballroom": "Ballsaal", "castle": "Burghof", "alm": "Alm", "steel": "Stahlwerk", "farm": "Bauernhof",
+                "lake": "Wiese am See", "alps": "Alpenlandschaft", "beach": "Strand"}
+WALTZ_PHOTO_DIR = os.path.join(CONFIG_DIR, "walzer")
+WALTZ_PHOTO_SIZE = (320, 240 - 26)               # Fläche über der Fußzeile (WIDTH, HEIGHT − FOOTER_H)
+VISUAL_OPTIONS["waltz"] = [
+    {"key": "place", "label": "Ort", "type": "choice", "default": "ballroom",
+     "choices": [["switch", "Abwechselnd (bei jedem Liedwechsel)"]] + [[k, v] for k, v in WALTZ_PLACES.items()]},
+    {"key": "photo", "label": "Eigenes Foto als Hintergrund (wenn für den Ort hochgeladen)", "type": "bool",
+     "default": True},
+    {"key": "photos", "label": "Eigene Fotos je Ort", "type": "photos", "default": None},
+    {"key": "daytime", "label": "Tageszeit", "type": "choice", "default": "real",
+     "choices": [["real", "Echt (Sonnenstand am Ort der Wetterseite)"], ["morning", "Morgen"], ["day", "Tag"],
+                 ["evening", "Abend (Sonnenuntergang)"], ["night", "Nacht"]]},
+    {"key": "weather", "label": "Wetter", "type": "choice", "default": "real",
+     "choices": [["real", "Echt (Wetterseite)"], ["clear", "Sonnig"], ["partly", "Leicht bewölkt"],
+                 ["cloudy", "Bedeckt"], ["rain", "Regen"], ["snow", "Schnee"], ["fog", "Nebel"],
+                 ["thunder", "Gewitter"]]},
+    {"key": "clothes", "label": "Kleidung", "type": "choice", "default": "place",
+     "choices": [["place", "Passend zum Ort"], ["ball", "Frack und Ballkleid"], ["tracht", "Tracht und Dirndl"],
+                 ["summer", "Sommerlich"], ["medieval", "Mittelalterlich"], ["country", "Landleben"],
+                 ["work", "Arbeitskleidung mit Helm"]]},
+    {"key": "dress", "label": "Farbe ihres Kleides", "type": "color", "default": None,
+     "none_label": "Passend zur Kleidung"},
+    {"key": "tempo", "label": "Tanz", "type": "choice", "default": "auto",
+     "choices": [["auto", "Nach dem Tempo der Musik"], ["vienna", "Wiener Walzer (schnelle Drehungen)"],
+                 ["slow", "Langsamer Walzer (große Bögen)"]]},
+    {"key": "gags", "label": "Gags (Fuß getreten, Schwindel, Kuh, Möwe, Kellner …)", "type": "bool", "default": True},
+    {"key": "keys", "label": "Tastaturbeleuchtung", "type": "choice", "default": "light",
+     "choices": [["light", "Licht des Ortes, pulsiert im Takt"], ["layer", "Farbe der Ebene"]]},
+]
 _AUTO_CHOICES = [["mix", "Abwechselnd (passende Auswahl)"]] + [[k, v] for k, v in VISUAL_STYLES.items() if k != "auto"]
 VISUAL_OPTIONS["auto"] = [
     {"key": "calm", "label": "Bei ruhiger Musik", "type": "choice", "default": "mix", "choices": _AUTO_CHOICES,
@@ -539,6 +571,7 @@ _OPTION_WHEN = {
     ("easter", "spooky"): {"key": "gags", "in": [True]},
     ("halloween", "spooky"): {"key": "gags", "in": [True]},
     ("horror", "spooky"): {"key": "gags", "in": [True]},
+    ("waltz", "photos"): {"key": "photo", "in": [True]},
 }
 for _k in ("follow", "heads", "laser", "haze", "chase", "silhouette", "uv", "mood", "ball", "blinder", "beams"):
     _OPTION_WHEN[("dancer", "fx_" + _k)] = {"key": "show", "in": ["custom"]}
@@ -550,7 +583,9 @@ _OPTION_GROUP = {"keys": "Tastatur", "strobe": "Stroboskop", "strobe_rate": "Str
                  "fx": "Licht", "lights": "Licht", "pyro": "Licht", "dance": "Ablauf", "every": "Ablauf",
                  "gags": "Ablauf", "party": "Feierabend", "party_len": "Feierabend", "party_meter": "Feierabend",
                  "round": "Ablauf", "auto": "Festkalender", "birthdays": "Festkalender", "fri13": "Festkalender",
-                 "level": "Ablauf", "dog": "Ablauf", "spooky": "Ablauf", "confetti": "Aussehen", "crowd": "Aussehen"}
+                 "level": "Ablauf", "dog": "Ablauf", "spooky": "Ablauf", "confetti": "Aussehen", "crowd": "Aussehen",
+                 "place": "Ort", "photo": "Ort", "photos": "Ort", "daytime": "Licht und Wetter",
+                 "weather": "Licht und Wetter", "clothes": "Aussehen", "tempo": "Ablauf"}
 _OPTION_HELP = {
     "strobe": "Harte Blitze, höchstens 3 je Sekunde. Vorsicht bei Lichtempfindlichkeit (Epilepsie).",
     "show": "Lichtprogramm der Bühne. „Eigene Auswahl“ blendet die einzelnen Effekte zum An- und Abschalten ein.",
@@ -561,6 +596,14 @@ _OPTION_HELP = {
     "every": "Wie lange ein Tanz läuft, bevor die Figuren wechseln.",
     "fri13": "An jedem Freitag, dem 13., zeigt die Visualisierung automatisch die Kellertreppe.",
     "auto": "Hat jemand aus der Liste heute Geburtstag, erscheint die Party automatisch.",
+    "daytime": "„Echt“ folgt dem Sonnenstand am Ort der Wetterseite: Morgenrot, Tag, Abendrot, Nacht mit Mond und "
+               "Sternen, erleuchteten Fenstern, Laternen und Fackeln.",
+    "weather": "„Echt“ zeigt das Wetter der Wetterseite. Im Ballsaal sieht man es durch die Fenster.",
+    "photo": "Je Ort lässt sich unten ein eigenes Foto hochladen (z. B. ein echter Ballsaal). Es wird auf "
+             "Displaygröße zugeschnitten, nachts und in der Dämmerung abgedunkelt und eingefärbt; das Wetter "
+             "liegt darüber.",
+    "tempo": "Wiener Walzer: halbe Drehung je Takt. Langsamer Walzer: Vierteldrehung, weite Bögen. "
+             "„Nach dem Tempo“ wählt ab etwa 140 Schlägen je Minute den Wiener Walzer.",
 }
 for _st, _opts in VISUAL_OPTIONS.items():
     for _o in _opts:
@@ -5657,11 +5700,14 @@ BACKUP_FILES = [
     ".local/bin/g19s-gui.py",
 ]
 DESKTOP_RE = re.compile(r"\.local/share/applications/[A-Za-z0-9._-]+\.desktop")
+WALTZ_PHOTO_RE = re.compile(r"\.config/g19s/walzer/(" + "|".join(WALTZ_PLACES) + r")\.jpg")   # Walzer: eigene Fotos
 
 
 def backup_members(home=None):
     home = home or os.path.expanduser("~")
     members = [p for p in BACKUP_FILES if os.path.isfile(os.path.join(home, p))]
+    members += [f".config/g19s/walzer/{p}.jpg" for p in WALTZ_PLACES
+                if os.path.isfile(os.path.join(home, f".config/g19s/walzer/{p}.jpg"))]
     appdir = os.path.join(home, ".local/share/applications")
     if os.path.isdir(appdir):
         for name in sorted(os.listdir(appdir)):
@@ -23536,6 +23582,1445 @@ class JazzVisual:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# Modul seite_visual_walzer_orte
+#   Visualisierung „Walzer“, Teil 1: die Orte (Mixin WaltzPlaces).
+#
+#   Jeder Ort wird einmal in Ebenen gemalt (_wz_paint_<ort>): Landschaft (RGBA, durchsichtig wo Himmel ist),
+#   Leuchtebene (Fenster, Laternen, Fackeln, Kronleuchter – wirkt in Dämmerung und Nacht), Schneemaske (wo bei Schnee
+#   Schnee liegt) und Wassermaske (spiegelt den Himmel). _wz_backdrop setzt daraus das Bild für Sonnenhöhe und Wetter
+#   zusammen: Himmel nach Sonnenstand (Farben wie die Uhr „Himmel“), Sonne bzw. Mond und Sterne, Wolken, Umgebungslicht
+#   (Tag weiß, Dämmerung golden, Nacht blau und dunkel), Leuchtebene, Schnee. Das Ergebnis wird je Ort, Lichtstufe und
+#   Wetter zwischengespeichert; je Bild kommen nur Paar, Flammen und Wetterteilchen dazu.
+#   Eigene Fotos (WALTZ_PHOTO_DIR/<ort>.jpg, hochgeladen in der Verwaltung) ersetzen Landschaft und Himmel; sie werden
+#   nach Tageszeit abgedunkelt und eingefärbt.
+# ═══════════════════════════════════════════════════════════════════════════
+
+WZ_FLOOR = VIS_H - 24                   # Fußlinie des Paares (Mitte der Tanzrunde)
+WZ_TIMES = {"morning": (4.0, -1), "day": (42.0, -1), "evening": (-1.0, 1), "night": (-24.0, 1)}   # Sonnenhöhe, Seite
+WZ_NIGHT_AMB = (0.17, 0.21, 0.38)
+WZ_GLOW_COLS = {"ballroom": (255, 196, 110), "castle": (255, 130, 40), "alm": (255, 190, 100),
+                "steel": (255, 110, 30), "farm": (255, 200, 120), "lake": (255, 214, 140),
+                "alps": (255, 200, 130), "beach": (255, 150, 200)}
+WZ_CACHE_MAX = 6
+
+
+def _wz_noise(h, w, seed, cell=8):
+    """Wertrauschen −1…1, bilinear aus einem groben Gitter (Gras, Stein, Sand)."""
+    rng = np.random.RandomState(seed)
+    grid = rng.uniform(-1, 1, (h // cell + 2, w // cell + 2)).astype(np.float32)
+    ys, xs = np.arange(h) / cell, np.arange(w) / cell
+    y0, x0 = ys.astype(int), xs.astype(int)
+    fy, fx = (ys - y0)[:, None], (xs - x0)[None, :]
+    a, b = grid[y0][:, x0], grid[y0][:, x0 + 1]
+    c, d = grid[y0 + 1][:, x0], grid[y0 + 1][:, x0 + 1]
+    return (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy
+
+
+def _wz_lerp(a, b, k):
+    return tuple(x + (y - x) * k for x, y in zip(a, b))
+
+
+class _WzCanvas:
+    """Malfläche eines Ortes: Farbe, Deckkraft, Leuchten, Schnee- und Wassermaske (numpy, float)."""
+
+    def __init__(self, seed):
+        self.rgb = np.zeros((HEIGHT, WIDTH, 3), np.float32)
+        self.a = np.zeros((HEIGHT, WIDTH), np.float32)
+        self.glow = np.zeros((HEIGHT, WIDTH, 3), np.float32)
+        self.snow = np.zeros((HEIGHT, WIDTH), np.float32)
+        self.water = np.zeros((HEIGHT, WIDTH), np.float32)
+        self.fine = np.random.RandomState(seed).uniform(-1, 1, (HEIGHT, WIDTH)).astype(np.float32)
+        self.seed = seed
+        self.ys = np.arange(HEIGHT, dtype=np.float32)[:, None]
+        self.xs = np.arange(WIDTH, dtype=np.float32)[None, :]
+
+    @staticmethod
+    def mask(draw):
+        m = Image.new("L", (WIDTH, HEIGHT), 0)
+        draw(ImageDraw.Draw(m))
+        return np.asarray(m, np.float32) / 255
+
+    def fill(self, m, color, tex=None, k=0.0, fine=0.0, bottom=None, y0=0, y1=HEIGHT, snow=0.0, shade=None):
+        """Fläche m in color (bzw. senkrechter Verlauf color → bottom zwischen y0 und y1), mit Struktur tex·k und
+        Körnung fine; shade: zusätzlicher Helligkeitsfaktor (Array) – Licht von links oben. snow: Anteil Schnee bei
+        Schneewetter (None = Schneemaske darunter behalten, z. B. Blumen auf der Wiese)."""
+        col = np.array(color, np.float32)[None, None, :]
+        if bottom is not None:
+            f = np.clip((self.ys - y0) / max(1, y1 - y0), 0, 1)[..., None]
+            col = col * (1 - f) + np.array(bottom, np.float32)[None, None, :] * f
+        mul = 1.0
+        if tex is not None and k:
+            mul = mul + tex * k
+        if fine:
+            mul = mul + self.fine * fine
+        if shade is not None:
+            mul = mul * shade
+        col = col * (mul[..., None] if not np.isscalar(mul) else mul)
+        m3 = m[..., None]
+        self.rgb = self.rgb * (1 - m3) + col * m3
+        self.a = np.maximum(self.a, m)
+        if snow is not None:
+            self.snow = self.snow * (1 - m) + snow * m
+        self.water *= (1 - m)
+
+    def lamp(self, x, y, r, color, k=1.0):
+        """Weicher Lichtschein (nur in der Leuchtebene)."""
+        d2 = ((self.xs - x) ** 2 + (self.ys - y) ** 2) / (r * r)
+        self.glow += np.exp(-d2 * 2.2)[..., None] * np.array(color, np.float32)[None, None, :] * k
+
+    def glow_fill(self, m, color, k=1.0):
+        self.glow += m[..., None] * np.array(color, np.float32)[None, None, :] * k
+
+    def water_fill(self, m):
+        self.water = np.maximum(self.water, m)
+        self.a *= (1 - m)
+
+    def image(self):
+        rgba = np.dstack([np.clip(self.rgb, 0, 255), np.clip(self.a, 0, 1) * 255]).astype(np.uint8)
+        return Image.fromarray(rgba, "RGBA")
+
+
+class WaltzPlaces:
+    # -- Licht -------------------------------------------------------------- #
+    def _wz_sun(self, o, t_wall=None):
+        """(Sonnenhöhe in °, Seite −1 = Osten/links, +1 = Westen/rechts) nach Option Tageszeit."""
+        mode = o.get("daytime", "real")
+        if mode in WZ_TIMES:
+            return WZ_TIMES[mode]
+        ts = time.time() if t_wall is None else t_wall
+        lat, lon, _ = self._sky_place()
+        alt, east, _ = _sky_sun_dir(ts, lat, lon)
+        return alt, (-1 if east > 0 else 1)
+
+    @staticmethod
+    def _wz_light(alt, sky):
+        """Umgebungslicht (r, g, b Faktoren) und Stärke der Leuchtebene für Sonnenhöhe und Himmel."""
+        day = _smooth((alt + 9) / 18)
+        gold = max(0.0, 1 - abs(alt - 2.0) / 8.0) * (0.35 if sky in ("cloudy", "rain", "snow", "thunder", "fog") else 1)
+        amb = _wz_lerp(WZ_NIGHT_AMB, (1.0, 1.0, 1.0), day)
+        amb = _wz_lerp(amb, (amb[0] * 1.05, amb[1] * 0.8, amb[2] * 0.6), gold * 0.75)
+        dull = {"cloudy": 0.3, "rain": 0.42, "thunder": 0.55, "snow": 0.25, "fog": 0.3, "partly": 0.08}.get(sky, 0.0)
+        if dull:
+            m = sum(amb) / 3
+            amb = tuple((c * (1 - dull * 0.6) + m * dull * 0.6) * (1 - dull * 0.45) for c in amb)
+        glow = max(0.0, min(1.0, (4.0 - alt) / 10.0))
+        if dull:
+            glow = max(glow, dull * 0.5)
+        return amb, glow
+
+    @staticmethod
+    def _wz_sky(alt, sky, horizon, side, t_wall):
+        """Himmel (RGB-Array HEIGHT×WIDTH) mit Sonne bzw. Mond und Sternen, Wolken."""
+        base = _sky_grad(_sky_SKY_STOPS, alt)
+        top = tuple(c * 0.72 for c in base)
+        gold = max(0.0, 1 - abs(alt - 1.0) / 7.0)
+        hor = _wz_lerp(tuple(min(255, c * 1.25 + 18) for c in base), (255, 170, 110), gold * 0.8)
+        if sky in ("cloudy", "rain", "snow", "thunder", "fog"):
+            lum = (sum(base) / 3) * (0.9 if sky != "thunder" else 0.6)
+            g = {"fog": (205, 208, 214), "snow": (200, 204, 214)}.get(sky, (165, 170, 182))
+            k = max(0.08, min(1.0, lum / 150))
+            top = tuple(c * k * (0.8 if sky != "fog" else 0.95) for c in g)
+            hor = tuple(c * k for c in g)
+        ys = np.clip(np.arange(HEIGHT, dtype=np.float32) / max(1, horizon), 0, 1)[:, None, None] ** 1.3
+        arr = np.array(top, np.float32)[None, None, :] * (1 - ys) + np.array(hor, np.float32)[None, None, :] * ys
+        arr = np.broadcast_to(arr, (HEIGHT, WIDTH, 3)).copy()
+        img = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGB")
+        d = ImageDraw.Draw(img)
+        clear = sky in ("clear", "partly")
+        rng = random.Random(77)
+        if alt < -4 and clear:                                                      # Sterne
+            k = min(1.0, (-4 - alt) / 8)
+            for _ in range(70):
+                x, y = rng.randrange(WIDTH), rng.randrange(0, max(10, horizon - 8))
+                v = int(rng.randint(120, 240) * k)
+                bg = img.getpixel((x, y))
+                d.point((x, y), fill=tuple(max(c, v) for c in bg))
+        sx = WIDTH * (0.5 + side * 0.32)
+        if alt > -2 and sky != "fog":                                               # Sonne mit Schein
+            sy = horizon - 6 - max(0.0, min(1.0, alt / 40)) * (horizon - 30)
+            col = tuple(int(c) for c in _wz_lerp((255, 248, 220), (255, 150, 70), gold))
+            halo = Image.new("L", (WIDTH, HEIGHT), 0)
+            ImageDraw.Draw(halo).ellipse([sx - 34, sy - 34, sx + 34, sy + 34], fill=110 if clear else 50)
+            halo = halo.filter(ImageFilter.GaussianBlur(14))
+            img.paste(col, (0, 0), halo)
+            if clear:
+                d.ellipse([sx - 9, sy - 9, sx + 9, sy + 9], fill=col)
+        elif alt < -6 and clear:                                                    # Mond mit Phase
+            _, frac, lit = _sky_moon(t_wall)
+            mx, my = WIDTH - sx, 34
+            d.ellipse([mx - 10, my - 10, mx + 10, my + 10], fill=tuple(int(c * 1.6 + 10) for c in top))
+            d.polygon(_sky_moon_poly(mx, my, 10, frac), fill=(236, 234, 214))
+            glow = Image.new("L", (WIDTH, HEIGHT), 0)
+            ImageDraw.Draw(glow).ellipse([mx - 22, my - 22, mx + 22, my + 22], fill=int(40 * lit))
+            img.paste((220, 225, 240), (0, 0), glow.filter(ImageFilter.GaussianBlur(8)))
+        if sky in ("partly", "cloudy", "rain", "thunder", "snow"):                  # Wolken
+            n = {"partly": 5, "cloudy": 10}.get(sky, 12)
+            lum = max(0.15, min(1.0, (sum(base) / 3) / 140))
+            dark = {"partly": 1.0, "cloudy": 0.85, "snow": 0.85}.get(sky, 0.6)
+            cl = Image.new("L", (WIDTH, HEIGHT), 0)
+            cd = ImageDraw.Draw(cl)
+            rng = random.Random(31)
+            for _ in range(n):
+                cx, cy = rng.uniform(-20, WIDTH + 20), rng.uniform(8, max(20, horizon * 0.6))
+                w = rng.uniform(40, 90)
+                for j in range(4):
+                    ox = (j - 1.5) * w * 0.28
+                    r = w * (0.22 + 0.1 * (j % 2))
+                    cd.ellipse([cx + ox - r, cy - r * 0.7, cx + ox + r, cy + r * 0.5], fill=200)
+            cl = cl.filter(ImageFilter.GaussianBlur(5))
+            ccol = tuple(int(c * lum * dark) for c in (236, 238, 245))
+            if gold and sky == "partly":
+                ccol = tuple(int(c) for c in _wz_lerp(ccol, (255, 160, 120), gold * 0.6))
+            img.paste(ccol, (0, 0), cl)
+        return img
+
+    # -- Zusammensetzen ------------------------------------------------------ #
+    def _wz_place_layers(self, place):
+        cache = self.__dict__.setdefault("_wz_layers", {})
+        if place not in cache:
+            cache[place] = getattr(self, "_wz_paint_" + place)()
+        return cache[place]
+
+    def _wz_photo(self, place):
+        """Eigenes Foto des Ortes (Displaygröße) oder None; neu gelesen, wenn sich die Datei ändert."""
+        path = os.path.join(WALTZ_PHOTO_DIR, place + ".jpg")
+        try:
+            mt = os.stat(path).st_mtime
+        except OSError:
+            return None
+        cache = self.__dict__.setdefault("_wz_photos", {})
+        hit = cache.get(place)
+        if hit and hit[0] == mt:
+            return hit[1]
+        try:
+            raw = Image.open(path)
+            raw.load()
+            img = raw.convert("RGB")
+            if img.size != WALTZ_PHOTO_SIZE:
+                img = fit_photo(img, WALTZ_PHOTO_SIZE, "cover")
+        except Exception:                                               # kaputte Datei: gemalter Ort
+            img = None
+        cache[place] = (mt, img)
+        return img
+
+    def _wz_backdrop(self, place, alt, side, sky, photo, t_wall):
+        """Fertiger Hintergrund (RGB) für Ort, Sonnenhöhe (in Stufen), Himmel und Foto (zwischengespeichert)."""
+        key = (place, round(alt) if -20 < alt < 25 else (25 if alt >= 25 else -20), side, sky,
+               id(photo) if photo is not None else None)
+        cache = self.__dict__.setdefault("_wz_bg", {})
+        if key in cache:
+            return cache[key]
+        if len(cache) >= WZ_CACHE_MAX:
+            cache.pop(next(iter(cache)))
+        amb, glow = self._wz_light(alt, sky)
+        if photo is not None:
+            arr = np.zeros((HEIGHT, WIDTH, 3), np.float32)
+            arr[:VIS_H] = np.asarray(photo, np.float32)
+            arr[VIS_H:] = arr[VIS_H - 1:VIS_H]
+            k = np.array(amb, np.float32) ** 0.8
+            gray = arr.mean(axis=2, keepdims=True)
+            night = 1 - _smooth((alt + 5) / 15)
+            arr = (arr * (1 - night * 0.35) + gray * night * 0.35) * k[None, None, :]
+            img = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGB")
+            cache[key] = (img, amb, glow)
+            return cache[key]
+        L = self._wz_place_layers(place)
+        sky_img = self._wz_sky(alt, sky, L["horizon"], side, t_wall)
+        out = np.asarray(sky_img, np.float32).copy()
+        if L["water"] is not None:                                                  # Wasser spiegelt den Himmel
+            h = L["horizon"]
+            src = np.clip(2 * h - np.arange(HEIGHT), 0, HEIGHT - 1)
+            wcol = np.array((18, 58, 96), np.float32) * np.array(amb, np.float32)
+            refl = out[src] * 0.5 + wcol[None, None, :] * 0.5
+            ripple = 1 + 0.05 * _wz_noise(HEIGHT, WIDTH, 51, 3) * np.clip((np.arange(HEIGHT)[:, None] - h) / 30, 0.3, 1.5)
+            refl = refl * ripple[..., None]
+            if alt > -3 and sky in ("clear", "partly"):                             # Glitzern der Sonne
+                sx = WIDTH * (0.5 + side * 0.32)
+                band = np.exp(-((np.arange(WIDTH) - sx) / 10.0) ** 2)[None, :] * (np.arange(HEIGHT) > h)[:, None]
+                spark = (L["fine"] > 0.55) * band
+                refl += spark[..., None] * np.array((255, 200, 140), np.float32)[None, None, :] * 0.8
+            w = L["water"][..., None]
+            out = out * (1 - w) + refl * w
+        land = L["rgb"] * np.array(amb, np.float32)[None, None, :]
+        if sky == "snow":                                                           # Schnee liegt
+            sn = (L["snow"] * 0.85)[..., None]
+            land = land * (1 - sn) + np.array((238, 242, 250), np.float32)[None, None, :] * np.array(amb)[None, None, :] * sn
+        if L["indoor"]:                                                             # Saal: Kerzenlicht drinnen
+            inner = _wz_lerp((0.82, 0.68, 0.52), (1.0, 0.97, 0.92), _smooth((alt + 5) / 15))
+            land = L["rgb"] * np.array(inner, np.float32)[None, None, :]
+            glow = max(0.55, glow)
+        a = L["a"][..., None]
+        out = out * (1 - a) + land * a
+        if sky == "fog":
+            fog = np.clip((np.arange(HEIGHT) / VIS_H) * 0.25 + 0.3, 0, 0.6)[:, None, None] * (0 if L["indoor"] else 1)
+            out = out * (1 - fog) + np.array((200, 204, 212), np.float32) * np.array(amb)[None, None, :] * fog
+        out += L["glow"] * glow
+        img = Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), "RGB")
+        cache[key] = (img, amb, glow)
+        return cache[key]
+
+    @staticmethod
+    def _wz_done(c, horizon, indoor=False, flames=(), extra=None):
+        out = {"rgb": c.rgb, "a": c.a, "glow": c.glow, "snow": c.snow, "fine": c.fine,
+               "water": c.water if c.water.any() else None, "horizon": horizon, "indoor": indoor,
+               "flames": list(flames)}
+        out.update(extra or {})
+        return out
+
+    @staticmethod
+    def _wz_pines(c, xs_y, color, seed, snow=0.6):
+        """Tannen als Dreiecksstapel: xs_y = [(x, Fuß-y, Höhe), …]."""
+        def draw(d):
+            for x, y, h in xs_y:
+                for k in range(3):
+                    w = h * (0.34 - k * 0.08)
+                    yy = y - h * k * 0.28
+                    d.polygon([(x - w, yy), (x + w, yy), (x, yy - h * 0.55)], fill=255)
+        m = c.mask(draw)
+        c.fill(m, color, fine=0.12, snow=snow, shade=1 + 0.18 * np.sin(c.xs * 0.9))
+
+    # -- 1. Ballsaal --------------------------------------------------------- #
+    def _wz_paint_ballroom(self):
+        c = _WzCanvas(41)
+        fy = 128
+        tex = _wz_noise(HEIGHT, WIDTH, 3, 6)
+        c.fill(c.mask(lambda d: d.rectangle([0, 0, WIDTH, fy], fill=255)), (232, 212, 174), tex, 0.03, 0.02)
+        c.fill(c.mask(lambda d: d.rectangle([0, 0, WIDTH, 10], fill=255)), (196, 160, 80), bottom=(150, 118, 50),
+               y0=0, y1=10)                                                         # Gesims
+        c.fill(c.mask(lambda d: d.rectangle([0, fy - 20, WIDTH, fy], fill=255)), (176, 140, 98), tex, 0.04)
+        for px in range(0, WIDTH + 1, 80):                                          # Pilaster
+            c.fill(c.mask(lambda d, px=px: d.rectangle([px - 8, 10, px + 8, fy - 20], fill=255)), (246, 232, 200),
+                   shade=np.clip(1.05 - (c.xs - px + 8) / 60, 0.8, 1.1))
+            c.fill(c.mask(lambda d, px=px: d.rectangle([px - 10, 10, px + 10, 16], fill=255)), (210, 172, 90))
+        windows = []
+        for wx in (40, 120, 200, 280):                                              # hohe Bogenfenster
+            box = [wx - 17, 26, wx + 17, 104]
+            m = c.mask(lambda d, b=box: (d.rectangle([b[0], b[1] + 17, b[2], b[3]], fill=255),
+                                         d.ellipse([b[0], b[1], b[2], b[1] + 34], fill=255)))
+            c.fill(m, (170, 140, 80))
+            inner = c.mask(lambda d, b=box: (d.rectangle([b[0] + 3, b[1] + 17, b[2] - 3, b[3] - 3], fill=255),
+                                             d.ellipse([b[0] + 3, b[1] + 3, b[2] - 3, b[1] + 31], fill=255)))
+            c.rgb *= (1 - inner)[..., None]
+            c.a *= (1 - inner)
+            windows.append(inner)
+            for k in (0, 1):                                                        # Sprossen
+                c.fill(c.mask(lambda d, wx=wx, b=box: d.line([(wx, b[1] + 3), (wx, b[3])], fill=255, width=2)),
+                       (190, 160, 96))
+                c.fill(c.mask(lambda d, b=box: d.line([(b[0], 66), (b[2], 66)], fill=255, width=2)), (190, 160, 96))
+            for sd in (-1, 1):                                                      # Vorhänge
+                x0 = wx + sd * 17
+                m = c.mask(lambda d, x0=x0, sd=sd: d.polygon([(x0 - sd * 2, 18), (x0 + sd * 9, 18), (x0 + sd * 8, 108),
+                                                               (x0 - sd * 6, 108), (x0 - sd * 1, 60)], fill=255))
+                c.fill(m, (150, 22, 34), shade=0.85 + 0.25 * np.sin(c.xs * 1.3) ** 2)
+            c.fill(c.mask(lambda d, wx=wx: d.rectangle([wx - 27, 14, wx + 27, 20], fill=255)), (200, 160, 70))
+        # Parkett in Fluchtpunktperspektive mit Glanz
+        floor = c.mask(lambda d: d.rectangle([0, fy, WIDTH, HEIGHT], fill=255))
+        vx, vy = WIDTH / 2, fy - 90
+        ang = np.arctan2(c.xs - vx, c.ys - vy + 1e-3)
+        planks = (np.floor(ang * 26) % 2) * 0.08
+        depth = (c.ys - fy) / (HEIGHT - fy)
+        shade = (0.86 + planks + 0.16 * depth) * (1 + 0.05 * np.sin(np.clip(c.ys - fy, 0, None) ** 0.8 * 3))
+        c.fill(floor, (150, 92, 48), _wz_noise(HEIGHT, WIDTH, 9, 3), 0.05, shade=shade)
+        gloss = np.zeros((HEIGHT, WIDTH), np.float32)
+        for wx in (40, 120, 200, 280):                                              # Fensterlicht spiegelt sich
+            gloss += np.exp(-((c.xs - wx) / 9) ** 2) * np.clip(1 - (c.ys - fy) / 70, 0, 1) * (c.ys > fy)
+        c.rgb += (gloss * 40)[..., None]
+        c.fill(c.mask(lambda d: d.rectangle([0, fy - 2, WIDTH, fy + 1], fill=255)), (110, 80, 50))
+        # Kronleuchter
+        for cx in (100, 220):
+            c.fill(c.mask(lambda d, cx=cx: d.line([(cx, 0), (cx, 24)], fill=255, width=1)), (150, 120, 60))
+            c.fill(c.mask(lambda d, cx=cx: d.ellipse([cx - 22, 22, cx + 22, 34], fill=255)), (220, 182, 80),
+                   shade=np.clip(1.2 - (c.ys - 22) / 14, 0.7, 1.2))
+            c.fill(c.mask(lambda d, cx=cx: d.polygon([(cx - 8, 34), (cx + 8, 34), (cx, 46)], fill=255)),
+                   (230, 230, 240), fine=0.3)
+            for k in range(-3, 4):
+                bx = cx + k * 7
+                c.fill(c.mask(lambda d, bx=bx: d.rectangle([bx - 1, 16, bx + 1, 22], fill=255)), (250, 245, 230))
+                c.lamp(bx, 15, 5, (255, 220, 150), 0.9)
+            c.lamp(cx, 30, 46, (255, 196, 110), 0.55)
+        for px in range(80, WIDTH, 80):                                             # Wandleuchter
+            c.fill(c.mask(lambda d, px=px: d.rectangle([px - 3, 60, px + 3, 68], fill=255)), (200, 160, 70))
+            c.lamp(px, 56, 18, (255, 200, 120), 0.8)
+        c.lamp(WIDTH / 2, fy + 40, 120, (255, 190, 110), 0.12)                    # Licht auf dem Parkett
+        return self._wz_done(c, 104, indoor=True, extra={"windows": sum(windows).clip(0, 1)})
+
+    # -- 2. Burghof ---------------------------------------------------------- #
+    def _wz_paint_castle(self):
+        c = _WzCanvas(42)
+        gy = 138
+        stone = _wz_noise(HEIGHT, WIDTH, 5, 5)
+        mortar = ((c.ys.astype(int) % 9 == 0) | (((c.xs.astype(int) + (c.ys.astype(int) // 9) * 7) % 18) == 0))
+        wall_shade = 1 - mortar * 0.25
+
+        def wall(d):
+            d.rectangle([0, 64, WIDTH, gy], fill=255)
+            for x in range(0, WIDTH, 26):
+                d.rectangle([x, 54, x + 13, 64], fill=255)
+        c.fill(c.mask(wall), (140, 128, 110), stone, 0.10, 0.05, shade=wall_shade, snow=0.0)
+        c.fill(c.mask(lambda d: [d.rectangle([x, 53, x + 13, 55], fill=255) for x in range(0, WIDTH, 26)]),
+               (150, 140, 124), snow=1.0)
+        for tx, tw, top, roof in ((10, 56, 18, None), (262, 50, 26, (60, 66, 92))):   # Türme
+            c.fill(c.mask(lambda d, tx=tx, tw=tw, top=top: d.rectangle([tx, top, tx + tw, gy], fill=255)), (132, 120, 104),
+                   stone, 0.1, 0.05, shade=wall_shade * np.clip(1.1 - (c.xs - tx) / (tw * 3), 0.75, 1.1))
+            if roof:
+                c.fill(c.mask(lambda d, tx=tx, tw=tw, top=top: d.polygon([(tx - 4, top), (tx + tw + 4, top),
+                                                                           (tx + tw / 2, top - 34)], fill=255)),
+                       roof, fine=0.08, snow=0.8, shade=np.clip(1.15 - (c.xs - tx) / tw * 0.5, 0.6, 1.2))
+            else:
+                c.fill(c.mask(lambda d, tx=tx, tw=tw, top=top: [d.rectangle([x, top - 9, x + 9, top], fill=255)
+                                                                for x in range(tx, tx + tw - 4, 16)]), (132, 120, 104))
+            for wy in (top + 22, top + 50):                                         # Fensterschlitze
+                m = c.mask(lambda d, tx=tx, tw=tw, wy=wy: d.rectangle([tx + tw / 2 - 2, wy, tx + tw / 2 + 2, wy + 12], fill=255))
+                c.fill(m, (30, 26, 24))
+                c.glow_fill(m, (255, 180, 80), 0.9)
+                c.lamp(tx + tw / 2, wy + 6, 10, (255, 160, 60), 0.4)
+        c.fill(c.mask(lambda d: (d.rectangle([140, 96, 180, gy], fill=255), d.ellipse([140, 80, 180, 112], fill=255))),
+               (70, 46, 30), _wz_noise(HEIGHT, WIDTH, 2, 2), 0.1, shade=1 - (c.xs.astype(int) % 6 == 0) * 0.3)
+        for bx, col in ((110, (170, 30, 36)), (210, (30, 60, 150))):                # Banner
+            c.fill(c.mask(lambda d, bx=bx: d.polygon([(bx - 8, 66), (bx + 8, 66), (bx + 8, 100), (bx, 94), (bx - 8, 100)],
+                                                     fill=255)), col, shade=0.85 + 0.2 * np.sin(c.xs * 0.8) ** 2)
+            c.fill(c.mask(lambda d, bx=bx: d.ellipse([bx - 4, 74, bx + 4, 82], fill=255)), (230, 190, 60))
+        floor = c.mask(lambda d: d.rectangle([0, gy, WIDTH, HEIGHT], fill=255))   # Kopfsteinpflaster
+        cob = np.abs(np.sin(c.xs * (0.55 - 0.0012 * (c.ys - gy)) + (c.ys // 5) * 1.3) * np.sin(c.ys * 0.65))
+        c.fill(floor, (128, 118, 104), bottom=(110, 100, 88), y0=gy, y1=HEIGHT, fine=0.06,
+               shade=0.78 + 0.3 * cob, snow=1.0)
+        flames = []
+        for fx in (96, 224):                                                        # Fackeln
+            c.fill(c.mask(lambda d, fx=fx: d.polygon([(fx - 2, 104), (fx + 2, 104), (fx + 1, 120), (fx - 1, 120)],
+                                                     fill=255)), (70, 50, 34))
+            c.lamp(fx, 100, 30, (255, 140, 40), 0.9)
+            flames.append((fx, 102, 1.0))
+        return self._wz_done(c, gy - 70, flames=flames)
+
+    # -- 3. Alm -------------------------------------------------------------- #
+    def _wz_paint_alm(self):
+        c = _WzCanvas(43)
+        xs = np.arange(WIDTH)
+        ridge = 52 + 18 * np.sin(xs * 0.021 + 1) + 10 * np.sin(xs * 0.057) + 4 * np.sin(xs * 0.19)
+        mtn = (c.ys >= ridge[None, :]).astype(np.float32) * (c.ys < 120)
+        rock = _wz_noise(HEIGHT, WIDTH, 7, 5)
+        c.fill(mtn, (126, 134, 156), rock, 0.12, 0.04, shade=1 + 0.25 * np.sign(np.gradient(ridge))[None, :] * -0.5)
+        capm = mtn * (c.ys < ridge[None, :] + 14 + 6 * rock)
+        c.fill(capm, (236, 240, 248), rock, 0.05)
+        hill = 96 + 6 * np.sin(xs * 0.03) + 3 * np.sin(xs * 0.11)
+        c.fill((c.ys >= hill[None, :]).astype(np.float32), (88, 132, 66), _wz_noise(HEIGHT, WIDTH, 8, 6), 0.1, 0.05,
+               snow=1.0)
+        rng = random.Random(4)
+        self._wz_pines(c, [(x, hill[min(WIDTH - 1, max(0, int(x)))] + 4, rng.uniform(14, 22))
+                           for x in range(-4, WIDTH, 9) if not 200 < x < 300], (34, 74, 44), 4)
+        mg = 128
+        meadow = (c.ys >= mg).astype(np.float32)
+        c.fill(meadow, (118, 176, 72), _wz_noise(HEIGHT, WIDTH, 12, 4), 0.12, 0.08, bottom=(92, 156, 58), y0=mg,
+               y1=HEIGHT, snow=1.0)
+        # Hütte
+        hx0, hx1, hy0, hy1 = 214, 304, 84, 134
+        logs = 0.85 + 0.2 * ((c.ys.astype(int) - hy0) % 7 > 1)
+        c.fill(c.mask(lambda d: d.rectangle([hx0, hy0, hx1, hy1], fill=255)), (134, 84, 46), _wz_noise(HEIGHT, WIDTH, 13, 3),
+               0.12, shade=logs)
+        c.fill(c.mask(lambda d: d.polygon([(hx0 - 10, hy0 + 2), (hx1 + 10, hy0 + 2), ((hx0 + hx1) / 2, hy0 - 26)],
+                                          fill=255)), (76, 60, 54), fine=0.12, snow=1.0,
+               shade=np.clip(1.15 - (c.xs - hx0) / 200, 0.7, 1.2))
+        c.fill(c.mask(lambda d: d.rectangle([hx1 - 22, hy0 - 30, hx1 - 14, hy0 - 10], fill=255)), (110, 100, 96))
+        for wx in (228, 266):                                                       # Fenster mit Geranien
+            m = c.mask(lambda d, wx=wx: d.rectangle([wx, 98, wx + 16, 112], fill=255))
+            c.fill(m, (34, 30, 30))
+            c.glow_fill(m, (255, 200, 110), 1.0)
+            c.lamp(wx + 8, 106, 18, (255, 180, 90), 0.45)
+            c.fill(c.mask(lambda d, wx=wx: d.line([(wx + 8, 98), (wx + 8, 112)], fill=255)), (230, 220, 200))
+            c.fill(c.mask(lambda d, wx=wx: d.rectangle([wx - 2, 112, wx + 18, 116], fill=255)), (110, 70, 40))
+            c.fill(c.mask(lambda d, wx=wx: [d.ellipse([wx - 2 + k * 4, 108, wx + 2 + k * 4, 113], fill=255)
+                                            for k in range(5)]), (220, 40, 50), fine=0.2)
+        c.fill(c.mask(lambda d: d.rectangle([286, 104, 298, hy1], fill=255)), (96, 60, 34))
+        for x in range(8, 120, 22):                                                 # Zaun
+            c.fill(c.mask(lambda d, x=x: d.rectangle([x, 128, x + 3, 146], fill=255)), (120, 86, 52), snow=0.3)
+        c.fill(c.mask(lambda d: (d.line([(6, 134), (124, 134)], fill=255, width=2), d.line([(6, 141), (124, 141)], fill=255, width=2))),
+               (130, 96, 60))
+        rng = random.Random(9)
+        flowers = c.mask(lambda d: [d.point((rng.randrange(WIDTH), rng.randrange(mg + 4, HEIGHT)), fill=255) for _ in range(260)])
+        c.fill(flowers, (250, 250, 240), snow=None)
+        rng = random.Random(10)
+        c.fill(c.mask(lambda d: [d.point((rng.randrange(WIDTH), rng.randrange(mg + 4, HEIGHT)), fill=255) for _ in range(160)]),
+               (250, 210, 60), snow=None)
+        rng = random.Random(11)
+        c.fill(c.mask(lambda d: [d.point((rng.randrange(WIDTH), rng.randrange(mg + 10, HEIGHT)), fill=255) for _ in range(90)]),
+               (150, 90, 210), snow=None)
+        return self._wz_done(c, 100)
+
+    # -- 4. Stahlwerk -------------------------------------------------------- #
+    def _wz_paint_steel(self):
+        c = _WzCanvas(44)
+        gy = 140
+        rust = _wz_noise(HEIGHT, WIDTH, 15, 4)
+        for x0, w, top, col in ((226, 9, 10, (150, 60, 44)), (250, 8, 22, (130, 56, 40))):   # Schlote
+            c.fill(c.mask(lambda d, x0=x0, w=w, top=top: d.rectangle([x0, top, x0 + w, 90], fill=255)), col, rust, 0.15,
+                   shade=np.clip(1.15 - (c.xs - x0) / w * 0.5, 0.6, 1.2))
+            for by in range(top + 6, 90, 22):
+                c.fill(c.mask(lambda d, x0=x0, w=w, by=by: d.rectangle([x0, by, x0 + w, by + 4], fill=255)), (220, 210, 200))
+        # Hochofen mit Gerüst
+        c.fill(c.mask(lambda d: d.polygon([(40, gy), (110, gy), (100, 40), (50, 40)], fill=255)), (96, 72, 60), rust, 0.2,
+               shade=np.clip(1.25 - (c.xs - 40) / 70, 0.55, 1.25))
+        c.fill(c.mask(lambda d: d.rectangle([60, 14, 90, 40], fill=255)), (88, 66, 56), rust, 0.2)
+        c.fill(c.mask(lambda d: (d.line([(90, 26), (160, 60), (160, gy)], fill=255, width=4),
+                                 d.line([(110, 70), (150, 70)], fill=255, width=2))), (70, 66, 70))
+        lattice = c.mask(lambda d: [d.line([(x, 40), (x + 20, gy)], fill=255) for x in range(20, 130, 14)]
+                         + [d.line([(x + 20, 40), (x, gy)], fill=255) for x in range(20, 130, 14)])
+        c.fill(lattice * 0.7, (60, 58, 64))
+        # Halle mit glühendem Tor
+        c.fill(c.mask(lambda d: d.polygon([(176, gy), (176, 84), (248, 66), (320, 84), (320, gy)], fill=255)), (92, 98, 108),
+               shade=0.88 + 0.12 * (c.xs.astype(int) % 5 < 3), fine=0.04, snow=0.0)
+        c.fill(c.mask(lambda d: d.polygon([(174, 86), (248, 66), (322, 86), (322, 82), (248, 62), (174, 82)], fill=255)),
+               (70, 70, 76), snow=1.0)
+        door = c.mask(lambda d: d.rectangle([222, 100, 276, gy], fill=255))
+        c.fill(door, (120, 50, 20), bottom=(255, 150, 40), y0=100, y1=gy)
+        c.glow_fill(door, (255, 120, 30), 0.6)
+        c.lamp(249, 128, 60, (255, 110, 30), 0.8)
+        for k in range(6):                                                          # Lichtinstallation (nachts)
+            x = 30 + k * 52
+            c.lamp(x, 40 + (k % 2) * 30, 40, [(60, 90, 255), (220, 40, 200), (40, 200, 140)][k % 3], 0.32)
+        floor = c.mask(lambda d: d.rectangle([0, gy, WIDTH, HEIGHT], fill=255))
+        c.fill(floor, (128, 126, 122), _wz_noise(HEIGHT, WIDTH, 16, 7), 0.08, 0.06, bottom=(104, 102, 98), y0=gy,
+               y1=HEIGHT, snow=1.0)
+        for x0 in (80, 112):                                                        # Gleise
+            c.fill(c.mask(lambda d, x0=x0: d.line([(x0, gy), (x0 - 70, HEIGHT)], fill=255, width=2)), (70, 64, 60))
+        for k in range(10):
+            y = gy + 3 + k * k * 0.9
+            c.fill(c.mask(lambda d, y=y: d.line([(80 - (y - gy) * 0.95, y), (112 - (y - gy) * 0.95, y)], fill=255, width=2)),
+                   (96, 76, 60))
+        for lx in (150, 300):                                                       # Laternen
+            c.fill(c.mask(lambda d, lx=lx: d.line([(lx, 92), (lx, gy + 6)], fill=255, width=2)), (50, 50, 56))
+            c.fill(c.mask(lambda d, lx=lx: d.rectangle([lx - 4, 88, lx + 4, 94], fill=255)), (220, 220, 200))
+            c.lamp(lx, 92, 26, (255, 210, 150), 0.9)
+        return self._wz_done(c, gy - 40, flames=[(230, 8, 0.8)])
+
+    # -- 5. Bauernhof -------------------------------------------------------- #
+    def _wz_paint_farm(self):
+        c = _WzCanvas(45)
+        gy = 132
+        xs = np.arange(WIDTH)
+        hill = 98 + 5 * np.sin(xs * 0.02 + 2)
+        fields = (c.ys >= hill[None, :]).astype(np.float32) * (c.ys < gy)
+        stripes = ((c.ys - hill[None, :]) // 5 % 3)
+        c.fill(fields, (150, 170, 80), shade=0.82 + 0.18 * (stripes == 0) + 0.25 * (stripes == 2) * 0.8, fine=0.05,
+               snow=1.0)
+        gold = fields * (stripes == 2)
+        c.fill(gold * (c.xs > 150), (214, 186, 92), fine=0.08, snow=1.0)
+        rng = random.Random(6)
+        for _ in range(7):                                                          # Bäume am Horizont
+            tx = rng.uniform(150, 320)
+            ty = hill[int(min(WIDTH - 1, tx))]
+            c.fill(c.mask(lambda d, tx=tx, ty=ty: d.ellipse([tx - 9, ty - 18, tx + 9, ty + 2], fill=255)), (50, 96, 50),
+                   fine=0.15, snow=0.5, shade=np.clip(1.2 - (c.xs - tx + 9) / 18 * 0.5, 0.7, 1.2))
+        # Scheune
+        c.fill(c.mask(lambda d: d.rectangle([24, 70, 136, gy], fill=255)), (164, 42, 34), fine=0.05,
+               shade=0.82 + 0.2 * (c.xs.astype(int) % 6 > 0))
+        c.fill(c.mask(lambda d: d.polygon([(16, 72), (40, 46), (120, 46), (144, 72)], fill=255)), (70, 70, 76), fine=0.06,
+               snow=1.0)
+        c.fill(c.mask(lambda d: d.polygon([(40, 46), (60, 30), (100, 30), (120, 46)], fill=255)), (84, 84, 90), snow=1.0)
+        door = c.mask(lambda d: d.rectangle([58, 92, 102, gy], fill=255))
+        c.fill(door, (150, 36, 30))
+        c.fill(c.mask(lambda d: (d.rectangle([58, 92, 102, gy], outline=255, width=3), d.line([(58, 92), (102, gy)], fill=255, width=3),
+                                 d.line([(102, 92), (58, gy)], fill=255, width=3))), (240, 236, 226))
+        c.fill(c.mask(lambda d: d.rectangle([70, 52, 90, 66], fill=255)), (230, 190, 90), fine=0.3)
+        c.lamp(80, 86, 20, (255, 210, 130), 0.9)
+        c.fill(c.mask(lambda d: d.rectangle([76, 82, 84, 86], fill=255)), (250, 240, 200))
+        # Silo
+        c.fill(c.mask(lambda d: (d.rectangle([140, 36, 168, gy], fill=255), d.ellipse([140, 26, 168, 46], fill=255))),
+               (170, 172, 176), shade=np.clip(1.25 - (c.xs - 140) / 28 * 0.6, 0.6, 1.3)
+               * (1 - 0.08 * ((c.ys.astype(int) % 12) == 0)), snow=0.0)
+        # Wohnhaus mit Fachwerk
+        c.fill(c.mask(lambda d: d.rectangle([234, 80, 310, gy], fill=255)), (236, 230, 214), fine=0.03)
+        c.fill(c.mask(lambda d: (d.rectangle([234, 80, 310, gy], outline=255, width=3), d.line([(234, 106), (310, 106)], fill=255, width=3),
+                                 d.line([(234, 80), (262, 106)], fill=255, width=3), d.line([(310, 80), (282, 106)], fill=255, width=3),
+                                 d.line([(272, 80), (272, gy)], fill=255, width=3))), (96, 60, 36))
+        c.fill(c.mask(lambda d: d.polygon([(226, 82), (318, 82), (272, 48)], fill=255)), (170, 64, 44), fine=0.06, snow=1.0,
+               shade=0.9 + 0.12 * ((c.ys.astype(int) % 5) < 3))
+        for wx, wy in ((244, 86), (284, 86), (244, 112), (284, 112)):
+            m = c.mask(lambda d, wx=wx, wy=wy: d.rectangle([wx, wy, wx + 14, wy + 14], fill=255))
+            c.fill(m, (40, 46, 60))
+            c.glow_fill(m, (255, 210, 120), 1.0)
+            c.lamp(wx + 7, wy + 7, 14, (255, 190, 100), 0.35)
+        # Strohballen, Traktor
+        for bx in (196, 214):
+            c.fill(c.mask(lambda d, bx=bx: d.ellipse([bx - 9, gy - 14, bx + 9, gy + 2], fill=255)), (214, 180, 90),
+                   _wz_noise(HEIGHT, WIDTH, 21, 2), 0.15, snow=0.6)
+        floor = c.mask(lambda d: d.rectangle([0, gy, WIDTH, HEIGHT], fill=255))
+        c.fill(floor, (120, 146, 70), _wz_noise(HEIGHT, WIDTH, 22, 5), 0.14, 0.08, bottom=(104, 130, 58), y0=gy, y1=HEIGHT,
+               snow=1.0)
+        c.fill(c.mask(lambda d: d.polygon([(70, gy), (96, gy), (150, HEIGHT), (60, HEIGHT)], fill=255)), (150, 124, 88),
+               _wz_noise(HEIGHT, WIDTH, 23, 3), 0.12, snow=1.0)
+        return self._wz_done(c, gy - 34)
+
+    # -- 6. Wiese am See ----------------------------------------------------- #
+    def _wz_paint_lake(self):
+        c = _WzCanvas(46)
+        h = 108
+        xs = np.arange(WIDTH)
+        far = 92 + 8 * np.sin(xs * 0.018) + 4 * np.sin(xs * 0.07)
+        c.fill(((c.ys >= far[None, :]) & (c.ys < h)).astype(np.float32), (96, 126, 112), fine=0.04, snow=0.9)
+        rng = random.Random(8)
+        bank = c.mask(lambda d: [d.ellipse([x - 7, h - 12 - rng.uniform(0, 8), x + 7, h + 2], fill=255)
+                                 for x in range(-6, WIDTH + 6, 7)])
+        c.fill(bank, (44, 84, 54), _wz_noise(HEIGHT, WIDTH, 25, 3), 0.15, snow=0.6)
+        c.water_fill(((c.ys >= h) & (c.ys < 152)).astype(np.float32))
+        c.lamp(150, h - 4, 6, (255, 220, 150), 0.7)                                 # Licht am anderen Ufer
+        c.lamp(196, h - 3, 5, (255, 220, 150), 0.6)
+        shore = 152
+        meadow = (c.ys >= shore - 2 + 2 * np.sin(c.xs * 0.08)).astype(np.float32)
+        c.fill(meadow, (110, 168, 72), _wz_noise(HEIGHT, WIDTH, 26, 4), 0.12, 0.08, bottom=(84, 146, 56), y0=shore,
+               y1=HEIGHT, snow=1.0)
+        # Steg
+        c.fill(c.mask(lambda d: d.polygon([(232, 156), (258, 156), (300, 116), (288, 116)], fill=255)), (140, 104, 70),
+               shade=0.85 + 0.2 * ((c.ys.astype(int) % 4) > 0), snow=0.8)
+        for px, py in ((236, 160), (256, 160), (290, 120), (300, 120)):
+            c.fill(c.mask(lambda d, px=px, py=py: d.rectangle([px - 1, py - 4, px + 1, py + 6], fill=255)), (90, 66, 44))
+        c.fill(c.mask(lambda d: d.line([(296, 116), (296, 100)], fill=255, width=2)), (60, 50, 44))
+        c.fill(c.mask(lambda d: d.rectangle([292, 94, 300, 102], fill=255)), (230, 220, 180))
+        c.lamp(296, 98, 22, (255, 200, 120), 1.0)
+        # Weide links
+        c.fill(c.mask(lambda d: d.polygon([(26, 160), (40, 160), (38, 90), (30, 90)], fill=255)), (86, 66, 50), fine=0.1)
+        crown = c.mask(lambda d: [d.ellipse([20 + k * 9 - 22, 40 + (k % 3) * 8, 20 + k * 9 + 22, 110 + (k % 2) * 12], fill=255)
+                                  for k in range(5)])
+        c.fill(crown, (70, 120, 60), _wz_noise(HEIGHT, WIDTH, 27, 2), 0.25, snow=0.5,
+               shade=np.clip(1.2 - (c.xs - 10) / 90, 0.7, 1.2))
+        rng = random.Random(12)                                                     # Schilf
+        reeds = c.mask(lambda d: [d.line([(x, 160), (x + rng.uniform(-3, 3), 160 - rng.uniform(16, 30))], fill=255)
+                                  for x in range(80, 130, 3)])
+        c.fill(reeds, (96, 120, 60))
+        rng = random.Random(13)
+        c.fill(c.mask(lambda d: [d.ellipse([x - 1, 128 + rng.uniform(0, 8), x + 2, 136 + rng.uniform(0, 8)], fill=255)
+                                 for x in range(84, 128, 9)]), (110, 70, 40))
+        rng = random.Random(14)
+        c.fill(c.mask(lambda d: [d.point((rng.randrange(WIDTH), rng.randrange(shore + 4, HEIGHT)), fill=255)
+                                 for _ in range(220)]), (250, 240, 120), snow=None)
+        return self._wz_done(c, h, extra={"fireflies": True})
+
+    # -- 7. Alpenlandschaft -------------------------------------------------- #
+    def _wz_paint_alps(self):
+        c = _WzCanvas(47)
+        h = 128
+        xs = np.arange(WIDTH, dtype=np.float32)
+        rock = _wz_noise(HEIGHT, WIDTH, 31, 4)
+        drift = _wz_noise(HEIGHT, WIDTH, 34, 9) + 0.4 * _wz_noise(HEIGHT, WIDTH, 35, 4)
+        for peak_x, peak_y, w, col in ((90, 18, 150, (120, 128, 150)), (230, 30, 130, (110, 118, 140)),
+                                       (320, 60, 90, (126, 132, 152))):
+            ridge = peak_y + np.abs(xs - peak_x) / w * 90 + 6 * np.sin(xs * 0.13) * (np.abs(xs - peak_x) > 6)
+            m = ((c.ys >= ridge[None, :]) & (c.ys < h)).astype(np.float32)
+            sd = np.where(xs[None, :] > peak_x, 0.72, 1.12)                         # Licht von links
+            c.fill(m, col, rock, 0.14, 0.04, shade=sd + 0.06 * rock)
+            line = ridge[None, :] + 30 + 16 * drift
+            snow = m * np.clip((line - c.ys) / 3.0, 0, 1)                           # weicher Schneerand
+            c.fill(snow, (240, 244, 252), shade=np.where(xs[None, :] > peak_x, 0.78, 1.0) + 0.05 * drift)
+        slope = 112 + 10 * np.sin(xs * 0.025 + 1)
+        c.fill(((c.ys >= slope[None, :])).astype(np.float32), (40, 82, 52), _wz_noise(HEIGHT, WIDTH, 32, 3), 0.15, 0.06,
+               snow=0.9)
+        rng = random.Random(15)
+        self._wz_pines(c, [(x, slope[int(min(WIDTH - 1, max(0, x)))] + 8 + rng.uniform(0, 8), rng.uniform(12, 20))
+                           for x in range(-4, WIDTH, 6)], (30, 66, 42), 15, snow=0.7)
+        # Dorf mit Kirche
+        c.fill(c.mask(lambda d: d.rectangle([196, 112, 212, 136], fill=255)), (240, 236, 226))
+        c.fill(c.mask(lambda d: (d.ellipse([197, 98, 211, 112], fill=255), d.line([(204, 92), (204, 98)], fill=255))),
+               (70, 90, 70))
+        for hx in (170, 220, 236):
+            c.fill(c.mask(lambda d, hx=hx: d.rectangle([hx, 124, hx + 12, 136], fill=255)), (236, 226, 206))
+            c.fill(c.mask(lambda d, hx=hx: d.polygon([(hx - 2, 124), (hx + 14, 124), (hx + 6, 117)], fill=255)),
+                   (120, 70, 50), snow=1.0)
+            m = c.mask(lambda d, hx=hx: d.rectangle([hx + 4, 128, hx + 7, 131], fill=255))
+            c.glow_fill(m, (255, 210, 120), 1.0)
+            c.lamp(hx + 6, 130, 7, (255, 200, 110), 0.5)
+        mg = 146
+        meadow = (c.ys >= mg + 3 * np.sin(c.xs * 0.05)).astype(np.float32)
+        c.fill(meadow, (112, 164, 70), _wz_noise(HEIGHT, WIDTH, 33, 4), 0.12, 0.08, bottom=(90, 144, 56), y0=mg, y1=HEIGHT,
+               snow=1.0)
+        rng = random.Random(16)
+        for _ in range(6):                                                          # Felsbrocken
+            x, y = rng.uniform(0, WIDTH), rng.uniform(mg + 6, HEIGHT - 20)
+            if 70 < x < 250:
+                continue
+            c.fill(c.mask(lambda d, x=x, y=y: d.ellipse([x - 8, y - 5, x + 8, y + 4], fill=255)), (140, 140, 146), rock, 0.1,
+                   snow=0.8, shade=np.clip(1.2 - (c.ys - y + 5) / 9 * 0.5, 0.6, 1.2))
+        rng = random.Random(17)
+        c.fill(c.mask(lambda d: [d.point((rng.randrange(WIDTH), rng.randrange(mg + 4, HEIGHT)), fill=255) for _ in range(160)]),
+               (60, 90, 230), snow=None)                                                       # Enzian
+        rng = random.Random(18)
+        c.fill(c.mask(lambda d: [d.point((rng.randrange(WIDTH), rng.randrange(mg + 4, HEIGHT)), fill=255) for _ in range(140)]),
+               (250, 250, 250), snow=None)                                                     # Edelweiß
+        return self._wz_done(c, h)
+
+    # -- 8. Strand ----------------------------------------------------------- #
+    def _wz_paint_beach(self):
+        c = _WzCanvas(48)
+        h = 106
+        c.fill(c.mask(lambda d: d.polygon([(190, h), (214, h - 9), (236, h - 12), (262, h - 6), (280, h)], fill=255)),
+               (70, 96, 90), fine=0.05, snow=0.5)                                   # Insel
+        c.water_fill(((c.ys >= h) & (c.ys < 150)).astype(np.float32))
+        shore = 148
+        sand = (c.ys >= shore + 3 * np.sin(c.xs * 0.04)).astype(np.float32)
+        c.fill(sand, (220, 196, 146), _wz_noise(HEIGHT, WIDTH, 35, 3), 0.06, 0.06, bottom=(236, 214, 166), y0=shore,
+               y1=HEIGHT, snow=1.0)
+        wet = sand * (c.ys < shore + 8)
+        c.fill(wet, (184, 160, 120), fine=0.05)
+        # Strandbar
+        c.fill(c.mask(lambda d: d.rectangle([236, 112, 300, 152], fill=255)), (170, 130, 80),
+               shade=0.85 + 0.2 * (c.xs.astype(int) % 4 > 0))
+        c.fill(c.mask(lambda d: d.polygon([(226, 114), (310, 114), (290, 92), (246, 92)], fill=255)), (200, 170, 100),
+               _wz_noise(HEIGHT, WIDTH, 36, 2), 0.2, snow=1.0)
+        c.fill(c.mask(lambda d: d.rectangle([232, 130, 304, 134], fill=255)), (130, 90, 56))
+        for k in range(8):                                                          # Lichterkette
+            x = 232 + k * 10
+            y = 116 + 3 * math.sin(k * 0.9)
+            col = [(255, 80, 80), (255, 210, 60), (80, 200, 255), (120, 255, 120)][k % 4]
+            m = c.mask(lambda d, x=x, y=y: d.ellipse([x - 1, y - 1, x + 1, y + 1], fill=255))
+            c.fill(m, (90, 80, 70))
+            c.glow_fill(m, col, 1.0)
+            c.lamp(x, y, 6, col, 0.6)
+        c.lamp(268, 128, 34, (255, 170, 110), 0.5)
+        # Palmen
+        for px, lean in ((26, 1), (300, -1)):
+            pts = [(px + lean * (k ** 1.6) * 0.9, 190 - k * 12) for k in range(10)]
+            c.fill(c.mask(lambda d, pts=pts: d.line(pts, fill=255, width=7)), (130, 100, 70),
+                   shade=0.85 + 0.25 * ((c.ys.astype(int) % 6) < 3))
+            tx, ty = pts[-1]
+            fr = c.mask(lambda d, tx=tx, ty=ty: [d.polygon([(tx, ty), (tx + math.cos(a) * 42, ty + math.sin(a) * 18 + 14),
+                                                             (tx + math.cos(a + 0.18) * 30, ty + math.sin(a + 0.18) * 12 + 2)],
+                                                            fill=255) for a in np.linspace(0.0, 2 * math.pi, 9)[:-1]])
+            c.fill(fr, (46, 120, 52), fine=0.15, snow=0.5, shade=np.clip(1.2 - (c.ys - ty + 20) / 50, 0.7, 1.2))
+            for k in (-1, 1):
+                c.fill(c.mask(lambda d, tx=tx, ty=ty, k=k: d.ellipse([tx + k * 4 - 3, ty, tx + k * 4 + 3, ty + 6], fill=255)),
+                       (110, 76, 40))
+        return self._wz_done(c, h, extra={"shore": shore})
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Modul seite_visual_walzer
+#   Visualisierung „Walzer“, Teil 2: das Tanzpaar (waltz, Mixin WaltzVisual).
+#
+#   Ein Paar tanzt in geschlossener Tanzhaltung Walzer: Es dreht sich um die gemeinsame Achse (Wiener Walzer: halbe
+#   Drehung je Takt, langsamer Walzer: Vierteldrehung), zieht dabei eine große Runde über die Fläche, hebt und senkt sich
+#   im Dreivierteltakt (Heben und Senken, tief auf der Eins), alle zwölf Takte dreht sie sich unter seinem Arm. Das
+#   Kleid schwingt in den Drehungen aus und schleift hinter der Bewegung her. Höhepunkt der Musik: schnelle Drehungen,
+#   er hebt sie hoch, Glitzer. Wortbeitrag: Verbeugung und Knicks, dann plaudern beide. Die Figuren werden in einer
+#   eigenen Ebene gezeichnet und mit dem Licht des Ortes eingefärbt (nachts dunkel und bläulich, im Saal warm).
+#   Gags (abschaltbar): auf den Fuß getreten, schwindelig gedreht, Tanzen unterm Regenschirm (nur bei Regen draußen)
+#   und je Ort einer: Kellner, Ritter, Kuh, Funkenregen, Huhn, Entenfamilie, Murmeltier, Möwe.
+# ═══════════════════════════════════════════════════════════════════════════
+
+WZ_SKIN = (242, 204, 176)
+WZ_OUTFITS = {
+    "ball": {"m": {"coat": (26, 26, 34), "trousers": (22, 22, 28), "shirt": (246, 246, 250), "tie": (18, 18, 22),
+                   "tails": True, "hat": None, "hair": (52, 36, 26)},
+             "w": {"dress": (156, 22, 52), "skirt": "gown", "hair": (96, 56, 28), "updo": True, "hat": None,
+                   "sleeve": WZ_SKIN}},
+    "tracht": {"m": {"coat": (240, 238, 230), "vest": (40, 92, 54), "trousers": (112, 74, 40), "socks": (240, 238, 228),
+                     "short": True, "hat": "tracht", "hair": (90, 60, 34)},
+               "w": {"dress": (40, 70, 140), "skirt": "calf", "apron": (236, 226, 206), "blouse": (250, 250, 248),
+                     "hair": (214, 170, 90), "braids": True, "hat": None}},
+    "summer": {"m": {"coat": (186, 212, 236), "trousers": (214, 198, 160), "hair": (70, 46, 30), "hat": None},
+               "w": {"dress": (250, 170, 80), "skirt": "knee", "hair": (120, 70, 36), "loose": True, "hat": None}},
+    "medieval": {"m": {"coat": (150, 30, 42), "trousers": (90, 64, 44), "belt": (60, 40, 24), "hair": (110, 70, 36),
+                       "hat": None},
+                 "w": {"dress": (40, 110, 72), "skirt": "gown", "hair": (170, 70, 36), "loose": True, "circlet": True,
+                       "hat": None}},
+    "country": {"m": {"coat": (176, 44, 44), "check": True, "trousers": (60, 82, 132), "hair": (90, 60, 34),
+                      "hat": "straw"},
+                "w": {"dress": (90, 130, 204), "check": True, "skirt": "knee", "hair": (200, 150, 80), "braids": True,
+                      "hat": None}},
+    "work": {"m": {"coat": (40, 74, 140), "trousers": (40, 74, 140), "hair": (60, 40, 30), "hat": "helmet_y"},
+             "w": {"dress": (156, 22, 52), "skirt": "gown", "hair": (96, 56, 28), "updo": True, "hat": "helmet_y",
+                   "sleeve": WZ_SKIN}},
+}
+WZ_PLACE_OUTFIT = {"ballroom": "ball", "castle": "medieval", "alm": "tracht", "steel": "work", "farm": "country",
+                   "lake": "summer", "alps": "tracht", "beach": "summer"}
+WZ_GAGS = {"fuss": 5.0, "schwindel": 6.0, "regenschirm": 9.0, "kellner": 7.0, "ritter": 8.0, "kuh": 8.0,
+           "funken": 6.0, "huhn": 6.0, "ente": 8.0, "murmeltier": 6.0, "moewe": 7.0}
+WZ_PLACE_GAG = {"ballroom": "kellner", "castle": "ritter", "alm": "kuh", "steel": "funken", "farm": "huhn",
+                "lake": "ente", "alps": "murmeltier", "beach": "moewe"}
+WZ_GAG_FIRST, WZ_GAG_PAUSE = 10.0, (14.0, 24.0)
+WZ_BOOM = 4.0
+WZ_SCALE = 1.15                         # Größe des Paares (1,0 ≈ 80 Pixel)
+WZ_SWITCH = 300.0                       # „Abwechselnd“ ohne Titelwechsel: spätestens so oft ein neuer Ort
+WZ_TURN_EVERY = 12                      # Takte bis zur Drehung unter dem Arm
+WZ_TALK = [("m", "Darf ich gleich wieder bitten?"), ("w", "Aber gern – nach der Durchsage."),
+           ("w", "Sie führen wunderbar."), ("m", "Ich zähle heimlich mit: eins, zwei, drei …"),
+           ("m", "Was für ein Abend!"), ("w", "Meine Füße sagen dasselbe.")]
+WZ_SKY_OF_WEATHER = {"sun": "clear", "partly": "partly", "cloud": "cloudy", "fog": "fog", "drizzle": "rain",
+                     "rain": "rain", "snow": "snow", "thunder": "thunder"}
+WZ_FX_OF_SKY = {"rain": "rain", "thunder": "thunder", "snow": "snow"}          # Nebel malt _wz_backdrop
+
+
+def _wz_shade(col, k):
+    return tuple(max(0, min(255, int(c * k))) for c in col)
+
+
+class WaltzVisual:
+    vis_col_waltz = None
+
+    # -- Personen ------------------------------------------------------------- #
+    def _wz_person(self, img, d, who, x, foot, s, face, outfit, pose):
+        """Tänzer (who = "m") bzw. Tänzerin ("w"); face = Blickrichtung (x, Tiefe) als Einheitsvektor, Tiefe > 0 =
+        vom Betrachter weg. pose: bob, lift, step, lh/rh (Handziele, Bildpunkte), flare, swing, bow, wobble.
+        Gibt Kopf und Hände zurück."""
+        fx, fz = face
+        fr = -fz                                                    # 1 = Gesicht zum Betrachter, −1 = Rücken
+        rx = fz                                                     # Bildrichtung seiner rechten Seite (x-Anteil)
+        far_right = -fx > 0                                         # rechte Seite liegt hinten
+        man = who == "m"
+        o = outfit
+        lift = pose.get("lift", 0.0)
+        y0 = foot - lift
+        bow = pose.get("bow", 0.0)
+        wob = pose.get("wobble", 0.0)
+        hip = (x + wob * 0.4, y0 - (41 if man else 37) * s + pose.get("bob", 0.0))
+        lean = fx * bow * 7 * s + wob
+        sh_y = hip[1] - (28 if man else 25) * s + bow * 5 * s
+        sh_x = x + lean * 0.6
+        head = (x + lean, sh_y - 9 * s + bow * 3 * s)
+        aw = abs(fr)
+        self._blob(img, x, foot + 1, 30 * s, 6 * s, (8, 8, 12), alpha=0.5, flat=True)          # Schatten
+        skirt = None if man else o.get("skirt")
+        step = pose.get("step", 0.0)
+        legs = o.get("trousers", (40, 40, 48)) if man else WZ_SKIN
+        # Beine (bei langem Kleid verdeckt; Füße schauen heraus)
+        sides = (1, -1) if far_right else (-1, 1)
+        for side in sides:
+            hj = (hip[0] + side * rx * 4 * s, hip[1] + 2 * s)
+            fpos = (hj[0] + fx * side * step * 5 * s, y0)
+            knee, ft = _ik(hj, fpos, 18 * s, 19 * s, 1 if fx >= 0 else -1)
+            if skirt != "gown":
+                if man and o.get("short"):                                         # Lederhose und Kniestrümpfe
+                    self._limb(img, hj, knee, 7 * s, legs)
+                    self._limb(img, knee, ft, 5.5 * s, o.get("socks", WZ_SKIN))
+                else:
+                    self._limb(img, hj, knee, (7 if man else 5) * s, legs)
+                    self._limb(img, knee, ft, (6 if man else 4.5) * s, legs)
+            shoe = (20, 20, 24) if man else _wz_shade(o["dress"], 0.6)
+            self._blob(img, ft[0] + fx * 3 * s, ft[1], 9 * s, 4.5 * s, shoe, gloss=0.8)
+        if man and o.get("tails") and fr > -0.2:                                   # Frackschöße hinten
+            self._wz_tails(img, d, hip, s, fx, rx, pose, o)
+        if skirt:
+            self._wz_skirt(img, d, hip, y0, s, fx, fr, pose, o)
+        # Arme: hinterer zuerst, dann Körper, dann vorderer
+        sh = {side: (sh_x + side * rx * (9 if man else 7.5) * s, sh_y + 2 * s) for side in (-1, 1)}
+        targets = {-1: pose.get("lh"), 1: pose.get("rh")}
+        sleeve = o["coat"] if man else o.get("blouse", o.get("sleeve", o["dress"]))
+        hands = {}
+
+        def arm(side):
+            p = sh[side]
+            tgt = targets[side] or (p[0] + side * rx * 3 * s + fx * 2 * s, p[1] + 24 * s)
+            el, hd = _ik(p, tgt, 13 * s, 13 * s, 1 if side * rx >= 0 else -1)
+            self._limb(img, p, el, (5.5 if man else 4.5) * s, sleeve)
+            self._limb(img, el, hd, (5 if man else 4) * s, sleeve if man else WZ_SKIN)
+            self._blob(img, hd[0], hd[1], 5 * s, 5 * s, WZ_SKIN, gloss=0.2)
+            hands[side] = hd
+        far, near = (1, -1) if far_right else (-1, 1)
+        arm(far)
+        body_c = ((hip[0] + sh_x) / 2, (hip[1] + sh_y) / 2 + 1 * s)
+        self._blob(img, head[0], sh_y - 1 * s, 5 * s, 7 * s, WZ_SKIN, gloss=0.2)                # Hals
+        if man:
+            self._blob(img, body_c[0], body_c[1], (12 + 7 * aw) * s, 33 * s, o["coat"], gloss=0.35, ang=lean)
+            self._blob(img, sh_x, sh_y + 3 * s, (11 + 8 * aw) * s, 8 * s, o["coat"], gloss=0.3)   # Schultern
+            if o.get("check"):                                                      # kariertes Hemd
+                for k in range(-2, 3):
+                    d.line([(body_c[0] + k * 3 * s * aw, body_c[1] - 12 * s), (body_c[0] + k * 3 * s * aw, body_c[1] + 12 * s)],
+                           fill=_wz_shade(o["coat"], 0.7))
+            if o.get("vest") and fr > -0.2:
+                self._blob(img, body_c[0] + fx * 2 * s, body_c[1] - 1 * s, (8 + 6 * aw) * s, 24 * s, o["vest"], gloss=0.3)
+            if o.get("belt"):
+                d.line([(body_c[0] - (6 + 3 * aw) * s, hip[1] - 2 * s), (body_c[0] + (6 + 3 * aw) * s, hip[1] - 2 * s)],
+                       fill=o["belt"], width=max(1, int(2 * s)))
+            if o.get("tails") and fr > 0.15:                                       # Hemdbrust und Fliege
+                self._blob(img, body_c[0] + fx * 3 * s, sh_y + 8 * s, 6 * s * fr + 1, 14 * s, o["shirt"], gloss=0.2)
+                if not pose.get("no_tie"):
+                    d.polygon([(head[0] - 4 * s, sh_y + 1), (head[0] + 4 * s, sh_y + 3 * s), (head[0] + 4 * s, sh_y + 1),
+                               (head[0] - 4 * s, sh_y + 3 * s)], fill=o["tie"])
+        else:
+            self._blob(img, hip[0] + lean * 0.2, hip[1] - 9 * s, (7 + 3 * aw) * s, 12 * s, o["dress"], gloss=0.4)
+            self._blob(img, sh_x, sh_y + 3 * s, (9 + 6 * aw) * s, 6 * s, sleeve, gloss=0.3)        # Schultern
+            self._blob(img, sh_x, sh_y + 7 * s, (10 + 5 * aw) * s, 15 * s, o["dress"], gloss=0.45)   # Mieder
+            if o.get("blouse") and fr > 0.1:
+                self._blob(img, body_c[0], sh_y + 3 * s, (8 + 4 * aw) * s, 6 * s, o["blouse"], gloss=0.2)
+            elif fr > 0.3:
+                self._blob(img, head[0], sh_y + 2 * s, 7 * s * aw, 5 * s, WZ_SKIN, gloss=0.2)
+        if man and o.get("tails") and fr <= -0.2:                                  # von hinten: Schöße vorn
+            self._wz_tails(img, d, hip, s, fx, rx, pose, o)
+        arm(near)
+        self._wz_head(img, d, who, head, s, fx, fr, o, pose)
+        return head, (hands[-1], hands[1])
+
+    def _wz_tails(self, img, d, hip, s, fx, rx, pose, o):
+        sw = pose.get("swing", 0.0) * 0.6 - fx * (3 + 7 * pose.get("flare", 0.0)) * s
+        for side in (-1, 1):
+            x0 = hip[0] + side * rx * 4 * s
+            d.polygon([(x0 - 2.5 * s, hip[1] - 3 * s), (x0 + 2.5 * s, hip[1] - 3 * s),
+                       (x0 + sw + 1.5 * s, hip[1] + 22 * s), (x0 + sw - 2 * s, hip[1] + 20 * s)], fill=o["coat"])
+
+    def _wz_skirt(self, img, d, hip, y0, s, fx, fr, pose, o):
+        kind = o["skirt"]
+        hem_y = y0 - {"gown": 1, "calf": 11, "knee": 19}[kind] * s
+        waist_y = hip[1] - 5 * s
+        flare = pose.get("flare", 0.0)
+        hw = {"gown": 19, "calf": 15, "knee": 13}[kind] * s * (1 + 0.6 * flare)
+        sw = pose.get("swing", 0.0)
+        top = 7 * s
+        cx = hip[0]
+        n = 9
+        hem = []
+        for k in range(n):
+            u = k / (n - 1)
+            hx = cx - hw + 2 * hw * u + sw
+            wave = math.sin(u * math.pi * 4 + pose.get("phase", 0.0)) * (1.2 + 2.5 * flare) * s
+            hem.append((hx, hem_y + wave))
+        mid_y = waist_y + (hem_y - waist_y) * 0.5
+        left, right = [], []
+        for k in range(1, 5):                                                       # Glockenform
+            u = k / 5
+            yy = waist_y + (hem_y - waist_y) * u
+            wd = top + (hw - top) * u ** 0.55
+            left.append((cx - wd + sw * u * u, yy))
+            right.append((cx + wd + sw * u * u, yy))
+        left = [(cx - top, waist_y)] + left
+        right = right[::-1] + [(cx + top, waist_y)]
+        col = o["dress"]
+        d.polygon(left + hem + right, fill=col)
+        mid = [(cx + sw * (k / 5) ** 2 + (hw - top) * 0.15 * k / 5, waist_y + (hem_y - waist_y) * k / 5) for k in range(5)]
+        d.polygon(mid + hem[n // 2 + 1:] + right, fill=_wz_shade(col, 0.74))      # Licht von links
+        d.polygon([(cx - top + 1, waist_y + 1), (cx - top - (hw - top) * 0.3 + sw * 0.3, mid_y), (cx - 2, mid_y)],
+                  fill=_wz_shade(col, 1.18))
+        d.line(hem, fill=_wz_shade(col, 1.35), width=max(1, int(1.5 * s)))
+        if o.get("check"):
+            for k in range(1, 4):
+                yy = waist_y + (hem_y - waist_y) * k / 4
+                d.line([(cx - top - (hw - top) * k / 4 + sw * k / 4, yy), (cx + top + (hw - top) * k / 4 + sw * k / 4, yy)],
+                       fill=(240, 240, 250))
+        if o.get("apron") and fr > 0.1:
+            aw = hw * 0.45 * fr
+            d.polygon([(cx - 5 * s * fr, waist_y + 1), (cx + 5 * s * fr, waist_y + 1), (cx + aw + sw * 0.8, hem_y - 3 * s),
+                       (cx - aw + sw * 0.8, hem_y - 3 * s)], fill=o["apron"])
+
+    def _wz_head(self, img, d, who, head, s, fx, fr, o, pose):
+        hx, hy = head
+        hair = o["hair"]
+        if who == "w" and o.get("loose") and fr > -0.3:                            # offenes Haar hinter dem Kopf
+            self._blob(img, hx - fx * 2 * s, hy + 6 * s, 17 * s, 24 * s, hair, gloss=0.3)
+        if who == "w" and o.get("updo") and fr > 0:                                # Dutt hinter dem Kopf
+            self._blob(img, hx - fx * 6 * s, hy - 7 * s, 9 * s, 8 * s, hair, gloss=0.5)
+        if fr < -0.25:                                                              # Hinterkopf
+            self._blob(img, hx, hy, 15 * s, 17 * s, hair, gloss=0.4)
+            if who == "w" and o.get("loose"):
+                self._blob(img, hx, hy + 9 * s, 16 * s, 22 * s, hair, gloss=0.35)
+        else:
+            self._blob(img, hx, hy, 14 * s, 16 * s, WZ_SKIN, gloss=0.3)
+            if abs(fx) > 0.5:                                                       # Nase im Profil
+                self._blob(img, hx + fx * 7 * s, hy + 1 * s, 3 * s, 3 * s, WZ_SKIN, gloss=0.2)
+            cap_y = hy - (5 if who == "m" else 4) * s
+            self._blob(img, hx - fx * 2 * s, cap_y, 15 * s, 9 * s, hair, gloss=0.45)
+            if fr > 0.15:
+                for side in (-1, 1):
+                    ex = hx + fx * 2.5 * s + side * 3 * s * fr
+                    d.ellipse([ex - 1, hy - 1, ex + 1, hy + 1], fill=(40, 30, 30))
+                if fr > 0.45:
+                    d.arc([hx - 2.5 * s + fx * 2 * s, hy + 2 * s, hx + 2.5 * s + fx * 2 * s, hy + 5 * s], 20, 160,
+                          fill=(170, 70, 70))
+        if who == "w" and o.get("updo") and fr <= 0:
+            self._blob(img, hx - fx * 6 * s, hy - 7 * s, 9 * s, 8 * s, hair, gloss=0.5)
+        if who == "w" and o.get("braids"):
+            for side in (-1, 1):
+                bx = hx + side * 5 * s - fx * 2 * s
+                self._limb(img, (bx, hy), (bx + side * 1 * s, hy + 18 * s), 3.5 * s, hair, gloss=0.4)
+        if who == "w" and o.get("circlet") and fr > -0.25:
+            d.line([(hx - 7 * s, hy - 5 * s), (hx + 7 * s, hy - 5 * s)], fill=(240, 200, 70), width=max(1, int(1.5 * s)))
+        hat = o.get("hat")
+        top = hy - 7 * s
+        if hat == "tracht":
+            self._fig_hat(img, d, (hx, hy + 1 * s), s, "tracht", (60, 82, 52), 0)
+        elif hat == "straw":
+            d.ellipse([hx - 12 * s, top, hx + 12 * s, top + 4 * s], fill=(226, 196, 110))
+            d.chord([hx - 6 * s, top - 7 * s, hx + 6 * s, top + 4 * s], 180, 360, fill=(214, 182, 96))
+            d.line([(hx - 6 * s, top), (hx + 6 * s, top)], fill=(170, 40, 40), width=max(1, int(1.5 * s)))
+        elif hat == "helmet_y":
+            d.chord([hx - 9 * s, top - 6 * s, hx + 9 * s, top + 7 * s], 180, 360, fill=(250, 204, 30))
+            d.line([(hx - 11 * s, top + 1 * s), (hx + 11 * s, top + 1 * s)], fill=(230, 180, 20), width=max(1, int(2 * s)))
+
+    # -- Tanzpaar ------------------------------------------------------------- #
+    def _wz_couple(self, f, fd, st, cx, foot, s, outfits, pose_m, pose_w, phi, spin, sep):
+        """Beide in Tanzhaltung um die Achse phi; spin = Eigendrehung der Tänzerin (Drehung unter dem Arm)."""
+        r = (7.5 + sep) * s
+        c, sn = math.cos(phi), math.sin(phi)
+        mx, mz = cx + r * c, r * sn
+        wx, wz = cx - r * c, -r * sn
+        face_m = (-c, -sn)
+        a = phi + spin
+        face_w = (math.cos(a), math.sin(a))
+        sh_m = foot - 69 * s
+        joint_up = spin != 0.0 or sep > 4
+        jx = cx + sn * 17 * s * (0.6 if joint_up else 1.0)
+        jy = sh_m - (24 * s if joint_up else 2 * s)
+        if pose_m.get("lh") is None:
+            pose_m["lh"] = (jx, jy)
+        if pose_w.get("rh") is None:
+            pose_w["rh"] = (jx, jy)
+        if not joint_up:
+            pose_m.setdefault("rh", (wx - face_w[0] * 4 * s, foot - 58 * s))     # Hand auf ihrem Rücken
+            pose_w.setdefault("lh", (mx - sn * 9 * s, sh_m + 3 * s))                # Hand auf seiner Schulter
+        foot_m, foot_w = foot - mz * 0.5, foot - wz * 0.5
+        order = sorted((("m", mx, foot_m, mz, face_m, pose_m), ("w", wx, foot_w, wz, face_w, pose_w)),
+                       key=lambda e: -e[3])                                         # hinten zuerst
+        heads = {}
+        for who, x, ft, z, face, pose in order:
+            hd, hands = self._wz_person(f, fd, who, x, ft, s * (1 - z * 0.004), face, outfits[who], pose)
+            heads[who] = (hd, hands)
+        return heads
+
+    def _wz_outfits(self, o, place):
+        key = o.get("clothes", "place")
+        key = WZ_PLACE_OUTFIT.get(place, "ball") if key == "place" else key
+        base = WZ_OUTFITS.get(key, WZ_OUTFITS["ball"])
+        w = dict(base["w"])
+        if o.get("dress"):
+            w["dress"] = tuple(o["dress"])
+        return {"m": dict(base["m"]), "w": w}
+
+    # -- Ort, Licht und Wetter ------------------------------------------------ #
+    def _wz_place(self, st, o, t):
+        if st.get("force_place"):
+            return st["force_place"]
+        place = o.get("place", "ballroom")
+        if place in WALTZ_PLACES:
+            return place
+        song = self.__dict__.get("_vis_song") or ""
+        if st.get("place") is None or (song and song != st.get("song")) or t - st.get("place_t", t) > WZ_SWITCH:
+            order = list(WALTZ_PLACES)
+            cur = st.get("place")
+            st["place"] = order[(order.index(cur) + 1) % len(order)] if cur in order else order[0]
+            st["song"], st["place_t"] = song, t
+        return st["place"]
+
+    def _wz_weather(self, st, o):
+        if st.get("force_sky"):
+            return st["force_sky"], 10
+        mode = o.get("weather", "real")
+        if mode != "real":
+            return mode, 12
+        kind, _, wind = self._party_weather()
+        return WZ_SKY_OF_WEATHER.get(kind, "clear"), wind or 0
+
+    # -- Hauptfunktion -------------------------------------------------------- #
+    @vis_style("waltz")
+    def vis_waltz(self, s, o, color):
+        t = s["t"]
+        demo = bool(s.get("demo"))
+        talk = bool(s.get("talk"))
+        st = self._vstate("waltz", lambda: {"beats": s["beats"], "k": 0, "bar": 0, "phi": 0.0, "theta": math.pi / 2,
+                                             "energy": 0.0, "turn": None, "boom": -99.0, "gag": None, "order": [],
+                                             "next_gag": t + WZ_GAG_FIRST, "rng": random.Random(191), "start": t,
+                                             "slow": 0.0, "fast": 0.0, "place": None, "song": None,
+                                             "wx": None, "swing": 0.0, "sparks": [], "bass": 0.0})
+        dt = self._vis_dt(st, t)
+        place = self._wz_place(st, o, t)
+        sky, wind = self._wz_weather(st, o)
+        alt, side = self._wz_sun(o)
+        photo = self._wz_photo(place) if o.get("photo", True) else None
+        bg, amb, glow = self._wz_backdrop(place, alt, side, sky, photo, time.time())
+        img = bg.copy()
+        L = self._wz_place_layers(place)
+        indoor = L["indoor"] and photo is None
+        level = s["level"] if s["level"] == s["level"] else 0.0
+        bass = s.get("bass", 0.0)
+        bass = bass if bass == bass else 0.0
+        st["bass"] += (bass - st["bass"]) * min(1.0, dt / 0.25)
+        new_beat = s["beats"] != st["beats"]
+        st["beats"] = s["beats"]
+        playing = bool(s.get("active") or demo) and not talk
+        period = max(0.3, min(1.2, s.get("period") or 0.5))
+        st["slow"] += (level - st["slow"]) * min(1.0, dt / 6)
+        st["fast"] += (level - st["fast"]) * min(1.0, dt / 0.4)
+        if not demo and playing and st["fast"] > st["slow"] * 1.2 + 0.04 and t - st["boom"] > 15 \
+                and t - st["start"] > 5 and st["gag"] is None:
+            st["boom"] = t
+        bt = t - st["boom"]
+        boom = 0 <= bt < WZ_BOOM
+        # Gags
+        gag = st["gag"]
+        if gag and t - gag[1] >= WZ_GAGS[gag[0]]:
+            st["gag"] = gag = None
+            st["next_gag"] = t + st["rng"].uniform(*WZ_GAG_PAUSE)
+            st.pop("force_place", None)
+            st.pop("force_sky", None)
+        raining = sky in ("rain", "thunder") and not indoor
+        if gname_ := (gag[0] if gag else None):
+            if gname_ == "regenschirm" and not raining:                          # drinnen bzw. trocken: kein Schirm
+                st["gag"] = gag = None
+        pool = ["fuss", "schwindel", WZ_PLACE_GAG[place]] + (["regenschirm"] if raining else [])
+        if not demo and o.get("gags", True) and gag is None and playing and not boom and t >= st["next_gag"]:
+            if not any(g_ in pool for g_ in st["order"]):
+                st["order"] = st["rng"].sample(pool, len(pool))
+            while st["order"] and gag is None:
+                name = st["order"].pop(0)
+                if name in pool:
+                    st["gag"] = gag = (name, t)
+        gname = gag[0] if gag else None
+        gl = t - gag[1] if gag else 0.0
+        # Tanz: Takt, Drehung, Runde
+        if playing and new_beat:
+            st["k"] += 1
+            if st["k"] % 3 == 0:
+                st["bar"] += 1
+                if st["bar"] % WZ_TURN_EVERY == 0 and st["turn"] is None and not boom:
+                    st["turn"] = t
+        stop = gname in ("fuss", "schwindel") or (gname == "ritter" and 2.5 <= gl < 6.3)
+        target = 1.0 if playing and not stop else 0.0
+        st["energy"] += (target - st["energy"]) * min(1.0, dt / 0.7)
+        en = st["energy"]
+        mode = o.get("tempo", "auto")
+        vienna = mode == "vienna" or (mode == "auto" and period < 0.42)
+        ang = (math.pi if vienna else math.pi / 2) / (3 * period) * (1.9 if boom else 1.0)
+        ang = max(0.6, min(6.5, ang))
+        st["phi"] = (st["phi"] - ang * en * dt) % (2 * math.pi)
+        st["theta"] = (st["theta"] + (2 * math.pi / (36 if vienna else 52)) * en * dt) % (2 * math.pi)
+        bp = max(0.0, min(1.0, (t - s.get("beat_t", t)) / period)) if playing else 0.0
+        barph = ((st["k"] % 3) + bp) / 3
+        bob = 3.0 * math.cos(2 * math.pi * barph) * en
+        spin = 0.0
+        if st["turn"] is not None:
+            tl = (t - st["turn"]) / (3 * period * (1 if vienna else 1.5))
+            if tl >= 1 or not playing:
+                st["turn"] = None
+            else:
+                spin = -2 * math.pi * _smooth(tl)
+        # Lage auf der Fläche
+        if talk:
+            cx = max(70.0, min(WIDTH - 70.0, WIDTH / 2 + 96 * math.cos(st["theta"])))
+            z = 0.0
+        else:
+            cx = WIDTH / 2 + 96 * math.cos(st["theta"])
+            z = 12 * math.sin(st["theta"])
+        foot = WZ_FLOOR - z * 0.9
+        sc = WZ_SCALE * (1.0 - z * 0.008)
+        outfits = self._wz_outfits(o, place)
+        say = []
+        # Figuren in eigener Ebene (wird mit dem Licht des Ortes eingefärbt)
+        f = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
+        fd = ImageDraw.Draw(f)
+        if talk:
+            tl = t - s.get("talk_t", t)
+            bowk = math.sin(math.pi * min(1.0, tl / 2.2)) if tl < 2.2 else 0.0
+            pm = {"bow": bowk, "bob": 0.0}
+            pw = {"bob": bowk * 6 * sc, "lh": (cx + 8 * sc, WZ_FLOOR - 42 * sc), "rh": (cx + 24 * sc, WZ_FLOOR - 42 * sc)}
+            hm, _ = self._wz_person(f, fd, "m", cx - 15 * sc, foot, sc, (0.45, -0.89), outfits["m"], pm)
+            hw, _ = self._wz_person(f, fd, "w", cx + 15 * sc, foot, sc, (-0.45, -0.89), outfits["w"], pw)
+            if tl >= 2.4:
+                i = int((tl - 2.4) / 3.2) % len(WZ_TALK)
+                who, text = WZ_TALK[i]
+                h = hm if who == "m" else hw
+                say.append((h[0], h[1] - 24, text))
+        else:
+            wob_m = wob_w = 0.0
+            sep = 0.0
+            lift_w = 0.0
+            if spin:
+                sep = 6.0 * math.sin(-spin / 2)
+            if gname == "schwindel" and gl > 0.5:
+                wob_m, wob_w = math.sin(gl * 3.1) * 6, math.sin(gl * 3.1 + 1.2) * 6
+                sep = 5.0
+            if boom and 1.0 < bt < 2.8:
+                lift_w = 22 * math.sin(math.pi * (bt - 1.0) / 1.8)
+            # Schwung des Kleides: hinter der Bewegung her
+            wxp = cx - 7.5 * sc * math.cos(st["phi"])
+            if st["wx"] is not None and dt > 0:
+                v = (wxp - st["wx"]) / dt
+                st["swing"] += (max(-11.0, min(11.0, -v * 0.09)) - st["swing"]) * min(1.0, dt / 0.25)
+            st["wx"] = wxp
+            flare = min(1.0, ang * en / 4.0) * 0.8 + (0.6 if spin else 0.0) + (0.3 if boom else 0.0)
+            stepk = math.sin(2 * math.pi * barph * 1.5) * en
+            pm = {"bob": bob, "step": stepk, "wobble": wob_m, "flare": flare}
+            pw = {"bob": bob, "step": -stepk, "wobble": wob_w, "flare": min(1.2, flare), "swing": st["swing"] * sc,
+                  "lift": lift_w, "phase": st["phi"] * 3}
+            if gname == "fuss" and 0.3 < gl < 3.4:                                  # sie hüpft auf einem Bein
+                pw["lift"] = abs(math.sin(gl * 7)) * 6
+                pw["step"] = 2.4
+            if gname == "moewe" and gl > 2.6:
+                pm["no_tie"] = True
+            if gname == "funken" and 1.5 < gl < 3.4:
+                pm["lift"] = abs(math.sin(gl * 9)) * 7
+            if gname == "regenschirm":
+                pm["rh"] = (cx + 2 * sc, WZ_FLOOR - 100 * sc)
+            heads = self._wz_couple(f, fd, st, cx, foot, sc, outfits, pm, pw, st["phi"], spin, sep)
+            hm, hw = heads["m"][0], heads["w"][0]
+            if gname == "regenschirm":
+                self._wz_umbrella(f, fd, cx, WZ_FLOOR - 108 * sc, sc)
+                if 1.0 < gl < 4.5:
+                    say.append((cx, hm[1] - 46, "Wir tanzen im Regen!"))
+            if gname == "fuss":
+                if 0.3 < gl < 2.2:
+                    say.append((hw[0], hw[1] - 24, "Autsch!"))
+                elif 2.2 <= gl < 4.4:
+                    say.append((hm[0], hm[1] - 24, "Pardon, Madame!"))
+            if gname == "schwindel":
+                for who, h in (("m", hm), ("w", hw)):
+                    for k in range(3):
+                        a = gl * 4 + k * 2.1
+                        sx, sy = h[0] + math.cos(a) * 10, h[1] - 14 + math.sin(a) * 3
+                        fd.text((sx - 3, sy - 6), "*", font=self.f_small_b, fill=(255, 230, 90))
+                if 0.8 < gl < 3.0:
+                    say.append((hw[0], hw[1] - 30, "Mir ist schwindlig …"))
+                elif 3.0 <= gl < 5.2:
+                    say.append((hm[0], hm[1] - 30, "Die Wände tanzen mit!"))
+            if boom:
+                self._wz_glitter(st, cx, foot, sc, bt, dt)
+                if 1.2 < bt < 3.0:
+                    say.append((hw[0], hw[1] - 30, "Hui!"))
+        self._wz_draw_sparks(st, fd, dt)
+        if gname in ("kellner", "ritter", "kuh", "funken", "huhn", "ente", "murmeltier", "moewe"):
+            getattr(self, "_wz_gag_" + gname)(f, fd, t, gl, cx, foot, sc, say, st, L)
+        # Licht: Figuren einfärben, Flammen und Glühwürmchen leuchten selbst
+        tint = np.array(amb, np.float32)
+        if indoor:
+            tint = np.array(_wz_lerp((0.86, 0.74, 0.6), (1.0, 0.97, 0.93), _smooth((alt + 5) / 15)), np.float32)
+        else:
+            gc = np.array(WZ_GLOW_COLS[place], np.float32) / 255
+            tint = np.clip(tint * 0.85 + gc * glow * 0.32 + 0.05, 0, 1.1)
+        if np.any(np.abs(tint - 1) > 0.02):
+            arr = np.asarray(f).astype(np.float32)
+            arr[..., :3] *= tint[None, None, :]
+            f = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGBA")
+        d = ImageDraw.Draw(img)
+        if photo is None:
+            self._wz_flames(img, d, L, t, glow)
+            if L.get("fireflies") and glow > 0.5 and sky not in ("rain", "thunder", "snow"):
+                rng = random.Random(5)
+                for k in range(14):
+                    x = (rng.uniform(0, WIDTH) + math.sin(t * 0.4 + k) * 20) % WIDTH
+                    y = rng.uniform(110, VIS_H - 10) + math.cos(t * 0.6 + k * 1.7) * 6
+                    if math.sin(t * 2 + k * 2.3) > 0.2:
+                        self._blob(img, x, y, 5, 5, (220, 255, 120), alpha=0.8, flat=True)
+                        d.point((x, y), fill=(250, 255, 200))
+            if L.get("shore"):                                                      # Brandung am Strand
+                y = L["shore"] - 1
+                pts = [(x, y + 2 * math.sin(x * 0.07 + t * 1.6)) for x in range(0, WIDTH + 8, 8)]
+                foam = _wz_shade((240, 244, 250), max(0.3, sum(amb) / 3))
+                d.line(pts, fill=foam, width=2)
+        img.paste(f, (0, 0), f)
+        fxk = WZ_FX_OF_SKY.get(sky)
+        if fxk:                                                                     # Regen, Schnee, Nebel, Blitze
+            if indoor:
+                win = L.get("_win_img")
+                if win is None:
+                    win = L["_win_img"] = Image.fromarray((L["windows"] * 255).astype(np.uint8), "L")
+                outside = self._vis_weather_fx(img.copy(), t, fxk, wind, dim=False)
+                img.paste(outside, (0, 0), win)
+            else:
+                img = self._vis_weather_fx(img, t, fxk, wind, dim=False)
+        d = ImageDraw.Draw(img)
+        for x, y, text in say:
+            self._xmas_party_say(d, x, y, text)
+        # Tastatur: Licht des Ortes, pulsiert mit dem Bass
+        if glow > 0.45 or indoor:
+            base = WZ_GLOW_COLS[place]
+        elif sky in ("clear", "partly"):
+            base = (110, 170, 255)
+        else:
+            base = (170, 176, 190)
+        k = 0.5 + 0.5 * st["bass"] if playing else 0.4
+        self.vis_col_waltz = tuple(int(c * k) // 8 * 8 for c in base)
+        return img
+
+    # -- Effekte -------------------------------------------------------------- #
+    def _wz_flames(self, img, d, L, t, glow):
+        for k, (x, y, size) in enumerate(L["flames"]):
+            fl = 0.8 + 0.2 * math.sin(t * 13 + k * 2.1) + 0.1 * math.sin(t * 29 + k)
+            self._blob(img, x, y - 2 * size, 14 * size * fl, 18 * size * fl, (255, 150, 40), alpha=0.55, flat=True)
+            self._blob(img, x, y, 6 * size, 10 * size * fl, (255, 120, 30), gloss=0.0)
+            self._blob(img, x, y + 1, 3 * size, 5 * size * fl, (255, 236, 150), gloss=0.0)
+
+    def _wz_glitter(self, st, cx, foot, s, bt, dt):
+        rng = st["rng"]
+        if bt < 2.6:
+            for _ in range(4):
+                a = rng.uniform(0, 2 * math.pi)
+                v = rng.uniform(30, 80)
+                st["sparks"].append([cx, foot - 60 * s, math.cos(a) * v, math.sin(a) * v - 30, 1.0,
+                                     rng.choice([(255, 230, 120), (255, 255, 255), (255, 170, 200)])])
+
+    def _wz_draw_sparks(self, st, d, dt):
+        self._fx_step(st["sparks"], dt, grav=60.0, fade=0.8, cap=160)
+        for x, y, _, _, life, col in st["sparks"]:
+            r = 1.2 if life > 0.5 else 0.8
+            d.ellipse([x - r, y - r, x + r, y + r], fill=_wz_shade(col, 0.5 + life * 0.5))
+
+    def _wz_umbrella(self, f, d, cx, y, s):
+        w = 34 * s
+        for k in range(6):
+            a0, a1 = 180 + k * 30, 180 + (k + 1) * 30
+            d.pieslice([cx - w, y - w * 0.6, cx + w, y + w * 0.6], a0, a1,
+                       fill=(200, 30, 40) if k % 2 == 0 else (245, 245, 245))
+        d.line([(cx, y), (cx, y + 30 * s)], fill=(60, 40, 30), width=max(1, int(2 * s)))
+        d.arc([cx - 4 * s, y + 26 * s, cx + 2 * s, y + 34 * s], 0, 180, fill=(60, 40, 30), width=max(1, int(2 * s)))
+
+    # -- Gags je Ort ---------------------------------------------------------- #
+    def _wz_gag_kellner(self, f, d, t, gl, cx, foot, s, say, st, L):
+        x = -30 + gl * 56
+        dodge = max(0.0, 1 - abs(x - cx) / 40)
+        y = WZ_FLOOR + 10
+        hc, hands = self._fig(f, d, x, y, t, (250, 250, 250), {"lh": (-12, 16), "rh": (14, -16 - 4 * dodge)}, h=1.05,
+                              legs=(24, 24, 30), hair=(40, 30, 26), lean=-0.3 * dodge)
+        tx, ty = hands[1]
+        wob = math.sin(gl * 14) * 3 * dodge
+        d.ellipse([tx - 13, ty - 2 + wob * 0.3, tx + 13, ty + 2 + wob * 0.3], fill=(200, 200, 210))
+        for k in (-7, 0, 7):
+            gx = tx + k + wob
+            d.polygon([(gx - 2, ty - 10), (gx + 2, ty - 10), (gx + 0.5, ty - 4), (gx - 0.5, ty - 4)], fill=(250, 236, 170))
+            d.line([(gx, ty - 4), (gx, ty - 1)], fill=(220, 220, 230))
+        if 3.0 < gl < 4.2:                                                      # ein Glas fliegt – gefangen
+            k = (gl - 3.0) / 1.2
+            gx, gy = tx + 30 * k, ty - 10 - 40 * math.sin(math.pi * k)
+            d.polygon([(gx - 2, gy - 6), (gx + 2, gy - 6), (gx, gy)], fill=(250, 236, 170))
+        if 0.6 < gl < 2.8:
+            say.append((hc[0], hc[1] - 26, "Champagner gefällig?"))
+        elif 3.0 <= gl < 5.0:
+            say.append((hc[0], hc[1] - 26, "Hoppla – gerade noch!"))
+
+    def _wz_gag_ritter(self, f, d, t, gl, cx, foot, s, say, st, L):
+        if gl < 2.5:
+            x = WIDTH + 30 - (WIDTH + 30 - (cx + 46)) * gl / 2.5
+        elif gl < 6.3:
+            x = cx + 46
+        else:
+            x = cx + 46 + (gl - 6.3) * 120
+        x = min(x, WIDTH + 40)
+        walking = gl < 2.5 or gl >= 6.3
+        sw = math.sin(gl * 9) * 5 if walking else 0
+        bow = 2.5 <= gl < 4.6
+        pose = {"lh": (-8, 20), "rh": (10 if not bow else 16, 18 if not bow else 6), "lf": (-6 + sw, 34),
+                "rf": (6 - sw, 34)}
+        hc, _ = self._fig(f, d, x, WZ_FLOOR + 6, t, (170, 176, 188), pose, h=1.1, legs=(150, 156, 168), hair=None,
+                          lean=-0.35 if bow else 0.0, face=-1)
+        d.ellipse([hc[0] - 9, hc[1] - 10, hc[0] + 9, hc[1] + 9], fill=(178, 184, 196), outline=(110, 114, 126))
+        d.line([(hc[0] - 6, hc[1] - 1), (hc[0] + 4, hc[1] - 1)], fill=(30, 30, 36), width=2)
+        for k in range(4):
+            d.line([(hc[0] + 2, hc[1] - 10), (hc[0] - 4 - k * 3, hc[1] - 18 - k * 2 + math.sin(t * 6 + k))],
+                   fill=(210, 30, 40), width=2)
+        if walking and int(gl * 4) % 2 == 0:
+            d.text((x - 24, WZ_FLOOR - 4), "klirr", font=self.f_tiny, fill=(230, 230, 240))
+        if 2.6 < gl < 4.6:
+            say.append((hc[0], hc[1] - 24, "Darf ich um diesen Tanz bitten?"))
+        elif 4.6 <= gl < 6.4:
+            say.append((cx - 10, WZ_FLOOR - 104, "Später, Herr Ritter!"))
+
+    def _wz_gag_kuh(self, f, d, t, gl, cx, foot, s, say, st, L):
+        x = -50 + min(1.0, gl / 2.0) * 90 if gl < 6.6 else 40 - (gl - 6.6) * 70
+        y = WZ_FLOOR - 20
+        sway = math.sin(t * math.pi * 2 / 1.5) * 4 if 2.0 <= gl < 6.6 else 0
+        for lx in (-16, -8, 10, 18):
+            step = math.sin(t * 9 + lx) * 3 if gl < 2.0 or gl >= 6.6 else 0
+            d.line([(x + lx, y + 6), (x + lx + step, y + 22)], fill=(60, 50, 46), width=4)
+        self._blob(f, x, y, 52, 28, (246, 244, 238), gloss=0.3, ang=sway)
+        for ox, oy, w in ((-10, -4, 12), (8, 2, 14), (16, -6, 8)):
+            self._blob(f, x + ox, y + oy, w, w * 0.7, (34, 30, 30), gloss=0.2)
+        hx, hy = x + 30 + sway, y - 10
+        self._blob(f, hx, hy, 18, 16, (246, 244, 238), gloss=0.3)
+        self._blob(f, hx + 4, hy + 5, 12, 8, (236, 170, 170), gloss=0.3)
+        d.line([(hx - 6, hy - 8), (hx - 10, hy - 14)], fill=(240, 230, 200), width=2)
+        d.line([(hx + 4, hy - 8), (hx + 8, hy - 14)], fill=(240, 230, 200), width=2)
+        d.point((hx - 2, hy - 2), fill=(0, 0, 0))
+        self._blob(f, hx - 4, hy + 12, 7, 8, (230, 190, 60), gloss=0.9)             # Glocke
+        if 2.0 <= gl < 6.6:
+            for k in range(2):
+                ny = hy - 10 - ((t * 20 + k * 12) % 24)
+                d.text((hx + 8 + k * 8, ny), "♪", font=self.f_small_b, fill=(250, 240, 180))
+        if 3.0 < gl < 5.0:
+            say.append((hx, hy - 16, "Muuuh!"))
+
+    def _wz_gag_funken(self, f, d, t, gl, cx, foot, s, say, st, L):
+        rng = random.Random(int(gl * 15))
+        if gl < 1.8:
+            for _ in range(10):
+                x = cx + rng.uniform(-30, 30)
+                y = (gl * 150 + rng.uniform(0, 120)) % (foot - 20)
+                d.line([(x, y), (x + 1, y + 4)], fill=(255, 200, 80), width=2)
+        if 1.4 < gl < 5.0:                                                       # Rauch aus dem Frack
+            for k in range(4):
+                a = (gl - 1.4) * 1.2 + k * 0.4
+                self._blob(f, cx + 10 + math.sin(a * 3) * 4, foot - 38 - a * 26, 10 + a * 4, 8 + a * 3, (150, 150, 156),
+                           alpha=max(0.0, 0.7 - a * 0.15), flat=True)
+        if 1.6 < gl < 3.6:
+            say.append((cx + 10, foot - 110, "Heiß! Heiß!"))
+        elif 3.6 <= gl < 5.6:
+            say.append((cx - 10, foot - 110, "Ein feuriger Tänzer!"))
+
+    def _wz_gag_huhn(self, f, d, t, gl, cx, foot, s, say, st, L):
+        x = WIDTH + 20 - gl * 75
+        y = WZ_FLOOR + 6 + abs(math.sin(gl * 10)) * -4
+        zig = math.sin(gl * 6) * 6
+        self._blob(f, x + zig, y - 8, 18, 14, (250, 250, 246), gloss=0.3)
+        self._blob(f, x + zig - 8, y - 16, 9, 9, (250, 250, 246), gloss=0.3)
+        d.polygon([(x + zig - 13, y - 16), (x + zig - 18, y - 14), (x + zig - 13, y - 13)], fill=(240, 170, 40))
+        d.ellipse([x + zig - 10, y - 22, x + zig - 6, y - 18], fill=(220, 40, 40))
+        for lx in (-2, 3):
+            d.line([(x + zig + lx, y - 2), (x + zig + lx + math.sin(gl * 20 + lx) * 3, y + 4)], fill=(240, 170, 40), width=2)
+        if abs(x - cx) < 40:
+            rng = random.Random(3)
+            for k in range(6):
+                fx_, fy_ = cx + rng.uniform(-30, 30), foot - 10 - rng.uniform(0, 40) + (gl * 20 % 30)
+                d.ellipse([fx_ - 2, fy_ - 1, fx_ + 2, fy_ + 1], fill=(250, 250, 250))
+        if 1.0 < gl < 3.4:
+            say.append((x + zig, y - 30, "Gack!"))
+
+    def _wz_gag_ente(self, f, d, t, gl, cx, foot, s, say, st, L):
+        y0 = 128
+        x0 = WIDTH + 20 - gl * 48
+        for k in range(4):
+            big = k == 0
+            x = x0 + k * 18
+            y = y0 + (0 if big else 3) + abs(math.sin(t * math.pi * 2 + k * 0.7)) * -2
+            w = 16 if big else 9
+            self._blob(f, x, y, w, w * 0.55, (150, 120, 80) if big else (240, 220, 90), gloss=0.3)
+            self._blob(f, x - w * 0.45, y - w * 0.45, w * 0.5, w * 0.5, (40, 110, 60) if big else (240, 220, 90), gloss=0.4)
+            d.polygon([(x - w * 0.7, y - w * 0.45), (x - w * 0.95, y - w * 0.38), (x - w * 0.7, y - w * 0.32)],
+                      fill=(240, 150, 40))
+            d.arc([x - w, y + 1, x + w, y + 5], 0, 180, fill=(200, 220, 240))
+        if 3.0 < gl < 4.8:
+            say.append((x0, y0 - 14, "Quak!"))
+
+    def _wz_gag_murmeltier(self, f, d, t, gl, cx, foot, s, say, st, L):
+        x, y = 34, WZ_FLOOR + 12
+        up = min(1.0, gl / 0.8) if gl < 4.6 else max(0.0, 1 - (gl - 4.6) / 0.6)
+        d.ellipse([x - 12, y - 3, x + 12, y + 4], fill=(70, 54, 40))
+        if up > 0:
+            h = 26 * up
+            self._blob(f, x, y - h / 2, 15, h, (160, 120, 80), gloss=0.3)
+            self._blob(f, x, y - h + 2, 13, 12, (166, 126, 86), gloss=0.3)
+            d.point((x - 3, y - h + 1), fill=(0, 0, 0))
+            d.point((x + 3, y - h + 1), fill=(0, 0, 0))
+            d.ellipse([x - 2, y - h + 4, x + 2, y - h + 7], fill=(60, 40, 30))
+            if 1.0 < gl < 3.2:
+                for k in range(3):
+                    r = 8 + k * 6 + (gl * 20 % 6)
+                    d.arc([x - r, y - h - r * 0.6, x + r, y - h + r * 0.6], 300, 360, fill=(250, 250, 250))
+                say.append((x + 24, y - 54, "Pfiiiiff!"))
+        if 3.2 <= gl < 4.8:
+            say.append((cx, foot - 110, "Huch! Was war das?"))
+
+    def _wz_gag_moewe(self, f, d, t, gl, cx, foot, s, say, st, L):
+        if gl < 2.6:
+            k = gl / 2.6
+            x, y = WIDTH + 20 - (WIDTH + 20 - cx) * k, 20 + (foot - 100) * k * k
+        else:
+            k = (gl - 2.6) / 4.4
+            x, y = cx - k * (cx + 40), foot - 100 - k * 90
+        flap = math.sin(t * 14) * 8
+        self._blob(f, x, y, 16, 8, (246, 246, 250), gloss=0.3)
+        self._blob(f, x - 8, y - 3, 7, 6, (246, 246, 250), gloss=0.3)
+        d.polygon([(x - 11, y - 3), (x - 16, y - 2), (x - 11, y - 1)], fill=(240, 190, 40))
+        for sd in (-1, 1):
+            d.line([(x - 2, y - 2), (x + sd * 6, y - 10 - flap * sd * 0.2 - abs(flap)), (x + sd * 14, y - 6 - flap)],
+                   fill=(200, 200, 210), width=2)
+        if gl >= 2.6:
+            d.polygon([(x - 14, y + 2), (x - 6, y + 4), (x - 14, y + 6), (x - 6, y + 2)], fill=(20, 20, 24))
+        if 2.8 < gl < 5.4:
+            say.append((min(WIDTH - 60, cx + 70), foot - 70, "Hey! Gib das zurück!"))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Modul seite_visual_auto
 #   Automatische Stilwahl (Pseudo-Stil „auto“, Mixin AutoVisual), Albumcover-Farben und Wetter in den Szenen.
 #
@@ -23546,8 +25031,9 @@ class JazzVisual:
 #   Wetter: Draußen-Szenen zeigen das echte Wetter der Wetterseite (Regen, Schnee, Gewitter, Nebel, Wind).
 # ═══════════════════════════════════════════════════════════════════════════
 
-AUTO_POOLS = {"calm": ["campfire", "lights", "ring", "martin", "space", "underwater", "silk", "ember", "pulse"],
-              "mid": ["dancer", "farm", "cats", "western", "eq", "oktoberfest", "jazz"],
+AUTO_POOLS = {"calm": ["campfire", "lights", "ring", "martin", "space", "underwater", "silk", "ember", "pulse",
+                       "waltz"],
+              "mid": ["dancer", "farm", "cats", "western", "eq", "oktoberfest", "jazz", "waltz"],
               "wild": ["metal", "arcade", "carnival", "fireworks", "halloween"]}
 AUTO_MOOD_LABEL = {"calm": "ruhig", "mid": "mittel", "wild": "wild"}
 AUTO_LISTEN = 6.0
@@ -23645,8 +25131,11 @@ class AutoVisual:
         return col
 
     # -- Wetter in den Szenen -------------------------------------------------------------- #
-    def _vis_weather_fx(self, img, t):
-        kind, temp, wind = self._party_weather()
+    def _vis_weather_fx(self, img, t, kind=None, wind=None, dim=True):
+        """Regen, Schnee, Gewitter oder Nebel über das Bild legen; ohne kind das Wetter der Wetterseite.
+        dim=False: Himmel nicht eintrüben (der Stil malt ihn selbst, z. B. Walzer)."""
+        if kind is None:
+            kind, _, wind = self._party_weather()
         if kind not in ("rain", "drizzle", "snow", "thunder", "fog"):
             return img
         st = self.__dict__.get("_wfx")
@@ -23659,7 +25148,7 @@ class AutoVisual:
         dt = max(0.0, min(0.2, t - st["t"]))
         st["t"] = t
         slant = max(-1.0, min(1.0, (wind or 0) / 40.0))
-        if kind != "fog":                                                           # trüber Himmel
+        if kind != "fog" and dim:                                                   # trüber Himmel
             gray = Image.new("RGB", (WIDTH, VIS_H), (90, 96, 110))
             top = img.crop((0, 0, WIDTH, VIS_H))
             img.paste(Image.blend(top, gray, {"drizzle": 0.15, "snow": 0.2}.get(kind, 0.3)), (0, 0))
@@ -23787,7 +25276,12 @@ VIS_GAG_LABELS = {
     # Weihnachten (jugendfrei)
     "schornstein": "Schornstein", "plaetzchen": "Plätzchen", "geschenketurm": "Geschenketurm",
     "wunschzettel": "Wunschzettel", "schlitten": "Schlitten einparken", "lebkuchen": "Lebkuchenmann",
-    "katze": "Katze im Baum", "stromausfall": "Stromausfall", "glatteis": "Glatteis", "wichtelchor": "Wichtel-Chor",
+    "katze": "Katze im Baum",
+    # Walzer
+    "fuss": "Auf den Fuß getreten", "schwindel": "Schwindelig gedreht", "regenschirm": "Tanzen im Regen (bei Regen)",
+    "kellner": "Kellner (Ballsaal)", "ritter": "Ritter (Burghof)", "kuh": "Kuh tanzt mit (Alm)",
+    "funken": "Funkenregen (Stahlwerk)", "huhn": "Huhn (Bauernhof)", "ente": "Entenfamilie (See)",
+    "murmeltier": "Murmeltier (Alpen)", "moewe": "Möwe (Strand)", "stromausfall": "Stromausfall", "glatteis": "Glatteis", "wichtelchor": "Wichtel-Chor",
 }
 
 
@@ -23796,7 +25290,7 @@ def vis_scenes(style):
     out = [["play", "Abspielen"], ["boom", "Höhepunkt"], ["talk", "Wortbeitrag"]]
     gags = {"cellar": CL_GAGS, "metal": MT_GAGS, "party": PT_GAGS, "xmas": FUN_GAGS, "easter": ES_GAGS,
             "newyear": NY_GAGS, "carnival": CV_GAGS, "oktoberfest": OK_GAGS, "martin": SM_GAGS, "valentine": VL_GAGS, "underwater": UW_GAGS, "farm": FM_GAGS, "space": SP_GAGS, "arcade": AR_GAGS, "western": WS_GAGS, "cats": KC_GAGS, "jazz": JZ_GAGS, "halloween": HW_GAGS, "horror": {**HR_GAGS["house"], **HR_GAGS["dolls"]},
-            "birthday": BD_GAGS, "mother": MO_GAGS, "father": FA_GAGS}.get(style, {})
+            "birthday": BD_GAGS, "mother": MO_GAGS, "father": FA_GAGS, "waltz": WZ_GAGS}.get(style, {})
     out += [["gag:" + n, VIS_GAG_LABELS.get(n, n.capitalize())] for n in gags]
     if style == "xmas":                                             # Feierabend-Gags (schaltet ihn für die Vorschau an)
         out += [["feier:" + n, "Feierabend: " + VIS_GAG_LABELS.get(n, n.capitalize())]
@@ -23850,6 +25344,16 @@ def vis_force(r, style, scene, t):
         if kind == "boom":
             st["boom"], st["gag"] = t, None
         elif kind == "gag":
+            st["gag"], st["next_gag"], st["boom"] = (name, t), t + 99, -99.0
+    elif style == "waltz":
+        if kind == "boom":
+            st["boom"], st["gag"] = t, None
+        elif kind == "gag":
+            place = next((p for p, g_ in WZ_PLACE_GAG.items() if g_ == name), None)
+            if place:
+                st["force_place"] = place
+            if name == "regenschirm":
+                st["force_sky"], st["force_place"] = "rain", "lake"
             st["gag"], st["next_gag"], st["boom"] = (name, t), t + 99, -99.0
     elif style == "dancer" and kind == "boom":
         st["spin_t"] = t
@@ -24268,7 +25772,7 @@ class Renderer(RendererBase,
                ClockPage, ClockBase, StandardFaces, MechanicalFaces, SkyFaces, DisplayFaces, InfoFaces,
                MacrosPage, MusicPage, SlidesPage, WeatherPage, CalendarPage, HardwarePage,
                NewsPage, VideoPage, WarningsPage, NetworkPage, UpdatesPage, VisualPage, XmasVisual, XmasParty, XmasFun, BalletVisual, StageFx,
-               PartyVisual, CellarVisual, CellarCrew, MetalVisual, EasterVisual, HalloweenVisual, HorrorVisual, BirthdayVisual, MotherVisual, FatherVisual, FigureKit, NewYearVisual, CarnivalVisual, OktoberfestVisual, MartinVisual, ValentineVisual, UnderwaterVisual, FarmVisual, SpaceVisual, ArcadeVisual, WesternVisual, CampfireVisual, CatsVisual, MoodVisual, JazzVisual, AutoVisual,
+               PartyVisual, CellarVisual, CellarCrew, MetalVisual, EasterVisual, HalloweenVisual, HorrorVisual, BirthdayVisual, MotherVisual, FatherVisual, FigureKit, NewYearVisual, CarnivalVisual, OktoberfestVisual, MartinVisual, ValentineVisual, UnderwaterVisual, FarmVisual, SpaceVisual, ArcadeVisual, WesternVisual, CampfireVisual, CatsVisual, MoodVisual, JazzVisual, WaltzPlaces, WaltzVisual, AutoVisual,
                MenuViews, OverlayViews):
     PAGES = len(PAGE_IDS)
     MUSIC_PAGE = PAGE_IDS.index("music")
@@ -26317,6 +27821,9 @@ class App(AppCore, KeyHandling, TimedTasks):
         if style == "jazz" and not quiet and visual_options(s, "jazz").get("keys", "mood") != "layer" \
                 and self.renderer.vis_col_jazz:                             # Club-Licht bzw. Bläser-Gold
             base, k = tuple(c // 8 * 8 for c in self.renderer.vis_col_jazz), 1.0
+        if style == "waltz" and not quiet and visual_options(s, "waltz").get("keys", "light") == "light" \
+                and self.renderer.vis_col_waltz:                            # Licht des Ortes (gestuft)
+            base, k = self.renderer.vis_col_waltz, 1.0
         if style in ("silk", "ember", "pulse") and not quiet \
                 and visual_options(s, style).get("keys", "glow") == "glow":       # Stimmung: Farbe des Bildes
             col = getattr(self.renderer, "vis_col_" + style, None)
