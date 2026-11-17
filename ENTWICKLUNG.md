@@ -77,7 +77,9 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
                               Schnee-, Wassermaske), _wz_backdrop setzt Himmel/Licht/Wetter zusammen (Cache je Lichtstufe),
                               eigene Fotos WALTZ_PHOTO_DIR/<ort>.jpg (_wz_photo; Verwaltung: save_waltz_photo)
       seite_visual_walzer     Stil „Walzer“ (waltz, Mixin WaltzVisual): Paar _wz_couple/_wz_person (Blickrichtung als
-                              Vektor, Figurenebene mit Licht eingefärbt), Kleidung WZ_OUTFITS, Gags WZ_GAGS/WZ_PLACE_GAG
+                              Vektor, Figurenebene mit Licht eingefärbt), Kleidung WZ_OUTFITS, Gags WZ_GAGS/WZ_PLACE_GAG;
+                              Paar in WZ_SS-facher Auflösung (_wz_ss_begin/_wz_ss_pose/_wz_ss_end), Taktphase st["ph"]
+                              läuft gleichmäßig, Schläge ziehen sie nur nach (WZ_PHASE_PULL), Tempo geglättet
       seite_visual_stimmung   Stimmungsbilder silk, ember, pulse (Mixin MoodVisual): ruhig, ohne Gags, Bass träge (_mood_state)
       seite_visual_auto       Pseudo-Stil „auto“ (AutoVisual): auto_mood, AUTO_POOLS, vis_auto_inner; cover_color/COVER_STYLES; _vis_weather_fx/WEATHER_FX_STYLES
       seite_visual_szenen     Szenen der bewegten Vorschau (vis_scenes, vis_force; Server: vorschau.render_scene)

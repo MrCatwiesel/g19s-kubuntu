@@ -45,6 +45,11 @@ WZ_PLACE_GAG = {"ballroom": "kellner", "castle": "ritter", "alm": "kuh", "steel"
 WZ_GAG_FIRST, WZ_GAG_PAUSE = 10.0, (14.0, 24.0)
 WZ_BOOM = 4.0
 WZ_SCALE = 1.15                         # Größe des Paares (1,0 ≈ 80 Pixel)
+WZ_SS = 2                               # das Paar wird in doppelter Auflösung gezeichnet (weiche Bewegung, glatte Kanten)
+WZ_SS_BOX = (230, 176)                  # Ausschnitt um das Paar (Bildpunkte), Fußpunkt WZ_SS_FOOT über dem unteren Rand
+WZ_SS_FOOT = 14
+WZ_TEMPO_SMOOTH = 2.5                   # Sekunden: so träge folgt das Tanztempo dem gemessenen Schlagabstand
+WZ_PHASE_PULL = 0.5                     # Anteil der Abweichung, den ein erkannter Schlag (über 0,4 s) ausgleicht
 WZ_SWITCH = 300.0                       # „Abwechselnd“ ohne Titelwechsel: spätestens so oft ein neuer Ort
 WZ_TURN_EVERY = 12                      # Takte bis zur Drehung unter dem Arm
 WZ_TALK = [("m", "Darf ich gleich wieder bitten?"), ("w", "Aber gern – nach der Durchsage."),
@@ -208,27 +213,27 @@ class WaltzVisual:
     def _wz_head(self, img, d, who, head, s, fx, fr, o, pose):
         hx, hy = head
         hair = o["hair"]
-        if who == "w" and o.get("loose") and fr > -0.3:                            # offenes Haar hinter dem Kopf
+        back = _smooth((0.35 - fr) / 0.9)                                          # 0 = Gesicht … 1 = Hinterkopf
+        loose = who == "w" and o.get("loose")
+        if loose and back < 0.5:                                                    # offenes Haar hinter dem Kopf
             self._blob(img, hx - fx * 2 * s, hy + 6 * s, 17 * s, 24 * s, hair, gloss=0.3)
         if who == "w" and o.get("updo") and fr > 0:                                # Dutt hinter dem Kopf
             self._blob(img, hx - fx * 6 * s, hy - 7 * s, 9 * s, 8 * s, hair, gloss=0.5)
-        if fr < -0.25:                                                              # Hinterkopf
-            self._blob(img, hx, hy, 15 * s, 17 * s, hair, gloss=0.4)
-            if who == "w" and o.get("loose"):
-                self._blob(img, hx, hy + 9 * s, 16 * s, 22 * s, hair, gloss=0.35)
-        else:
-            self._blob(img, hx, hy, 14 * s, 16 * s, WZ_SKIN, gloss=0.3)
-            if abs(fx) > 0.5:                                                       # Nase im Profil
-                self._blob(img, hx + fx * 7 * s, hy + 1 * s, 3 * s, 3 * s, WZ_SKIN, gloss=0.2)
-            cap_y = hy - (5 if who == "m" else 4) * s
-            self._blob(img, hx - fx * 2 * s, cap_y, 15 * s, 9 * s, hair, gloss=0.45)
-            if fr > 0.15:
-                for side in (-1, 1):
-                    ex = hx + fx * 2.5 * s + side * 3 * s * fr
-                    d.ellipse([ex - 1, hy - 1, ex + 1, hy + 1], fill=(40, 30, 30))
-                if fr > 0.45:
-                    d.arc([hx - 2.5 * s + fx * 2 * s, hy + 2 * s, hx + 2.5 * s + fx * 2 * s, hy + 5 * s], 20, 160,
-                          fill=(170, 70, 70))
+        self._blob(img, hx, hy, 14 * s, 16 * s, WZ_SKIN, gloss=0.3)
+        if abs(fx) > 0.5 and back < 0.5:                                            # Nase im Profil
+            self._blob(img, hx + fx * 7 * s, hy + 1 * s, 3 * s, 3 * s, WZ_SKIN, gloss=0.2)
+        if back < 0.6 and fr > 0.1:                                                 # Augen, Mund
+            er = 0.9 * s
+            for side in (-1, 1):
+                ex = hx + fx * 2.5 * s + side * 3 * s * fr
+                d.ellipse([ex - er, hy - er, ex + er, hy + er], fill=(40, 30, 30))
+            if fr > 0.45:
+                d.arc([hx - 2.5 * s + fx * 2 * s, hy + 2 * s, hx + 2.5 * s + fx * 2 * s, hy + 5 * s], 20, 160,
+                      fill=(170, 70, 70), width=max(1, int(s * 0.8)))
+        cap_y = hy - (5 if who == "m" else 4) * s * (1 - back)                     # Haar wächst über den Kopf
+        self._blob(img, hx - fx * 2 * s * (1 - back), cap_y, 15 * s, (9 + 8 * back) * s, hair, gloss=0.45 - 0.05 * back)
+        if loose and back >= 0.5:
+            self._blob(img, hx, hy + 9 * s, 16 * s, 22 * s, hair, gloss=0.35)
         if who == "w" and o.get("updo") and fr <= 0:
             self._blob(img, hx - fx * 6 * s, hy - 7 * s, 9 * s, 8 * s, hair, gloss=0.5)
         if who == "w" and o.get("braids"):
@@ -279,6 +284,53 @@ class WaltzVisual:
             heads[who] = (hd, hands)
         return heads
 
+    # -- Feinzeichnung: Paar in WZ_SS-facher Auflösung, dann gemittelt (Bewegung in Bruchteilen von Pixeln) -- #
+    @staticmethod
+    def _wz_ss_begin(cx, foot):
+        bw, bh = WZ_SS_BOX
+        x0 = int(round(cx)) - bw // 2
+        y0 = int(round(foot)) + WZ_SS_FOOT - bh
+        img = Image.new("RGBA", (bw * WZ_SS, bh * WZ_SS), (0, 0, 0, 0))
+        return {"img": img, "draw": ImageDraw.Draw(img), "x0": x0, "y0": y0,
+                "to": lambda p: ((p[0] - x0) * WZ_SS, (p[1] - y0) * WZ_SS),
+                "back": lambda p: (p[0] / WZ_SS + x0, p[1] / WZ_SS + y0)}
+
+    @staticmethod
+    def _wz_ss_pose(pose, to):
+        """Pose in die Feinzeichnung umrechnen: Abstände (Pixel) vervielfachen, Handziele verschieben."""
+        q = dict(pose)
+        for k in ("bob", "lift", "wobble", "swing"):
+            if k in q:
+                q[k] *= WZ_SS
+        for k in ("lh", "rh"):
+            if q.get(k) is not None:
+                q[k] = to(q[k])
+        return q
+
+    @staticmethod
+    def _wz_ss_end(f, ss):
+        """Feinzeichnung verkleinern (Farben nach Deckkraft gewichtet) und in die Figurenebene setzen."""
+        k = WZ_SS
+        bb = ss["img"].getbbox()                                                    # nur der bemalte Teil
+        if not bb:
+            return
+        l, t = bb[0] // k * k, bb[1] // k * k
+        r, b = -(-bb[2] // k) * k, -(-bb[3] // k) * k
+        a = np.asarray(ss["img"].crop((l, t, r, b)), np.float32)
+        pm = np.empty_like(a)
+        pm[..., 3] = a[..., 3]
+        pm[..., :3] = a[..., :3] * a[..., 3:4]                                     # Farben nach Deckkraft gewichtet
+        acc = pm[0::k, 0::k].copy()
+        for dy in range(k):
+            for dx in range(k):
+                if dx or dy:
+                    acc += pm[dy::k, dx::k]
+        asum = acc[..., 3:4]
+        out = np.empty_like(acc)
+        out[..., :3] = acc[..., :3] / np.maximum(asum, 1e-3)
+        out[..., 3] = asum[..., 0] / (k * k)
+        f.paste(Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), "RGBA"), (ss["x0"] + l // k, ss["y0"] + t // k))
+
     def _wz_outfits(self, o, place):
         key = o.get("clothes", "place")
         key = WZ_PLACE_OUTFIT.get(place, "ball") if key == "place" else key
@@ -322,7 +374,8 @@ class WaltzVisual:
                                              "energy": 0.0, "turn": None, "boom": -99.0, "gag": None, "order": [],
                                              "next_gag": t + WZ_GAG_FIRST, "rng": random.Random(191), "start": t,
                                              "slow": 0.0, "fast": 0.0, "place": None, "song": None,
-                                             "wx": None, "swing": 0.0, "sparks": [], "bass": 0.0})
+                                             "wx": None, "swing": 0.0, "sparks": [], "bass": 0.0,
+                                             "per": 0.5, "ph": 0.0, "vienna": False})
         dt = self._vis_dt(st, t)
         place = self._wz_place(st, o, t)
         sky, wind = self._wz_weather(st, o)
@@ -379,18 +432,32 @@ class WaltzVisual:
         target = 1.0 if playing and not stop else 0.0
         st["energy"] += (target - st["energy"]) * min(1.0, dt / 0.7)
         en = st["energy"]
+        # Tempo geglättet, Taktphase läuft gleichmäßig weiter und wird bei jedem Schlag nur nachgezogen
+        st["per"] += (period - st["per"]) * min(1.0, dt / WZ_TEMPO_SMOOTH)
+        per = st["per"]
+        if playing:
+            if new_beat:                                                            # Abweichung merken …
+                st["drift"] = (round(st["ph"]) - st["ph"]) * WZ_PHASE_PULL
+            corr = st.get("drift", 0.0) * min(1.0, dt / 0.4)                       # … und weich ausgleichen
+            st["drift"] = st.get("drift", 0.0) - corr
+            st["ph"] = (st["ph"] + dt / per + corr) % 3.0
         mode = o.get("tempo", "auto")
-        vienna = mode == "vienna" or (mode == "auto" and period < 0.42)
-        ang = (math.pi if vienna else math.pi / 2) / (3 * period) * (1.9 if boom else 1.0)
-        ang = max(0.6, min(6.5, ang))
+        if per < 0.40:                                                              # mit Puffer, damit es nicht pendelt
+            st["vienna"] = True
+        elif per > 0.45:
+            st["vienna"] = False
+        vienna = mode == "vienna" or (mode == "auto" and st["vienna"])
+        target_ang = (math.pi if vienna else math.pi / 2) / (3 * per) * (1.9 if boom else 1.0)
+        target_ang = max(0.6, min(6.5, target_ang))
+        st["ang"] = st.get("ang", target_ang) + (target_ang - st.get("ang", target_ang)) * min(1.0, dt / 0.6)
+        ang = st["ang"]
         st["phi"] = (st["phi"] - ang * en * dt) % (2 * math.pi)
         st["theta"] = (st["theta"] + (2 * math.pi / (36 if vienna else 52)) * en * dt) % (2 * math.pi)
-        bp = max(0.0, min(1.0, (t - s.get("beat_t", t)) / period)) if playing else 0.0
-        barph = ((st["k"] % 3) + bp) / 3
+        barph = st["ph"] / 3.0
         bob = 3.0 * math.cos(2 * math.pi * barph) * en
         spin = 0.0
         if st["turn"] is not None:
-            tl = (t - st["turn"]) / (3 * period * (1 if vienna else 1.5))
+            tl = (t - st["turn"]) / (3 * per * (1 if vienna else 1.5))
             if tl >= 1 or not playing:
                 st["turn"] = None
             else:
@@ -409,13 +476,20 @@ class WaltzVisual:
         # Figuren in eigener Ebene (wird mit dem Licht des Ortes eingefärbt)
         f = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
         fd = ImageDraw.Draw(f)
+        ss = self._wz_ss_begin(cx, foot)                                            # Paar in doppelter Auflösung
+        big, bd, X = ss["img"], ss["draw"], ss["to"]
+        K = WZ_SS
         if talk:
             tl = t - s.get("talk_t", t)
             bowk = math.sin(math.pi * min(1.0, tl / 2.2)) if tl < 2.2 else 0.0
             pm = {"bow": bowk, "bob": 0.0}
             pw = {"bob": bowk * 6 * sc, "lh": (cx + 8 * sc, WZ_FLOOR - 42 * sc), "rh": (cx + 24 * sc, WZ_FLOOR - 42 * sc)}
-            hm, _ = self._wz_person(f, fd, "m", cx - 15 * sc, foot, sc, (0.45, -0.89), outfits["m"], pm)
-            hw, _ = self._wz_person(f, fd, "w", cx + 15 * sc, foot, sc, (-0.45, -0.89), outfits["w"], pw)
+            hm, _ = self._wz_person(big, bd, "m", *X((cx - 15 * sc, foot)), sc * K, (0.45, -0.89), outfits["m"],
+                                    self._wz_ss_pose(pm, X))
+            hw, _ = self._wz_person(big, bd, "w", *X((cx + 15 * sc, foot)), sc * K, (-0.45, -0.89), outfits["w"],
+                                    self._wz_ss_pose(pw, X))
+            hm, hw = ss["back"](hm), ss["back"](hw)
+            self._wz_ss_end(f, ss)
             if tl >= 2.4:
                 i = int((tl - 2.4) / 3.2) % len(WZ_TALK)
                 who, text = WZ_TALK[i]
@@ -452,12 +526,15 @@ class WaltzVisual:
                 pm["lift"] = abs(math.sin(gl * 9)) * 7
             if gname == "regenschirm":
                 pm["rh"] = (cx + 2 * sc, WZ_FLOOR - 100 * sc)
-            heads = self._wz_couple(f, fd, st, cx, foot, sc, outfits, pm, pw, st["phi"], spin, sep)
-            hm, hw = heads["m"][0], heads["w"][0]
+            bx, by = X((cx, foot))
+            heads = self._wz_couple(big, bd, st, bx, by, sc * K, outfits, self._wz_ss_pose(pm, X),
+                                    self._wz_ss_pose(pw, X), st["phi"], spin, sep)
+            hm, hw = ss["back"](heads["m"][0]), ss["back"](heads["w"][0])
             if gname == "regenschirm":
-                self._wz_umbrella(f, fd, cx, WZ_FLOOR - 108 * sc, sc)
-                if 1.0 < gl < 4.5:
-                    say.append((cx, hm[1] - 46, "Wir tanzen im Regen!"))
+                self._wz_umbrella(big, bd, *X((cx, WZ_FLOOR - 108 * sc)), sc * K)
+            self._wz_ss_end(f, ss)
+            if gname == "regenschirm" and 1.0 < gl < 4.5:
+                say.append((cx, hm[1] - 46, "Wir tanzen im Regen!"))
             if gname == "fuss":
                 if 0.3 < gl < 2.2:
                     say.append((hw[0], hw[1] - 24, "Autsch!"))

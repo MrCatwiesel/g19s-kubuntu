@@ -3,6 +3,11 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.17-5
+- **Walzer flüssiger:** Das Paar hält den Takt jetzt wie ein Tänzer – Heben, Senken und Schritte laufen gleichmäßig weiter und werden von der Musik nur sanft nachgezogen, statt bei jedem erkannten Schlag zu springen. Das Drehtempo folgt dem Tempo weich, der Wechsel zwischen Wiener und langsamem Walzer pendelt nicht mehr.
+- Das Paar wird fein gezeichnet (doppelte Auflösung, dann geglättet): Bewegungen in Bruchteilen von Pixeln, weiche Kanten, kein Zittern einzelner Körperteile mehr. Beim Wegdrehen wächst das Haar stufenlos über den Kopf.
+- Tipp: Unter „Beleuchtung & Display → Visualisierung → Bildrate“ wirken 20 Bilder je Sekunde beim Walzer noch runder.
+
 ## 2026.11.17-4
 - **Neuer Stil „Walzer“:** Ein Paar tanzt Walzer – es dreht sich in geschlossener Tanzhaltung, zieht große Runden über die Fläche, hebt und senkt sich im Dreivierteltakt, alle zwölf Takte dreht sie sich unter seinem Arm, das Kleid schwingt aus. Nach dem Tempo der Musik als Wiener Walzer (schnelle Drehungen) oder langsamer Walzer, auch fest wählbar. Höhepunkt: schnelle Drehungen, er hebt sie hoch. Wortbeitrag: Verbeugung und Knicks, dann wird geplaudert.
 - **Acht Orte:** Ballsaal, Burghof, Alm, Stahlwerk, Bauernhof, Wiese am See, Alpenlandschaft und Strand – fest oder abwechselnd bei jedem Liedwechsel.
