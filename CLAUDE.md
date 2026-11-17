@@ -6,10 +6,15 @@ die Änderungen je Version in [NEUIGKEITEN.md](NEUIGKEITEN.md).
 
 ## Projektgedächtnis
 Versionsgeschichte mit Hintergründen, Beobachtungen am echten Gerät und offene Punkte stehen
-**nicht** hier (das Repository ist öffentlich), sondern in der privaten Projekt-Doku des
-claude.ai-Projekts: `claude/g19s-projektgedaechtnis.md` – zu Beginn mit dem Projects-Werkzeug
-lesen (`project_read`) und nach jeder Version fortschreiben (`project_write` auf denselben Pfad).
-Ohne Zugriff darauf: nur aus Code, Tests und NEUIGKEITEN.md arbeiten.
+**nicht** hier (das Repository ist öffentlich), sondern im privaten Google-Dokument
+„G19s-Projektgedächtnis“ des Nutzers (Dokument-ID `1pYjJz2FJ4eivn219ikAX4k4v4Etu-bAcakHEGA6S9b4`,
+nur mit seinem Google-Konto lesbar).
+- **Zu Beginn lesen:** Google-Drive-Connector `read_file_content` (mit `includeComments: true`).
+- **Nach jeder Version fortschreiben:** Google-Docs-Connector `update_doc` im selben Dokument – Eintrag zur
+  Version im Abschnitt der laufenden Sitzung, „Offene Punkte“ aktualisieren; vorher `read_doc` für Positionen
+  und `revisionId` (als `writeControl.requiredRevisionId`). Keine neuen Dateien anlegen.
+- Ohne die Connectors: nur aus Code, Tests und NEUIGKEITEN.md arbeiten und dem Nutzer sagen, dass der
+  Eintrag fehlt.
 
 ## Zusammenarbeit
 - Immer **auf Deutsch** antworten.
