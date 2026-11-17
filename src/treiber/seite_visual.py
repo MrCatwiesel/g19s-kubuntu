@@ -136,8 +136,14 @@ class VisualPage:
             self._title_talk_t = None
         self.vis_talk = bool(snap.get("talk"))
         self._vis_song = " – ".join(x for x in (info.get("artist"), info.get("title")) if x) if info else ""
+        inner = self.vis_auto_inner if style == "auto" and self.vis_auto_inner else style
+        if vis.get("cover_colors") and inner in COVER_STYLES:          # Grafikstile in Coverfarbe
+            color = self._vis_cover_color() or color
         t0 = time.perf_counter()
         img = VISUAL_RENDERERS[style](self, snap, visual_options(self.settings, style), color)
+        inner = self.vis_auto_inner if style == "auto" and self.vis_auto_inner else style
+        if vis.get("weather_fx", True) and inner in WEATHER_FX_STYLES:  # echtes Wetter in Draußen-Szenen
+            img = self._vis_weather_fx(img, snap["t"])
         ms = (time.perf_counter() - t0) * 1000                # Zeichenzeit (Lastbremse, Diagnose)
         prev = self.__dict__.get("vis_ms")
         self.vis_ms = ms if prev is None or self.__dict__.get("_vis_ms_style") != style else prev * 0.9 + ms * 0.1

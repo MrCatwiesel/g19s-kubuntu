@@ -180,16 +180,19 @@ class App(AppCore, KeyHandling, TimedTasks):
                 or s.get("keep_backlight") or self.rec or self.night_dark()):
             self._visual_backlight_off()
             return
+        vstyle = self.visual_style()
+        if vstyle == "auto":                                               # Automatik: gewählter Stil
+            vstyle = self.renderer.vis_auto_inner or "eq"
         snap = self.visual.snapshot()
         quiet = not snap.get("active") or snap.get("talk") or self.renderer.vis_talk   # Stille, Wortbeitrag
         k = 1.0 if quiet else round((0.15 + 0.85 * snap["bass"]) * 20) / 20
         base = PROFILE_COLOR[self.layer]
-        if self.visual_style() == "xmas" and not quiet and \
+        if vstyle == "xmas" and not quiet and \
                 visual_options(s, "xmas")["keys"] == "redgreen":    # Weihnachten: rot und grün im Wechsel
             base = (255, 20, 10) if snap["beats"] % 2 else (20, 220, 40)
             if self.renderer.vis_green:                                     # Feierabend: ihm ist schlecht
                 base = (20, 220, 40)
-        if self.visual_style() == "dancer" and not quiet:                   # Tänzerin: Tastatur nach Wahl
+        if vstyle == "dancer" and not quiet:                   # Tänzerin: Tastatur nach Wahl
             keys = visual_options(s, "dancer").get("keys", "bass")
             if self.renderer.vis_listen:                                    # sie hört zu: Tastatur atmet
                 k = round((0.25 + 0.35 * (1 + math.sin(now * 2.4)) / 2) * 20) / 20
@@ -197,7 +200,7 @@ class App(AppCore, KeyHandling, TimedTasks):
                 k = round((0.15 + 0.85 * math.exp(-max(0.0, snap["t"] - snap.get("hat_t", -9)) * 9)) * 20) / 20
             if keys == "stage" and self.renderer.vis_stage_color and not self.renderer.vis_listen:
                 base = self.renderer.vis_stage_color
-        style = self.visual_style()
+        style = vstyle
         if style == "party":                                                # Party: bunt im Takt, versteckt: dunkel
             if self.renderer.vis_party_dark:
                 k, base = 0.08, (60, 70, 140)
@@ -276,8 +279,8 @@ class App(AppCore, KeyHandling, TimedTasks):
             k, base = round(max(0.12, self.renderer.vis_fire) * 20) / 20, (255, 100, 16)
         color = tuple(int(c * k) for c in base)
         strobe = False
-        if self.visual_style() in ("lights", "dancer") and not quiet:     # Stroboskop: Tastatur blitzt mit
-            lo = visual_options(s, self.visual_style())
+        if vstyle in ("lights", "dancer") and not quiet:     # Stroboskop: Tastatur blitzt mit
+            lo = visual_options(s, vstyle)
             if lo.get("strobe", "off") != "off" and lo.get("strobe_keys") and \
                     0 <= snap["t"] - self.renderer.vis_strobe_t < 0.12:
                 color, strobe = (255, 255, 255), True

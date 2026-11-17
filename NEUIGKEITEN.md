@@ -3,6 +3,11 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.17-1
+- **Neu: „Automatisch nach Musik“** – ein DJ für die Visualisierung: Nach jedem Liedwechsel hört sie sechs Sekunden zu, schätzt Tempo und Lautstärke und wählt einen passenden Stil – ruhig (z. B. Lagerfeuer, Seidenschleier, Weltraum), mittel (z. B. Tänzerin, Jazz-Club, Katzenchor) oder wild (z. B. Mittelalter-Metal, Arcade, Fasching). Für jede Stimmung lässt sich auch ein fester Stil einstellen. Der gewählte Stil wird kurz eingeblendet, die Tastatur folgt ihm.
+- **Neu: Coverfarben** (Schalter unter Visualisierung, ab Werk aus): Equalizer, Kreis-Spektrum, VU-Meter, Spektrogramm, Oszilloskop, Lichtshow und Feuerwerk leuchten in der kräftigsten Farbe des Albumcovers.
+- **Neu: Echtes Wetter in den Szenen** (ab Werk an): Draußen-Szenen wie Bauernhof, Lagerfeuer, St. Martin, Katzenchor, Fasching oder Silvester zeigen das Wetter der Wetterseite – Regen (schräg bei Wind), Schnee, Gewitter mit Blitzen und Nebel, dazu einen trüben Himmel.
+
 ## 2026.11.16-19
 - **Neue Displayseite „Video“ – „Tagesschau in 100 Sekunden“ auf dem Display:** Die Seite zeigt die neuesten Folgen von Video-Podcasts (ab Werk die Tagesschau in 100 Sekunden, stündlich aktualisiert). OK spielt die gewählte Folge ab – das Bild oben in 16:9, darunter Titel, Zeit und Fortschritt, der Ton über die Lautsprecher. Ein laufendes Radio pausiert so lange und läuft danach weiter.
 - Während der Wiedergabe: OK Pause/Weiter, ◀ ▶ zehn Sekunden zurück/vor, BACK beendet.

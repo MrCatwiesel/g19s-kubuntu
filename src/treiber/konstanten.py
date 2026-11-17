@@ -182,6 +182,7 @@ VISUAL_STYLES = {
     "ember": "Abendglut",
     "pulse": "Herzschlag-Aura",
     "jazz": "Lounge / Jazz-Club",
+    "auto": "Automatisch nach Musik",
 }
 VISUAL_FPS = 15             # Bilder je Sekunde der Visualisierung (Standard; einstellbar 10–25: visual.fps)
 VISUAL_FPS_QUIET = 8        # anpassende Bildrate (visual.adaptive): bei Stille/Wortbeitrag …
@@ -449,6 +450,18 @@ VISUAL_OPTIONS = {
                      ["layer", "Farbe der Ebene"]]},
     ],
 }
+_AUTO_CHOICES = [["mix", "Abwechselnd (passende Auswahl)"]] + [[k, v] for k, v in VISUAL_STYLES.items() if k != "auto"]
+VISUAL_OPTIONS["auto"] = [
+    {"key": "calm", "label": "Bei ruhiger Musik", "type": "choice", "default": "mix", "choices": _AUTO_CHOICES,
+     "help": "Langsam oder leise (unter 95 Schlägen/min): ab Werk Lagerfeuer, Lichtshow, Kreis-Spektrum, St. Martin, "
+             "Weltraum, Unterwasser, Seidenschleier, Abendglut oder Herzschlag-Aura."},
+    {"key": "mid", "label": "Bei mittlerer Musik", "type": "choice", "default": "mix", "choices": _AUTO_CHOICES,
+     "help": "Ab Werk Tänzerin, Bauernhof, Katzenchor, Western, Equalizer, Oktoberfest oder Jazz-Club."},
+    {"key": "wild", "label": "Bei wilder Musik", "type": "choice", "default": "mix", "choices": _AUTO_CHOICES,
+     "help": "Schnell und laut (ab 125 Schlägen/min): ab Werk Mittelalter-Metal, Arcade, Fasching, Feuerwerk oder "
+             "Halloween."},
+    {"key": "label", "label": "Gewählten Stil kurz einblenden", "type": "bool", "default": True},
+]
 
 
 # Wann eine Option wirkt (B8: sonst ausgeblendet – in der Verwaltung und im Display-Menü), Gruppen (B9) und

@@ -717,6 +717,10 @@ for _st, _gags in (("western", (("duell", 6.0), ("glas", 1.4), ("pferd", 3.6), (
 scenes["vis_jazz_saengerin"] = lambda r: _fest(r, "jazz", 4.0, _mt_gag(None), {"soloist": "singer", "mood": "blue"})
 scenes["vis_jazz_bass"] = lambda r: _fest(r, "jazz", 4.0, _mt_gag(None), {"soloist": "bass", "mood": "amber", "smoke": "off"})
 scenes["vis_lagerfeuer_allein"] = lambda r: _fest(r, "campfire", 3.0, None, {"people": False})
+scenes["vis_automatik"] = lambda r: (r.__dict__.pop("_auto", None), _fest(r, "auto", 7.0))[1]
+scenes["vis_wetter_regen"] = lambda r: _fest(r, "farm", 3.0, _mt_gag(None), weather=("rain", 8, 30))
+scenes["vis_wetter_schnee"] = lambda r: _fest(r, "campfire", 3.0, None, weather=("snow", -2, 10))
+scenes["vis_wetter_nebel"] = lambda r: _fest(r, "martin", 3.0, _mt_gag(None), weather=("fog", 3, 0))
 scenes["vis_keller_gewitter"] = lambda r: _fest(r, "cellar", 4.07, weather=("thunder", 12.0, 10.0))
 
 

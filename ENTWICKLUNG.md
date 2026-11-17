@@ -71,6 +71,7 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
       seite_visual_katzen     Stil „Katzenchor“ (cats): vier Katzen = Frequenzbänder, KC_GAGS
       seite_visual_jazz       Stil „Lounge / Jazz-Club“ (jazz): Kontrabass, Solist, Bistrotisch, JZ_GAGS, vis_col_jazz
       seite_visual_stimmung   Stimmungsbilder silk, ember, pulse (Mixin MoodVisual): ruhig, ohne Gags, Bass träge (_mood_state)
+      seite_visual_auto       Pseudo-Stil „auto“ (AutoVisual): auto_mood, AUTO_POOLS, vis_auto_inner; cover_color/COVER_STYLES; _vis_weather_fx/WEATHER_FX_STYLES
       seite_visual_szenen     Szenen der bewegten Vorschau (vis_scenes, vis_force; Server: vorschau.render_scene)
       seite_visual_party      Stil „Überraschungsparty“ (party, Mixin PartyVisual): Phasen hide/surprise/party
                               (_pt_new_round), Gags PT_GAGS, Gäste _pt_guest, Hund, Torte, Kastenteufel, Konfetti
