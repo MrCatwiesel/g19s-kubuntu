@@ -320,6 +320,13 @@ SCHEMA = {
     "video": Section({
         "feeds": Items([{"name": "Tagesschau in 100 Sekunden", "url": VIDEO_DEFAULT_FEED}],
                        Entry({"name": Str(maxlen=40), "url": Str()}), required="url", limit=8),
+        # eigene Listen: YouTube-Links und direkte Video-Adressen, Titel/Kanal holt die Verwaltung beim Eintragen
+        "lists": Items([], Entry({"name": Str(maxlen=40),
+                                  "items": Items([], Entry({"url": Str(), "title": Str(maxlen=150),
+                                                            "author": Str(maxlen=80)}), required="url", limit=300)}),
+                       required="name", limit=12),
+        "youtube": Choice("browser", lambda: ("browser", "display")),   # YouTube: im Browser oder auf dem Display
+        "autonext": Bool(True),                                      # auf dem Display: danach das nächste der Liste
     }),
     "warnings": Section({"popup": Bool(True, only_false=True)}),   # Unwetterwarnungen (DWD über Bright Sky)
     "network": Section({

@@ -43,6 +43,80 @@ function renderVideo() {
     el("button", {class: "btn small", onclick: () => { feeds.push({name: n, url: u}); touchSettings(); renderVideo(); }}, "+ " + n)));
 }
 $("#videoAdd").addEventListener("click", () => { UI.sdraft.video.feeds.push({name: "", url: ""}); touchSettings(); renderVideo(); });
+function ytId(url) {
+  const m = /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/|live\/|v\/))([A-Za-z0-9_-]{11})/.exec(url || "");
+  return m ? m[1] : null;
+}
+function renderVideoLists() {
+  const v = UI.sdraft.video;
+  v.lists = v.lists || [];
+  $("#videoMode").value = v.youtube || "browser";
+  $("#videoAutonext").checked = v.autonext !== false;
+  $("#ytdlpHint").hidden = (v.youtube || "browser") !== "display";
+  const box = $("#videoLists");
+  box.replaceChildren(...v.lists.map((lst, li) => {
+    lst.items = lst.items || [];
+    const msg = el("span", {class: "muted"});
+    const rows = lst.items.map((it, i) => {
+      const id = ytId(it.url);
+      const move = d => { const j = i + d; if (j < 0 || j >= lst.items.length) return;
+        [lst.items[i], lst.items[j]] = [lst.items[j], lst.items[i]]; touchSettings(); renderVideoLists(); };
+      return el("div", {class: "row videoitem", style: {flexWrap: "nowrap", marginBottom: "4px", alignItems: "center"}},
+        id ? el("img", {src: `https://i.ytimg.com/vi/${id}/default.jpg`, alt: "", onerror: e => { e.target.style.visibility = "hidden"; },
+                        style: {width: "64px", height: "36px", objectFit: "cover", borderRadius: "4px"}})
+           : el("span", {style: {width: "64px", textAlign: "center"}, text: "🎞"}),
+        el("input", {type: "text", value: it.title || "", placeholder: "Titel", style: {flex: "3"}, title: it.url,
+                     oninput: e => { it.title = e.target.value; touchSettings(); }}),
+        el("span", {class: "muted", style: {flex: "1", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis"}, text: it.author || ""}),
+        el("button", {class: "btn icon small", title: "nach oben", onclick: () => move(-1)}, "▲"),
+        el("button", {class: "btn icon small", title: "nach unten", onclick: () => move(1)}, "▼"),
+        el("button", {class: "btn icon small danger", title: "entfernen", onclick: () => { lst.items.splice(i, 1); touchSettings(); renderVideoLists(); }}, "✕"));
+    });
+    const link = el("input", {type: "url", placeholder: "YouTube-Link oder Video-Adresse einfügen", style: {flex: "3"}});
+    const add = async () => {
+      const url = link.value.trim();
+      if (!url) return;
+      msg.textContent = "hole Titel …";
+      try { const r = await api("/api/video/lookup", {body: {url}}); lst.items.push(r); touchSettings(); renderVideoLists(); }
+      catch (e) { msg.textContent = "✗ " + e.message; }
+    };
+    link.addEventListener("keydown", e => { if (e.key === "Enter") add(); });
+    const pl = el("input", {type: "url", placeholder: "Playlist-Link (…list=…)", style: {flex: "3"}});
+    const takeOver = async () => {
+      msg.textContent = "lese Playlist …";
+      try {
+        const r = await api("/api/video/playlist", {body: {url: pl.value.trim()}});
+        const have = new Set(lst.items.map(x => ytId(x.url)));
+        const fresh = r.items.filter(x => !have.has(ytId(x.url)));
+        lst.items.push(...fresh); touchSettings(); renderVideoLists();
+      } catch (e) { msg.textContent = "✗ " + e.message; }
+    };
+    return el("div", {class: "feedrow videolist"},
+      el("div", {class: "row", style: {flexWrap: "nowrap"}},
+        el("input", {type: "text", value: lst.name || "", placeholder: "Name der Liste (z. B. Musik)", style: {flex: "1", fontWeight: "600"},
+                     oninput: e => { lst.name = e.target.value; touchSettings(); }}),
+        el("span", {class: "muted", text: `${lst.items.length} Videos`}),
+        el("button", {class: "btn icon small danger", title: "Liste löschen", onclick: () => {
+          if (!lst.items.length || confirm(`Liste „${lst.name}“ mit ${lst.items.length} Videos löschen?`)) { v.lists.splice(li, 1); touchSettings(); renderVideoLists(); } }}, "✕")),
+      ...rows,
+      lst.items.length ? "" : el("div", {class: "empty", text: "Noch keine Videos – Link einfügen."}),
+      el("div", {class: "row", style: {flexWrap: "nowrap", marginTop: "4px"}}, link, el("button", {class: "btn small", onclick: add}, "Hinzufügen")),
+      el("div", {class: "row", style: {flexWrap: "nowrap", marginTop: "4px"}}, pl,
+        el("button", {class: "btn small", onclick: takeOver, title: "Übernimmt die neuesten 15 Videos einer öffentlichen Playlist"}, "Aus Playlist übernehmen")),
+      msg);
+  }));
+  if (!v.lists.length) box.append(el("div", {class: "empty", text: "Noch keine eigene Liste – unten anlegen."}));
+}
+async function checkYtdlp() {
+  const st = $("#ytdlpState");
+  try { const r = await api("/api/video/ytdlp"); st.textContent = r.found ? `✓ yt-dlp ${r.version}` : "yt-dlp nicht installiert"; }
+  catch (e) { st.textContent = ""; }
+}
+$("#videoMode").addEventListener("change", e => { UI.sdraft.video.youtube = e.target.value; touchSettings(); renderVideoLists();
+  if (e.target.value === "display") checkYtdlp(); });
+$("#videoAutonext").addEventListener("change", e => { UI.sdraft.video.autonext = e.target.checked; touchSettings(); });
+$("#videoListAdd").addEventListener("click", () => { UI.sdraft.video.lists = UI.sdraft.video.lists || [];
+  UI.sdraft.video.lists.push({name: "Meine Videos", items: []}); touchSettings(); renderVideoLists(); });
 function renderNet() {
   const sd = UI.sdraft;
   const hosts = sd.network.hosts, box = $("#netHosts");
@@ -84,7 +158,8 @@ $("#updTest").addEventListener("click", async () => {
 });
 function renderInfo() {
   const sd = UI.sdraft; if (!sd) return;
-  renderNews(); renderVideo(); renderNet();
+  renderNews(); renderVideo(); renderVideoLists(); renderNet();
+  if ((UI.sdraft.video || {}).youtube === "display") checkYtdlp();
   $("#warnPopup").checked = sd.warnings.popup;
   $("#updFlatpak").checked = sd.updates.flatpak;
   $("#updG19s").checked = sd.updates.g19s !== false;

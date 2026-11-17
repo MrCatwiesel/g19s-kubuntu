@@ -29,9 +29,12 @@ Die Version steht in `src/treiber/kopf.py` und `src/verwaltung/server/kopf.py`.
       zwischenablage          Texte über die Zwischenablage einfügen (Klipper/wl-copy, Strg+V)
       medientasten            Lautstärkerad/Medientasten exklusiv übernehmen (Consumer-Control-Gerät, grab)
       piwigo … sicherung      Dienste (Radio, Diashow, Wetter, Kalender, RSS, Unwetter, …)
-      videos                  Video-Feeds (VideoPoller, parse_video_feed) und VideoPlayer: ffmpeg → Rohbilder 320×180
+      videos                  Video-Feeds (VideoPoller, parse_video_feed) und VideoPlayer: ffmpeg → Rohbilder 320×180;
+                              eigene Listen (video_list_items), YouTube (youtube_id, youtube_lookup/oEmbed, parse_youtube_feed),
+                              yt-dlp (ytdlp_path, ytdlp_resolve, VideoPlayer.play_youtube), ThumbCache (Vorschaubilder, reduce statt resize)
                               über eine Pipe + Ton an PulseAudio; Pause/Spulen = Neustart mit -ss
-      seite_video             Seite „Video“: Folgenliste, Wiedergabe, Tasten; Radio pausiert (video_start/video_stop)
+      seite_video             Seite „Video“: Quellen (video_sources, MENU wechselt), Folgen-/Listenansicht, Wiedergabe, Tasten;
+                              video_open (Browser oder Display), _video_next (automatisch weiter), video_play_list (G-Taste list:Name)
       klanganalyse            Ausgang mithören (pw-record), FFT/Bänder/Takt/Sprache für die Visualisierung
       anzeige_basis           Renderer-Grundlage, @page / @page_keys
       seite_*.py              je Displayseite: Zeichnen + Tasten
@@ -149,7 +152,7 @@ In den Simulationen läuft der Medientasten-Faden nur mit `Sim(..., media_keys=T
 Einzelne Teile: `run_tests.py bilder sim`, `run_tests.py sim=s05`.
 Nach einer gewollten Änderung der Anzeige: `run_tests.py --referenz` (danach die neuen
 PNGs ansehen!). Die Tests laufen ohne Tastatur: `tests/stubs` ersetzt evdev,
-`tests/fakes` spielt Piwigo, CalDAV/RSS/Bright Sky, `ffmpeg` (Testbilder statt Video, `$G19S_TEST_ROOT/state/ffmpeg.log`), Video-Feed `/video.xml`,
+`tests/fakes` spielt Piwigo, CalDAV/RSS/Bright Sky, `ffmpeg` (Testbilder statt Video, `$G19S_TEST_ROOT/state/ffmpeg.log`), Video-Feed `/video.xml`, YouTube-oEmbed `/oembed` und Playlist-Feed `/feeds/videos.xml` (`G19S_YOUTUBE_URL`),
 Klipper/`wl-copy` (`qdbus6`, `wl-copy`, `wl-paste`; Inhalt in `$G19S_TEST_ROOT/state/zwischenablage`),
 GitHub (Release-API für die Update-Suche über
 `G19S_UPDATE_URL`: Liste aus `$G19S_TEST_ROOT/upd/gh/releases.json`, Dateien aus `upd/gh/<tag>/`,

@@ -36,6 +36,30 @@ with sync_playwright() as p:
     vk.locator("input[type=url]").fill("http://127.0.0.1:8812/rss.xml"); vk.locator("text=Testen").click(); pg.wait_for_timeout(800)
     ok("Keine Videos" in vk.inner_text(), "Feed ohne Videos erkannt: " + vk.inner_text().replace("\n", " ")[-60:])
     vk.locator("button[title=entfernen]").click()
+    # Eigene Videolisten: YouTube-Link nachschlagen, Playlist übernehmen, sortieren, Wiedergabe wählen
+    ok(pg.input_value("#videoMode") == "browser", "Videolisten: ab Werk im Browser öffnen")
+    pg.click("#videoListAdd"); vl = pg.locator("#videoLists .videolist").last
+    vl.locator("input[type=text]").first.fill("Musik")
+    vl.locator("input[placeholder^='YouTube-Link']").fill("https://youtu.be/dQw4w9WgXcQ?t=5")
+    vl.locator("text=Hinzufügen").click(); pg.wait_for_timeout(800)
+    vl = pg.locator("#videoLists .videolist").last
+    ok("Testkanal" in vl.inner_text() and vl.locator(".videoitem input").first.input_value() == "Testvideo dQw4w9WgXcQ",
+       "Videoliste: Titel und Kanal geholt")
+    vl.locator("input[placeholder^='YouTube-Link']").fill("https://www.youtube.com/watch?v=xxxxxxxxxxx")
+    vl.locator("text=Hinzufügen").click(); pg.wait_for_timeout(800)
+    ok("✗" in pg.locator("#videoLists .videolist").last.inner_text(), "Videoliste: unbekanntes Video gemeldet")
+    vl = pg.locator("#videoLists .videolist").last
+    vl.locator("input[placeholder^='Playlist']").fill("https://www.youtube.com/playlist?list=PLtestliste1234")
+    vl.locator("text=Aus Playlist übernehmen").click(); pg.wait_for_timeout(800)
+    vl = pg.locator("#videoLists .videolist").last
+    ok(vl.locator(".videoitem").count() == 4, f"Videoliste: Playlist übernommen ({vl.locator('.videoitem').count()} Einträge)")
+    vl.locator(".videoitem").nth(3).locator("button[title='nach oben']").click()
+    vl = pg.locator("#videoLists .videolist").last
+    ok(vl.locator(".videoitem input").nth(2).input_value() == "Playlist-Video 3", "Videoliste: Reihenfolge änderbar")
+    pg.select_option("#videoMode", "display"); pg.wait_for_timeout(500)
+    ok(pg.is_visible("#ytdlpHint") and "pipx install yt-dlp" in pg.inner_text("#ytdlpHint"), "Display-Modus: Hinweis auf yt-dlp")
+    ok("yt-dlp" in pg.inner_text("#ytdlpState"), "yt-dlp-Prüfung: " + pg.inner_text("#ytdlpState"))
+    pg.uncheck("#videoAutonext")
     # Wetterort für Unwetter
     pg.fill("#wxQ", "leipzig"); pg.click("#wxForm button"); pg.wait_for_timeout(700)
     pg.locator("#wxResults .res").first.click(); pg.wait_for_timeout(900)
@@ -59,10 +83,17 @@ with sync_playwright() as p:
     ok(s["warnings"] == {"popup": False} and s["updates"] == {"flatpak": False, "g19s": True}, "Unwetter/Updates-Optionen gespeichert")
     ok(s["network"]["hosts"][-1] == {"name": "NAS", "host": "10.0.0.99"}, "Gerät gespeichert")
     ok([f["url"] for f in s["video"]["feeds"]][1:] == ["http://127.0.0.1:8812/video.xml"], "Video-Feeds gespeichert")
+    lst = s["video"]["lists"][0]
+    ok(lst["name"] == "Musik" and [i["title"] for i in lst["items"]] == ["Testvideo dQw4w9WgXcQ", "Playlist-Video 1",
+       "Playlist-Video 3", "Playlist-Video 2"], "Videoliste gespeichert: " + json.dumps([i["title"] for i in lst["items"]]))
+    ok(lst["items"][0]["url"] == "https://www.youtube.com/watch?v=dQw4w9WgXcQ" and lst["items"][0]["author"] == "Testkanal",
+       "Videoliste: Link vereinheitlicht")
+    ok(s["video"]["youtube"] == "display" and s["video"]["autonext"] is False, "Wiedergabe-Modus gespeichert")
     # G-Tasten-Art „Video abspielen“
     pg.click("nav >> text=Tasten"); pg.wait_for_timeout(300)
     pg.click(".gkey >> text=G11"); pg.click(".types button >> text=Video abspielen")
     ok("neueste Folge" in pg.inner_text("#editor"), "Video: Erklärung im Editor")
+    ok("Eigene Liste: Musik" in pg.inner_text("#editor select"), "Video: eigene Liste wählbar")
     pg.click("#applyBtn"); pg.wait_for_timeout(400)
     mk = json.load(open(H + "/.config/g19s/macros.json"))
     keys = mk["profiles"][0]["keys"]["M1"] if "profiles" in mk else mk["M1"]

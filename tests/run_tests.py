@@ -171,7 +171,7 @@ def run_sims():
 
 # --------------------------------------------------------------------------- gui
 def run_gui():
-    genv = dict(env, G19S_ALERTS_URL="http://127.0.0.1:8812/alerts")
+    genv = dict(env, G19S_ALERTS_URL="http://127.0.0.1:8812/alerts", G19S_YOUTUBE_URL="http://127.0.0.1:8812")
     r = subprocess.run(["bash", os.path.join(HERE, "gui", "run_gui.sh")], env=genv, capture_output=True, text=True, timeout=1500)
     for line in r.stdout.splitlines():
         if line.startswith("ERGEBNIS "):

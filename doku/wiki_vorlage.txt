@@ -127,6 +127,8 @@ sudo apt install python3-usb python3-evdev python3-pil python3-numpy playerctl m
 | <code>libnotify-bin</code> || nur für den Knopf „Testbenachrichtigung senden“ in der Verwaltung
 |-
 | <code>ffmpeg</code> || Displayseite „Video“ (z. B. „Tagesschau in 100 Sekunden“): Bild aufs Display, Ton über PipeWire
+|-
+| <code>yt-dlp</code> (optional) || nur wenn YouTube-Videos aus eigenen Listen direkt auf dem Display laufen sollen: <code>sudo apt install pipx && pipx install yt-dlp</code>, aktuell halten mit <code>pipx upgrade yt-dlp</code> (die Ubuntu-Version ist meist zu alt). YouTube erlaubt diese Art des Abspielens in seinen Nutzungsbedingungen nicht – Nutzung auf eigene Verantwortung
 |}
 Bei Kubuntu bereits vorhanden und ebenfalls genutzt: <code>pw-record</code> (Paket <code>pipewire-bin</code>, Visualisierung; ersatzweise <code>parec</code>), <code>dbus-monitor</code> (Paket <code>dbus-bin</code>, Benachrichtigungen) und <code>wpctl</code> (Paket <code>wireplumber</code>, Lautstärke). Für Grafikkarten von NVIDIA liest die Hardware-Seite Temperatur und Auslastung über <code>nvidia-smi</code>, falls der NVIDIA-Treiber installiert ist.
 
@@ -272,7 +274,7 @@ Startet eine neue Oberfläche nicht, stellt die Verwaltung automatisch die vorhe
 |-
 | Radiosender || startet den Sender, nochmal drücken = aus || <code>"radio": "https://…"</code> bzw. <code>"stop"</code>
 |-
-| Video abspielen || springt zur Seite „Video“ und spielt die neueste Folge (ab Werk „Tagesschau in 100 Sekunden“), nochmal drücken = Stopp || <code>"video": "latest"</code>
+| Video abspielen || springt zur Seite „Video“ und spielt die neueste Folge (ab Werk „Tagesschau in 100 Sekunden“) oder eine eigene Videoliste; nochmal drücken = Stopp (öffnen YouTube-Videos im Browser, öffnet jeder Druck das nächste Video der Liste) || <code>"video": "latest"</code> bzw. <code>"video": "list:Musik"</code>
 |-
 | Musiksteuerung || Play/Pause, Titel vor/zurück, Stopp || <code>"media": "play-pause"</code>
 |-
@@ -378,8 +380,10 @@ Hoch/Runter wählen, '''BACK''', '''MENU''' oder '''SETTINGS''' schließen. Nach
 |-
 | Updates || Anzahl verfügbarer Paket- und Flatpak-Updates, Sicherheitsupdates, „Neustart erforderlich“ und – einmal am Tag bei GitHub geprüft – „G19s … verfügbar“ (abschaltbar); '''OK''' öffnet Discover, die neue G19s-Version holt man in der Verwaltung unter „Dienst & Sicherung → Nach Updates suchen“
 |-
-| Video || Folgen aus Video-Podcast-Feeds, ab Werk „Tagesschau in 100 Sekunden“ (stündlich aktualisiert). '''Hoch/Runter''' wählt eine Folge, '''OK''' spielt sie ab: oben das Bild in 16:9, darunter Titel, Zeit und Fortschritt; der Ton läuft über die Lautsprecher, ein laufendes Radio pausiert so lange. Während der Wiedergabe: '''OK''' Pause/Weiter, '''◀ ▶''' zehn Sekunden zurück/vor, '''BACK''' beendet. Benötigt <code>ffmpeg</code>
+| Video || Folgen aus Video-Podcast-Feeds, ab Werk „Tagesschau in 100 Sekunden“ (stündlich aktualisiert). '''Hoch/Runter''' wählt eine Folge, '''OK''' spielt sie ab: oben das Bild in 16:9, darunter Titel, Zeit und Fortschritt; der Ton läuft über die Lautsprecher, ein laufendes Radio pausiert so lange. Während der Wiedergabe: '''OK''' Pause/Weiter, '''◀ ▶''' zehn Sekunden zurück/vor, '''BACK''' beendet. Dazu kommen '''eigene Videolisten''' (YouTube-Links und direkte Video-Adressen, mit Vorschaubild, Titel und Kanal); '''MENU''' wechselt zwischen den Podcasts und den Listen. YouTube-Videos öffnen je nach Einstellung im Browser am PC oder laufen direkt auf dem Display (mit yt-dlp), auf Wunsch eins nach dem anderen. Benötigt <code>ffmpeg</code>
 |}
+'''Eigene Videolisten''' (Verwaltung → '''Infoseiten → Video → Eigene Videolisten'''): „+ Neue Liste“ anlegen, benennen und YouTube-Links (auch <code>youtu.be/…</code> und Shorts) oder direkte Video-Adressen einfügen – Titel und Kanal holt die Verwaltung über die offizielle YouTube-Einbettungsschnittstelle, ohne Anmeldung. Titel lassen sich ändern, Einträge mit ▲ ▼ sortieren. „Aus Playlist übernehmen“ holt die neuesten 15 Videos einer öffentlichen YouTube-Playlist einmalig in die Liste (mehr liefert YouTube ohne Anmeldung nicht). Die Auswahl „YouTube-Videos“ bestimmt die Wiedergabe: '''im Browser am PC''' (ab Werk; das Display zeigt die Liste und dient als Fernbedienung) oder '''direkt auf dem Display''' (braucht <code>yt-dlp</code>, siehe Programme oben; fehlt es, öffnet das Video im Browser). Direkte Video-Adressen laufen immer auf dem Display.
+
 Die Seiten Nachrichten, Unwetter, Netzwerk, Updates und Video sind anfangs ausgeschaltet und werden unter '''Beleuchtung & Display → Displayseiten''' eingeschaltet. Auf diesen Seiten fragt '''MENU''' die Daten sofort neu ab.
 Auf den Seiten ohne eigene Tastenbelegung blättern auch '''Hoch/Runter'''.
 
@@ -763,7 +767,7 @@ Bis zu 10 Einträge in <code>profiles</code>. Optional hat ein Profil eigene Dis
 |-
 | <code>"radio"</code> || Radiosender (Stream-Adresse) bzw. <code>"stop"</code>
 |-
-| <code>"video"</code> || <code>"latest"</code>: neueste Folge der Video-Feeds abspielen
+| <code>"video"</code> || <code>"latest"</code>: neueste Folge der Video-Feeds abspielen; <code>"list:Name"</code>: eigene Videoliste „Name“
 |-
 | <code>"media"</code> || <code>play-pause</code>, <code>next</code>, <code>previous</code>, <code>stop</code>
 |-
@@ -871,6 +875,10 @@ Danach mit Schritt 3 „udev-Regel“ weitermachen. Treiber und Dienst sind dann
 | Videoseite: „ffmpeg fehlt“ || Paket fehlt || <code>sudo apt install ffmpeg</code>
 |-
 | Video: Bild läuft, aber kein Ton || ffmpeg ohne PulseAudio-Ausgabe oder Ausgang stumm || Lautstärke prüfen; im Protokoll steht die Meldung von ffmpeg (<code>journalctl --user -u g19s</code>)
+|-
+| Video: „yt-dlp fehlt“ bzw. YouTube-Video öffnet trotz Display-Einstellung im Browser || yt-dlp nicht installiert oder nicht im Pfad || <code>pipx install yt-dlp</code>; die Verwaltung zeigt unter '''Infoseiten → Video''' an, ob yt-dlp gefunden wird
+|-
+| Video: „yt-dlp: …“ (z. B. „Sign in to confirm …“, „Video unavailable“) || YouTube hat etwas geändert oder das Video ist gesperrt/privat || <code>pipx upgrade yt-dlp</code>; klappt es dann noch nicht, im Browser-Modus abspielen
 |-
 | Video: „Feed nicht lesbar“ / keine Folgen || Feed-Adresse geändert || In der Verwaltung unter '''Infoseiten → Video''' die Adresse mit „Testen“ prüfen und ggf. aktualisieren
 |-

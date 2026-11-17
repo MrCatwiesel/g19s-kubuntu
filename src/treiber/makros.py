@@ -45,7 +45,8 @@ def entry_label(entry, settings=None):
                 return st.get("name") or domain_of(entry["radio"])
         return domain_of(entry["radio"])
     if t == "video":
-        return "Video"
+        val = str(entry.get("video") or "")
+        return ("Video: " + val[5:]) if val.startswith("list:") else "Video"
     if t == "media":
         return MEDIA_ACTIONS.get(entry["media"], "Musik")
     if t == "volume":

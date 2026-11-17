@@ -40,7 +40,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.17-1"
+VERSION = "2026.11.17-2"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -69,7 +69,7 @@ def load_driver():
 
 
 # Alle Namen des Treibers, die die Verwaltung benutzt (g.<name>) – build.py trägt sie beim Bauen ein
-DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD ENTRY_TYPES FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VISUAL_OPTIONS VISUAL_STYLES VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller _clean auto_backup backup_members clean_macros clean_settings demo_snapshot err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed parse_video_feed save_json save_state test_backup_target valid_colors vis_force vis_scenes".split()
+DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD ENTRY_TYPES FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VISUAL_OPTIONS VISUAL_STYLES VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller YOUTUBE_FEED _clean auto_backup backup_members clean_macros clean_settings demo_snapshot domain_of err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed parse_video_feed parse_youtube_feed save_json save_state test_backup_target valid_colors vis_force vis_scenes youtube_id youtube_lookup youtube_playlist_id ytdlp_path".split()
 
 
 g = load_driver()
@@ -995,6 +995,49 @@ class ApiInfo:
         if not items:
             raise RuntimeError("Keine Videos gefunden – ist das ein Video-Podcast-Feed?")
         self._send(200, {"count": len(items), "first": items[0]["title"]})
+
+    def api_post_video_lookup(self, q):
+        """Eintrag für eine eigene Videoliste: YouTube-Link → Titel/Kanal (oEmbed), sonst direkte Video-Adresse."""
+        url = str(self._json().get("url") or "").strip()
+        if not hasattr(g, "youtube_id"):
+            raise RuntimeError("Der installierte Treiber kennt noch keine Videolisten – bitte g19s.py aktualisieren")
+        if g.youtube_id(url):
+            try:
+                self._send(200, g.youtube_lookup(url))
+            except Exception as ex:     # Dienst im Netz: jeden Fehler als Meldung anzeigen
+                raise RuntimeError(f"YouTube kennt das Video nicht oder ist nicht erreichbar: {g.err_text(ex)}")
+            return
+        if not re.match(r"^https?://", url, re.I):
+            raise ValueError("Bitte einen YouTube-Link oder eine Video-Adresse (http/https) einfügen")
+        name = url.split("?", 1)[0].rstrip("/").rsplit("/", 1)[-1] or g.domain_of(url)
+        self._send(200, {"url": url, "title": name[:150], "author": g.domain_of(url)})
+
+    def api_post_video_playlist(self, q):
+        """Die neuesten (bis zu 15) Videos einer öffentlichen YouTube-Playlist für die Übernahme in eine Liste."""
+        url = str(self._json().get("url") or "").strip()
+        pid = g.youtube_playlist_id(url) if hasattr(g, "youtube_playlist_id") else None
+        if not pid:
+            raise ValueError("Kein Playlist-Link – er enthält „list=…“")
+        try:
+            items = g.parse_youtube_feed(g.http_get(g.YOUTUBE_FEED.format(pid), timeout=20))
+        except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
+            raise RuntimeError(f"Playlist nicht lesbar (privat?): {g.err_text(ex)}")
+        if not items:
+            raise RuntimeError("Die Playlist ist leer oder nicht öffentlich")
+        self._send(200, {"items": items})
+
+    def api_get_video_ytdlp(self, q):
+        """Ist yt-dlp installiert (für YouTube auf dem Display)? Version zur Anzeige."""
+        env = dict(os.environ)
+        exe = g.ytdlp_path(env) if hasattr(g, "ytdlp_path") else None
+        if exe is None:
+            self._send(200, {"found": False})
+            return
+        try:
+            ver = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=15).stdout.strip()
+        except (OSError, subprocess.TimeoutExpired):
+            ver = ""
+        self._send(200, {"found": True, "version": ver[:30], "path": exe})
 
     def api_post_warnings_test(self, q):
         s = clean_settings(self._json().get("settings") or g.load_settings())
@@ -2171,12 +2214,26 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
     </div>
     <div class="card">
       <h2>Video</h2>
-      <p class="hint">Video-Podcast-Feeds für die Displayseite „Video“ (stündlich aktualisiert, solange die Seite eingeschaltet ist). Am Display: Hoch/Runter wählt eine Folge, OK spielt sie ab, MENU lädt neu; während der Wiedergabe OK Pause/Weiter, ◀ ▶ zehn Sekunden zurück/vor, BACK beendet. Bild und Ton spielt <code>ffmpeg</code> ab (<code>sudo apt install ffmpeg</code>). Mit der G-Tasten-Aktion „Video abspielen“ startet die neueste Folge auf Knopfdruck.</p>
+      <p class="hint">Video-Podcast-Feeds für die Displayseite „Video“ (stündlich aktualisiert, solange die Seite eingeschaltet ist). Am Display: Hoch/Runter wählt eine Folge, OK spielt sie ab, MENU lädt neu (gibt es eigene Listen, wechselt MENU zur nächsten Liste); während der Wiedergabe OK Pause/Weiter, ◀ ▶ zehn Sekunden zurück/vor, BACK beendet. Bild und Ton spielt <code>ffmpeg</code> ab (<code>sudo apt install ffmpeg</code>). Mit der G-Tasten-Aktion „Video abspielen“ startet die neueste Folge auf Knopfdruck.</p>
       <div id="videoFeeds"></div>
       <div class="row" style="margin-top:8px">
         <button class="btn" id="videoAdd">+ Feed hinzufügen</button>
         <span class="muted">Schnell hinzufügen:</span><div class="row" id="videoPresets"></div>
       </div>
+      <h3 style="margin-top:16px">Eigene Videolisten</h3>
+      <p class="hint">Selbst gepflegte Listen mit YouTube-Links oder direkten Video-Adressen (z. B. <code>…/film.mp4</code>). Link einfügen und „Hinzufügen“ – Titel, Kanal und Vorschaubild holt die Verwaltung selbst. Am Display wechselt MENU zwischen den Podcasts und den Listen. Mit der G-Tasten-Aktion „Video abspielen“ lässt sich eine Liste auch direkt starten.</p>
+      <div class="row">
+        <label>YouTube-Videos
+          <select id="videoMode">
+            <option value="browser">im Browser am PC öffnen (Display zeigt die Liste)</option>
+            <option value="display">direkt auf dem Display abspielen (braucht yt-dlp)</option>
+          </select></label>
+        <span class="muted" id="ytdlpState"></span>
+      </div>
+      <p class="hint" id="ytdlpHint" hidden>Für die Wiedergabe auf dem Display holt <code>yt-dlp</code> den Videostrom von YouTube. Installieren mit <code>sudo apt install pipx &amp;&amp; pipx install yt-dlp</code>, aktuell halten mit <code>pipx upgrade yt-dlp</code> (YouTube ändert öfter etwas; die Ubuntu-Version ist meist zu alt). YouTube erlaubt diese Art des Abspielens in seinen Nutzungsbedingungen nicht – die Nutzung geschieht auf eigene Verantwortung. Fehlt yt-dlp, öffnen die Videos im Browser.</p>
+      <label class="check"><input type="checkbox" id="videoAutonext"> Auf dem Display danach automatisch das nächste Video der Liste</label>
+      <div id="videoLists"></div>
+      <div class="row" style="margin-top:8px"><button class="btn" id="videoListAdd">+ Neue Liste</button></div>
     </div>
     <div class="card">
       <h2>Unwetterwarnungen</h2>
@@ -2482,7 +2539,7 @@ function entryLabel(e) {
   const t = typeOf(e);
   if (t === "open") return domainOf(e.open);
   if (t === "radio") return e.radio === "stop" ? "Radio aus" : stationName(e.radio);
-  if (t === "video") return "Video";
+  if (t === "video") return String(e.video || "").startsWith("list:") ? "Video: " + e.video.slice(5) : "Video";
   if (t === "media") return S.media[e.media] || "Musik";
   if (t === "volume") return S.volume[e.volume] || "Lautstärke";
   if (t === "snippets") return e.snippet ? String(e.snippet) : e.snippets === "*" ? "Textbausteine" : String(e.snippets);
@@ -2700,7 +2757,17 @@ function edDefault(box) {
     " oder direkt in einem Programm (Spiele, OBS …). Ein Name hier erscheint nur als Beschriftung auf dem Display."));
 }
 function edVideo(box, d) {
-  const feeds = ((UI.sdraft || S.settings).video || {}).feeds || [];
+  const vcfg = (UI.sdraft || S.settings).video || {};
+  const feeds = vcfg.feeds || [], lists = (vcfg.lists || []).filter(l => l.name);
+  if (lists.length) {
+    const sel = el("select", {onchange: e => { d.video = e.target.value; touchDraft(); }},
+      el("option", {value: "latest", text: "Neueste Folge der Video-Feeds"}),
+      ...lists.map(l => el("option", {value: "list:" + l.name, text: "Eigene Liste: " + l.name})));
+    sel.value = d.video || "latest";
+    box.append(el("label", {class: "field"}, el("span", {text: "Was abspielen?"}), sel));
+    box.append(el("p", {class: "hint", text: "Eine eigene Liste startet beim ersten Video; werden YouTube-Videos im Browser geöffnet, "
+      + "öffnet jeder weitere Druck das nächste Video der Liste."}));
+  }
   box.append(el("p", {class: "hint", text: "Springt zur Displayseite „Video“ und spielt die neueste Folge der Video-Feeds ab "
     + "(ab Werk „Tagesschau in 100 Sekunden“). Nochmal drücken beendet das Video. Am Display: OK Pause/Weiter, ◀ ▶ zehn Sekunden "
     + "zurück/vor, BACK beendet. Ein laufendes Radio pausiert so lange. Die Feeds stehen im Reiter „Infoseiten“."}));
@@ -3747,6 +3814,80 @@ function renderVideo() {
     el("button", {class: "btn small", onclick: () => { feeds.push({name: n, url: u}); touchSettings(); renderVideo(); }}, "+ " + n)));
 }
 $("#videoAdd").addEventListener("click", () => { UI.sdraft.video.feeds.push({name: "", url: ""}); touchSettings(); renderVideo(); });
+function ytId(url) {
+  const m = /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/|live\/|v\/))([A-Za-z0-9_-]{11})/.exec(url || "");
+  return m ? m[1] : null;
+}
+function renderVideoLists() {
+  const v = UI.sdraft.video;
+  v.lists = v.lists || [];
+  $("#videoMode").value = v.youtube || "browser";
+  $("#videoAutonext").checked = v.autonext !== false;
+  $("#ytdlpHint").hidden = (v.youtube || "browser") !== "display";
+  const box = $("#videoLists");
+  box.replaceChildren(...v.lists.map((lst, li) => {
+    lst.items = lst.items || [];
+    const msg = el("span", {class: "muted"});
+    const rows = lst.items.map((it, i) => {
+      const id = ytId(it.url);
+      const move = d => { const j = i + d; if (j < 0 || j >= lst.items.length) return;
+        [lst.items[i], lst.items[j]] = [lst.items[j], lst.items[i]]; touchSettings(); renderVideoLists(); };
+      return el("div", {class: "row videoitem", style: {flexWrap: "nowrap", marginBottom: "4px", alignItems: "center"}},
+        id ? el("img", {src: `https://i.ytimg.com/vi/${id}/default.jpg`, alt: "", onerror: e => { e.target.style.visibility = "hidden"; },
+                        style: {width: "64px", height: "36px", objectFit: "cover", borderRadius: "4px"}})
+           : el("span", {style: {width: "64px", textAlign: "center"}, text: "🎞"}),
+        el("input", {type: "text", value: it.title || "", placeholder: "Titel", style: {flex: "3"}, title: it.url,
+                     oninput: e => { it.title = e.target.value; touchSettings(); }}),
+        el("span", {class: "muted", style: {flex: "1", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis"}, text: it.author || ""}),
+        el("button", {class: "btn icon small", title: "nach oben", onclick: () => move(-1)}, "▲"),
+        el("button", {class: "btn icon small", title: "nach unten", onclick: () => move(1)}, "▼"),
+        el("button", {class: "btn icon small danger", title: "entfernen", onclick: () => { lst.items.splice(i, 1); touchSettings(); renderVideoLists(); }}, "✕"));
+    });
+    const link = el("input", {type: "url", placeholder: "YouTube-Link oder Video-Adresse einfügen", style: {flex: "3"}});
+    const add = async () => {
+      const url = link.value.trim();
+      if (!url) return;
+      msg.textContent = "hole Titel …";
+      try { const r = await api("/api/video/lookup", {body: {url}}); lst.items.push(r); touchSettings(); renderVideoLists(); }
+      catch (e) { msg.textContent = "✗ " + e.message; }
+    };
+    link.addEventListener("keydown", e => { if (e.key === "Enter") add(); });
+    const pl = el("input", {type: "url", placeholder: "Playlist-Link (…list=…)", style: {flex: "3"}});
+    const takeOver = async () => {
+      msg.textContent = "lese Playlist …";
+      try {
+        const r = await api("/api/video/playlist", {body: {url: pl.value.trim()}});
+        const have = new Set(lst.items.map(x => ytId(x.url)));
+        const fresh = r.items.filter(x => !have.has(ytId(x.url)));
+        lst.items.push(...fresh); touchSettings(); renderVideoLists();
+      } catch (e) { msg.textContent = "✗ " + e.message; }
+    };
+    return el("div", {class: "feedrow videolist"},
+      el("div", {class: "row", style: {flexWrap: "nowrap"}},
+        el("input", {type: "text", value: lst.name || "", placeholder: "Name der Liste (z. B. Musik)", style: {flex: "1", fontWeight: "600"},
+                     oninput: e => { lst.name = e.target.value; touchSettings(); }}),
+        el("span", {class: "muted", text: `${lst.items.length} Videos`}),
+        el("button", {class: "btn icon small danger", title: "Liste löschen", onclick: () => {
+          if (!lst.items.length || confirm(`Liste „${lst.name}“ mit ${lst.items.length} Videos löschen?`)) { v.lists.splice(li, 1); touchSettings(); renderVideoLists(); } }}, "✕")),
+      ...rows,
+      lst.items.length ? "" : el("div", {class: "empty", text: "Noch keine Videos – Link einfügen."}),
+      el("div", {class: "row", style: {flexWrap: "nowrap", marginTop: "4px"}}, link, el("button", {class: "btn small", onclick: add}, "Hinzufügen")),
+      el("div", {class: "row", style: {flexWrap: "nowrap", marginTop: "4px"}}, pl,
+        el("button", {class: "btn small", onclick: takeOver, title: "Übernimmt die neuesten 15 Videos einer öffentlichen Playlist"}, "Aus Playlist übernehmen")),
+      msg);
+  }));
+  if (!v.lists.length) box.append(el("div", {class: "empty", text: "Noch keine eigene Liste – unten anlegen."}));
+}
+async function checkYtdlp() {
+  const st = $("#ytdlpState");
+  try { const r = await api("/api/video/ytdlp"); st.textContent = r.found ? `✓ yt-dlp ${r.version}` : "yt-dlp nicht installiert"; }
+  catch (e) { st.textContent = ""; }
+}
+$("#videoMode").addEventListener("change", e => { UI.sdraft.video.youtube = e.target.value; touchSettings(); renderVideoLists();
+  if (e.target.value === "display") checkYtdlp(); });
+$("#videoAutonext").addEventListener("change", e => { UI.sdraft.video.autonext = e.target.checked; touchSettings(); });
+$("#videoListAdd").addEventListener("click", () => { UI.sdraft.video.lists = UI.sdraft.video.lists || [];
+  UI.sdraft.video.lists.push({name: "Meine Videos", items: []}); touchSettings(); renderVideoLists(); });
 function renderNet() {
   const sd = UI.sdraft;
   const hosts = sd.network.hosts, box = $("#netHosts");
@@ -3788,7 +3929,8 @@ $("#updTest").addEventListener("click", async () => {
 });
 function renderInfo() {
   const sd = UI.sdraft; if (!sd) return;
-  renderNews(); renderVideo(); renderNet();
+  renderNews(); renderVideo(); renderVideoLists(); renderNet();
+  if ((UI.sdraft.video || {}).youtube === "display") checkYtdlp();
   $("#warnPopup").checked = sd.warnings.popup;
   $("#updFlatpak").checked = sd.updates.flatpak;
   $("#updG19s").checked = sd.updates.g19s !== false;

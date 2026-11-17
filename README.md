@@ -22,7 +22,7 @@ vieles mehr – ohne Logitech-Software, in zwei Python-Dateien. Kostenlos und qu
   sich über die Zwischenablage einfügen – auch in RDP-Fenster
 - **Displayseiten** (je Ebene und Profil wählbar): Uhr, Musik mit Cover und Internetradio, Wetter,
   Termine (iCalendar/Nextcloud-CalDAV), Hardware, Makros, Diashow (Piwigo oder Ordner),
-  Nachrichten (RSS/Atom), Unwetterwarnungen (DWD), Netzwerk, Updates, Visualisierung und Video
+  Nachrichten (RSS/Atom), Unwetterwarnungen (DWD), Netzwerk, Updates, Visualisierung und Video (Video-Podcasts und eigene YouTube-Listen)
   (z. B. „Tagesschau in 100 Sekunden“ mit Ton, auf Knopfdruck)
 - **25 Zifferblätter** für die Uhr – von Chronometer, Bahnhofs- und Kuckucksuhr über Astro- und
   Sonnenuhr bis Nixie-Röhren und Wortuhr, Auswahl am Display mit MENU und Live-Vorschau

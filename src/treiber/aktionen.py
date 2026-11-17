@@ -164,9 +164,13 @@ def act_volume(app, macro, name):
 
 @gkey_action("video")
 def act_video(app, macro, name):
-    """Zur Seite „Video“ springen und die neueste Folge abspielen; läuft schon ein Video: beenden."""
+    """Zur Seite „Video“ springen und die neueste Folge (bzw. die eigene Liste „list:Name“) abspielen; läuft schon
+    ein Video: beenden."""
+    val = str(macro.get("video") or "latest")
     if app.video.item is not None:
         video_stop(app)
+    elif val.startswith("list:"):
+        video_play_list(app, val[5:])
     else:
         video_play_latest(app)
 

@@ -98,7 +98,7 @@ function entryLabel(e) {
   const t = typeOf(e);
   if (t === "open") return domainOf(e.open);
   if (t === "radio") return e.radio === "stop" ? "Radio aus" : stationName(e.radio);
-  if (t === "video") return "Video";
+  if (t === "video") return String(e.video || "").startsWith("list:") ? "Video: " + e.video.slice(5) : "Video";
   if (t === "media") return S.media[e.media] || "Musik";
   if (t === "volume") return S.volume[e.volume] || "Lautstärke";
   if (t === "snippets") return e.snippet ? String(e.snippet) : e.snippets === "*" ? "Textbausteine" : String(e.snippets);

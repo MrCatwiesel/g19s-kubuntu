@@ -15,7 +15,7 @@ __TOC__
 | <code>g19s-gui.py</code> – grafische Oberfläche im Browserfenster
 |-
 ! Stand
-| 28.09.2026 (Version 2026.11.17-1)
+| 28.09.2026 (Version 2026.11.17-2)
 |}
 
 Diese Seite beschreibt, wie die '''Logitech G19s''' unter Kubuntu mit Display, G-Tasten, Profilen, Makroaufnahme, Musikanzeige, Wetter, Terminen und Diashow eingerichtet wird. Alle benötigten Dateien sind vollständig auf dieser Seite enthalten. Nach einer Neuinstallation werden die Abschnitte unter [[#Installation|Installation]] einfach der Reihe nach abgearbeitet.
@@ -127,6 +127,8 @@ sudo apt install python3-usb python3-evdev python3-pil python3-numpy playerctl m
 | <code>libnotify-bin</code> || nur für den Knopf „Testbenachrichtigung senden“ in der Verwaltung
 |-
 | <code>ffmpeg</code> || Displayseite „Video“ (z. B. „Tagesschau in 100 Sekunden“): Bild aufs Display, Ton über PipeWire
+|-
+| <code>yt-dlp</code> (optional) || nur wenn YouTube-Videos aus eigenen Listen direkt auf dem Display laufen sollen: <code>sudo apt install pipx && pipx install yt-dlp</code>, aktuell halten mit <code>pipx upgrade yt-dlp</code> (die Ubuntu-Version ist meist zu alt). YouTube erlaubt diese Art des Abspielens in seinen Nutzungsbedingungen nicht – Nutzung auf eigene Verantwortung
 |}
 Bei Kubuntu bereits vorhanden und ebenfalls genutzt: <code>pw-record</code> (Paket <code>pipewire-bin</code>, Visualisierung; ersatzweise <code>parec</code>), <code>dbus-monitor</code> (Paket <code>dbus-bin</code>, Benachrichtigungen) und <code>wpctl</code> (Paket <code>wireplumber</code>, Lautstärke). Für Grafikkarten von NVIDIA liest die Hardware-Seite Temperatur und Auslastung über <code>nvidia-smi</code>, falls der NVIDIA-Treiber installiert ist.
 
@@ -184,7 +186,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 G19S_COMPONENT = "driver"     # Kennung für den Update-Knopf der Verwaltung
-VERSION = "2026.11.17-1"
+VERSION = "2026.11.17-2"
 
 # Weitere Importe der Module
 import select
@@ -1065,6 +1067,13 @@ SCHEMA = {
     "video": Section({
         "feeds": Items([{"name": "Tagesschau in 100 Sekunden", "url": VIDEO_DEFAULT_FEED}],
                        Entry({"name": Str(maxlen=40), "url": Str()}), required="url", limit=8),
+        # eigene Listen: YouTube-Links und direkte Video-Adressen, Titel/Kanal holt die Verwaltung beim Eintragen
+        "lists": Items([], Entry({"name": Str(maxlen=40),
+                                  "items": Items([], Entry({"url": Str(), "title": Str(maxlen=150),
+                                                            "author": Str(maxlen=80)}), required="url", limit=300)}),
+                       required="name", limit=12),
+        "youtube": Choice("browser", lambda: ("browser", "display")),   # YouTube: im Browser oder auf dem Display
+        "autonext": Bool(True),                                      # auf dem Display: danach das nächste der Liste
     }),
     "warnings": Section({"popup": Bool(True, only_false=True)}),   # Unwetterwarnungen (DWD über Bright Sky)
     "network": Section({
@@ -1603,7 +1612,8 @@ def entry_label(entry, settings=None):
                 return st.get("name") or domain_of(entry["radio"])
         return domain_of(entry["radio"])
     if t == "video":
-        return "Video"
+        val = str(entry.get("video") or "")
+        return ("Video: " + val[5:]) if val.startswith("list:") else "Video"
     if t == "media":
         return MEDIA_ACTIONS.get(entry["media"], "Musik")
     if t == "volume":
@@ -4349,6 +4359,9 @@ class NewsPoller(Poller):
 #   Videos: Video-Podcast-Feeds (RSS mit Video-Anhang) abrufen und mit ffmpeg auf dem Display abspielen.
 #   Das Bild kommt als Rohdaten (RGB, 320×180, 15 Bilder je Sekunde) über eine Pipe, der Ton geht im selben ffmpeg-Aufruf
 #   an PipeWire/PulseAudio – so bleiben Bild und Ton beisammen, ohne dass ein Fenster aufgeht.
+#
+#   Eigene Videolisten (video.lists): YouTube-Links und direkte Video-Adressen. YouTube-Videos öffnen je nach video.youtube
+#   im Browser („browser“) oder laufen auf dem Display („display“): yt-dlp ermittelt dafür die Adresse des Videostroms.
 # ═══════════════════════════════════════════════════════════════════════════
 
 VIDEO_W, VIDEO_H, VIDEO_FPS = 320, 180, 15
@@ -4416,6 +4429,156 @@ def _feed_time(text):
             return None
 
 
+_YT_ID = re.compile(r"(?:youtu\.be/|youtube(?:-nocookie)?\.com/(?:watch\?(?:[^#]*&)?v=|embed/|shorts/|live/|v/))"
+                    r"([A-Za-z0-9_-]{11})")
+YOUTUBE_BASE = os.environ.get("G19S_YOUTUBE_URL", "https://www.youtube.com")    # Tests: Nachbau
+YOUTUBE_FEED = YOUTUBE_BASE + "/feeds/videos.xml?playlist_id={}"
+YOUTUBE_OEMBED = YOUTUBE_BASE + "/oembed?format=json&url=https://www.youtube.com/watch%3Fv%3D{}"
+YTDLP_FORMAT = "18/best[height<=480][vcodec!=none][acodec!=none]/best"   # ein Strom mit Bild und Ton
+
+
+def youtube_id(url):
+    """Video-ID aus einem YouTube-Link (watch, youtu.be, shorts, embed, live) oder einer nackten ID; sonst None."""
+    text = str(url or "").strip()
+    m = _YT_ID.search(text)
+    if m:
+        return m.group(1)
+    return text if re.fullmatch(r"[A-Za-z0-9_-]{11}", text) else None
+
+
+def youtube_playlist_id(url):
+    text = str(url or "").strip()
+    m = re.search(r"[?&]list=([A-Za-z0-9_-]{10,})", text)
+    if m:
+        return m.group(1)
+    return text if re.fullmatch(r"(?:PL|UU|OL|FL|LL|RD)[A-Za-z0-9_-]{10,}", text) else None
+
+
+def youtube_url(vid):
+    return f"https://www.youtube.com/watch?v={vid}"
+
+
+def youtube_thumb_url(vid):
+    return f"https://i.ytimg.com/vi/{vid}/mqdefault.jpg"
+
+
+def youtube_lookup(url):
+    """Titel und Kanal eines YouTube-Videos über die offizielle oEmbed-Schnittstelle (ohne Schlüssel)."""
+    vid = youtube_id(url)
+    if vid is None:
+        raise ValueError("Kein YouTube-Link")
+    data = json.loads(http_get(YOUTUBE_OEMBED.format(vid), timeout=15))
+    return {"url": youtube_url(vid), "title": " ".join(str(data.get("title") or vid).split())[:150],
+            "author": str(data.get("author_name") or "")[:80]}
+
+
+def parse_youtube_feed(raw):
+    """Atom-Feed einer YouTube-Playlist → [{url, title, author}] (YouTube liefert die neuesten 15)."""
+    import xml.etree.ElementTree as ET
+    local = lambda tag: tag.rsplit("}", 1)[-1]
+    out = []
+    for el in ET.fromstring(raw).iter():
+        if local(el.tag) != "entry":
+            continue
+        vid, title, author = None, "", ""
+        for ch in el.iter():
+            name = local(ch.tag)
+            if name == "videoId" and ch.text:
+                vid = ch.text.strip()
+            elif name == "title" and not title and ch.text:
+                title = " ".join(ch.text.split())
+            elif name == "name" and not author and ch.text:
+                author = ch.text.strip()
+        if vid and youtube_id(vid):
+            out.append({"url": youtube_url(vid), "title": (title or vid)[:150], "author": author[:80]})
+    return out
+
+
+def video_list_items(cfg):
+    """Einträge der eigenen Listen für die Displayseite: {name: [{title, url, author, source, youtube, list, index}]}."""
+    out = {}
+    for lst in cfg.get("lists") or []:
+        name = str(lst.get("name") or "").strip()
+        if not name:
+            continue
+        rows = []
+        for i, e in enumerate(lst.get("items") or []):
+            url = str(e.get("url") or "").strip()
+            vid = youtube_id(url)
+            if not vid and not url.startswith(("http://", "https://")):
+                continue
+            rows.append({"title": str(e.get("title") or "").strip() or (vid or domain_of(url)), "url": url,
+                         "author": str(e.get("author") or ""), "source": name, "youtube": vid, "list": name,
+                         "index": len(rows), "time": None, "duration": None})
+        if rows:
+            out[name] = rows
+    return out
+
+
+def ytdlp_path(env):
+    """yt-dlp im PATH der Sitzung oder in ~/.local/bin (pipx/pip --user); None, wenn nicht installiert."""
+    path = (env or {}).get("PATH") or os.environ.get("PATH", "")
+    home = (env or {}).get("HOME") or os.path.expanduser("~")
+    return shutil.which("yt-dlp", path=path + os.pathsep + os.path.join(home, ".local", "bin"))
+
+
+def ytdlp_command(exe, url):
+    return [exe, "-f", YTDLP_FORMAT, "--no-playlist", "--no-warnings", "--print", "duration", "--print", "urls", url]
+
+
+def ytdlp_resolve(url, env, timeout=45):
+    """(Adresse des Videostroms, Dauer in Sekunden oder None) über yt-dlp. RuntimeError mit lesbarer Meldung."""
+    exe = ytdlp_path(env)
+    if exe is None:
+        raise RuntimeError("yt-dlp fehlt – siehe Anleitung (pipx install yt-dlp)")
+    try:
+        res = subprocess.run(ytdlp_command(exe, url), capture_output=True, text=True, timeout=timeout, env=env)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("yt-dlp antwortet nicht")
+    lines = [ln.strip() for ln in res.stdout.splitlines() if ln.strip()]
+    if res.returncode or len(lines) < 2 or not lines[1].startswith("http"):
+        err = [ln for ln in res.stderr.splitlines() if ln.strip()]
+        raise RuntimeError(("yt-dlp: " + err[-1].replace("ERROR: ", "")) [:110] if err else "yt-dlp fand kein Video")
+    try:
+        dur = float(lines[0])
+    except ValueError:
+        dur = None
+    return lines[1], dur
+
+
+class ThumbCache:
+    """Vorschaubilder (80×45) der YouTube-Videos: werden einmal im Hintergrund geladen und gemerkt."""
+
+    def __init__(self, log=print):
+        self.log, self.lock, self.imgs, self.busy = log, threading.Lock(), {}, set()
+
+    def get(self, vid):
+        with self.lock:
+            if vid in self.imgs or vid in self.busy:
+                return self.imgs.get(vid)
+            if len(self.busy) >= 3:
+                return None
+            self.busy.add(vid)
+        threading.Thread(target=self._load, args=(vid,), daemon=True).start()
+        return None
+
+    def _load(self, vid):
+        import io
+        img = None
+        try:
+            src = Image.open(io.BytesIO(http_get(youtube_thumb_url(vid), timeout=15))).convert("RGB")
+            if src.size == (320, 180):
+                img = src.reduce(4)                 # ganzzahlig verkleinern – kein resize (Kubuntu-Pillow)
+            else:
+                src.thumbnail((80, 45), Image.LANCZOS)
+                img = src
+        except Exception as ex:                 # Netz/Bild: ohne Vorschau weiter
+            self.log(f"Video: Vorschaubild {vid}: {err_text(ex)}")
+        with self.lock:
+            self.busy.discard(vid)
+            self.imgs[vid] = img
+
+
 class VideoPoller(Poller):
     """Ruft die Video-Feeds stündlich ab – solange die Seite „Video“ eingeschaltet ist oder eine G-Taste
     ein Video angefordert hat (wanted)."""
@@ -4467,6 +4630,7 @@ class VideoPlayer:
         self.error = None
         self.gen = 0                            # zählt ffmpeg-Starts (alte Lesefäden geben auf)
         self.stderr = []
+        self.loading = False                    # yt-dlp ermittelt gerade den Videostrom
 
     def available(self):
         return shutil.which("ffmpeg", path=self.env().get("PATH")) is not None
@@ -4541,9 +4705,36 @@ class VideoPlayer:
                 with self.lock:
                     self.stderr = (self.stderr + [text])[-5:]
 
+    def play_youtube(self, item):
+        """YouTube-Video auf dem Display: yt-dlp ermittelt im Hintergrund den Videostrom, dann spielt ffmpeg ihn."""
+        self._kill()
+        with self.lock:
+            self.gen += 1
+            gen = self.gen
+            self.item, self.base, self.frames, self.frame = item, 0.0, 0, None
+            self.paused = self.ended = False
+            self.error, self.stderr, self.loading = None, [], True
+
+        def work():
+            try:
+                stream, dur = ytdlp_resolve(item["url"], self.env())
+            except RuntimeError as ex:
+                with self.lock:
+                    if gen == self.gen:
+                        self.error, self.ended, self.loading = str(ex), True, False
+                self.log(f"Video: {ex}")
+                return
+            with self.lock:
+                if gen != self.gen:
+                    return                      # inzwischen gestoppt oder anderes Video
+                self.loading = False
+            self.play(dict(item, url=stream, duration=dur or item.get("duration"), page_url=item["url"]))
+        threading.Thread(target=work, daemon=True).start()
+        return True
+
     def toggle_pause(self):
         """Anhalten bzw. an der gemerkten Stelle weiterspielen."""
-        if self.item is None:
+        if self.item is None or self.loading:
             return
         if self.paused:
             frame = self.frame
@@ -4556,7 +4747,7 @@ class VideoPlayer:
             self.base, self.frames, self.paused = pos, 0, True
 
     def seek(self, delta):
-        if self.item is None:
+        if self.item is None or self.loading:
             return
         pos = self.position() + delta
         dur = self.item.get("duration")
@@ -4575,6 +4766,7 @@ class VideoPlayer:
         self._kill()
         with self.lock:
             self.item, self.frame, self.paused, self.ended, self.error = None, None, False, False, None
+            self.loading = False
 
     def _kill(self):
         with self.lock:
@@ -10221,9 +10413,11 @@ def open_list_item(app, page_id, it):
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Modul seite_video
-#   Displayseite „Video“: Folgen aus Video-Podcast-Feeds (ab Werk „Tagesschau in 100 Sekunden“) auswählen und
-#   abspielen. Liste: Hoch/Runter markiert, OK spielt ab, MENU lädt neu. Während der Wiedergabe: OK Pause/Weiter,
-#   ◀ ▶ zehn Sekunden zurück/vor, BACK beendet. Ein laufendes Radio pausiert und läuft danach weiter.
+#   Displayseite „Video“: Folgen aus Video-Podcast-Feeds (ab Werk „Tagesschau in 100 Sekunden“) und eigene
+#   Videolisten (YouTube-Links, direkte Video-Adressen) auswählen und abspielen. Liste: Hoch/Runter markiert, OK spielt ab
+#   (YouTube je nach Einstellung im Browser oder auf dem Display), MENU wechselt zur nächsten Liste (bei nur einer: lädt
+#   neu). Während der Wiedergabe: OK Pause/Weiter, ◀ ▶ zehn Sekunden zurück/vor, BACK beendet. Ein laufendes Radio
+#   pausiert und läuft danach weiter.
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _mmss(sec):
@@ -10231,9 +10425,17 @@ def _mmss(sec):
     return f"{sec // 60}:{sec % 60:02d}"
 
 
+def video_sources(cfg):
+    """Quellen der Seite „Video“ in Anzeige-Reihenfolge: ("feeds", "Podcasts") und je eigene Liste ("list", Name)."""
+    out = [("feeds", "Podcasts")] if cfg.get("feeds") else []
+    return out + [("list", name) for name in video_list_items(cfg)]
+
+
 class VideoPage:
     video_player = None                         # VideoPlayer (setzt die App)
     videos = None                               # VideoPoller (setzt die App)
+    thumbs = None                               # ThumbCache für YouTube-Vorschaubilder (setzt die App)
+    video_src = 0                               # gewählte Quelle (MENU schaltet weiter)
 
     @page("video")
     def page_video(self, profile, macros):
@@ -10241,8 +10443,12 @@ class VideoPage:
         if vp is not None and vp.item is not None:
             return self._video_playing(vp, profile)
         cfg = (self.settings or {}).get("video") or {}
+        srcs = video_sources(cfg)
+        kind, name = srcs[self.video_src % len(srcs)] if srcs else ("feeds", "")
+        if kind == "list":
+            return self._video_list(cfg, name, srcs, profile)
         data, hint = self._poll_state(self.videos, "▶", "Video",
-                                      None if cfg.get("feeds") else "Video-Feeds in der G19s-Verwaltung eintragen")
+                                      None if cfg.get("feeds") else "Video-Feeds oder eigene Listen in der G19s-Verwaltung eintragen")
         if hint:
             return hint
         img = Image.new("RGB", (WIDTH, HEIGHT), self.BG)
@@ -10250,7 +10456,8 @@ class VideoPage:
         items = data.get("items") or []
         self.list_items["video"] = items
         _, err, _ = self.videos.snapshot()
-        self._header(d, "Video", time.strftime("%H:%M"), bool(err or data.get("errors")))
+        self._header(d, "Video" if len(srcs) < 2 else "Video · Podcasts", time.strftime("%H:%M"),
+                     bool(err or data.get("errors")))
         if not items:
             self._center(d, 100, "Keine Folgen gefunden", self.f_mid, self.DIM)
             return img
@@ -10281,10 +10488,52 @@ class VideoPage:
                 d.text((12, y), line, font=self.f_small, fill=self.FG if idx == sel else (210, 215, 225))
                 y += 18
             y += 5
-        msg = vp.error if vp is not None and vp.error else "OK spielt ab · MENU lädt neu"
+        hint = "OK spielt ab · MENU " + ("nächste Liste" if len(srcs) > 1 else "lädt neu")
+        msg = vp.error if vp is not None and vp.error else hint
         if vp is not None and not vp.available():
             msg = "ffmpeg fehlt – sudo apt install ffmpeg"
-        self._center(d, HEIGHT - 44, msg, self.f_tiny, (240, 170, 60) if msg != "OK spielt ab · MENU lädt neu" else self.DIM)
+        self._center(d, HEIGHT - 44, msg, self.f_tiny, (240, 170, 60) if msg != hint else self.DIM)
+        return img
+
+    def _video_list(self, cfg, name, srcs, profile):
+        """Eigene Liste: Vorschaubild, Titel, Kanal; YouTube öffnet im Browser oder läuft auf dem Display."""
+        img = Image.new("RGB", (WIDTH, HEIGHT), self.BG)
+        d = ImageDraw.Draw(img)
+        items = video_list_items(cfg).get(name) or []
+        self.list_items["video"] = items
+        self._header(d, f"Video · {name}", time.strftime("%H:%M"), False)
+        sel = self.sel.get("video")
+        if sel is not None:
+            sel = self.sel["video"] = max(0, min(sel, len(items) - 1))
+        start = max(0, sel - 1) if sel is not None else 0
+        y, bottom = 32, HEIGHT - 44
+        color = PROFILE_COLOR.get(profile, self.FG)
+        for idx, it in enumerate(items[start:], start):
+            h = 52
+            if y + h > bottom:
+                break
+            if idx == sel:
+                d.rounded_rectangle([6, y - 3, WIDTH - 6, y + h - 5], radius=5, fill=(40, 48, 66))
+            th = self.thumbs.get(it["youtube"]) if (self.thumbs is not None and it.get("youtube")) else None
+            if th is not None:
+                img.paste(th, (10, y))
+            else:
+                d.rectangle([10, y, 89, y + 44], fill=(28, 32, 42))
+                d.polygon([(44, y + 14), (44, y + 30), (58, y + 22)], fill=(200, 60, 60) if it.get("youtube") else self.DIM)
+            tx = 98
+            meta = it.get("author") or ("YouTube" if it.get("youtube") else domain_of(it["url"]))
+            d.text((tx, y), meta[:34], font=self.f_tiny, fill=color)
+            yy = y + 14
+            for line in self._wrap(d, it["title"], self.f_small, WIDTH - tx - 10, 2):
+                d.text((tx, yy), line, font=self.f_small, fill=self.FG if idx == sel else (210, 215, 225))
+                yy += 17
+            y += h
+        vp = self.video_player
+        browser = cfg.get("youtube", "browser") != "display"
+        hint = ("OK öffnet im Browser" if browser else "OK spielt ab") + \
+            (" · MENU nächste Liste" if len(srcs) > 1 else "")
+        msg = vp.error if vp is not None and vp.error else hint
+        self._center(d, HEIGHT - 44, msg, self.f_tiny, (240, 170, 60) if msg != hint else self.DIM)
         return img
 
     def _video_playing(self, vp, profile):
@@ -10294,7 +10543,8 @@ class VideoPage:
         if frame is not None:
             img.paste(frame, (0, 0))
         else:
-            self._center(d, VIDEO_H // 2 - 8, vp.error or "Lade …", self.f_small, (240, 170, 60) if vp.error else self.DIM)
+            wait = "Hole Video von YouTube …" if vp.loading else "Lade …"
+            self._center(d, VIDEO_H // 2 - 8, vp.error or wait, self.f_small, (240, 170, 60) if vp.error else self.DIM)
         if vp.paused:                                                               # Pausezeichen
             d.rounded_rectangle([WIDTH // 2 - 22, VIDEO_H // 2 - 22, WIDTH // 2 + 22, VIDEO_H // 2 + 22], radius=8,
                                 fill=(0, 0, 0))
@@ -10338,15 +10588,37 @@ def keys_video(app, pressed):
             sel = move_selection(r.sel.get("video"), pressed, len(items))
             if pressed & LKEY_BITS["OK"]:
                 sel = sel or 0
-                video_start(app, items[min(sel, len(items) - 1)])
+                video_open(app, items[min(sel, len(items) - 1)])
             r.sel["video"] = sel
             app.sel_t["video"] = time.monotonic()
         app.next_draw = 0
         return True
     if pressed & LKEY_BITS["MENU"]:
-        refresh_page(app, "video")
+        if len(video_sources(app.settings().get("video") or {})) > 1:
+            r.video_src += 1                        # nächste Liste
+            r.sel["video"] = None
+            app.next_draw = 0
+        else:
+            refresh_page(app, "video")
         return True
     return False
+
+
+def video_open(app, item):
+    """Eintrag öffnen: YouTube je nach Einstellung im Browser oder auf dem Display, sonst auf dem Display."""
+    cfg = app.settings().get("video") or {}
+    if item.get("youtube"):
+        if cfg.get("youtube", "browser") == "display":
+            if ytdlp_path(app.launcher._env()) is not None:
+                video_start(app, item)
+                return
+            app.show("Video", ["yt-dlp fehlt –", "öffne im Browser"], REC_COLOR, 2.5)
+        if app.launcher.start(["xdg-open", item["url"]]):
+            if cfg.get("youtube", "browser") != "display":
+                app.show("Öffne im Browser", [item["title"][:32]], PROFILE_COLOR[app.layer], 1.5)
+            app.log(f"Video im Browser: {item['title']}")
+        return
+    video_start(app, item)
 
 
 def video_start(app, item):
@@ -10355,7 +10627,7 @@ def video_start(app, item):
         app._video_radio = app.radio.current()
         app.radio.stop()
         app.log("Video: Radio pausiert")
-    if app.video.play(item):
+    if (app.video.play_youtube if item.get("youtube") else app.video.play)(item):
         app.log(f"Video: {item.get('source') or ''} – {item['title']}")
     app.next_draw = 0
 
@@ -10380,8 +10652,50 @@ def video_tick(app):
         if vp.error:
             vp.item = None                          # Liste mit Fehlermeldung zeigen
             _video_resume_radio(app)
+            return
+        nxt = _video_next(app, vp.item)
+        if nxt is not None:                         # eigene Liste: gleich das nächste Video
+            app.log(f"Video: weiter mit „{nxt['title']}“")
+            video_start(app, nxt)
+            app.renderer.sel["video"] = nxt["index"]
         else:
             video_stop(app)
+
+
+def _video_next(app, item):
+    cfg = app.settings().get("video") or {}
+    if not cfg.get("autonext", True) or item.get("list") is None:
+        return None
+    rows = video_list_items(cfg).get(item["list"]) or []
+    i = item.get("index", -1) + 1
+    if i >= len(rows):
+        return None
+    nxt = rows[i]
+    if nxt.get("youtube") and (cfg.get("youtube", "browser") != "display" or ytdlp_path(app.launcher._env()) is None):
+        return None                                 # Browser-Videos laufen nicht automatisch weiter
+    return nxt
+
+
+def video_play_list(app, name):
+    """G-Taste „Videoliste“: zur Liste springen; Display-Modus spielt ab dem ersten Video, im Browser-Modus öffnet
+    jeder Druck das nächste Video der Liste."""
+    cfg = app.settings().get("video") or {}
+    rows = video_list_items(cfg).get(name) or []
+    if not rows:
+        app.show("Video", [f"Liste „{name}“ ist leer"], REC_COLOR, 3)
+        return
+    srcs = video_sources(cfg)
+    app.page = PAGE_IDS.index("video")
+    app.renderer.video_src = srcs.index(("list", name))
+    app.flash = None
+    pos = app.__dict__.setdefault("_video_list_pos", {})
+    browser = rows[0].get("youtube") and (cfg.get("youtube", "browser") != "display"
+                                          or ytdlp_path(app.launcher._env()) is None)
+    i = (pos.get(name, -1) + 1) % len(rows) if browser else 0
+    pos[name] = i
+    app.renderer.sel["video"] = i
+    video_open(app, rows[i])
+    app.next_draw = 0
 
 
 def video_play_latest(app):
@@ -24757,9 +25071,13 @@ def act_volume(app, macro, name):
 
 @gkey_action("video")
 def act_video(app, macro, name):
-    """Zur Seite „Video“ springen und die neueste Folge abspielen; läuft schon ein Video: beenden."""
+    """Zur Seite „Video“ springen und die neueste Folge (bzw. die eigene Liste „list:Name“) abspielen; läuft schon
+    ein Video: beenden."""
+    val = str(macro.get("video") or "latest")
     if app.video.item is not None:
         video_stop(app)
+    elif val.startswith("list:"):
+        video_play_list(app, val[5:])
     else:
         video_play_latest(app)
 
@@ -24867,6 +25185,7 @@ class AppCore:
         self.news = r.news = NewsPoller(self.settings, log=self.log)
         self.videos = r.videos = VideoPoller(self.settings, log=self.log)
         self.video = r.video_player = VideoPlayer(self.launcher._env, log=self.log)
+        r.thumbs = ThumbCache(log=self.log)
         self.alerts = r.alerts = WarningsPoller(self.settings, log=self.log)
         self.netpoll = r.net = NetworkPoller(self.settings, log=self.log)
         self.updates = r.updates = UpdatesPoller(self.settings, log=self.log)
@@ -26310,7 +26629,7 @@ import urllib.parse
 import urllib.request
 
 G19S_COMPONENT = "gui"        # Kennung für den Update-Knopf
-VERSION = "2026.11.17-1"
+VERSION = "2026.11.17-2"
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 SERVICE = "g19s.service"
@@ -26339,7 +26658,7 @@ def load_driver():
 
 
 # Alle Namen des Treibers, die die Verwaltung benutzt (g.<name>) – build.py trägt sie beim Bauen ein
-DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD ENTRY_TYPES FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VISUAL_OPTIONS VISUAL_STYLES VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller _clean auto_backup backup_members clean_macros clean_settings demo_snapshot err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed parse_video_feed save_json save_state test_backup_target valid_colors vis_force vis_scenes".split()
+DRIVER_API = "BACKUP_FILES CLOCK_FACES CLOCK_OPTIONS CalendarPoller DEFAULT_SETTINGS DESKTOP_RE DE_CHARS DE_DEAD ENTRY_TYPES FAVORITES_FILE Hardware LAYERS MACRO_FILE MAX_PROFILES MEDIA_ACTIONS NetworkPoller NewsPoller PAGE_IDS PAGE_NAMES PROFILE_COLOR PiwigoClient PiwigoError RadioManager Renderer SCHEMA SETTINGS_FILE SEVERITY SONGS_FILE Slideshow USER_AGENT UpdatesPoller VISUAL_OPTIONS VISUAL_STYLES VOLUME_ACTIONS WEATHER_CODES WORLD_CITIES WarningsPoller WeatherPoller YOUTUBE_FEED _clean auto_backup backup_members clean_macros clean_settings demo_snapshot domain_of err_text find_mpris_plugin fit_photo geocode http_get key_label load_list load_settings load_state make_backup migrate_files normalize_macros open_remote_image parse_feed parse_video_feed parse_youtube_feed save_json save_state test_backup_target valid_colors vis_force vis_scenes youtube_id youtube_lookup youtube_playlist_id ytdlp_path".split()
 
 
 g = load_driver()
@@ -27265,6 +27584,49 @@ class ApiInfo:
         if not items:
             raise RuntimeError("Keine Videos gefunden – ist das ein Video-Podcast-Feed?")
         self._send(200, {"count": len(items), "first": items[0]["title"]})
+
+    def api_post_video_lookup(self, q):
+        """Eintrag für eine eigene Videoliste: YouTube-Link → Titel/Kanal (oEmbed), sonst direkte Video-Adresse."""
+        url = str(self._json().get("url") or "").strip()
+        if not hasattr(g, "youtube_id"):
+            raise RuntimeError("Der installierte Treiber kennt noch keine Videolisten – bitte g19s.py aktualisieren")
+        if g.youtube_id(url):
+            try:
+                self._send(200, g.youtube_lookup(url))
+            except Exception as ex:     # Dienst im Netz: jeden Fehler als Meldung anzeigen
+                raise RuntimeError(f"YouTube kennt das Video nicht oder ist nicht erreichbar: {g.err_text(ex)}")
+            return
+        if not re.match(r"^https?://", url, re.I):
+            raise ValueError("Bitte einen YouTube-Link oder eine Video-Adresse (http/https) einfügen")
+        name = url.split("?", 1)[0].rstrip("/").rsplit("/", 1)[-1] or g.domain_of(url)
+        self._send(200, {"url": url, "title": name[:150], "author": g.domain_of(url)})
+
+    def api_post_video_playlist(self, q):
+        """Die neuesten (bis zu 15) Videos einer öffentlichen YouTube-Playlist für die Übernahme in eine Liste."""
+        url = str(self._json().get("url") or "").strip()
+        pid = g.youtube_playlist_id(url) if hasattr(g, "youtube_playlist_id") else None
+        if not pid:
+            raise ValueError("Kein Playlist-Link – er enthält „list=…“")
+        try:
+            items = g.parse_youtube_feed(g.http_get(g.YOUTUBE_FEED.format(pid), timeout=20))
+        except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
+            raise RuntimeError(f"Playlist nicht lesbar (privat?): {g.err_text(ex)}")
+        if not items:
+            raise RuntimeError("Die Playlist ist leer oder nicht öffentlich")
+        self._send(200, {"items": items})
+
+    def api_get_video_ytdlp(self, q):
+        """Ist yt-dlp installiert (für YouTube auf dem Display)? Version zur Anzeige."""
+        env = dict(os.environ)
+        exe = g.ytdlp_path(env) if hasattr(g, "ytdlp_path") else None
+        if exe is None:
+            self._send(200, {"found": False})
+            return
+        try:
+            ver = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=15).stdout.strip()
+        except (OSError, subprocess.TimeoutExpired):
+            ver = ""
+        self._send(200, {"found": True, "version": ver[:30], "path": exe})
 
     def api_post_warnings_test(self, q):
         s = clean_settings(self._json().get("settings") or g.load_settings())
@@ -28441,12 +28803,26 @@ input[type=time] { background: var(--panel2); border: 1px solid var(--line2); bo
     </div>
     <div class="card">
       <h2>Video</h2>
-      <p class="hint">Video-Podcast-Feeds für die Displayseite „Video“ (stündlich aktualisiert, solange die Seite eingeschaltet ist). Am Display: Hoch/Runter wählt eine Folge, OK spielt sie ab, MENU lädt neu; während der Wiedergabe OK Pause/Weiter, ◀ ▶ zehn Sekunden zurück/vor, BACK beendet. Bild und Ton spielt <code>ffmpeg</code> ab (<code>sudo apt install ffmpeg</code>). Mit der G-Tasten-Aktion „Video abspielen“ startet die neueste Folge auf Knopfdruck.</p>
+      <p class="hint">Video-Podcast-Feeds für die Displayseite „Video“ (stündlich aktualisiert, solange die Seite eingeschaltet ist). Am Display: Hoch/Runter wählt eine Folge, OK spielt sie ab, MENU lädt neu (gibt es eigene Listen, wechselt MENU zur nächsten Liste); während der Wiedergabe OK Pause/Weiter, ◀ ▶ zehn Sekunden zurück/vor, BACK beendet. Bild und Ton spielt <code>ffmpeg</code> ab (<code>sudo apt install ffmpeg</code>). Mit der G-Tasten-Aktion „Video abspielen“ startet die neueste Folge auf Knopfdruck.</p>
       <div id="videoFeeds"></div>
       <div class="row" style="margin-top:8px">
         <button class="btn" id="videoAdd">+ Feed hinzufügen</button>
         <span class="muted">Schnell hinzufügen:</span><div class="row" id="videoPresets"></div>
       </div>
+      <h3 style="margin-top:16px">Eigene Videolisten</h3>
+      <p class="hint">Selbst gepflegte Listen mit YouTube-Links oder direkten Video-Adressen (z. B. <code>…/film.mp4</code>). Link einfügen und „Hinzufügen“ – Titel, Kanal und Vorschaubild holt die Verwaltung selbst. Am Display wechselt MENU zwischen den Podcasts und den Listen. Mit der G-Tasten-Aktion „Video abspielen“ lässt sich eine Liste auch direkt starten.</p>
+      <div class="row">
+        <label>YouTube-Videos
+          <select id="videoMode">
+            <option value="browser">im Browser am PC öffnen (Display zeigt die Liste)</option>
+            <option value="display">direkt auf dem Display abspielen (braucht yt-dlp)</option>
+          </select></label>
+        <span class="muted" id="ytdlpState"></span>
+      </div>
+      <p class="hint" id="ytdlpHint" hidden>Für die Wiedergabe auf dem Display holt <code>yt-dlp</code> den Videostrom von YouTube. Installieren mit <code>sudo apt install pipx &amp;&amp; pipx install yt-dlp</code>, aktuell halten mit <code>pipx upgrade yt-dlp</code> (YouTube ändert öfter etwas; die Ubuntu-Version ist meist zu alt). YouTube erlaubt diese Art des Abspielens in seinen Nutzungsbedingungen nicht – die Nutzung geschieht auf eigene Verantwortung. Fehlt yt-dlp, öffnen die Videos im Browser.</p>
+      <label class="check"><input type="checkbox" id="videoAutonext"> Auf dem Display danach automatisch das nächste Video der Liste</label>
+      <div id="videoLists"></div>
+      <div class="row" style="margin-top:8px"><button class="btn" id="videoListAdd">+ Neue Liste</button></div>
     </div>
     <div class="card">
       <h2>Unwetterwarnungen</h2>
@@ -28752,7 +29128,7 @@ function entryLabel(e) {
   const t = typeOf(e);
   if (t === "open") return domainOf(e.open);
   if (t === "radio") return e.radio === "stop" ? "Radio aus" : stationName(e.radio);
-  if (t === "video") return "Video";
+  if (t === "video") return String(e.video || "").startsWith("list:") ? "Video: " + e.video.slice(5) : "Video";
   if (t === "media") return S.media[e.media] || "Musik";
   if (t === "volume") return S.volume[e.volume] || "Lautstärke";
   if (t === "snippets") return e.snippet ? String(e.snippet) : e.snippets === "*" ? "Textbausteine" : String(e.snippets);
@@ -28970,7 +29346,17 @@ function edDefault(box) {
     " oder direkt in einem Programm (Spiele, OBS …). Ein Name hier erscheint nur als Beschriftung auf dem Display."));
 }
 function edVideo(box, d) {
-  const feeds = ((UI.sdraft || S.settings).video || {}).feeds || [];
+  const vcfg = (UI.sdraft || S.settings).video || {};
+  const feeds = vcfg.feeds || [], lists = (vcfg.lists || []).filter(l => l.name);
+  if (lists.length) {
+    const sel = el("select", {onchange: e => { d.video = e.target.value; touchDraft(); }},
+      el("option", {value: "latest", text: "Neueste Folge der Video-Feeds"}),
+      ...lists.map(l => el("option", {value: "list:" + l.name, text: "Eigene Liste: " + l.name})));
+    sel.value = d.video || "latest";
+    box.append(el("label", {class: "field"}, el("span", {text: "Was abspielen?"}), sel));
+    box.append(el("p", {class: "hint", text: "Eine eigene Liste startet beim ersten Video; werden YouTube-Videos im Browser geöffnet, "
+      + "öffnet jeder weitere Druck das nächste Video der Liste."}));
+  }
   box.append(el("p", {class: "hint", text: "Springt zur Displayseite „Video“ und spielt die neueste Folge der Video-Feeds ab "
     + "(ab Werk „Tagesschau in 100 Sekunden“). Nochmal drücken beendet das Video. Am Display: OK Pause/Weiter, ◀ ▶ zehn Sekunden "
     + "zurück/vor, BACK beendet. Ein laufendes Radio pausiert so lange. Die Feeds stehen im Reiter „Infoseiten“."}));
@@ -30017,6 +30403,80 @@ function renderVideo() {
     el("button", {class: "btn small", onclick: () => { feeds.push({name: n, url: u}); touchSettings(); renderVideo(); }}, "+ " + n)));
 }
 $("#videoAdd").addEventListener("click", () => { UI.sdraft.video.feeds.push({name: "", url: ""}); touchSettings(); renderVideo(); });
+function ytId(url) {
+  const m = /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/|live\/|v\/))([A-Za-z0-9_-]{11})/.exec(url || "");
+  return m ? m[1] : null;
+}
+function renderVideoLists() {
+  const v = UI.sdraft.video;
+  v.lists = v.lists || [];
+  $("#videoMode").value = v.youtube || "browser";
+  $("#videoAutonext").checked = v.autonext !== false;
+  $("#ytdlpHint").hidden = (v.youtube || "browser") !== "display";
+  const box = $("#videoLists");
+  box.replaceChildren(...v.lists.map((lst, li) => {
+    lst.items = lst.items || [];
+    const msg = el("span", {class: "muted"});
+    const rows = lst.items.map((it, i) => {
+      const id = ytId(it.url);
+      const move = d => { const j = i + d; if (j < 0 || j >= lst.items.length) return;
+        [lst.items[i], lst.items[j]] = [lst.items[j], lst.items[i]]; touchSettings(); renderVideoLists(); };
+      return el("div", {class: "row videoitem", style: {flexWrap: "nowrap", marginBottom: "4px", alignItems: "center"}},
+        id ? el("img", {src: `https://i.ytimg.com/vi/${id}/default.jpg`, alt: "", onerror: e => { e.target.style.visibility = "hidden"; },
+                        style: {width: "64px", height: "36px", objectFit: "cover", borderRadius: "4px"}})
+           : el("span", {style: {width: "64px", textAlign: "center"}, text: "🎞"}),
+        el("input", {type: "text", value: it.title || "", placeholder: "Titel", style: {flex: "3"}, title: it.url,
+                     oninput: e => { it.title = e.target.value; touchSettings(); }}),
+        el("span", {class: "muted", style: {flex: "1", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis"}, text: it.author || ""}),
+        el("button", {class: "btn icon small", title: "nach oben", onclick: () => move(-1)}, "▲"),
+        el("button", {class: "btn icon small", title: "nach unten", onclick: () => move(1)}, "▼"),
+        el("button", {class: "btn icon small danger", title: "entfernen", onclick: () => { lst.items.splice(i, 1); touchSettings(); renderVideoLists(); }}, "✕"));
+    });
+    const link = el("input", {type: "url", placeholder: "YouTube-Link oder Video-Adresse einfügen", style: {flex: "3"}});
+    const add = async () => {
+      const url = link.value.trim();
+      if (!url) return;
+      msg.textContent = "hole Titel …";
+      try { const r = await api("/api/video/lookup", {body: {url}}); lst.items.push(r); touchSettings(); renderVideoLists(); }
+      catch (e) { msg.textContent = "✗ " + e.message; }
+    };
+    link.addEventListener("keydown", e => { if (e.key === "Enter") add(); });
+    const pl = el("input", {type: "url", placeholder: "Playlist-Link (…list=…)", style: {flex: "3"}});
+    const takeOver = async () => {
+      msg.textContent = "lese Playlist …";
+      try {
+        const r = await api("/api/video/playlist", {body: {url: pl.value.trim()}});
+        const have = new Set(lst.items.map(x => ytId(x.url)));
+        const fresh = r.items.filter(x => !have.has(ytId(x.url)));
+        lst.items.push(...fresh); touchSettings(); renderVideoLists();
+      } catch (e) { msg.textContent = "✗ " + e.message; }
+    };
+    return el("div", {class: "feedrow videolist"},
+      el("div", {class: "row", style: {flexWrap: "nowrap"}},
+        el("input", {type: "text", value: lst.name || "", placeholder: "Name der Liste (z. B. Musik)", style: {flex: "1", fontWeight: "600"},
+                     oninput: e => { lst.name = e.target.value; touchSettings(); }}),
+        el("span", {class: "muted", text: `${lst.items.length} Videos`}),
+        el("button", {class: "btn icon small danger", title: "Liste löschen", onclick: () => {
+          if (!lst.items.length || confirm(`Liste „${lst.name}“ mit ${lst.items.length} Videos löschen?`)) { v.lists.splice(li, 1); touchSettings(); renderVideoLists(); } }}, "✕")),
+      ...rows,
+      lst.items.length ? "" : el("div", {class: "empty", text: "Noch keine Videos – Link einfügen."}),
+      el("div", {class: "row", style: {flexWrap: "nowrap", marginTop: "4px"}}, link, el("button", {class: "btn small", onclick: add}, "Hinzufügen")),
+      el("div", {class: "row", style: {flexWrap: "nowrap", marginTop: "4px"}}, pl,
+        el("button", {class: "btn small", onclick: takeOver, title: "Übernimmt die neuesten 15 Videos einer öffentlichen Playlist"}, "Aus Playlist übernehmen")),
+      msg);
+  }));
+  if (!v.lists.length) box.append(el("div", {class: "empty", text: "Noch keine eigene Liste – unten anlegen."}));
+}
+async function checkYtdlp() {
+  const st = $("#ytdlpState");
+  try { const r = await api("/api/video/ytdlp"); st.textContent = r.found ? `✓ yt-dlp ${r.version}` : "yt-dlp nicht installiert"; }
+  catch (e) { st.textContent = ""; }
+}
+$("#videoMode").addEventListener("change", e => { UI.sdraft.video.youtube = e.target.value; touchSettings(); renderVideoLists();
+  if (e.target.value === "display") checkYtdlp(); });
+$("#videoAutonext").addEventListener("change", e => { UI.sdraft.video.autonext = e.target.checked; touchSettings(); });
+$("#videoListAdd").addEventListener("click", () => { UI.sdraft.video.lists = UI.sdraft.video.lists || [];
+  UI.sdraft.video.lists.push({name: "Meine Videos", items: []}); touchSettings(); renderVideoLists(); });
 function renderNet() {
   const sd = UI.sdraft;
   const hosts = sd.network.hosts, box = $("#netHosts");
@@ -30058,7 +30518,8 @@ $("#updTest").addEventListener("click", async () => {
 });
 function renderInfo() {
   const sd = UI.sdraft; if (!sd) return;
-  renderNews(); renderVideo(); renderNet();
+  renderNews(); renderVideo(); renderVideoLists(); renderNet();
+  if ((UI.sdraft.video || {}).youtube === "display") checkYtdlp();
   $("#warnPopup").checked = sd.warnings.popup;
   $("#updFlatpak").checked = sd.updates.flatpak;
   $("#updG19s").checked = sd.updates.g19s !== false;
@@ -30609,7 +31070,7 @@ Startet eine neue Oberfläche nicht, stellt die Verwaltung automatisch die vorhe
 |-
 | Radiosender || startet den Sender, nochmal drücken = aus || <code>"radio": "https://…"</code> bzw. <code>"stop"</code>
 |-
-| Video abspielen || springt zur Seite „Video“ und spielt die neueste Folge (ab Werk „Tagesschau in 100 Sekunden“), nochmal drücken = Stopp || <code>"video": "latest"</code>
+| Video abspielen || springt zur Seite „Video“ und spielt die neueste Folge (ab Werk „Tagesschau in 100 Sekunden“) oder eine eigene Videoliste; nochmal drücken = Stopp (öffnen YouTube-Videos im Browser, öffnet jeder Druck das nächste Video der Liste) || <code>"video": "latest"</code> bzw. <code>"video": "list:Musik"</code>
 |-
 | Musiksteuerung || Play/Pause, Titel vor/zurück, Stopp || <code>"media": "play-pause"</code>
 |-
@@ -30715,8 +31176,10 @@ Hoch/Runter wählen, '''BACK''', '''MENU''' oder '''SETTINGS''' schließen. Nach
 |-
 | Updates || Anzahl verfügbarer Paket- und Flatpak-Updates, Sicherheitsupdates, „Neustart erforderlich“ und – einmal am Tag bei GitHub geprüft – „G19s … verfügbar“ (abschaltbar); '''OK''' öffnet Discover, die neue G19s-Version holt man in der Verwaltung unter „Dienst & Sicherung → Nach Updates suchen“
 |-
-| Video || Folgen aus Video-Podcast-Feeds, ab Werk „Tagesschau in 100 Sekunden“ (stündlich aktualisiert). '''Hoch/Runter''' wählt eine Folge, '''OK''' spielt sie ab: oben das Bild in 16:9, darunter Titel, Zeit und Fortschritt; der Ton läuft über die Lautsprecher, ein laufendes Radio pausiert so lange. Während der Wiedergabe: '''OK''' Pause/Weiter, '''◀ ▶''' zehn Sekunden zurück/vor, '''BACK''' beendet. Benötigt <code>ffmpeg</code>
+| Video || Folgen aus Video-Podcast-Feeds, ab Werk „Tagesschau in 100 Sekunden“ (stündlich aktualisiert). '''Hoch/Runter''' wählt eine Folge, '''OK''' spielt sie ab: oben das Bild in 16:9, darunter Titel, Zeit und Fortschritt; der Ton läuft über die Lautsprecher, ein laufendes Radio pausiert so lange. Während der Wiedergabe: '''OK''' Pause/Weiter, '''◀ ▶''' zehn Sekunden zurück/vor, '''BACK''' beendet. Dazu kommen '''eigene Videolisten''' (YouTube-Links und direkte Video-Adressen, mit Vorschaubild, Titel und Kanal); '''MENU''' wechselt zwischen den Podcasts und den Listen. YouTube-Videos öffnen je nach Einstellung im Browser am PC oder laufen direkt auf dem Display (mit yt-dlp), auf Wunsch eins nach dem anderen. Benötigt <code>ffmpeg</code>
 |}
+'''Eigene Videolisten''' (Verwaltung → '''Infoseiten → Video → Eigene Videolisten'''): „+ Neue Liste“ anlegen, benennen und YouTube-Links (auch <code>youtu.be/…</code> und Shorts) oder direkte Video-Adressen einfügen – Titel und Kanal holt die Verwaltung über die offizielle YouTube-Einbettungsschnittstelle, ohne Anmeldung. Titel lassen sich ändern, Einträge mit ▲ ▼ sortieren. „Aus Playlist übernehmen“ holt die neuesten 15 Videos einer öffentlichen YouTube-Playlist einmalig in die Liste (mehr liefert YouTube ohne Anmeldung nicht). Die Auswahl „YouTube-Videos“ bestimmt die Wiedergabe: '''im Browser am PC''' (ab Werk; das Display zeigt die Liste und dient als Fernbedienung) oder '''direkt auf dem Display''' (braucht <code>yt-dlp</code>, siehe Programme oben; fehlt es, öffnet das Video im Browser). Direkte Video-Adressen laufen immer auf dem Display.
+
 Die Seiten Nachrichten, Unwetter, Netzwerk, Updates und Video sind anfangs ausgeschaltet und werden unter '''Beleuchtung & Display → Displayseiten''' eingeschaltet. Auf diesen Seiten fragt '''MENU''' die Daten sofort neu ab.
 Auf den Seiten ohne eigene Tastenbelegung blättern auch '''Hoch/Runter'''.
 
@@ -31100,7 +31563,7 @@ Bis zu 10 Einträge in <code>profiles</code>. Optional hat ein Profil eigene Dis
 |-
 | <code>"radio"</code> || Radiosender (Stream-Adresse) bzw. <code>"stop"</code>
 |-
-| <code>"video"</code> || <code>"latest"</code>: neueste Folge der Video-Feeds abspielen
+| <code>"video"</code> || <code>"latest"</code>: neueste Folge der Video-Feeds abspielen; <code>"list:Name"</code>: eigene Videoliste „Name“
 |-
 | <code>"media"</code> || <code>play-pause</code>, <code>next</code>, <code>previous</code>, <code>stop</code>
 |-
@@ -31208,6 +31671,10 @@ Danach mit Schritt 3 „udev-Regel“ weitermachen. Treiber und Dienst sind dann
 | Videoseite: „ffmpeg fehlt“ || Paket fehlt || <code>sudo apt install ffmpeg</code>
 |-
 | Video: Bild läuft, aber kein Ton || ffmpeg ohne PulseAudio-Ausgabe oder Ausgang stumm || Lautstärke prüfen; im Protokoll steht die Meldung von ffmpeg (<code>journalctl --user -u g19s</code>)
+|-
+| Video: „yt-dlp fehlt“ bzw. YouTube-Video öffnet trotz Display-Einstellung im Browser || yt-dlp nicht installiert oder nicht im Pfad || <code>pipx install yt-dlp</code>; die Verwaltung zeigt unter '''Infoseiten → Video''' an, ob yt-dlp gefunden wird
+|-
+| Video: „yt-dlp: …“ (z. B. „Sign in to confirm …“, „Video unavailable“) || YouTube hat etwas geändert oder das Video ist gesperrt/privat || <code>pipx upgrade yt-dlp</code>; klappt es dann noch nicht, im Browser-Modus abspielen
 |-
 | Video: „Feed nicht lesbar“ / keine Folgen || Feed-Adresse geändert || In der Verwaltung unter '''Infoseiten → Video''' die Adresse mit „Testen“ prüfen und ggf. aktualisieren
 |-

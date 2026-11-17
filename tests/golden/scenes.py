@@ -416,6 +416,42 @@ def _video_paused(r):
     return r.render(g.PAGE_IDS.index("video"), "M1", macros)
 
 
+class _Thumbs:
+    """Vorschaubilder ohne Netz: je Video eine eigene Farbfläche mit Spielknopf."""
+    def get(self, vid):
+        img = Image.new("RGB", (80, 45), {"aaaaaaaaaaa": (170, 40, 50), "bbbbbbbbbbb": (40, 110, 160)}.get(vid, (70, 70, 80)))
+        ImageDraw.Draw(img).polygon([(34, 14), (34, 31), (49, 22)], fill=(255, 255, 255))
+        return img
+
+
+_VIDEO_LISTS = [{"name": "Musik", "items": [
+    {"url": "https://www.youtube.com/watch?v=aaaaaaaaaaa", "title": "Konzert im Park – Live-Mitschnitt", "author": "Stadtkapelle"},
+    {"url": "https://www.youtube.com/watch?v=bbbbbbbbbbb", "title": "Gitarre lernen: die ersten drei Akkorde", "author": "Musikschule"},
+    {"url": "https://example.org/urlaub.mp4", "title": "Urlaubsfilm 2026", "author": ""}]}]
+
+
+@s("seite_video_liste")
+def _(r):
+    old = dict(r.settings["video"])
+    r.settings["video"] = dict(old, lists=_VIDEO_LISTS)
+    r.thumbs, r.video_src, r.sel["video"] = _Thumbs(), 1, 1
+    img = r.render(g.PAGE_IDS.index("video"), "M1", macros)
+    r.settings["video"], r.thumbs, r.video_src, r.sel["video"] = old, None, 0, None
+    return img
+
+
+@s("seite_video_youtube_laedt")
+def _(r):
+    vp = r.video_player
+    vp.item = {"title": "Konzert im Park – Live-Mitschnitt", "url": "https://www.youtube.com/watch?v=aaaaaaaaaaa",
+               "youtube": "aaaaaaaaaaa", "list": "Musik", "index": 0}
+    vp.frame, vp.loading, vp.base, vp.frames = None, True, 0.0, 0
+    r.visible = None
+    img = r.render(g.PAGE_IDS.index("video"), "M1", macros)
+    vp.item, vp.loading = None, False
+    return img
+
+
 @s("seite_news_markiert")
 def _(r):
     r.sel["news"] = 1

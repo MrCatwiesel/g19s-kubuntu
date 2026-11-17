@@ -3,6 +3,12 @@
 Was sich je Version geändert hat. Der Abschnitt einer Version erscheint in der Verwaltung unter
 „Nach Updates suchen → Was ist neu“ und als Text des GitHub-Releases.
 
+## 2026.11.17-2
+- **Eigene Videolisten:** In der Verwaltung unter „Infoseiten → Video“ lassen sich jetzt eigene Listen anlegen – YouTube-Link (auch youtu.be und Shorts) oder direkte Video-Adresse einfügen, Titel, Kanal und Vorschaubild kommen von selbst. Titel änderbar, Reihenfolge mit ▲ ▼, beliebig lang. „Aus Playlist übernehmen“ holt die neuesten 15 Videos einer öffentlichen YouTube-Playlist einmalig in die Liste.
+- **Am Display:** Die Seite „Video“ zeigt die Listen mit Vorschaubildern; MENU wechselt zwischen den Podcasts und den eigenen Listen.
+- **Wiedergabe wählbar:** YouTube-Videos öffnen im Browser am PC (ab Werk; das Display dient als Liste und Fernbedienung) oder laufen direkt auf dem Display mit Ton – dafür wird yt-dlp benötigt (`pipx install yt-dlp`, Hinweise in der Verwaltung und im Wiki). Auf dem Display geht es auf Wunsch automatisch mit dem nächsten Video weiter.
+- **G-Taste „Video abspielen“** kann jetzt auch eine eigene Liste starten; im Browser-Modus öffnet jeder Druck das nächste Video der Liste.
+
 ## 2026.11.17-1
 - **Neu: „Automatisch nach Musik“** – ein DJ für die Visualisierung: Nach jedem Liedwechsel hört sie sechs Sekunden zu, schätzt Tempo und Lautstärke und wählt einen passenden Stil – ruhig (z. B. Lagerfeuer, Seidenschleier, Weltraum), mittel (z. B. Tänzerin, Jazz-Club, Katzenchor) oder wild (z. B. Mittelalter-Metal, Arcade, Fasching). Für jede Stimmung lässt sich auch ein fester Stil einstellen. Der gewählte Stil wird kurz eingeblendet, die Tastatur folgt ihm.
 - **Neu: Coverfarben** (Schalter unter Visualisierung, ab Werk aus): Equalizer, Kreis-Spektrum, VU-Meter, Spektrogramm, Oszilloskop, Lichtshow und Feuerwerk leuchten in der kräftigsten Farbe des Albumcovers.

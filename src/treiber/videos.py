@@ -1,6 +1,9 @@
 """Videos: Video-Podcast-Feeds (RSS mit Video-Anhang) abrufen und mit ffmpeg auf dem Display abspielen.
 Das Bild kommt als Rohdaten (RGB, 320×180, 15 Bilder je Sekunde) über eine Pipe, der Ton geht im selben ffmpeg-Aufruf
-an PipeWire/PulseAudio – so bleiben Bild und Ton beisammen, ohne dass ein Fenster aufgeht."""
+an PipeWire/PulseAudio – so bleiben Bild und Ton beisammen, ohne dass ein Fenster aufgeht.
+
+Eigene Videolisten (video.lists): YouTube-Links und direkte Video-Adressen. YouTube-Videos öffnen je nach video.youtube
+im Browser („browser“) oder laufen auf dem Display („display“): yt-dlp ermittelt dafür die Adresse des Videostroms."""
 
 VIDEO_W, VIDEO_H, VIDEO_FPS = 320, 180, 15
 VIDEO_SEEK = 10                 # Sekunden je Druck auf ◀ / ▶
@@ -67,6 +70,156 @@ def _feed_time(text):
             return None
 
 
+_YT_ID = re.compile(r"(?:youtu\.be/|youtube(?:-nocookie)?\.com/(?:watch\?(?:[^#]*&)?v=|embed/|shorts/|live/|v/))"
+                    r"([A-Za-z0-9_-]{11})")
+YOUTUBE_BASE = os.environ.get("G19S_YOUTUBE_URL", "https://www.youtube.com")    # Tests: Nachbau
+YOUTUBE_FEED = YOUTUBE_BASE + "/feeds/videos.xml?playlist_id={}"
+YOUTUBE_OEMBED = YOUTUBE_BASE + "/oembed?format=json&url=https://www.youtube.com/watch%3Fv%3D{}"
+YTDLP_FORMAT = "18/best[height<=480][vcodec!=none][acodec!=none]/best"   # ein Strom mit Bild und Ton
+
+
+def youtube_id(url):
+    """Video-ID aus einem YouTube-Link (watch, youtu.be, shorts, embed, live) oder einer nackten ID; sonst None."""
+    text = str(url or "").strip()
+    m = _YT_ID.search(text)
+    if m:
+        return m.group(1)
+    return text if re.fullmatch(r"[A-Za-z0-9_-]{11}", text) else None
+
+
+def youtube_playlist_id(url):
+    text = str(url or "").strip()
+    m = re.search(r"[?&]list=([A-Za-z0-9_-]{10,})", text)
+    if m:
+        return m.group(1)
+    return text if re.fullmatch(r"(?:PL|UU|OL|FL|LL|RD)[A-Za-z0-9_-]{10,}", text) else None
+
+
+def youtube_url(vid):
+    return f"https://www.youtube.com/watch?v={vid}"
+
+
+def youtube_thumb_url(vid):
+    return f"https://i.ytimg.com/vi/{vid}/mqdefault.jpg"
+
+
+def youtube_lookup(url):
+    """Titel und Kanal eines YouTube-Videos über die offizielle oEmbed-Schnittstelle (ohne Schlüssel)."""
+    vid = youtube_id(url)
+    if vid is None:
+        raise ValueError("Kein YouTube-Link")
+    data = json.loads(http_get(YOUTUBE_OEMBED.format(vid), timeout=15))
+    return {"url": youtube_url(vid), "title": " ".join(str(data.get("title") or vid).split())[:150],
+            "author": str(data.get("author_name") or "")[:80]}
+
+
+def parse_youtube_feed(raw):
+    """Atom-Feed einer YouTube-Playlist → [{url, title, author}] (YouTube liefert die neuesten 15)."""
+    import xml.etree.ElementTree as ET
+    local = lambda tag: tag.rsplit("}", 1)[-1]
+    out = []
+    for el in ET.fromstring(raw).iter():
+        if local(el.tag) != "entry":
+            continue
+        vid, title, author = None, "", ""
+        for ch in el.iter():
+            name = local(ch.tag)
+            if name == "videoId" and ch.text:
+                vid = ch.text.strip()
+            elif name == "title" and not title and ch.text:
+                title = " ".join(ch.text.split())
+            elif name == "name" and not author and ch.text:
+                author = ch.text.strip()
+        if vid and youtube_id(vid):
+            out.append({"url": youtube_url(vid), "title": (title or vid)[:150], "author": author[:80]})
+    return out
+
+
+def video_list_items(cfg):
+    """Einträge der eigenen Listen für die Displayseite: {name: [{title, url, author, source, youtube, list, index}]}."""
+    out = {}
+    for lst in cfg.get("lists") or []:
+        name = str(lst.get("name") or "").strip()
+        if not name:
+            continue
+        rows = []
+        for i, e in enumerate(lst.get("items") or []):
+            url = str(e.get("url") or "").strip()
+            vid = youtube_id(url)
+            if not vid and not url.startswith(("http://", "https://")):
+                continue
+            rows.append({"title": str(e.get("title") or "").strip() or (vid or domain_of(url)), "url": url,
+                         "author": str(e.get("author") or ""), "source": name, "youtube": vid, "list": name,
+                         "index": len(rows), "time": None, "duration": None})
+        if rows:
+            out[name] = rows
+    return out
+
+
+def ytdlp_path(env):
+    """yt-dlp im PATH der Sitzung oder in ~/.local/bin (pipx/pip --user); None, wenn nicht installiert."""
+    path = (env or {}).get("PATH") or os.environ.get("PATH", "")
+    home = (env or {}).get("HOME") or os.path.expanduser("~")
+    return shutil.which("yt-dlp", path=path + os.pathsep + os.path.join(home, ".local", "bin"))
+
+
+def ytdlp_command(exe, url):
+    return [exe, "-f", YTDLP_FORMAT, "--no-playlist", "--no-warnings", "--print", "duration", "--print", "urls", url]
+
+
+def ytdlp_resolve(url, env, timeout=45):
+    """(Adresse des Videostroms, Dauer in Sekunden oder None) über yt-dlp. RuntimeError mit lesbarer Meldung."""
+    exe = ytdlp_path(env)
+    if exe is None:
+        raise RuntimeError("yt-dlp fehlt – siehe Anleitung (pipx install yt-dlp)")
+    try:
+        res = subprocess.run(ytdlp_command(exe, url), capture_output=True, text=True, timeout=timeout, env=env)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("yt-dlp antwortet nicht")
+    lines = [ln.strip() for ln in res.stdout.splitlines() if ln.strip()]
+    if res.returncode or len(lines) < 2 or not lines[1].startswith("http"):
+        err = [ln for ln in res.stderr.splitlines() if ln.strip()]
+        raise RuntimeError(("yt-dlp: " + err[-1].replace("ERROR: ", "")) [:110] if err else "yt-dlp fand kein Video")
+    try:
+        dur = float(lines[0])
+    except ValueError:
+        dur = None
+    return lines[1], dur
+
+
+class ThumbCache:
+    """Vorschaubilder (80×45) der YouTube-Videos: werden einmal im Hintergrund geladen und gemerkt."""
+
+    def __init__(self, log=print):
+        self.log, self.lock, self.imgs, self.busy = log, threading.Lock(), {}, set()
+
+    def get(self, vid):
+        with self.lock:
+            if vid in self.imgs or vid in self.busy:
+                return self.imgs.get(vid)
+            if len(self.busy) >= 3:
+                return None
+            self.busy.add(vid)
+        threading.Thread(target=self._load, args=(vid,), daemon=True).start()
+        return None
+
+    def _load(self, vid):
+        import io
+        img = None
+        try:
+            src = Image.open(io.BytesIO(http_get(youtube_thumb_url(vid), timeout=15))).convert("RGB")
+            if src.size == (320, 180):
+                img = src.reduce(4)                 # ganzzahlig verkleinern – kein resize (Kubuntu-Pillow)
+            else:
+                src.thumbnail((80, 45), Image.LANCZOS)
+                img = src
+        except Exception as ex:                 # Netz/Bild: ohne Vorschau weiter
+            self.log(f"Video: Vorschaubild {vid}: {err_text(ex)}")
+        with self.lock:
+            self.busy.discard(vid)
+            self.imgs[vid] = img
+
+
 class VideoPoller(Poller):
     """Ruft die Video-Feeds stündlich ab – solange die Seite „Video“ eingeschaltet ist oder eine G-Taste
     ein Video angefordert hat (wanted)."""
@@ -118,6 +271,7 @@ class VideoPlayer:
         self.error = None
         self.gen = 0                            # zählt ffmpeg-Starts (alte Lesefäden geben auf)
         self.stderr = []
+        self.loading = False                    # yt-dlp ermittelt gerade den Videostrom
 
     def available(self):
         return shutil.which("ffmpeg", path=self.env().get("PATH")) is not None
@@ -192,9 +346,36 @@ class VideoPlayer:
                 with self.lock:
                     self.stderr = (self.stderr + [text])[-5:]
 
+    def play_youtube(self, item):
+        """YouTube-Video auf dem Display: yt-dlp ermittelt im Hintergrund den Videostrom, dann spielt ffmpeg ihn."""
+        self._kill()
+        with self.lock:
+            self.gen += 1
+            gen = self.gen
+            self.item, self.base, self.frames, self.frame = item, 0.0, 0, None
+            self.paused = self.ended = False
+            self.error, self.stderr, self.loading = None, [], True
+
+        def work():
+            try:
+                stream, dur = ytdlp_resolve(item["url"], self.env())
+            except RuntimeError as ex:
+                with self.lock:
+                    if gen == self.gen:
+                        self.error, self.ended, self.loading = str(ex), True, False
+                self.log(f"Video: {ex}")
+                return
+            with self.lock:
+                if gen != self.gen:
+                    return                      # inzwischen gestoppt oder anderes Video
+                self.loading = False
+            self.play(dict(item, url=stream, duration=dur or item.get("duration"), page_url=item["url"]))
+        threading.Thread(target=work, daemon=True).start()
+        return True
+
     def toggle_pause(self):
         """Anhalten bzw. an der gemerkten Stelle weiterspielen."""
-        if self.item is None:
+        if self.item is None or self.loading:
             return
         if self.paused:
             frame = self.frame
@@ -207,7 +388,7 @@ class VideoPlayer:
             self.base, self.frames, self.paused = pos, 0, True
 
     def seek(self, delta):
-        if self.item is None:
+        if self.item is None or self.loading:
             return
         pos = self.position() + delta
         dur = self.item.get("duration")
@@ -226,6 +407,7 @@ class VideoPlayer:
         self._kill()
         with self.lock:
             self.item, self.frame, self.paused, self.ended, self.error = None, None, False, False, None
+            self.loading = False
 
     def _kill(self):
         with self.lock:

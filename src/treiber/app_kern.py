@@ -82,6 +82,7 @@ class AppCore:
         self.news = r.news = NewsPoller(self.settings, log=self.log)
         self.videos = r.videos = VideoPoller(self.settings, log=self.log)
         self.video = r.video_player = VideoPlayer(self.launcher._env, log=self.log)
+        r.thumbs = ThumbCache(log=self.log)
         self.alerts = r.alerts = WarningsPoller(self.settings, log=self.log)
         self.netpoll = r.net = NetworkPoller(self.settings, log=self.log)
         self.updates = r.updates = UpdatesPoller(self.settings, log=self.log)

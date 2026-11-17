@@ -98,6 +98,49 @@ class ApiInfo:
             raise RuntimeError("Keine Videos gefunden – ist das ein Video-Podcast-Feed?")
         self._send(200, {"count": len(items), "first": items[0]["title"]})
 
+    def api_post_video_lookup(self, q):
+        """Eintrag für eine eigene Videoliste: YouTube-Link → Titel/Kanal (oEmbed), sonst direkte Video-Adresse."""
+        url = str(self._json().get("url") or "").strip()
+        if not hasattr(g, "youtube_id"):
+            raise RuntimeError("Der installierte Treiber kennt noch keine Videolisten – bitte g19s.py aktualisieren")
+        if g.youtube_id(url):
+            try:
+                self._send(200, g.youtube_lookup(url))
+            except Exception as ex:     # Dienst im Netz: jeden Fehler als Meldung anzeigen
+                raise RuntimeError(f"YouTube kennt das Video nicht oder ist nicht erreichbar: {g.err_text(ex)}")
+            return
+        if not re.match(r"^https?://", url, re.I):
+            raise ValueError("Bitte einen YouTube-Link oder eine Video-Adresse (http/https) einfügen")
+        name = url.split("?", 1)[0].rstrip("/").rsplit("/", 1)[-1] or g.domain_of(url)
+        self._send(200, {"url": url, "title": name[:150], "author": g.domain_of(url)})
+
+    def api_post_video_playlist(self, q):
+        """Die neuesten (bis zu 15) Videos einer öffentlichen YouTube-Playlist für die Übernahme in eine Liste."""
+        url = str(self._json().get("url") or "").strip()
+        pid = g.youtube_playlist_id(url) if hasattr(g, "youtube_playlist_id") else None
+        if not pid:
+            raise ValueError("Kein Playlist-Link – er enthält „list=…“")
+        try:
+            items = g.parse_youtube_feed(g.http_get(g.YOUTUBE_FEED.format(pid), timeout=20))
+        except Exception as ex:         # Dienst im Netz: jeden Fehler als Meldung anzeigen
+            raise RuntimeError(f"Playlist nicht lesbar (privat?): {g.err_text(ex)}")
+        if not items:
+            raise RuntimeError("Die Playlist ist leer oder nicht öffentlich")
+        self._send(200, {"items": items})
+
+    def api_get_video_ytdlp(self, q):
+        """Ist yt-dlp installiert (für YouTube auf dem Display)? Version zur Anzeige."""
+        env = dict(os.environ)
+        exe = g.ytdlp_path(env) if hasattr(g, "ytdlp_path") else None
+        if exe is None:
+            self._send(200, {"found": False})
+            return
+        try:
+            ver = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=15).stdout.strip()
+        except (OSError, subprocess.TimeoutExpired):
+            ver = ""
+        self._send(200, {"found": True, "version": ver[:30], "path": exe})
+
     def api_post_warnings_test(self, q):
         s = clean_settings(self._json().get("settings") or g.load_settings())
         if s["weather"].get("lat") is None:

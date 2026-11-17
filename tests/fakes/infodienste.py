@@ -168,6 +168,19 @@ class H(http.server.BaseHTTPRequestHandler):
             items += '<item><title>Nur Text, kein Video</title><link>https://example.org/text</link></item>'
             return self.send('<?xml version="1.0"?><rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">'
                              f'<channel><title>tagesschau in 100 Sekunden</title>{items}</channel></rss>', "application/rss+xml")
+        if u.path == "/oembed":              # YouTube-oEmbed (Titel und Kanal eines Videos)
+            vid = urllib.parse.parse_qs(u.query).get("url", [""])[0][-11:]
+            if vid.startswith("xxxxxxxxx"):
+                self.send_response(404); self.end_headers(); return
+            return self.send(json.dumps({"title": f"Testvideo {vid}", "author_name": "Testkanal"}), "application/json")
+        if u.path == "/feeds/videos.xml":    # YouTube-Playlist-Feed
+            pid = urllib.parse.parse_qs(u.query).get("playlist_id", [""])[0]
+            if pid != "PLtestliste1234":
+                self.send_response(404); self.end_headers(); return
+            entries = "".join(f'<entry><yt:videoId>vid{k}aaaaaaa</yt:videoId><title>Playlist-Video {k}</title>'
+                              f'<author><name>Kanal {k}</name></author></entry>' for k in range(1, 4))
+            return self.send('<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom" '
+                             f'xmlns:yt="http://www.youtube.com/xml/schemas/2015">{entries}</feed>', "application/atom+xml")
         if u.path == "/atom.xml":
             import datetime as _dt
             ts = (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(minutes=10)).strftime("%Y-%m-%dT%H:%M:%SZ")

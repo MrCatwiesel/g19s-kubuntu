@@ -359,12 +359,26 @@
     </div>
     <div class="card">
       <h2>Video</h2>
-      <p class="hint">Video-Podcast-Feeds für die Displayseite „Video“ (stündlich aktualisiert, solange die Seite eingeschaltet ist). Am Display: Hoch/Runter wählt eine Folge, OK spielt sie ab, MENU lädt neu; während der Wiedergabe OK Pause/Weiter, ◀ ▶ zehn Sekunden zurück/vor, BACK beendet. Bild und Ton spielt <code>ffmpeg</code> ab (<code>sudo apt install ffmpeg</code>). Mit der G-Tasten-Aktion „Video abspielen“ startet die neueste Folge auf Knopfdruck.</p>
+      <p class="hint">Video-Podcast-Feeds für die Displayseite „Video“ (stündlich aktualisiert, solange die Seite eingeschaltet ist). Am Display: Hoch/Runter wählt eine Folge, OK spielt sie ab, MENU lädt neu (gibt es eigene Listen, wechselt MENU zur nächsten Liste); während der Wiedergabe OK Pause/Weiter, ◀ ▶ zehn Sekunden zurück/vor, BACK beendet. Bild und Ton spielt <code>ffmpeg</code> ab (<code>sudo apt install ffmpeg</code>). Mit der G-Tasten-Aktion „Video abspielen“ startet die neueste Folge auf Knopfdruck.</p>
       <div id="videoFeeds"></div>
       <div class="row" style="margin-top:8px">
         <button class="btn" id="videoAdd">+ Feed hinzufügen</button>
         <span class="muted">Schnell hinzufügen:</span><div class="row" id="videoPresets"></div>
       </div>
+      <h3 style="margin-top:16px">Eigene Videolisten</h3>
+      <p class="hint">Selbst gepflegte Listen mit YouTube-Links oder direkten Video-Adressen (z. B. <code>…/film.mp4</code>). Link einfügen und „Hinzufügen“ – Titel, Kanal und Vorschaubild holt die Verwaltung selbst. Am Display wechselt MENU zwischen den Podcasts und den Listen. Mit der G-Tasten-Aktion „Video abspielen“ lässt sich eine Liste auch direkt starten.</p>
+      <div class="row">
+        <label>YouTube-Videos
+          <select id="videoMode">
+            <option value="browser">im Browser am PC öffnen (Display zeigt die Liste)</option>
+            <option value="display">direkt auf dem Display abspielen (braucht yt-dlp)</option>
+          </select></label>
+        <span class="muted" id="ytdlpState"></span>
+      </div>
+      <p class="hint" id="ytdlpHint" hidden>Für die Wiedergabe auf dem Display holt <code>yt-dlp</code> den Videostrom von YouTube. Installieren mit <code>sudo apt install pipx &amp;&amp; pipx install yt-dlp</code>, aktuell halten mit <code>pipx upgrade yt-dlp</code> (YouTube ändert öfter etwas; die Ubuntu-Version ist meist zu alt). YouTube erlaubt diese Art des Abspielens in seinen Nutzungsbedingungen nicht – die Nutzung geschieht auf eigene Verantwortung. Fehlt yt-dlp, öffnen die Videos im Browser.</p>
+      <label class="check"><input type="checkbox" id="videoAutonext"> Auf dem Display danach automatisch das nächste Video der Liste</label>
+      <div id="videoLists"></div>
+      <div class="row" style="margin-top:8px"><button class="btn" id="videoListAdd">+ Neue Liste</button></div>
     </div>
     <div class="card">
       <h2>Unwetterwarnungen</h2>

@@ -37,7 +37,17 @@ function edDefault(box) {
     " oder direkt in einem Programm (Spiele, OBS …). Ein Name hier erscheint nur als Beschriftung auf dem Display."));
 }
 function edVideo(box, d) {
-  const feeds = ((UI.sdraft || S.settings).video || {}).feeds || [];
+  const vcfg = (UI.sdraft || S.settings).video || {};
+  const feeds = vcfg.feeds || [], lists = (vcfg.lists || []).filter(l => l.name);
+  if (lists.length) {
+    const sel = el("select", {onchange: e => { d.video = e.target.value; touchDraft(); }},
+      el("option", {value: "latest", text: "Neueste Folge der Video-Feeds"}),
+      ...lists.map(l => el("option", {value: "list:" + l.name, text: "Eigene Liste: " + l.name})));
+    sel.value = d.video || "latest";
+    box.append(el("label", {class: "field"}, el("span", {text: "Was abspielen?"}), sel));
+    box.append(el("p", {class: "hint", text: "Eine eigene Liste startet beim ersten Video; werden YouTube-Videos im Browser geöffnet, "
+      + "öffnet jeder weitere Druck das nächste Video der Liste."}));
+  }
   box.append(el("p", {class: "hint", text: "Springt zur Displayseite „Video“ und spielt die neueste Folge der Video-Feeds ab "
     + "(ab Werk „Tagesschau in 100 Sekunden“). Nochmal drücken beendet das Video. Am Display: OK Pause/Weiter, ◀ ▶ zehn Sekunden "
     + "zurück/vor, BACK beendet. Ein laufendes Radio pausiert so lange. Die Feeds stehen im Reiter „Infoseiten“."}));
